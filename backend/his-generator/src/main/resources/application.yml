@@ -8,5 +8,6 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
 generator:
   patient-count: 10000
-  min-visits: 5
-  max-visits: 20
+  # 生成前清空六张业务数据表（patient/visit/diagnosis/prescription/prescription_item/lab_test），
+  # 字典表 drug / rule_config 不动；重复执行即为「重新生成」
+  clear-before-run: true
