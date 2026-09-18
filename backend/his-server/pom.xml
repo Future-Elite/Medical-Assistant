@@ -42,4 +42,16 @@
       <scope>test</scope>
     </dependency>
   </dependencies>
+
+  <build>
+    <plugins>
+      <!-- repackage（执行配置继承自 spring-boot-starter-parent）：
+           `mvn -pl his-server package` 产出可执行 jar（manifest 含 Main-Class/Start-Class）。
+           与 his-generator/pom.xml 的写法保持一致，不重复声明 execution。 -->
+      <plugin>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-maven-plugin</artifactId>
+      </plugin>
+    </plugins>
+  </build>
 </project>

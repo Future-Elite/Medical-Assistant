@@ -16,4 +16,9 @@ public class Result<T> {
         Result<T> r = new Result<>();
         r.code = 1; r.message = message; return r;
     }
+    /** 带业务错误码的失败返回；前端 axios 拦截器按 `code != 0` 判定为失败。 */
+    public static <T> Result<T> fail(int code, String message) {
+        Result<T> r = new Result<>();
+        r.code = code; r.message = message; return r;
+    }
 }

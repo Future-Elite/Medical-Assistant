@@ -8,7 +8,10 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.Period;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
@@ -26,6 +29,7 @@ class DataGeneratorServiceTest {
     private static final long RULE_DRUG_1 = 1L;
     private static final long RULE_DRUG_2 = 2L;
 
+    private final List<Patient> insertedPatients = new ArrayList<>();
     private final List<Visit> insertedVisits = new ArrayList<>();
     private final List<Diagnosis> insertedDiagnoses = new ArrayList<>();
     private final List<Prescription> insertedPrescriptions = new ArrayList<>();
@@ -54,7 +58,7 @@ class DataGeneratorServiceTest {
         RuleConfig r1 = new RuleConfig(); r1.setDiagnosisCode("J06.9"); r1.setDiagnosisName("上呼吸道感染"); r1.setDrugIds("1,2"); r1.setEnabled(1);
         when(ruleConfigMapper.selectList(any())).thenReturn(List.of(r1));
 
-        stubBatchInsert(pm, null, Patient::setId);
+        stubBatchInsert(pm, insertedPatients, Patient::setId);
         stubBatchInsert(vm, insertedVisits, Visit::setId);
         stubBatchInsert(dm, insertedDiagnoses, Diagnosis::setId);
         stubBatchInsert(prescriptionMapper, insertedPrescriptions, Prescription::setId);
@@ -139,10 +143,103 @@ class DataGeneratorServiceTest {
             LocalDateTime first = visits.get(0).getVisitTime();
             LocalDateTime last = visits.get(visits.size() - 1).getVisitTime();
             assertThat(last).isBeforeOrEqualTo(now);                        // 无未来就诊
-            assertThat(first).isAfter(now.minusYears(3).minusDays(2));      // 不超过 3 年病史
             long spanDays = ChronoUnit.DAYS.between(first, last);
             assertThat(spanDays).isBetween(365L, 1096L);                    // 跨度 1-3 年
+            // 最早一条记录不早于「3 年病史 + 末次就诊的随机尾巴」之前。
+            // 尾巴随机是为了消除末次就诊的单日堆积（重要 #3），代价是极少数患者的
+            // 首条记录会比 now-3y 再早至多 TAIL_SPREAD_DAYS 天。
+            assertThat(first).isAfter(now.minusYears(3).minusDays(DataGeneratorService.TAIL_SPREAD_DAYS + 2L));
         }
+    }
+
+    /**
+     * 重要 #3：末次就诊不得被钉在同一瞬间。
+     *
+     * <p>旧实现 {@code offsets[last] = windowMinutes} 配合全局共享的
+     * {@code windowEnd = now - 150min}，让 10000 名患者的末次就诊落在同一小时内，
+     * 造成 visit-frequency 末端一根约为基线 54 倍的单日尖峰。
+     *
+     * <p>样本量 200、尾巴 151 天（≈21.7 万个分钟槽位），断言取 150 个不同瞬间与
+     * 30 天极差，随机误报概率可忽略。
+     */
+    @Test
+    void last_visit_is_not_pinned_to_a_shared_instant() {
+        DataGeneratorService svc = buildService();
+        svc.generate(200);
+
+        Set<LocalDateTime> instants = new HashSet<>();
+        LocalDateTime oldest = null;
+        LocalDateTime newest = null;
+        for (List<Visit> visits : visitsByPatient().values()) {
+            LocalDateTime last = visits.get(visits.size() - 1).getVisitTime();
+            instants.add(last);
+            if (oldest == null || last.isBefore(oldest)) {
+                oldest = last;
+            }
+            if (newest == null || last.isAfter(newest)) {
+                newest = last;
+            }
+        }
+        assertThat(instants).hasSizeGreaterThan(150);
+        assertThat(ChronoUnit.DAYS.between(oldest, newest)).isGreaterThanOrEqualTo(30L);
+    }
+
+    /** 末次就诊必须落在「now 之前、且不超过随机尾巴范围」内，保证下游时间不越过 now。 */
+    @Test
+    void last_visit_stays_inside_the_random_tail_window() {
+        DataGeneratorService svc = buildService();
+        svc.generate(50);
+        LocalDateTime now = LocalDateTime.now();
+
+        for (List<Visit> visits : visitsByPatient().values()) {
+            LocalDateTime last = visits.get(visits.size() - 1).getVisitTime();
+            assertThat(last).isBeforeOrEqualTo(now);
+            // now - DOWNSTREAM(150min) - TAIL_SPREAD_DAYS - 1 天(日内随机分钟)
+            assertThat(last).isAfter(now.minusDays(DataGeneratorService.TAIL_SPREAD_DAYS + 2L));
+        }
+    }
+
+    /** 档案自洽：18 位合法身份证（GB 11643 校验位）+ 出生日期取自号码 + 性别取自顺序码奇偶。 */
+    @Test
+    void id_card_is_a_valid_18_digit_number_consistent_with_birth_date_and_gender() {
+        DataGeneratorService svc = buildService();
+        svc.generate(200);
+
+        assertThat(insertedPatients).hasSize(200);
+        for (Patient p : insertedPatients) {
+            String id = p.getIdCard();
+            assertThat(id).hasSize(18);
+            assertThat(id).startsWith("110101");
+            assertThat(id.substring(0, 17)).matches("\\d{17}");
+            assertThat(id.charAt(17)).isEqualTo(expectedCheckDigit(id.substring(0, 17)));
+
+            // 出生日期 == 号码中的 YYYYMMDD
+            assertThat(id.substring(6, 14))
+                    .isEqualTo(p.getBirthDate().format(DateTimeFormatter.ofPattern("yyyyMMdd")));
+
+            // 顺序码奇偶决定性别：奇男(0) 偶女(1)
+            int sequence = Integer.parseInt(id.substring(14, 17));
+            assertThat(p.getGender()).isEqualTo(sequence % 2 == 1 ? 0 : 1);
+
+            // 年龄仍落在 18-89 岁
+            assertThat(Period.between(p.getBirthDate(), LocalDate.now()).getYears()).isBetween(18, 89);
+        }
+
+        // 生日不再是「所有人同月同日」：200 人的出生日期应几乎全部不同
+        assertThat(insertedPatients.stream().map(Patient::getBirthDate).distinct().count()).isGreaterThan(150);
+        // 性别分布不应因奇偶规则而失衡
+        long male = insertedPatients.stream().filter(x -> x.getGender() == 0).count();
+        assertThat(male).isBetween(60L, 140L);
+    }
+
+    /** GB 11643 校验位：sum(第 i 位 × 权重[i]) % 11 → "10X98765432"。 */
+    private static char expectedCheckDigit(String body17) {
+        int[] weights = {7, 9, 10, 5, 8, 4, 2, 1, 6, 3, 7, 9, 10, 5, 8, 4, 2};
+        int sum = 0;
+        for (int i = 0; i < 17; i++) {
+            sum += (body17.charAt(i) - '0') * weights[i];
+        }
+        return "10X98765432".charAt(sum % 11);
     }
 
     /** 下游时间（诊断/处方）也必须落在 now 之前 */
