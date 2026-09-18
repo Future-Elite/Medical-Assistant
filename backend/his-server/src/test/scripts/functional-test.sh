@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 功能测试脚本：对运行中的后端（http://localhost:8080）逐条执行 11 个功能用例。
+# 功能测试脚本：对运行中的后端（http://localhost:8080）逐条执行 12 个功能用例。
 #
 # 前置：后端已启动、Redis 可用、MySQL 中已导入生成数据。
 # 用法：bash backend/his-server/src/test/scripts/functional-test.sh

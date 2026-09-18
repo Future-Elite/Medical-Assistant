@@ -8,6 +8,9 @@ import org.springframework.web.client.RestTemplate;
 
 import java.util.Arrays;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 /**
  * 性能测试：{@code GET /api/patients/{id}/timeline} 的响应时间，缓存未命中（冷）与命中（热）各一轮对比。
  *
@@ -48,8 +51,12 @@ public class PerformanceTest {
      * 不适合在性能脚本里重跑，故直接引用该实测值；行数为事后从 MySQL 反查的生成器净产出。
      */
     private static final long BATCH_WRITE_ELAPSED_MS = 583_531L;
-    /** 生成器净写入行数：patient 10000 + visit/diagnosis/prescription 各 124765 + item 179108 + lab 249251。 */
-    private static final long BATCH_WRITE_ROWS = 937_419L;
+    /**
+     * 生成器净写入行数，六表逐项相加：
+     * patient 10000 + visit 124765 + diagnosis 124765 + prescription 124765
+     * + prescription_item 179108 + lab_test 249251 = 812654。
+     */
+    private static final long BATCH_WRITE_ROWS = 812_654L;
 
     @Test
     @EnabledIfSystemProperty(named = "test.perf.enabled", matches = "true",
@@ -103,7 +110,10 @@ public class PerformanceTest {
             }
 
             // 结果校验：热轮结束后缓存必须存在（证明命中路径真的生效，而非参数写错）
-            System.out.println("缓存校验 : EXISTS " + cacheKey + " = " + conn.sync().exists(cacheKey));
+            Long exists = conn.sync().exists(cacheKey);
+            System.out.println("缓存校验 : EXISTS " + cacheKey + " = " + exists);
+            assertEquals(1L, exists.longValue(),
+                    "热轮结束后 " + cacheKey + " 应存在——否则「热」轮并未命中缓存，测量结论不成立");
         } finally {
             redisClient.shutdown();
         }
@@ -120,6 +130,11 @@ public class PerformanceTest {
         double warmAvg = avg(warm);
         System.out.printf("加速比   : %.1fx（冷均 %.1fms / 热均 %.1fms）%n",
                 coldAvg / warmAvg, coldAvg, warmAvg);
+
+        // 兜底断言：若缓存被静默绕过（例如键名写错导致「热」轮也在走 DB），
+        // 冷热均值会几乎相同，此断言可让这种退化情况无法悄悄通过。
+        assertTrue(coldAvg > warmAvg,
+                String.format("冷路径平均耗时(%.1fms)应大于热路径(%.1fms)，缓存可能未生效", coldAvg, warmAvg));
         System.out.println();
         System.out.println("--- 批量写入（引用 Task 6 生成器实测）---");
         System.out.printf("10000 患者 / 124765 就诊 / 六表合计 %d 行，elapsed_ms = %d（约 %.1f 分钟，≈%.0f 行/秒）%n",
@@ -146,9 +161,18 @@ public class PerformanceTest {
     private static void printStats(long[] samples) {
         long[] sorted = samples.clone();
         Arrays.sort(sorted);
-        System.out.printf("  最小 %d ms | 中位 %d ms | 平均 %.1f ms | 最大 %d ms%n",
-                sorted[0], sorted[sorted.length / 2], avg(samples), sorted[sorted.length - 1]);
+        System.out.printf("  最小 %d ms | 中位 %.1f ms | 平均 %.1f ms | 最大 %d ms%n",
+                sorted[0], median(sorted), avg(samples), sorted[sorted.length - 1]);
         System.out.println("  样本(ms): " + Arrays.toString(samples));
+    }
+
+    /** 中位数：偶数个样本取中间两个的均值，避免偏向一侧（N=20 时不是取第 11 个）。 */
+    private static double median(long[] sorted) {
+        int n = sorted.length;
+        if (n % 2 == 1) {
+            return sorted[n / 2];
+        }
+        return (sorted[n / 2 - 1] + sorted[n / 2]) / 2.0;
     }
 
     private static double avg(long[] samples) {
