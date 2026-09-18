@@ -1,7 +1,5 @@
 -- 模拟 HIS 系统 —— 种子数据（药品字典 + 诊断用药规则）
--- 执行：mysql -uroot -p123456 his_demo < backend/sql/seed.sql
-USE his_demo;
-
+-- 执行：mysql -uroot -p123456 --default-character-set=utf8mb4 his_demo < backend/sql/seed.sql
 INSERT INTO drug (name, category, spec, unit, price) VALUES
 ('阿莫西林胶囊','抗感染','0.25g*24粒','盒',18.50),
 ('感冒灵颗粒','感冒','10g*9袋','盒',12.00),

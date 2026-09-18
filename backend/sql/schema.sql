@@ -1,8 +1,5 @@
--- 模拟 HIS 系统 —— 建库建表脚本
--- 执行：mysql -uroot -p123456 his_demo < backend/sql/schema.sql
-CREATE DATABASE IF NOT EXISTS his_demo DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE his_demo;
-
+-- 模拟 HIS 系统 —— 建表脚本（库 his_demo 由 Step 1 创建，脚本作用于命令行指定的库）
+-- 执行：mysql -uroot -p123456 --default-character-set=utf8mb4 his_demo < backend/sql/schema.sql
 CREATE TABLE patient (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   name VARCHAR(50) NOT NULL,
