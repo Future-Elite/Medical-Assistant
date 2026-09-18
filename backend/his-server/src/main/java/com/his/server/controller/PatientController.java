@@ -3,8 +3,10 @@ package com.his.server.controller;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.his.common.common.Result;
+import com.his.common.dto.TimelineVO;
 import com.his.common.entity.Patient;
 import com.his.server.service.PatientService;
+import com.his.server.service.TimelineService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 public class PatientController {
 
     private final PatientService patientService;
+    private final TimelineService timelineService;
 
     @PostMapping
     public Result<Patient> create(@RequestBody Patient patient) {
@@ -38,5 +41,10 @@ public class PatientController {
     @GetMapping("/{id}")
     public Result<Patient> get(@PathVariable Long id) {
         return Result.ok(patientService.getById(id));
+    }
+
+    @GetMapping("/{id}/timeline")
+    public Result<TimelineVO> timeline(@PathVariable Long id) {
+        return Result.ok(timelineService.getTimeline(id));
     }
 }

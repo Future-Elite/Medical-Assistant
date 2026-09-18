@@ -2,6 +2,7 @@ package com.his.server.controller;
 
 import com.his.common.entity.Patient;
 import com.his.server.service.PatientService;
+import com.his.server.service.TimelineService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -20,6 +21,7 @@ class PatientControllerTest {
 
     @Autowired MockMvc mockMvc;
     @MockBean PatientService patientService;
+    @MockBean TimelineService timelineService;
 
     @Test
     void create_returnsPatient() throws Exception {

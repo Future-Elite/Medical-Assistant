@@ -7,6 +7,7 @@ import com.his.common.entity.PrescriptionItem;
 import com.his.common.mapper.DrugMapper;
 import com.his.common.mapper.PrescriptionItemMapper;
 import com.his.common.mapper.PrescriptionMapper;
+import com.his.server.service.CacheInvalidator;
 import com.his.server.service.PrescriptionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -22,6 +23,14 @@ public class PrescriptionServiceImpl extends ServiceImpl<PrescriptionMapper, Pre
 
     private final PrescriptionItemMapper itemMapper;
     private final DrugMapper drugMapper;
+    private final CacheInvalidator cacheInvalidator;
+
+    @Override
+    public boolean save(Prescription entity) {
+        boolean saved = super.save(entity);
+        cacheInvalidator.evictTimeline(entity.getPatientId());
+        return saved;
+    }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
