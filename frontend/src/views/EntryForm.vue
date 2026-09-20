@@ -3,34 +3,74 @@
     <div class="page-head">
       <div>
         <h2 class="page-title">诊疗录入</h2>
-        <p class="page-tip">患者 ID 为必填项；诊断 / 处方 / 检验还需填写所属就诊 ID。</p>
+        <p class="page-tip">挂号登记自由填写；诊断 / 处方 / 检验需先选医生，再选本科室的患者与就诊。</p>
       </div>
       <el-button v-if="lastPatientId" type="success" plain @click="goTimeline">
         查看时间轴（患者 {{ lastPatientId }}）
       </el-button>
     </div>
 
+    <!-- 医生身份（轻量登录） -->
+    <div class="doctor-bar">
+      <span class="bar-label">当前医生</span>
+      <el-select
+        v-model="currentDoctor"
+        filterable
+        placeholder="请先选择医生（登录）"
+        class="doctor-select"
+        @change="onDoctorChange"
+      >
+        <el-option-group v-for="g in groupedDoctors" :key="g.department" :label="g.department">
+          <el-option v-for="d in g.doctors" :key="d.id" :label="d.name" :value="d" />
+        </el-option-group>
+      </el-select>
+      <span v-if="currentDoctor" class="doctor-dept">科室：{{ currentDoctor.department }}</span>
+    </div>
+
+    <!-- 当前接诊：患者 + 就诊 + 上下文 -->
+    <div v-if="currentDoctor" class="reception-bar">
+      <el-select
+        v-model="currentPatient"
+        filterable
+        remote
+        clearable
+        :remote-method="searchPatients"
+        :loading="patientLoading"
+        value-key="id"
+        placeholder="搜索本科室患者（姓名/身份证/电话）"
+        class="reception-select"
+        @change="onPatientChange"
+      >
+        <el-option v-for="p in patientOptions" :key="p.id" :label="patientLabel(p)" :value="p" />
+      </el-select>
+
+      <el-select
+        v-model="currentVisit"
+        clearable
+        :disabled="!currentPatient"
+        placeholder="选择就诊"
+        class="reception-select"
+      >
+        <el-option v-for="v in visitOptions" :key="v.id" :label="visitLabel(v)" :value="v" />
+      </el-select>
+
+      <div v-if="currentPatient" class="ctx-line">
+        患者 {{ currentPatient.name }}
+        <span class="muted">（{{ genderText(currentPatient.gender) }}/{{ ageText(currentPatient.birthDate) }}）</span>
+        <template v-if="currentVisit">
+          ｜ 就诊 {{ currentVisit.visitNo }} · {{ currentVisit.department }} · {{ formatDateTime(currentVisit.visitTime) }}
+        </template>
+      </div>
+    </div>
+
     <el-tabs v-model="activeTab">
-      <!-- 1. 挂号登记 -->
+      <!-- 1. 挂号登记（不变） -->
       <el-tab-pane label="挂号登记" name="visit">
-        <el-form
-          ref="visitFormRef"
-          :model="visitForm"
-          :rules="visitRules"
-          label-width="96px"
-          class="entry-form"
-        >
+        <el-form ref="visitFormRef" :model="visitForm" :rules="visitRules" label-width="96px" class="entry-form">
           <el-row :gutter="16">
             <el-col :xs="24" :md="12">
               <el-form-item label="患者 ID" prop="patientId">
-                <el-input-number
-                  v-model="visitForm.patientId"
-                  class="full"
-                  :min="1"
-                  :precision="0"
-                  :controls="false"
-                  placeholder="必填"
-                />
+                <el-input-number v-model="visitForm.patientId" class="full" :min="1" :precision="0" :controls="false" placeholder="必填" />
               </el-form-item>
             </el-col>
             <el-col :xs="24" :md="12">
@@ -50,13 +90,7 @@
             </el-col>
             <el-col :xs="24" :md="12">
               <el-form-item label="就诊时间" prop="visitTime">
-                <el-date-picker
-                  v-model="visitForm.visitTime"
-                  class="full"
-                  type="datetime"
-                  value-format="YYYY-MM-DDTHH:mm:ss"
-                  placeholder="选择就诊时间"
-                />
+                <el-date-picker v-model="visitForm.visitTime" class="full" type="datetime" value-format="YYYY-MM-DDTHH:mm:ss" placeholder="选择就诊时间" />
               </el-form-item>
             </el-col>
             <el-col :xs="24" :md="12">
@@ -69,59 +103,22 @@
             </el-col>
             <el-col :span="24">
               <el-form-item label="备注" prop="remark">
-                <el-input
-                  v-model="visitForm.remark"
-                  type="textarea"
-                  :rows="2"
-                  maxlength="200"
-                  show-word-limit
-                  placeholder="可选"
-                />
+                <el-input v-model="visitForm.remark" type="textarea" :rows="2" maxlength="200" show-word-limit placeholder="可选" />
               </el-form-item>
             </el-col>
           </el-row>
           <el-form-item>
-            <el-button type="primary" :loading="submitting" @click="submitVisit">
-              提交挂号
-            </el-button>
+            <el-button type="primary" :loading="submitting" @click="submitVisit">提交挂号</el-button>
           </el-form-item>
         </el-form>
       </el-tab-pane>
 
       <!-- 2. 诊断录入 -->
       <el-tab-pane label="诊断录入" name="diagnosis">
-        <el-form
-          ref="diagnosisFormRef"
-          :model="diagnosisForm"
-          :rules="diagnosisRules"
-          label-width="96px"
-          class="entry-form"
-        >
+        <el-alert v-if="!currentDoctor" class="tab-guard" type="info" show-icon :closable="false" title="请先选择医生（登录）" />
+        <el-alert v-else-if="!currentPatient || !currentVisit" class="tab-guard" type="info" show-icon :closable="false" title="请先选择患者和就诊" />
+        <el-form v-else ref="diagnosisFormRef" :model="diagnosisForm" :rules="diagnosisRules" label-width="96px" class="entry-form">
           <el-row :gutter="16">
-            <el-col :xs="24" :md="12">
-              <el-form-item label="患者 ID" prop="patientId">
-                <el-input-number
-                  v-model="diagnosisForm.patientId"
-                  class="full"
-                  :min="1"
-                  :precision="0"
-                  :controls="false"
-                  placeholder="必填"
-                />
-              </el-form-item>
-            </el-col>
-            <el-col :xs="24" :md="12">
-              <el-form-item label="就诊 ID" prop="visitId">
-                <el-input-number
-                  v-model="diagnosisForm.visitId"
-                  class="full"
-                  :min="1"
-                  :precision="0"
-                  :controls="false"
-                  placeholder="必填"
-                />
-              </el-form-item>
-            </el-col>
             <el-col :xs="24" :md="12">
               <el-form-item label="ICD 编码" prop="icdCode">
                 <el-input v-model="diagnosisForm.icdCode" placeholder="如 J06.9" />
@@ -133,78 +130,26 @@
               </el-form-item>
             </el-col>
             <el-col :xs="24" :md="12">
-              <el-form-item label="医生" prop="doctor">
-                <el-input v-model="diagnosisForm.doctor" placeholder="如 张三" />
-              </el-form-item>
-            </el-col>
-            <el-col :xs="24" :md="12">
               <el-form-item label="诊断时间" prop="diagnosedAt">
-                <el-date-picker
-                  v-model="diagnosisForm.diagnosedAt"
-                  class="full"
-                  type="datetime"
-                  value-format="YYYY-MM-DDTHH:mm:ss"
-                  placeholder="选择诊断时间"
-                />
+                <el-date-picker v-model="diagnosisForm.diagnosedAt" class="full" type="datetime" value-format="YYYY-MM-DDTHH:mm:ss" placeholder="选择诊断时间" />
               </el-form-item>
             </el-col>
           </el-row>
           <el-form-item>
-            <el-button type="primary" :loading="submitting" @click="submitDiagnosis">
-              提交诊断
-            </el-button>
+            <el-button type="primary" :loading="submitting" @click="submitDiagnosis">提交诊断</el-button>
           </el-form-item>
         </el-form>
       </el-tab-pane>
 
       <!-- 3. 处方开具 -->
       <el-tab-pane label="处方开具" name="prescription">
-        <el-form
-          ref="prescriptionFormRef"
-          :model="prescriptionForm"
-          :rules="prescriptionRules"
-          label-width="96px"
-          class="entry-form"
-        >
+        <el-alert v-if="!currentDoctor" class="tab-guard" type="info" show-icon :closable="false" title="请先选择医生（登录）" />
+        <el-alert v-else-if="!currentPatient || !currentVisit" class="tab-guard" type="info" show-icon :closable="false" title="请先选择患者和就诊" />
+        <el-form v-else ref="prescriptionFormRef" :model="prescriptionForm" :rules="prescriptionRules" label-width="96px" class="entry-form">
           <el-row :gutter="16">
             <el-col :xs="24" :md="12">
-              <el-form-item label="患者 ID" prop="patientId">
-                <el-input-number
-                  v-model="prescriptionForm.patientId"
-                  class="full"
-                  :min="1"
-                  :precision="0"
-                  :controls="false"
-                  placeholder="必填"
-                />
-              </el-form-item>
-            </el-col>
-            <el-col :xs="24" :md="12">
-              <el-form-item label="就诊 ID" prop="visitId">
-                <el-input-number
-                  v-model="prescriptionForm.visitId"
-                  class="full"
-                  :min="1"
-                  :precision="0"
-                  :controls="false"
-                  placeholder="必填"
-                />
-              </el-form-item>
-            </el-col>
-            <el-col :xs="24" :md="12">
-              <el-form-item label="医生" prop="doctor">
-                <el-input v-model="prescriptionForm.doctor" placeholder="如 张三" />
-              </el-form-item>
-            </el-col>
-            <el-col :xs="24" :md="12">
               <el-form-item label="开方时间" prop="prescribedAt">
-                <el-date-picker
-                  v-model="prescriptionForm.prescribedAt"
-                  class="full"
-                  type="datetime"
-                  value-format="YYYY-MM-DDTHH:mm:ss"
-                  placeholder="选择开方时间"
-                />
+                <el-date-picker v-model="prescriptionForm.prescribedAt" class="full" type="datetime" value-format="YYYY-MM-DDTHH:mm:ss" placeholder="选择开方时间" />
               </el-form-item>
             </el-col>
           </el-row>
@@ -213,63 +158,28 @@
             <el-table :data="prescriptionForm.items" border size="small" class="item-table">
               <el-table-column label="药名" min-width="200">
                 <template #default="{ row }">
-                  <el-select
-                    v-model="row.drugId"
-                    class="full"
-                    filterable
-                    placeholder="选择药品"
-                    @change="onDrugChange(row)"
-                  >
-                    <el-option
-                      v-for="drug in DRUGS"
-                      :key="drug.id"
-                      :label="`${drug.name}（${drug.unit} ¥${drug.price.toFixed(2)}）`"
-                      :value="drug.id"
-                    />
+                  <el-select v-model="row.drugId" class="full" filterable placeholder="选择药品" @change="onDrugChange(row)">
+                    <el-option v-for="drug in DRUGS" :key="drug.id" :label="`${drug.name}（${drug.unit} ¥${drug.price.toFixed(2)}）`" :value="drug.id" />
                   </el-select>
                 </template>
               </el-table-column>
               <el-table-column label="用量" width="120">
-                <template #default="{ row }">
-                  <el-input v-model="row.dosage" placeholder="如 1粒" />
-                </template>
+                <template #default="{ row }"><el-input v-model="row.dosage" placeholder="如 1粒" /></template>
               </el-table-column>
               <el-table-column label="频次" width="120">
-                <template #default="{ row }">
-                  <el-input v-model="row.frequency" placeholder="如 每日3次" />
-                </template>
+                <template #default="{ row }"><el-input v-model="row.frequency" placeholder="如 每日3次" /></template>
               </el-table-column>
               <el-table-column label="天数" width="100">
-                <template #default="{ row }">
-                  <el-input-number
-                    v-model="row.days"
-                    class="full"
-                    :min="1"
-                    :precision="0"
-                    :controls="false"
-                  />
-                </template>
+                <template #default="{ row }"><el-input-number v-model="row.days" class="full" :min="1" :precision="0" :controls="false" /></template>
               </el-table-column>
               <el-table-column label="数量" width="100">
-                <template #default="{ row }">
-                  <el-input-number
-                    v-model="row.quantity"
-                    class="full"
-                    :min="0.01"
-                    :precision="2"
-                    :controls="false"
-                  />
-                </template>
+                <template #default="{ row }"><el-input-number v-model="row.quantity" class="full" :min="0.01" :precision="2" :controls="false" /></template>
               </el-table-column>
               <el-table-column label="单位" width="90">
-                <template #default="{ row }">
-                  <el-input v-model="row.unit" />
-                </template>
+                <template #default="{ row }"><el-input v-model="row.unit" /></template>
               </el-table-column>
               <el-table-column label="操作" width="80" align="center">
-                <template #default="{ $index }">
-                  <el-button link type="danger" @click="removeItem($index)">删除</el-button>
-                </template>
+                <template #default="{ $index }"><el-button link type="danger" @click="removeItem($index)">删除</el-button></template>
               </el-table-column>
             </el-table>
             <el-button class="add-item" @click="addItem">+ 添加药品</el-button>
@@ -277,47 +187,17 @@
           </el-form-item>
 
           <el-form-item>
-            <el-button type="primary" :loading="submitting" @click="submitPrescription">
-              提交处方
-            </el-button>
+            <el-button type="primary" :loading="submitting" @click="submitPrescription">提交处方</el-button>
           </el-form-item>
         </el-form>
       </el-tab-pane>
 
       <!-- 4. 检验录入 -->
       <el-tab-pane label="检验录入" name="lab">
-        <el-form
-          ref="labFormRef"
-          :model="labForm"
-          :rules="labRules"
-          label-width="96px"
-          class="entry-form"
-        >
+        <el-alert v-if="!currentDoctor" class="tab-guard" type="info" show-icon :closable="false" title="请先选择医生（登录）" />
+        <el-alert v-else-if="!currentPatient || !currentVisit" class="tab-guard" type="info" show-icon :closable="false" title="请先选择患者和就诊" />
+        <el-form v-else ref="labFormRef" :model="labForm" :rules="labRules" label-width="96px" class="entry-form">
           <el-row :gutter="16">
-            <el-col :xs="24" :md="12">
-              <el-form-item label="患者 ID" prop="patientId">
-                <el-input-number
-                  v-model="labForm.patientId"
-                  class="full"
-                  :min="1"
-                  :precision="0"
-                  :controls="false"
-                  placeholder="必填"
-                />
-              </el-form-item>
-            </el-col>
-            <el-col :xs="24" :md="12">
-              <el-form-item label="就诊 ID" prop="visitId">
-                <el-input-number
-                  v-model="labForm.visitId"
-                  class="full"
-                  :min="1"
-                  :precision="0"
-                  :controls="false"
-                  placeholder="必填"
-                />
-              </el-form-item>
-            </el-col>
             <el-col :xs="24" :md="12">
               <el-form-item label="项目编码" prop="itemCode">
                 <el-input v-model="labForm.itemCode" placeholder="如 WBC" />
@@ -345,31 +225,17 @@
             </el-col>
             <el-col :xs="24" :md="12">
               <el-form-item label="检验时间" prop="testedAt">
-                <el-date-picker
-                  v-model="labForm.testedAt"
-                  class="full"
-                  type="datetime"
-                  value-format="YYYY-MM-DDTHH:mm:ss"
-                  placeholder="选择检验时间"
-                />
+                <el-date-picker v-model="labForm.testedAt" class="full" type="datetime" value-format="YYYY-MM-DDTHH:mm:ss" placeholder="选择检验时间" />
               </el-form-item>
             </el-col>
             <el-col :span="24">
               <el-form-item label="结果判定" prop="isAbnormal">
-                <el-switch
-                  v-model="labForm.isAbnormal"
-                  :active-value="1"
-                  :inactive-value="0"
-                  active-text="异常"
-                  inactive-text="正常"
-                />
+                <el-switch v-model="labForm.isAbnormal" :active-value="1" :inactive-value="0" active-text="异常" inactive-text="正常" />
               </el-form-item>
             </el-col>
           </el-row>
           <el-form-item>
-            <el-button type="primary" :loading="submitting" @click="submitLab">
-              提交检验
-            </el-button>
+            <el-button type="primary" :loading="submitting" @click="submitLab">提交检验</el-button>
           </el-form-item>
         </el-form>
       </el-tab-pane>
@@ -378,20 +244,19 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { createVisit, createDiagnosis, createPrescription, createLabTest } from '../api/business'
+import { createVisit, createDiagnosis, createPrescription, createLabTest, listDoctors, listVisits } from '../api/business'
+import { listPatients } from '../api/patient'
 
 const router = useRouter()
 
 const activeTab = ref('visit')
 const submitting = ref(false)
-// 最近一次成功提交的患者 ID，用于「查看时间轴」跳转
 const lastPatientId = ref(null)
 
 // 药品字典：后端未提供 /api/drugs 接口，硬编码 seed 的 12 条药品（id 即插入顺序）
-// 明细必须携带合法 drugId —— 后端据此取单价计算 totalAmount
 const DRUGS = [
   { id: 1, name: '阿莫西林胶囊', unit: '盒', price: 18.5 },
   { id: 2, name: '感冒灵颗粒', unit: '盒', price: 12.0 },
@@ -407,56 +272,82 @@ const DRUGS = [
   { id: 12, name: '复方甘草口服液', unit: '瓶', price: 8.9 }
 ]
 
-// 本地时间 -> ISO-8601（T 分隔），后端 LocalDateTime 反序列化不接受空格分隔
 const nowIso = () => {
   const d = new Date()
   const p = (n) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
 }
 
+// ---- 医生身份（轻量登录） ----
+const doctors = ref([])
+const currentDoctor = ref(null)
+const groupedDoctors = computed(() => {
+  const map = new Map()
+  for (const d of doctors.value) {
+    if (!map.has(d.department)) map.set(d.department, [])
+    map.get(d.department).push(d)
+  }
+  return [...map.entries()].map(([department, ds]) => ({ department, doctors: ds }))
+})
+
+// ---- 当前接诊 ----
+const currentPatient = ref(null)
+const currentVisit = ref(null)
+const patientOptions = ref([])
+const visitOptions = ref([])
+const patientLoading = ref(false)
+
+const genderText = (g) => (g === 0 ? '男' : g === 1 ? '女' : '-')
+const ageText = (birthDate) => {
+  if (!birthDate) return '-'
+  const birth = new Date(String(birthDate).replace(/-/g, '/'))
+  if (Number.isNaN(birth.getTime())) return '-'
+  const today = new Date()
+  let age = today.getFullYear() - birth.getFullYear()
+  const monthDiff = today.getMonth() - birth.getMonth()
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) age -= 1
+  return age >= 0 ? `${age}岁` : '-'
+}
+const formatDateTime = (t) => (t ? String(t).replace('T', ' ').slice(0, 19) : '')
+
+const patientLabel = (p) => `${p.name}｜${genderText(p.gender)} ${ageText(p.birthDate)}｜${p.idCard || '-'}`
+const visitLabel = (v) => `${v.visitNo} · ${v.department} · ${formatDateTime(v.visitTime)}`
+
+const searchPatients = async (keyword) => {
+  if (!currentDoctor.value) return
+  patientLoading.value = true
+  try {
+    const res = await listPatients({ department: currentDoctor.value.department, keyword: keyword || '', size: 20 })
+    patientOptions.value = res.data.records || []
+  } finally {
+    patientLoading.value = false
+  }
+}
+
+const onDoctorChange = () => {
+  currentPatient.value = null
+  currentVisit.value = null
+  patientOptions.value = []
+  visitOptions.value = []
+}
+
+const onPatientChange = async () => {
+  currentVisit.value = null
+  visitOptions.value = []
+  if (!currentPatient.value) return
+  const res = await listVisits({ patientId: currentPatient.value.id, department: currentDoctor.value.department })
+  visitOptions.value = res.data || []
+}
+
+// ---- 表单 ----
 const newVisitForm = () => ({
-  patientId: null,
-  visitNo: '',
-  department: '',
-  doctor: '',
-  visitTime: nowIso(),
-  status: 0,
-  remark: ''
+  patientId: null, visitNo: '', department: '', doctor: '', visitTime: nowIso(), status: 0, remark: ''
 })
-const newDiagnosisForm = () => ({
-  patientId: null,
-  visitId: null,
-  icdCode: '',
-  diagnosisName: '',
-  doctor: '',
-  diagnosedAt: nowIso()
-})
-const newItem = () => ({
-  drugId: null,
-  drugName: '',
-  dosage: '',
-  frequency: '',
-  days: 3,
-  quantity: 1,
-  unit: ''
-})
-const newPrescriptionForm = () => ({
-  patientId: null,
-  visitId: null,
-  doctor: '',
-  prescribedAt: nowIso(),
-  items: [newItem()]
-})
+const newDiagnosisForm = () => ({ icdCode: '', diagnosisName: '', diagnosedAt: nowIso() })
+const newItem = () => ({ drugId: null, drugName: '', dosage: '', frequency: '', days: 3, quantity: 1, unit: '' })
+const newPrescriptionForm = () => ({ prescribedAt: nowIso(), items: [newItem()] })
 const newLabForm = () => ({
-  patientId: null,
-  visitId: null,
-  itemCode: '',
-  itemName: '',
-  resultValue: '',
-  unit: '',
-  referenceRange: '',
-  isAbnormal: 0,
-  testedAt: nowIso()
+  itemCode: '', itemName: '', resultValue: '', unit: '', referenceRange: '', isAbnormal: 0, testedAt: nowIso()
 })
 
 const visitForm = ref(newVisitForm())
@@ -477,19 +368,13 @@ const visitRules = {
   visitTime: [required('请选择就诊时间')]
 }
 const diagnosisRules = {
-  patientId: [required('请输入患者 ID')],
-  visitId: [required('请输入就诊 ID')],
   diagnosisName: [required('请输入诊断名称')],
   diagnosedAt: [required('请选择诊断时间')]
 }
 const prescriptionRules = {
-  patientId: [required('请输入患者 ID')],
-  visitId: [required('请输入就诊 ID')],
   prescribedAt: [required('请选择开方时间')]
 }
 const labRules = {
-  patientId: [required('请输入患者 ID')],
-  visitId: [required('请输入就诊 ID')],
   itemName: [required('请输入检验项目名称')],
   testedAt: [required('请选择检验时间')]
 }
@@ -504,7 +389,6 @@ const validateForm = async (formRef) => {
   }
 }
 
-// 统一提交：失败时 request 拦截器已 ElMessage.error，这里只需提前返回
 const submit = async (fn, successMessage, patientId) => {
   submitting.value = true
   try {
@@ -529,7 +413,12 @@ const submitVisit = async () => {
 
 const submitDiagnosis = async () => {
   if (!(await validateForm(diagnosisFormRef))) return
-  const payload = { ...diagnosisForm.value }
+  const payload = {
+    patientId: currentPatient.value.id,
+    visitId: currentVisit.value.id,
+    doctor: currentDoctor.value.name,
+    ...diagnosisForm.value
+  }
   if (await submit(() => createDiagnosis(payload), '诊断录入成功', payload.patientId)) {
     diagnosisForm.value = newDiagnosisForm()
   }
@@ -538,7 +427,6 @@ const submitDiagnosis = async () => {
 const addItem = () => prescriptionForm.value.items.push(newItem())
 const removeItem = (index) => prescriptionForm.value.items.splice(index, 1)
 
-// 选中药品后回填 drugName / unit（展示用副本）
 const onDrugChange = (row) => {
   const drug = DRUGS.find((d) => d.id === row.drugId)
   if (!drug) return
@@ -549,18 +437,12 @@ const onDrugChange = (row) => {
 const submitPrescription = async () => {
   if (!(await validateForm(prescriptionFormRef))) return
   const rows = prescriptionForm.value.items
-  if (!rows.length) {
-    ElMessage.warning('请至少添加一条药品明细')
-    return
-  }
-  if (rows.some((i) => !i.drugId)) {
-    ElMessage.warning('每条明细都必须选择药品')
-    return
-  }
+  if (!rows.length) { ElMessage.warning('请至少添加一条药品明细'); return }
+  if (rows.some((i) => !i.drugId)) { ElMessage.warning('每条明细都必须选择药品'); return }
   const payload = {
-    patientId: prescriptionForm.value.patientId,
-    visitId: prescriptionForm.value.visitId,
-    doctor: prescriptionForm.value.doctor,
+    patientId: currentPatient.value.id,
+    visitId: currentVisit.value.id,
+    doctor: currentDoctor.value.name,
     prescribedAt: prescriptionForm.value.prescribedAt,
     items: rows.map((i) => ({
       drugId: i.drugId,
@@ -568,7 +450,6 @@ const submitPrescription = async () => {
       dosage: i.dosage,
       frequency: i.frequency,
       days: i.days,
-      // quantity 为 DECIMAL，显式转数字
       quantity: Number(i.quantity),
       unit: i.unit
     }))
@@ -580,13 +461,18 @@ const submitPrescription = async () => {
 
 const submitLab = async () => {
   if (!(await validateForm(labFormRef))) return
-  const payload = { ...labForm.value }
+  const payload = { patientId: currentPatient.value.id, visitId: currentVisit.value.id, ...labForm.value }
   if (await submit(() => createLabTest(payload), '检验录入成功', payload.patientId)) {
     labForm.value = newLabForm()
   }
 }
 
 const goTimeline = () => router.push('/patient/' + lastPatientId.value)
+
+onMounted(async () => {
+  const res = await listDoctors()
+  doctors.value = res.data || []
+})
 </script>
 
 <style scoped>
@@ -597,39 +483,36 @@ const goTimeline = () => router.push('/patient/' + lastPatientId.value)
   gap: 12px;
   margin-bottom: 8px;
 }
+.page-title { margin: 0; font-size: 18px; font-weight: 600; color: #303133; }
+.page-tip { margin: 4px 0 0; font-size: 13px; color: #909399; }
+.entry-form { max-width: 900px; }
+.full { width: 100%; }
+.item-table { width: 100%; }
+.add-item { margin-top: 8px; }
+.item-tip { margin-top: 4px; font-size: 12px; color: #909399; }
 
-.page-title {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: #303133;
+.doctor-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  margin-bottom: 12px;
+  background: #f5f7fa;
+  border-radius: 6px;
 }
+.bar-label { font-size: 14px; font-weight: 600; color: #303133; }
+.doctor-select { width: 240px; }
+.doctor-dept { font-size: 13px; color: #606266; }
 
-.page-tip {
-  margin: 4px 0 0;
-  font-size: 13px;
-  color: #909399;
+.reception-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 12px;
 }
-
-.entry-form {
-  max-width: 900px;
-}
-
-.full {
-  width: 100%;
-}
-
-.item-table {
-  width: 100%;
-}
-
-.add-item {
-  margin-top: 8px;
-}
-
-.item-tip {
-  margin-top: 4px;
-  font-size: 12px;
-  color: #909399;
-}
+.reception-select { width: 320px; }
+.ctx-line { font-size: 13px; color: #303133; }
+.muted { color: #909399; }
+.tab-guard { margin-bottom: 12px; }
 </style>
