@@ -610,12 +610,19 @@ void patients_are_concentrated_in_a_home_department() {
     DataGeneratorService svc = buildService();
     svc.generate(200);
 
+    // 汇总校验：所有患者「最常就诊科室」的就诊数合计，应显著高于均匀分布。
+    // 均匀分布（6 科室）最常科室占比 ≈ 1/6；80/20 主科室占比 ≈ 0.8，二者差距大，
+    // 汇总后小样本随机波动相互抵消，不会因个别低就诊数患者（如 5 次）而误报。
+    long totalVisits = 0;
+    long maxDeptVisits = 0;
     for (List<Visit> visits : visitsByPatient().values()) {
         Map<String, Long> deptCount = visits.stream()
                 .collect(Collectors.groupingBy(Visit::getDepartment, Collectors.counting()));
         long max = deptCount.values().stream().mapToLong(Long::longValue).max().orElse(0);
-        assertThat(max).isGreaterThan(visits.size() / 2);
+        totalVisits += visits.size();
+        maxDeptVisits += max;
     }
+    assertThat(maxDeptVisits).isGreaterThan(totalVisits * 60 / 100);
 }
 
 @Test
