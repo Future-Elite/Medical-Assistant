@@ -19,6 +19,7 @@ public class VitalSignServiceImpl extends ServiceImpl<VitalSignMapper, VitalSign
     public boolean save(VitalSign entity) {
         boolean saved = super.save(entity);
         cacheInvalidator.evictTimeline(entity.getPatientId());
+        cacheInvalidator.evictAdmissionTimeline(entity.getAdmissionId());
         return saved;
     }
 }

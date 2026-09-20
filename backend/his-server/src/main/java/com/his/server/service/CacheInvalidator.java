@@ -30,4 +30,15 @@ public class CacheInvalidator {
             log.warn("时间线缓存失效异常（数据已落库，仅缓存可能短暂过期）: patientId={}", patientId, e);
         }
     }
+
+    public void evictAdmissionTimeline(Long admissionId) {
+        try {
+            redis.delete("timeline:admission:" + admissionId);
+        } catch (RedisConnectionFailureException e) {
+            log.warn("Redis 连接失败，住院时间线缓存未能失效（数据已落库，仅缓存可能短暂过期）: admissionId={} ({})",
+                    admissionId, e.toString());
+        } catch (Exception e) {
+            log.warn("住院时间线缓存失效异常（数据已落库，仅缓存可能短暂过期）: admissionId={}", admissionId, e);
+        }
+    }
 }

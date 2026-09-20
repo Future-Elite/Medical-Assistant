@@ -192,4 +192,85 @@ class TimelineServiceTest {
         assertThat(vo.getEvents()).extracting(TimelineEvent::getType)
                 .containsExactly("VITAL_SIGN", "ORDER");
     }
+
+    @Test
+    void admission_timeline_cache_hit_returns_cached_without_touching_db() throws Exception {
+        when(am.selectById(9L)).thenReturn(null); // must NOT be consulted on a cache hit
+        when(ops.get("timeline:admission:9"))
+                .thenReturn(OM.writeValueAsString(new TimelineVO(1L, List.of())));
+
+        TimelineVO vo = svc().getAdmissionTimeline(9L);
+
+        assertThat(vo.getPatientId()).isEqualTo(1L);
+        assertThat(vo.getEvents()).isEmpty();
+        verify(am, never()).selectById(any());
+        verify(ops, never()).set(anyString(), anyString(), any(Duration.class));
+    }
+
+    @Test
+    void admission_timeline_cache_miss_writes_back_with_ttl() {
+        when(am.selectById(9L)).thenReturn(new Admission()); // patientId null is fine for this assertion
+
+        svc().getAdmissionTimeline(9L);
+
+        verify(ops).set(eq("timeline:admission:9"), anyString(), eq(Duration.ofMinutes(30)));
+    }
+
+    @Test
+    void admission_timeline_redis_down_does_not_break_read() {
+        when(am.selectById(9L)).thenReturn(new Admission());
+        // mock 不解析 wrapper，setUp 里那条患者级化验单会污染住院时间轴；本用例断言的是「空时间轴也能返回」
+        when(lm.selectList(any())).thenReturn(List.of());
+        when(ops.get(anyString())).thenThrow(new RedisConnectionFailureException("connection refused"));
+        doThrow(new RedisConnectionFailureException("connection refused"))
+                .when(ops).set(anyString(), anyString(), any(Duration.class));
+
+        TimelineVO[] out = new TimelineVO[1];
+        assertThatCode(() -> out[0] = svc().getAdmissionTimeline(9L)).doesNotThrowAnyException();
+
+        assertThat(out[0].getEvents()).isEmpty();
+    }
+
+    @Test
+    void patient_timeline_omits_discharge_when_still_in_hospital() {
+        Admission a = new Admission();
+        a.setId(9L); a.setPatientId(1L);
+        a.setAdmissionTime(LocalDateTime.of(2024, 1, 1, 8, 0));
+        // dischargeTime left null → in-hospital, no DISCHARGE event
+        lenient().when(am.selectList(any())).thenReturn(List.of(a));
+
+        TimelineVO vo = svc().getTimeline(1L);
+
+        assertThat(vo.getEvents()).extracting(TimelineEvent::getType)
+                .contains("ADMISSION").doesNotContain("DISCHARGE");
+    }
+
+    @Test
+    void patient_timeline_includes_charge_and_dispense_events() {
+        Charge c = new Charge(); c.setId(1L); c.setPatientId(1L);
+        c.setChargedAt(LocalDateTime.of(2024, 1, 1, 11, 0));
+        Dispense d = new Dispense(); d.setId(1L); d.setPatientId(1L);
+        d.setDispensedAt(LocalDateTime.of(2024, 1, 1, 11, 30));
+        lenient().when(cm.selectList(any())).thenReturn(List.of(c));
+        lenient().when(dsm.selectList(any())).thenReturn(List.of(d));
+
+        TimelineVO vo = svc().getTimeline(1L);
+
+        assertThat(vo.getEvents()).extracting(TimelineEvent::getType)
+                .contains("CHARGE", "DISPENSE");
+    }
+
+    @Test
+    void admission_timeline_includes_lab_test() {
+        Admission a = new Admission(); a.setId(9L); a.setPatientId(1L);
+        when(am.selectById(9L)).thenReturn(a);
+
+        LabTest l = new LabTest(); l.setId(1L); l.setPatientId(1L); l.setAdmissionId(9L);
+        l.setTestedAt(LocalDateTime.of(2024, 1, 1, 7, 0));
+        when(lm.selectList(any())).thenReturn(List.of(l)); // override setUp's patient-level fixture
+
+        TimelineVO vo = svc().getAdmissionTimeline(9L);
+
+        assertThat(vo.getEvents()).extracting(TimelineEvent::getType).contains("LAB_TEST");
+    }
 }

@@ -18,6 +18,9 @@ public class LabTestServiceImpl extends ServiceImpl<LabTestMapper, LabTest> impl
     public boolean save(LabTest entity) {
         boolean saved = super.save(entity);
         cacheInvalidator.evictTimeline(entity.getPatientId());
+        if (entity.getAdmissionId() != null) {
+            cacheInvalidator.evictAdmissionTimeline(entity.getAdmissionId());
+        }
         return saved;
     }
 }

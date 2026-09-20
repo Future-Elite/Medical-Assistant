@@ -21,6 +21,7 @@ public class MedicalOrderServiceImpl extends ServiceImpl<MedicalOrderMapper, Med
     public boolean save(MedicalOrder entity) {
         boolean saved = super.save(entity);
         cacheInvalidator.evictTimeline(entity.getPatientId());
+        cacheInvalidator.evictAdmissionTimeline(entity.getAdmissionId());
         return saved;
     }
 
@@ -34,6 +35,7 @@ public class MedicalOrderServiceImpl extends ServiceImpl<MedicalOrderMapper, Med
         o.setStatus(1);
         updateById(o);
         cacheInvalidator.evictTimeline(o.getPatientId());
+        cacheInvalidator.evictAdmissionTimeline(o.getAdmissionId());
         return o;
     }
 }
