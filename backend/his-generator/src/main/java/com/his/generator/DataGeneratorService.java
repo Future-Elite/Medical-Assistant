@@ -48,7 +48,14 @@ public class DataGeneratorService {
     private static final double HOME_DEPT_RATIO = 0.8;
     /** 清空时保留 drug / rule_config 字典 */
     private static final List<String> DATA_TABLES =
-            List.of("patient", "visit", "diagnosis", "prescription", "prescription_item", "lab_test");
+            List.of("patient", "visit", "diagnosis", "prescription", "prescription_item", "lab_test",
+                    "charge", "dispense");
+    /** 挂号费固定金额 */
+    private static final BigDecimal REGISTRATION_FEE = new BigDecimal("10.00");
+    /** 每检验项费用 */
+    private static final BigDecimal LAB_FEE = new BigDecimal("15.00");
+    /** 处方违规注入概率 */
+    static final double VIOLATION_RATE = 0.03;
     /** 身份证地区码（GB 11643，北京市东城区） */
     private static final String ID_REGION_CODE = "110101";
     /** GB 11643 校验位权重（前 17 位） */
@@ -66,8 +73,11 @@ public class DataGeneratorService {
     private final RuleConfigMapper ruleConfigMapper;
     private final DoctorMapper doctorMapper;
     private final JdbcTemplate jdbcTemplate;
+    private final ChargeMapper chargeMapper;
+    private final DispenseMapper dispenseMapper;
+    private final RationalRuleMapper rationalRuleMapper;
 
-    /** 生成前清空六张业务数据表，使重复执行等价于「重新生成」（默认开启） */
+    /** 生成前清空八张业务数据表，使重复执行等价于「重新生成」（默认开启） */
     @Value("${generator.clear-before-run:true}")
     private boolean clearBeforeRun = true;
 
@@ -75,6 +85,9 @@ public class DataGeneratorService {
     private List<MedicalData.DiagnosisRule> rules;
     private Map<String, List<String>> doctorsByDept;
     private ThreadLocalRandom rnd;
+    private List<RationalRule> interactionRules;
+    private Map<Long, RationalRule> doseRulesByDrug;
+    private long chargeCount, dispenseCount;
 
     /** 生成 patientCount 名患者及各自就诊链，返回统计信息 */
     public Map<String, Long> generate(long patientCount) {
@@ -87,6 +100,19 @@ public class DataGeneratorService {
                 .collect(Collectors.toMap(Drug::getId, d -> d));
         rules = loadRules();
         doctorsByDept = loadDoctors();
+        interactionRules = new ArrayList<>();
+        doseRulesByDrug = new HashMap<>();
+        for (RationalRule r : rationalRuleMapper.selectList(
+                new LambdaQueryWrapper<RationalRule>().eq(RationalRule::getEnabled, 1))) {
+            if (r.getRuleType() != null && r.getRuleType() == 1
+                    && r.getDrugAId() != null && r.getDrugBId() != null) {
+                interactionRules.add(r);
+            } else if (r.getRuleType() != null && r.getRuleType() == 2 && r.getDrugId() != null) {
+                doseRulesByDrug.put(r.getDrugId(), r);
+            }
+        }
+        chargeCount = 0;
+        dispenseCount = 0;
 
         long visits = 0, diagnoses = 0, pres = 0, items = 0, labs = 0;
         List<Patient> patientBuf = new ArrayList<>(BATCH_SIZE);
@@ -107,11 +133,13 @@ public class DataGeneratorService {
         stat.put("prescriptions", pres);
         stat.put("prescription_items", items);
         stat.put("lab_tests", labs);
+        stat.put("charges", chargeCount);
+        stat.put("dispenses", dispenseCount);
         stat.put("elapsed_ms", System.currentTimeMillis() - start);
         return stat;
     }
 
-    /** 幂等：清空六张业务数据表（不动 drug / rule_config） */
+    /** 幂等：清空八张业务数据表（不动 drug / rule_config） */
     private void clearDataTables() {
         for (String table : DATA_TABLES) {
             jdbcTemplate.execute("TRUNCATE TABLE " + table);
@@ -119,7 +147,7 @@ public class DataGeneratorService {
     }
 
     /**
-     * 按批写入：患者 → 就诊 → (诊断, 处方) → (处方明细, 检验)。
+     * 按批写入：患者 → 就诊 → (诊断, 处方) → (处方明细, 检验) → (收费, 发药)。
      * 全部走 MyBatis-Plus 的 JDBC 批量接口，自增主键回填到实体，保证外键都取自真实 id。
      *
      * @return {就诊数, 诊断数, 处方数, 明细数, 检验数}
@@ -158,32 +186,71 @@ public class DataGeneratorService {
         // 先插处方、拿回自增 id，明细才能引用到真实 prescription_id
         prescriptionMapper.insert(presBuf.stream().map(PendingPrescription::prescription).toList());
 
-        // 处方明细 + 检验（依赖已回填的 prescription.id / visit.id）
+        // 处方明细 + 检验 + 发药（依赖已回填的 prescription.id / visit.id）
+        Map<Long, LocalDateTime> visitTimeById = new HashMap<>();
+        for (Visit v : visitBuf) {
+            visitTimeById.put(v.getId(), v.getVisitTime());
+        }
         List<PrescriptionItem> itemBuf = new ArrayList<>();
         List<LabTest> labBuf = new ArrayList<>();
+        List<Dispense> dispBuf = new ArrayList<>();
+        Map<Long, BigDecimal> amountByVisit = new HashMap<>();
+        Map<Long, Integer> labCountByVisit = new HashMap<>();
         for (PendingPrescription pp : presBuf) {
             Prescription pr = pp.prescription();
-            BigDecimal total = BigDecimal.ZERO;
-            for (Long drugId : pickDrugIds(pp.rule())) {
-                Drug drug = drugsById.get(drugId);
-                if (drug == null) {
-                    throw new IllegalStateException("rule_config 的诊断 " + pp.rule().code()
-                            + " 引用了不存在的 drug_id=" + drugId + "，请修正种子数据");
-                }
-                PrescriptionItem it = new PrescriptionItem();
-                it.setPrescriptionId(pr.getId());
-                it.setDrugId(drug.getId()); it.setDrugName(drug.getName());
-                it.setDosage(rnd.nextInt(1, 3) + "片"); it.setFrequency("每日" + rnd.nextInt(1, 3) + "次");
-                it.setDays(rnd.nextInt(3, 15)); it.setQuantity(BigDecimal.valueOf(rnd.nextInt(1, 4)));
-                it.setUnit(drug.getUnit());
-                total = total.add(drug.getPrice().multiply(it.getQuantity()));
-                itemBuf.add(it);
+            List<PrescriptionItem> its = buildItems(pp.rule());
+            if (rnd.nextDouble() < VIOLATION_RATE) {
+                injectViolation(its, pp.rule());
             }
+            for (PrescriptionItem it : its) {
+                it.setPrescriptionId(pr.getId());
+            }
+            // total 重算（违规注入后 drugId 可能指向规则外药品；缺药/缺价一律按 0 计，杜绝 NPE）
+            BigDecimal total = its.stream().map(i -> {
+                Drug d = i.getDrugId() == null ? null : drugsById.get(i.getDrugId());
+                return (d == null || d.getPrice() == null ? BigDecimal.ZERO
+                        : d.getPrice().multiply(i.getQuantity() == null ? BigDecimal.ZERO : i.getQuantity()));
+            }).reduce(BigDecimal.ZERO, BigDecimal::add);
             pr.setTotalAmount(total);
-            labBuf.addAll(newLabTests(pr));
+            itemBuf.addAll(its);
+            amountByVisit.merge(pr.getVisitId(), total, BigDecimal::add);
+
+            // 发药：一张处方一条；药物名/数量取自首条明细（不是诊断名）；时间严格晚于收费
+            if (!its.isEmpty()) {
+                PrescriptionItem first = its.get(0);
+                Dispense disp = new Dispense();
+                disp.setPatientId(pr.getPatientId());
+                disp.setVisitId(pr.getVisitId());
+                disp.setPrescriptionId(pr.getId());
+                disp.setDrugName(first.getDrugName());
+                disp.setQuantity(first.getQuantity());
+                disp.setDispensedAt(visitTimeById.get(pr.getVisitId()).plusMinutes(rnd.nextInt(165, 205)));
+                disp.setPharmacist(randomPharmacist());
+                dispBuf.add(disp);
+            }
+
+            List<LabTest> labs = newLabTests(pr);
+            labBuf.addAll(labs);
+            labCountByVisit.merge(pr.getVisitId(), labs.size(), Integer::sum);
         }
         itemMapper.insert(itemBuf);
         labTestMapper.insert(labBuf);
+        // 收费：按就诊汇总药费 + 检验费；时间严格晚于检验、早于发药
+        List<Charge> chargeBuf = new ArrayList<>();
+        for (Visit v : visitBuf) {
+            BigDecimal drugFee = amountByVisit.getOrDefault(v.getId(), BigDecimal.ZERO);
+            int labCount = labCountByVisit.getOrDefault(v.getId(), 0);
+            BigDecimal labFee = LAB_FEE.multiply(BigDecimal.valueOf(labCount));
+            chargeBuf.add(newCharge(v, 0, "挂号费", REGISTRATION_FEE));
+            chargeBuf.add(newCharge(v, 1, "药费", drugFee));
+            if (labCount > 0) {
+                chargeBuf.add(newCharge(v, 2, "检验费", labFee));
+            }
+        }
+        chargeMapper.insert(chargeBuf);
+        dispenseMapper.insert(dispBuf);
+        chargeCount += chargeBuf.size();
+        dispenseCount += dispBuf.size();
         // 回写处方总额（批量按 id 更新）
         prescriptionMapper.updateById(presBuf.stream().map(PendingPrescription::prescription).toList());
 
@@ -345,6 +412,87 @@ public class DataGeneratorService {
             labs.add(lt);
         }
         return labs;
+    }
+
+    /** 从该诊断的规则药品生成处方明细（不含 prescription_id 与金额，由调用方回填）。 */
+    private List<PrescriptionItem> buildItems(MedicalData.DiagnosisRule rule) {
+        List<PrescriptionItem> items = new ArrayList<>();
+        for (Long drugId : pickDrugIds(rule)) {
+            Drug drug = drugsById.get(drugId);
+            if (drug == null) {
+                throw new IllegalStateException("rule_config 的诊断 " + rule.code()
+                        + " 引用了不存在的 drug_id=" + drugId + "，请修正种子数据");
+            }
+            PrescriptionItem it = new PrescriptionItem();
+            it.setDrugId(drug.getId()); it.setDrugName(drug.getName());
+            it.setDosage(rnd.nextInt(1, 3) + "片"); it.setFrequency("每日" + rnd.nextInt(1, 3) + "次");
+            it.setDays(rnd.nextInt(3, 15)); it.setQuantity(BigDecimal.valueOf(rnd.nextInt(1, 4)));
+            it.setUnit(drug.getUnit());
+            items.add(it);
+        }
+        return items;
+    }
+
+    private Charge newCharge(Visit v, int itemType, String itemName, BigDecimal amount) {
+        Charge c = new Charge();
+        c.setPatientId(v.getPatientId()); c.setVisitId(v.getId());
+        c.setChargeNo("C" + v.getId() + "-" + itemType);
+        c.setItemType(itemType); c.setItemName(itemName); c.setAmount(amount);
+        c.setChargedAt(v.getVisitTime().plusMinutes(rnd.nextInt(125, 155)));
+        return c;
+    }
+
+    private String randomPharmacist() {
+        // 药师名不得用「王冠杰」；固定非敏感名单
+        String[] surnames = {"刘", "陈", "杨", "周", "吴"};
+        String[] given = {"静", "磊", "军", "艳", "涛"};
+        return surnames[rnd.nextInt(surnames.length)] + given[rnd.nextInt(given.length)];
+    }
+
+    /** 以固定方式注入一类违规，返回违规类型（供测试断言）；不注入返回 null。 */
+    String injectViolation(List<PrescriptionItem> items, MedicalData.DiagnosisRule rule) {
+        if (interactionRules.isEmpty() && doseRulesByDrug.isEmpty()) {
+            return null;
+        }
+        int type = rnd.nextInt(3);
+        if (type == 0 && !doseRulesByDrug.isEmpty()) {
+            // 剂量：任取一条剂量规则，把对应药加进明细并设高剂量
+            RationalRule r = doseRulesByDrug.values().iterator().next();
+            PrescriptionItem it = items.isEmpty() ? null : items.get(0);
+            if (it != null) {
+                it.setDrugId(r.getDrugId());
+                Drug d = drugsById.get(r.getDrugId());
+                if (d != null) it.setDrugName(d.getName());
+                it.setDosage("4片"); it.setFrequency("每日3次");
+                return "DOSE";
+            }
+        } else if (type == 1 && !interactionRules.isEmpty()) {
+            // 相互作用：直接用一条相互作用规则的两个药作为两条明细
+            RationalRule r = interactionRules.get(rnd.nextInt(interactionRules.size()));
+            items.clear();
+            for (Long drugId : List.of(r.getDrugAId(), r.getDrugBId())) {
+                Drug d = drugsById.get(drugId);
+                if (d == null) return null;
+                PrescriptionItem it = new PrescriptionItem();
+                it.setDrugId(d.getId()); it.setDrugName(d.getName());
+                it.setDosage("1片"); it.setFrequency("每日1次");
+                it.setDays(7); it.setQuantity(BigDecimal.ONE); it.setUnit(d.getUnit());
+                items.add(it);
+            }
+            return "INTERACTION";
+        } else {
+            // 适应症：把首条明细换成规则外药品
+            List<Long> allowed = rule.drugIds();
+            List<Drug> others = drugsById.values().stream()
+                    .filter(d -> !allowed.contains(d.getId())).toList();
+            if (!others.isEmpty() && !items.isEmpty()) {
+                Drug d = others.get(rnd.nextInt(others.size()));
+                PrescriptionItem it = items.get(0);
+                it.setDrugId(d.getId()); it.setDrugName(d.getName());
+                return "INDICATION";
+            }
+        }
+        return null;
     }
 
     /** 从该诊断的规则药品中随机取 1-3 种 */
