@@ -88,7 +88,7 @@ DIAG_TIME=$(date -d '-2 hours -55 minutes' '+%Y-%m-%dT%H:%M:%S')
 PRESC_TIME=$(date -d '-2 hours -50 minutes' '+%Y-%m-%dT%H:%M:%S')
 LAB_TIME=$(date -d '-2 hours -30 minutes' '+%Y-%m-%dT%H:%M:%S')
 req POST "$BASE/api/visits" \
-  "{\"patientId\":$PID,\"visitNo\":\"V${PID}-T${SUFFIX}\",\"department\":\"内科\",\"doctor\":\"王冠杰\",\"visitTime\":\"$VISIT_TIME\",\"status\":0,\"remark\":\"功能测试挂号\"}"
+  "{\"patientId\":$PID,\"visitNo\":\"V${PID}-T${SUFFIX}\",\"department\":\"内科\",\"doctor\":\"李建华\",\"visitTime\":\"$VISIT_TIME\",\"status\":0,\"remark\":\"功能测试挂号\"}"
 VID=$(jget "$BODY" id)
 if [ "$CODE" = "200" ] && [ "$(jget "$BODY" code)" = "0" ] && [ -n "$VID" ]; then
   report "挂号登记" PASS "HTTP $CODE, code=0, 就诊 id=$VID, visitTime=$VISIT_TIME"
@@ -98,7 +98,7 @@ fi
 
 # ---------------------------------------------------------------- 5. 诊断录入
 req POST "$BASE/api/diagnoses" \
-  "{\"patientId\":$PID,\"visitId\":$VID,\"icdCode\":\"J06.9\",\"diagnosisName\":\"上呼吸道感染\",\"doctor\":\"王冠杰\",\"diagnosedAt\":\"$DIAG_TIME\"}"
+  "{\"patientId\":$PID,\"visitId\":$VID,\"icdCode\":\"J06.9\",\"diagnosisName\":\"上呼吸道感染\",\"doctor\":\"李建华\",\"diagnosedAt\":\"$DIAG_TIME\"}"
 DID=$(jget "$BODY" id)
 if [ "$CODE" = "200" ] && [ "$(jget "$BODY" code)" = "0" ] && [ -n "$DID" ]; then
   report "诊断录入" PASS "HTTP $CODE, code=0, 诊断 id=$DID, icdCode=J06.9, diagnosedAt=$DIAG_TIME"
@@ -108,7 +108,7 @@ fi
 
 # ------------------------------------------------------- 6. 处方开具（含明细）
 req POST "$BASE/api/prescriptions" \
-  "{\"patientId\":$PID,\"visitId\":$VID,\"doctor\":\"王冠杰\",\"prescribedAt\":\"$PRESC_TIME\",\"items\":[{\"drugId\":1,\"drugName\":\"阿莫西林胶囊\",\"dosage\":\"2片\",\"frequency\":\"每日3次\",\"days\":7,\"quantity\":2,\"unit\":\"盒\"},{\"drugId\":2,\"drugName\":\"感冒灵颗粒\",\"dosage\":\"1片\",\"frequency\":\"每日2次\",\"days\":5,\"quantity\":1,\"unit\":\"盒\"}]}"
+  "{\"patientId\":$PID,\"visitId\":$VID,\"doctor\":\"李建华\",\"prescribedAt\":\"$PRESC_TIME\",\"items\":[{\"drugId\":1,\"drugName\":\"阿莫西林胶囊\",\"dosage\":\"2片\",\"frequency\":\"每日3次\",\"days\":7,\"quantity\":2,\"unit\":\"盒\"},{\"drugId\":2,\"drugName\":\"感冒灵颗粒\",\"dosage\":\"1片\",\"frequency\":\"每日2次\",\"days\":5,\"quantity\":1,\"unit\":\"盒\"}]}"
 RID=$(jget "$BODY" id)
 TOTAL_AMT=$(jget "$BODY" totalAmount)
 ITEM_CNT=$(printf '%s' "$BODY" | grep -o '"drugName":' | wc -l | tr -d ' ')
