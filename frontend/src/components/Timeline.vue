@@ -1,74 +1,53 @@
 <template>
   <el-timeline class="event-timeline">
-    <!-- 后端已按 time 升序返回，这里按数组顺序渲染即可 -->
+    <!-- 每次就诊一张卡：诊断/处方/检验归并到同一就诊下 -->
     <el-timeline-item
-      v-for="(event, index) in events"
-      :key="eventKey(event, index)"
-      :color="metaOf(event.type).color"
-      :timestamp="formatDateTime(event.time)"
+      v-for="(group, index) in grouped.groups"
+      :key="groupKey(group, index)"
+      :timestamp="formatDateTime(group.visit.time)"
       placement="top"
       size="large"
+      color="#409EFF"
     >
-      <el-card shadow="hover" class="event-card">
-        <div class="card-head">
-          <el-tag :color="metaOf(event.type).color" effect="dark" size="small" class="type-tag">
-            {{ metaOf(event.type).label }}
-          </el-tag>
-          <span v-if="event.type === 'PRESCRIPTION' && d(event).totalAmount != null" class="amount">
-            合计 ¥{{ d(event).totalAmount }}
+      <el-card shadow="hover" class="visit-card">
+        <!-- 就诊头 -->
+        <div class="visit-head">
+          <el-tag color="#409EFF" effect="dark" size="small" class="type-tag">就诊</el-tag>
+          <span class="visit-meta">
+            <span>{{ d(group.visit).department || '-' }}</span>
+            <span class="meta-sep">·</span>
+            <span>{{ d(group.visit).doctor || '-' }}</span>
+            <span class="meta-sep">·</span>
+            <span class="muted">{{ d(group.visit).visitNo || '-' }}</span>
           </span>
         </div>
 
-        <!-- 就诊 -->
-        <div v-if="event.type === 'VISIT'" class="fields">
-          <div class="field">
-            <span class="k">就诊科室</span>
-            <span class="v">{{ d(event).department || '-' }}</span>
-          </div>
-          <div class="field">
-            <span class="k">医生</span>
-            <span class="v">{{ d(event).doctor || '-' }}</span>
-          </div>
-          <div class="field">
-            <span class="k">就诊号</span>
-            <span class="v">{{ d(event).visitNo || '-' }}</span>
-          </div>
-          <div v-if="d(event).remark" class="field field-wide">
-            <span class="k">备注</span>
-            <span class="v muted">{{ d(event).remark }}</span>
-          </div>
-        </div>
-
         <!-- 诊断 -->
-        <div v-else-if="event.type === 'DIAGNOSIS'" class="fields">
-          <div class="field">
-            <span class="k">诊断名</span>
-            <span class="v">
-              {{ d(event).diagnosisName || '-' }}
-              <span v-if="d(event).icdCode" class="muted">（{{ d(event).icdCode }}）</span>
-            </span>
+        <div v-if="group.diagnoses.length" class="section">
+          <div class="section-label" style="--c: #F56C6C">
+            <span class="dot"></span>诊断
           </div>
-          <div class="field">
-            <span class="k">医生</span>
-            <span class="v">{{ d(event).doctor || '-' }}</span>
+          <div v-for="(e, i) in group.diagnoses" :key="'d' + i" class="section-line">
+            <span>{{ d(e).diagnosisName || '-' }}</span>
+            <span v-if="d(e).icdCode" class="muted">（{{ d(e).icdCode }}）</span>
           </div>
         </div>
 
         <!-- 处方 -->
-        <div v-else-if="event.type === 'PRESCRIPTION'" class="prescription">
-          <div class="field">
-            <span class="k">开方医生</span>
-            <span class="v">{{ d(event).doctor || '-' }}</span>
+        <div v-for="(e, i) in group.prescriptions" :key="'p' + i" class="section">
+          <div class="section-label" style="--c: #67C23A">
+            <span class="dot"></span>处方
+            <span v-if="d(e).totalAmount != null" class="amount">合计 ¥{{ d(e).totalAmount }}</span>
           </div>
           <el-table
-            v-if="itemsOf(event).length"
-            :data="itemsOf(event)"
+            v-if="itemsOf(e).length"
+            :data="itemsOf(e)"
             size="small"
             border
             class="item-table"
           >
-            <el-table-column prop="drugName" label="药名" min-width="140" />
-            <el-table-column prop="dosage" label="用量" min-width="90" />
+            <el-table-column prop="drugName" label="药名" min-width="120" />
+            <el-table-column prop="dosage" label="用量" min-width="80" />
             <el-table-column prop="frequency" label="频次" min-width="90" />
             <el-table-column prop="days" label="天数" width="70" />
             <el-table-column prop="quantity" label="数量" width="80" />
@@ -78,37 +57,45 @@
         </div>
 
         <!-- 检验 -->
-        <div v-else-if="event.type === 'LAB_TEST'" class="fields">
-          <div class="field">
-            <span class="k">项目名</span>
-            <span class="v">{{ d(event).itemName || '-' }}</span>
+        <div v-if="group.labTests.length" class="section">
+          <div class="section-label" style="--c: #E6A23C">
+            <span class="dot"></span>检验
           </div>
-          <div class="field">
-            <span class="k">结果值</span>
-            <span class="v" :class="{ abnormal: isAbnormal(event) }">
-              {{ d(event).resultValue ?? '-' }}
+          <div v-for="(e, i) in group.labTests" :key="'l' + i" class="section-line lab-line">
+            <span class="lab-name">{{ d(e).itemName || '-' }}</span>
+            <span class="lab-val" :class="{ abnormal: isAbnormal(e) }">
+              {{ d(e).resultValue ?? '-' }} {{ d(e).unit || '' }}
             </span>
-            <el-tag v-if="isAbnormal(event)" type="danger" size="small" effect="dark">异常</el-tag>
-          </div>
-          <div class="field">
-            <span class="k">单位</span>
-            <span class="v">{{ d(event).unit || '-' }}</span>
-          </div>
-          <div class="field">
-            <span class="k">参考范围</span>
-            <span class="v muted">{{ d(event).referenceRange || '-' }}</span>
+            <el-tag v-if="isAbnormal(e)" type="danger" size="small" effect="dark">异常</el-tag>
+            <span class="muted lab-ref">参考 {{ d(e).referenceRange || '-' }}</span>
           </div>
         </div>
+      </el-card>
+    </el-timeline-item>
 
-        <!-- 未知类型兜底 -->
-        <div v-else class="v muted">{{ d(event).visitNo || d(event).id || '-' }}</div>
+    <!-- 孤立事件兜底（无对应就诊的事件，正常数据不会出现） -->
+    <el-timeline-item
+      v-for="(event, index) in grouped.orphans"
+      :key="eventKey(event, index)"
+      :timestamp="formatDateTime(event.time)"
+      placement="top"
+      size="large"
+      :color="metaOf(event.type).color"
+    >
+      <el-card shadow="hover" class="visit-card">
+        <el-tag :color="metaOf(event.type).color" effect="dark" size="small" class="type-tag">
+          {{ metaOf(event.type).label }}
+        </el-tag>
+        <div class="v muted orphan-text">{{ orphanSummary(event) }}</div>
       </el-card>
     </el-timeline-item>
   </el-timeline>
 </template>
 
 <script setup>
-defineProps({
+import { computed } from 'vue'
+
+const props = defineProps({
   events: { type: Array, default: () => [] }
 })
 
@@ -135,20 +122,82 @@ const isAbnormal = (event) => Number(d(event).isAbnormal) === 1
 // "2024-01-01T09:00:00" -> "2024-01-01 09:00:00"
 const formatDateTime = (t) => (t ? String(t).replace('T', ' ').slice(0, 19) : '')
 
+// ISO 时间字符串长度固定，字典序即时间序
+const timeStr = (event) => (event?.time ? String(event.time) : '')
+
+/**
+ * 归并：以 VISIT 事件的 data.id 为键，把 DIAGNOSIS / PRESCRIPTION / LAB_TEST
+ * 按 data.visitId 挂到对应就诊下。后端已按时间升序返回，归并后再按时间排一次保证组内有序。
+ */
+const grouped = computed(() => {
+  const visitMap = new Map()
+  const orphans = []
+  for (const e of props.events) {
+    const data = d(e)
+    if (e.type === 'VISIT') {
+      if (data.id == null) {
+        orphans.push(e)
+        continue
+      }
+      let g = visitMap.get(data.id)
+      if (!g) {
+        g = { visit: e, diagnoses: [], prescriptions: [], labTests: [] }
+        visitMap.set(data.id, g)
+      } else {
+        g.visit = e
+      }
+    } else if (e.type === 'DIAGNOSIS' || e.type === 'PRESCRIPTION' || e.type === 'LAB_TEST') {
+      const g = data.visitId != null ? visitMap.get(data.visitId) : null
+      if (g) {
+        if (e.type === 'DIAGNOSIS') g.diagnoses.push(e)
+        else if (e.type === 'PRESCRIPTION') g.prescriptions.push(e)
+        else g.labTests.push(e)
+      } else {
+        orphans.push(e)
+      }
+    } else {
+      orphans.push(e)
+    }
+  }
+  const groups = [...visitMap.values()].sort((a, b) =>
+    timeStr(a.visit).localeCompare(timeStr(b.visit))
+  )
+  for (const g of groups) {
+    g.diagnoses.sort((a, b) => timeStr(a).localeCompare(timeStr(b)))
+    g.prescriptions.sort((a, b) => timeStr(a).localeCompare(timeStr(b)))
+    g.labTests.sort((a, b) => timeStr(a).localeCompare(timeStr(b)))
+  }
+  return { groups, orphans }
+})
+
+const orphanSummary = (event) => {
+  const data = d(event)
+  switch (event.type) {
+    case 'DIAGNOSIS':
+      return `${data.diagnosisName || '-'}${data.icdCode ? '（' + data.icdCode + '）' : ''}`
+    case 'PRESCRIPTION':
+      return `处方${data.totalAmount != null ? '，合计 ¥' + data.totalAmount : ''}`
+    case 'LAB_TEST':
+      return `${data.itemName || '-'} ${data.resultValue ?? ''} ${data.unit || ''}`
+    default:
+      return data.visitNo || data.id || '-'
+  }
+}
+
+const groupKey = (group, index) => `${d(group.visit).id ?? 'visit'}-${index}`
 const eventKey = (event, index) => `${event?.type || 'UNKNOWN'}-${d(event).id ?? index}`
 </script>
 
 <style scoped>
-.event-card {
+.visit-card {
   --el-card-padding: 12px 16px;
 }
 
-.card-head {
+.visit-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: 12px;
+  margin-bottom: 4px;
 }
 
 .type-tag {
@@ -157,52 +206,84 @@ const eventKey = (event, index) => `${event?.type || 'UNKNOWN'}-${d(event).id ??
   font-weight: 600;
 }
 
+.visit-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: #303133;
+}
+
+.meta-sep {
+  color: #c0c4cc;
+}
+
+.section {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px dashed #ebeef5;
+}
+
+.section-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--c);
+  margin-bottom: 4px;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--c);
+}
+
 .amount {
+  margin-left: auto;
   color: #67c23a;
   font-weight: 600;
 }
 
-.fields {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 24px;
+.section-line {
+  padding-left: 14px;
+  line-height: 1.9;
+  font-size: 13px;
+  color: #303133;
 }
 
-.field {
+.lab-line {
   display: flex;
   align-items: center;
-  gap: 6px;
-  line-height: 1.8;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
-.field-wide {
-  flex-basis: 100%;
+.lab-name {
+  font-weight: 500;
 }
 
-.k {
-  color: #909399;
-  font-size: 13px;
-}
-
-.v {
-  color: #303133;
-  font-size: 13px;
-}
-
-.v.abnormal {
+.lab-val.abnormal {
   color: #f56c6c;
   font-weight: 600;
 }
 
-.muted {
-  color: #909399;
-}
-
-.prescription .field {
-  margin-bottom: 8px;
+.lab-ref {
+  font-size: 12px;
 }
 
 .item-table {
   width: 100%;
+  margin-top: 2px;
+}
+
+.orphan-text {
+  margin-top: 8px;
+}
+
+.muted {
+  color: #909399;
 }
 </style>
