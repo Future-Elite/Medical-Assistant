@@ -111,7 +111,7 @@
           <template v-if="adm.discharge"> → 出院 {{ formatDateTime(adm.discharge.time) }}</template>
         </div>
         <el-button link type="primary" size="small"
-          @click="openAdmission(d(adm.admission).id)">查看住院时间轴</el-button>
+          @click="openAdmission(adm.admission)">查看住院时间轴</el-button>
       </el-card>
     </el-timeline-item>
 
@@ -136,10 +136,13 @@
 
 <script setup>
 import { computed } from 'vue'
+import { useRouter } from 'vue-router'
 
 const props = defineProps({
   events: { type: Array, default: () => [] }
 })
+
+const router = useRouter()
 
 // 事件类型 -> 颜色 / 标签
 const TYPE_META = {
@@ -174,9 +177,19 @@ const timeStr = (event) => (event?.time ? String(event.time) : '')
 // 住院卡：入院/出院事件二选一取时间
 const timeStr2 = (adm) => (adm.admission || adm.discharge)?.time || ''
 
-// 用 hash 跳转，Timeline 为展示组件，不引入路由上下文依赖
-const openAdmission = (id) => {
-  if (id != null) window.location.hash = `#/admission/${id}`
+// 用 router.push 跳转并带上住院头部信息（路由为 createWebHistory，无 hash 片段）
+const openAdmission = (event) => {
+  const data = d(event)
+  if (data.id == null) return
+  router.push({
+    path: '/admission/' + data.id,
+    query: {
+      admissionNo: data.admissionNo,
+      diagnosis: data.diagnosis,
+      department: data.department,
+      bedNo: data.bedNo
+    }
+  })
 }
 
 /**
