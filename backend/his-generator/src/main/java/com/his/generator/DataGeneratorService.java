@@ -504,6 +504,8 @@ public class DataGeneratorService {
     private List<Admission> newAdmissions(Patient p, LocalDateTime lastVisit) {
         int count = rnd.nextInt(MIN_ADMISSIONS, MAX_ADMISSIONS + 1);
         List<Admission> list = new ArrayList<>(count);
+        // 每次住院时间严格升序且不重叠：首次在末次门诊之后，后续在上一次住院之后（至少隔 MAX_STAY_DAYS 天）
+        LocalDateTime anchor = lastVisit;
         for (int i = 0; i < count; i++) {
             ClinicalPathway pathway = pathways.isEmpty() ? null
                     : pathways.get(rnd.nextInt(pathways.size()));
@@ -519,10 +521,11 @@ public class DataGeneratorService {
             a.setDepartment(department); a.setDoctor(doctor);
             a.setBedNo(rnd.nextInt(1, 60) + "床");
             a.setDiagnosis(diagnosis);
-            a.setAdmissionTime(randomAdmissionTime(lastVisit));
+            a.setAdmissionTime(nextAdmissionTime(anchor, i == 0 ? 0 : MAX_STAY_DAYS));
             a.setDeposit(BigDecimal.valueOf(rnd.nextInt(5, 21) * 100));
             a.setStatus(0);
             list.add(a);
+            anchor = a.getAdmissionTime();
         }
         return list;
     }
@@ -577,6 +580,7 @@ public class DataGeneratorService {
         // 路径：合规则按步骤补齐对应 LAB/MED 事件，不合规则跳过（自然变异）
         if (compliant && pathway != null) {
             for (PathwayStep step : parsePathwaySteps(pathway.getSteps())) {
+                if (step.day() >= totalDays) continue;
                 if ("LAB".equals(step.action())) {
                     LabTest lt = labTestForItem(a, step);
                     if (lt != null) inpatientLabBuf.add(lt);
@@ -641,7 +645,7 @@ public class DataGeneratorService {
         double val = li.low() + rnd.nextDouble() * (li.high() - li.low());
         lt.setResultValue(String.format("%.2f", val));
         lt.setUnit(li.unit()); lt.setReferenceRange(li.ref()); lt.setIsAbnormal(0);
-        lt.setTestedAt(a.getAdmissionTime().plusDays(step.day()).plusHours(rnd.nextInt(1, step.window())));
+        lt.setTestedAt(a.getAdmissionTime().plusDays(step.day()).plusHours(rnd.nextInt(1, Math.max(2, step.window()))));
         return lt;
     }
 
@@ -658,9 +662,9 @@ public class DataGeneratorService {
         return new ArrayList<>(doctorsByDept.keySet()).get(rnd.nextInt(doctorsByDept.size()));
     }
 
-    private LocalDateTime randomAdmissionTime(LocalDateTime lastVisit) {
-        // 入院在末次门诊之后 1-30 天；若越界到 now，回退到近期过去，保证不出未来数据
-        LocalDateTime admission = lastVisit.plusDays(rnd.nextInt(1, 31));
+    /** anchor 之后 minGapDays..minGapDays+29 天；越界到 now 则回退近期过去，保证不出未来/重叠数据。 */
+    private LocalDateTime nextAdmissionTime(LocalDateTime anchor, int minGapDays) {
+        LocalDateTime admission = anchor.plusDays(minGapDays).plusDays(rnd.nextInt(1, 31));
         LocalDateTime now = LocalDateTime.now();
         if (admission.isAfter(now)) {
             admission = now.minusHours(rnd.nextInt(1, 48));

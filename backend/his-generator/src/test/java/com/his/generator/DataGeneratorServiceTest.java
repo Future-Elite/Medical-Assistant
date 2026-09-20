@@ -83,7 +83,7 @@ class DataGeneratorServiceTest {
         // 一条上呼吸道感染路径（steps JSON 与 Task 8 测试一致）
         ClinicalPathway cp = new ClinicalPathway();
         cp.setDiagnosisName("上呼吸道感染");
-        cp.setSteps("[{\"day\":0,\"action\":\"LAB\",\"item\":\"白细胞计数\",\"window\":24},{\"day\":3,\"action\":\"DISCHARGE\",\"window\":24}]");
+        cp.setSteps("[{\"day\":0,\"action\":\"LAB\",\"item\":\"白细胞计数\",\"window\":24},{\"day\":1,\"action\":\"MED\",\"item\":\"阿莫西林\",\"window\":24},{\"day\":3,\"action\":\"DISCHARGE\",\"window\":24}]");
         cp.setEnabled(1);
         when(pathwayMapper.selectList(any())).thenReturn(List.of(cp));
 
@@ -391,6 +391,12 @@ class DataGeneratorServiceTest {
         }
         for (Admission a : insertedAdmissions) {
             assertThat(a.getDischargeTime()).isAfter(a.getAdmissionTime());
+        }
+        for (MedicalOrder o : insertedOrders) {
+            assertThat(o.getStartTime()).isBefore(admById.get(o.getAdmissionId()).getDischargeTime());
+        }
+        for (VitalSign vs : insertedVitals) {
+            assertThat(vs.getRecordedAt()).isBefore(admById.get(vs.getAdmissionId()).getDischargeTime());
         }
     }
 

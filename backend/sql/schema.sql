@@ -55,7 +55,7 @@ CREATE TABLE drug (
 
 CREATE TABLE lab_test (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
-  patient_id BIGINT NOT NULL, visit_id BIGINT NOT NULL,
+  patient_id BIGINT NOT NULL, visit_id BIGINT NULL,
   item_code VARCHAR(20), item_name VARCHAR(100) NOT NULL,
   result_value VARCHAR(50), unit VARCHAR(20),
   reference_range VARCHAR(50), is_abnormal TINYINT DEFAULT 0,
