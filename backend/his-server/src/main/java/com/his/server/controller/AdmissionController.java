@@ -2,8 +2,10 @@ package com.his.server.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.his.common.common.Result;
+import com.his.common.dto.TimelineVO;
 import com.his.common.entity.Admission;
 import com.his.server.service.AdmissionService;
+import com.his.server.service.TimelineService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -16,6 +18,7 @@ import java.util.List;
 public class AdmissionController {
 
     private final AdmissionService admissionService;
+    private final TimelineService timelineService;
 
     @PostMapping
     public Result<Admission> create(@RequestBody Admission admission) {
@@ -34,5 +37,10 @@ public class AdmissionController {
         return Result.ok(admissionService.list(new LambdaQueryWrapper<Admission>()
                 .eq(Admission::getPatientId, patientId)
                 .orderByDesc(Admission::getAdmissionTime)));
+    }
+
+    @GetMapping("/{id}/timeline")
+    public Result<TimelineVO> timeline(@PathVariable Long id) {
+        return Result.ok(timelineService.getAdmissionTimeline(id));
     }
 }

@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
+import com.his.common.dto.TimelineEvent;
 import com.his.common.dto.TimelineVO;
 import com.his.common.entity.*;
 import com.his.common.mapper.*;
@@ -43,6 +44,11 @@ class TimelineServiceTest {
     private PrescriptionMapper pm;
     private PrescriptionItemMapper im;
     private LabTestMapper lm;
+    private AdmissionMapper am;
+    private MedicalOrderMapper mom;
+    private VitalSignMapper vsm;
+    private ChargeMapper cm;
+    private DispenseMapper dsm;
     private StringRedisTemplate redis;
     private ValueOperations<String, String> ops;
 
@@ -54,6 +60,11 @@ class TimelineServiceTest {
         pm = mock(PrescriptionMapper.class);
         im = mock(PrescriptionItemMapper.class);
         lm = mock(LabTestMapper.class);
+        am = mock(AdmissionMapper.class);
+        mom = mock(MedicalOrderMapper.class);
+        vsm = mock(VitalSignMapper.class);
+        cm = mock(ChargeMapper.class);
+        dsm = mock(DispenseMapper.class);
         redis = mock(StringRedisTemplate.class);
         ops = mock(ValueOperations.class);
         when(redis.opsForValue()).thenReturn(ops);
@@ -65,10 +76,15 @@ class TimelineServiceTest {
         lenient().when(pm.selectList(any())).thenReturn(List.of());
         lenient().when(im.selectList(any())).thenReturn(List.of());
         lenient().when(lm.selectList(any())).thenReturn(List.of(l));
+        lenient().when(am.selectList(any())).thenReturn(List.of());
+        lenient().when(mom.selectList(any())).thenReturn(List.of());
+        lenient().when(vsm.selectList(any())).thenReturn(List.of());
+        lenient().when(cm.selectList(any())).thenReturn(List.of());
+        lenient().when(dsm.selectList(any())).thenReturn(List.of());
     }
 
     private TimelineServiceImpl svc() {
-        return new TimelineServiceImpl(vm, dm, pm, im, lm, redis, OM);
+        return new TimelineServiceImpl(vm, dm, pm, im, lm, am, mom, vsm, cm, dsm, redis, OM);
     }
 
     @Test
@@ -137,5 +153,43 @@ class TimelineServiceTest {
         TimelineVO vo = svc().getTimeline(1L);
 
         assertThat(vo.getEvents()).hasSize(2);
+    }
+
+    @Test
+    void patient_timeline_includes_admission_and_discharge_events() {
+        Admission a = new Admission();
+        a.setId(9L); a.setPatientId(1L);
+        a.setAdmissionTime(LocalDateTime.of(2024, 1, 1, 8, 0));
+        a.setDischargeTime(LocalDateTime.of(2024, 1, 5, 10, 0));
+        lenient().when(am.selectList(any())).thenReturn(List.of(a));
+
+        TimelineVO vo = svc().getTimeline(1L);
+
+        assertThat(vo.getEvents()).extracting(TimelineEvent::getType)
+                .contains("ADMISSION", "DISCHARGE");
+        // 时间升序：ADMISSION(08:00) < LAB_TEST(09:30) < VISIT(10:00) < DISCHARGE(01-05)
+        assertThat(vo.getEvents().get(0).getType()).isEqualTo("ADMISSION");
+        assertThat(vo.getEvents().get(vo.getEvents().size() - 1).getType()).isEqualTo("DISCHARGE");
+    }
+
+    @Test
+    void admission_timeline_sorts_orders_and_vitals_ascending() {
+        Admission a = new Admission(); a.setId(9L); a.setPatientId(1L);
+        when(am.selectById(9L)).thenReturn(a);
+
+        MedicalOrder o = new MedicalOrder(); o.setId(1L); o.setAdmissionId(9L);
+        o.setStartTime(LocalDateTime.of(2024, 1, 1, 12, 0));
+        VitalSign vs = new VitalSign(); vs.setId(1L); vs.setAdmissionId(9L);
+        vs.setRecordedAt(LocalDateTime.of(2024, 1, 1, 6, 0));
+        when(mom.selectList(any())).thenReturn(List.of(o));
+        when(vsm.selectList(any())).thenReturn(List.of(vs));
+        // mock 不解析 wrapper，setUp 里那条患者级化验单会污染住院时间轴；本用例只关心按医嘱/体征排序
+        when(lm.selectList(any())).thenReturn(List.of());
+
+        TimelineVO vo = svc().getAdmissionTimeline(9L);
+
+        assertThat(vo.getPatientId()).isEqualTo(1L);
+        assertThat(vo.getEvents()).extracting(TimelineEvent::getType)
+                .containsExactly("VITAL_SIGN", "ORDER");
     }
 }

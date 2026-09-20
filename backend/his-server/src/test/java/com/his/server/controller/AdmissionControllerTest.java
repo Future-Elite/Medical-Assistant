@@ -3,6 +3,7 @@ package com.his.server.controller;
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.his.common.entity.Admission;
 import com.his.server.service.AdmissionService;
+import com.his.server.service.TimelineService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -22,6 +23,7 @@ class AdmissionControllerTest {
 
     @Autowired MockMvc mockMvc;
     @MockBean AdmissionService admissionService;
+    @MockBean TimelineService timelineService;
 
     @Test
     void list_returns_admissions_for_patient() throws Exception {

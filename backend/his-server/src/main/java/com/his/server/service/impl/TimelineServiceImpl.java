@@ -26,6 +26,7 @@ import java.util.stream.Collectors;
 public class TimelineServiceImpl implements TimelineService {
 
     private static final String CACHE_PREFIX = "timeline:";
+    private static final String ADMISSION_CACHE_PREFIX = "timeline:admission:";
     private static final Duration TTL = Duration.ofMinutes(30);
 
     private final VisitMapper visitMapper;
@@ -33,6 +34,11 @@ public class TimelineServiceImpl implements TimelineService {
     private final PrescriptionMapper prescriptionMapper;
     private final PrescriptionItemMapper itemMapper;
     private final LabTestMapper labTestMapper;
+    private final AdmissionMapper admissionMapper;
+    private final MedicalOrderMapper medicalOrderMapper;
+    private final VitalSignMapper vitalSignMapper;
+    private final ChargeMapper chargeMapper;
+    private final DispenseMapper dispenseMapper;
     private final StringRedisTemplate redis;
     private final ObjectMapper objectMapper;
 
@@ -96,7 +102,69 @@ public class TimelineServiceImpl implements TimelineService {
         labTestMapper.selectList(new LambdaQueryWrapper<LabTest>().eq(LabTest::getPatientId, patientId))
                 .forEach(l -> events.add(new TimelineEvent("LAB_TEST", l.getTestedAt(), l)));
 
+        admissionMapper.selectList(new LambdaQueryWrapper<Admission>().eq(Admission::getPatientId, patientId))
+                .forEach(a -> {
+                    events.add(new TimelineEvent("ADMISSION", a.getAdmissionTime(), a));
+                    if (a.getDischargeTime() != null) {
+                        events.add(new TimelineEvent("DISCHARGE", a.getDischargeTime(), a));
+                    }
+                });
+
+        chargeMapper.selectList(new LambdaQueryWrapper<Charge>().eq(Charge::getPatientId, patientId))
+                .forEach(c -> events.add(new TimelineEvent("CHARGE", c.getChargedAt(), c)));
+
+        dispenseMapper.selectList(new LambdaQueryWrapper<Dispense>().eq(Dispense::getPatientId, patientId))
+                .forEach(d -> events.add(new TimelineEvent("DISPENSE", d.getDispensedAt(), d)));
+
         events.sort(Comparator.comparing(TimelineEvent::getTime));
         return new TimelineVO(patientId, events);
+    }
+
+    @Override
+    public TimelineVO getAdmissionTimeline(Long admissionId) {
+        String key = ADMISSION_CACHE_PREFIX + admissionId;
+        String cached = null;
+        try {
+            cached = redis.opsForValue().get(key);
+        } catch (Exception e) {
+            log.warn("Redis 读取住院时间轴缓存异常，改为直接查库重建: admissionId={}", admissionId, e);
+        }
+        if (cached != null) {
+            try {
+                return objectMapper.readValue(cached, TimelineVO.class);
+            } catch (Exception e) {
+                log.warn("住院时间轴缓存反序列化失败，忽略缓存内容并重建: admissionId={}", admissionId, e);
+            }
+        }
+        TimelineVO vo = buildAdmission(admissionId);
+        try {
+            redis.opsForValue().set(key, objectMapper.writeValueAsString(vo), TTL);
+        } catch (Exception e) {
+            log.warn("Redis 写入住院时间轴缓存异常（本次响应不受影响）: admissionId={}", admissionId, e);
+        }
+        return vo;
+    }
+
+    private TimelineVO buildAdmission(Long admissionId) {
+        Admission admission = admissionMapper.selectById(admissionId);
+        if (admission == null) {
+            return new TimelineVO(null, List.of());
+        }
+        List<TimelineEvent> events = new ArrayList<>();
+
+        medicalOrderMapper.selectList(new LambdaQueryWrapper<MedicalOrder>()
+                        .eq(MedicalOrder::getAdmissionId, admissionId))
+                .forEach(o -> events.add(new TimelineEvent("ORDER", o.getStartTime(), o)));
+
+        vitalSignMapper.selectList(new LambdaQueryWrapper<VitalSign>()
+                        .eq(VitalSign::getAdmissionId, admissionId))
+                .forEach(v -> events.add(new TimelineEvent("VITAL_SIGN", v.getRecordedAt(), v)));
+
+        labTestMapper.selectList(new LambdaQueryWrapper<LabTest>()
+                        .eq(LabTest::getAdmissionId, admissionId))
+                .forEach(l -> events.add(new TimelineEvent("LAB_TEST", l.getTestedAt(), l)));
+
+        events.sort(Comparator.comparing(TimelineEvent::getTime));
+        return new TimelineVO(admission.getPatientId(), events);
     }
 }
