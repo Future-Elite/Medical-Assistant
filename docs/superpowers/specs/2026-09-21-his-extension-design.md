@@ -36,7 +36,7 @@
 | 发票管理 / 医保接口 / 院感系统 | — | ❌ 平台/政策类，与内核无关 |
 | 单点登录 / 系统管理 / 基础数据管理 | — | ❌ 平台类（且违背「无账号密码」约束） |
 
-## 3. 数据模型（7 张新表）
+## 3. 数据模型（7 张新表 + 1 处既有表增列）
 
 统一约定沿用一期：时间字段 `DATETIME`、主键 `BIGINT AUTO_INCREMENT`、`patient_id`/`visit_id`/`admission_id`
 与时间字段建组合索引以支撑时间线与批量写入。
@@ -119,7 +119,7 @@
 | 字段 | 类型 | 说明 |
 |---|---|---|
 | id | BIGINT PK | |
-| rule_type | TINYINT DEFAULT 0 | 0 适应症 / 1 相互作用 / 2 剂量上限 |
+| rule_type | TINYINT DEFAULT 1 | 1 相互作用 / 2 剂量上限（适应症校验复用 rule_config） |
 | diagnosis_code | VARCHAR(20) | 适应症用（诊断编码） |
 | drug_a_id | BIGINT | 相互作用用（药品 A） |
 | drug_b_id | BIGINT | 相互作用用（药品 B） |
@@ -152,6 +152,11 @@
 ]
 ```
 
+### 3.8 `lab_test` 增列（既有表，非新表）
+
+为把住院期间的检验结果挂到对应住院下，既有 `lab_test` 表增列 `admission_id BIGINT NULL`（门诊检验为 NULL），
+并加索引 `KEY idx_lab_admission (admission_id)`。
+
 ## 4. 时间线事件扩展
 
 一期事件类型：`VISIT` / `DIAGNOSIS` / `PRESCRIPTION` / `LAB_TEST`。
@@ -167,7 +172,7 @@
 
 - `ORDER`（医嘱开立；长期医嘱渲染为 start_time→stop_time 区间，不另发停止事件）
 - `VITAL_SIGN`（生命体征，早中晚多次）
-- `LAB_TEST`（住院期间的检验，复用一期 lab_test）
+- `LAB_TEST`（住院期间的检验，复用一期 lab_test，经 `admission_id` 关联）
 
 > 设计取舍：`ORDER`/`VITAL_SIGN` **不**铺进患者时间轴顶层（一次住院可能上千条，会淹没骨架）；患者时间轴保留骨架，
 > 点击入院事件下钻到住院时间轴看纵向细节。此分层既保住查询性能，也更贴近真实病历结构。
@@ -193,7 +198,7 @@
 - **生命体征**：每天 3 次（早 6–8 点、午 12–14 点、晚 18–20 点）。数值围绕正常范围波动，且**带病情趋势**——
   例如发热/术后患者体温「先升后降」、血压/脉搏随住院天数演化，而非纯随机噪声。
 - **医嘱**：住院首日开 **1–3 条长期医嘱**（执行至出院）；**临时医嘱**每天 0–2 条、**检验医嘱**每天 0–1 条；
-  检验医嘱触发一条关联的 `lab_test`。
+  检验医嘱触发一条关联的 `lab_test`（带 `admission_id`）。
 - **出院**：`discharge_time = admission_time + 住院天数`；`total_cost = 押金 + 床位费(按天) + 药费 + 检验费`。
 - 同一患者**完整合并时间线仍严格升序**，住院段与门诊就诊段时间不冲突。
 
