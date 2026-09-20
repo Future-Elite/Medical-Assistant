@@ -64,6 +64,8 @@ public class DataGeneratorService {
     /** 每次住院 3-15 天 */
     private static final int MIN_STAY_DAYS = 3;
     private static final int MAX_STAY_DAYS = 15;
+    /** 相邻住院的固定间隔（天）：> MAX_STAY_DAYS(15)，使多次住院严格升序且互不重叠由构造直接保证 */
+    private static final int ADMISSION_GAP_DAYS = MAX_STAY_DAYS + 1;
     /** 入院诊断命中临床路径时按路径执行的占比（其余偏离，制造变异） */
     private static final double PATHWAY_COMPLIANCE_RATE = 0.7;
     /** 身份证地区码（GB 11643，北京市东城区） */
@@ -502,10 +504,27 @@ public class DataGeneratorService {
 
     /** 构造一名患者的住院记录（1-3 次），只填 Admission 字段；医嘱/体征/检验在回填 id 之后生成。 */
     private List<Admission> newAdmissions(Patient p, LocalDateTime lastVisit) {
+        LocalDateTime now = LocalDateTime.now();
         int count = rnd.nextInt(MIN_ADMISSIONS, MAX_ADMISSIONS + 1);
+        // 相邻住院固定隔 ADMISSION_GAP_DAYS 天（> 最大住院 15 天 + 出院最多 +23h），
+        // 「严格升序 + 互不重叠 + 末次入院不晚于 now」由构造直接保证，无需再回退钳制。
+        // 末次门诊距今太近、放不下 count 次时，逐级减少次数（末次门诊必早于 now，故至少保留 1 次）。
+        LocalDateTime latestFirst = now;
+        while (count > 0) {
+            latestFirst = now.minusDays((count - 1) * (long) ADMISSION_GAP_DAYS);
+            if (lastVisit.isBefore(latestFirst)) {
+                break;
+            }
+            count--;
+        }
+
+        // 首次入院在 (lastVisit, latestFirst] 内随机；其后每次 = 前一次 + ADMISSION_GAP_DAYS 天。
+        long windowMinutes = Duration.between(lastVisit, latestFirst).toMinutes();
+        LocalDateTime first = windowMinutes <= 1
+                ? latestFirst
+                : lastVisit.plusMinutes(rnd.nextLong(1, windowMinutes + 1));
+
         List<Admission> list = new ArrayList<>(count);
-        // 每次住院时间严格升序且不重叠：首次在末次门诊之后，后续在上一次住院之后（至少隔 MAX_STAY_DAYS 天）
-        LocalDateTime anchor = lastVisit;
         for (int i = 0; i < count; i++) {
             ClinicalPathway pathway = pathways.isEmpty() ? null
                     : pathways.get(rnd.nextInt(pathways.size()));
@@ -521,11 +540,10 @@ public class DataGeneratorService {
             a.setDepartment(department); a.setDoctor(doctor);
             a.setBedNo(rnd.nextInt(1, 60) + "床");
             a.setDiagnosis(diagnosis);
-            a.setAdmissionTime(nextAdmissionTime(anchor, i == 0 ? 0 : MAX_STAY_DAYS));
+            a.setAdmissionTime(first.plusDays((long) i * ADMISSION_GAP_DAYS));
             a.setDeposit(BigDecimal.valueOf(rnd.nextInt(5, 21) * 100));
             a.setStatus(0);
             list.add(a);
-            anchor = a.getAdmissionTime();
         }
         return list;
     }
@@ -660,16 +678,6 @@ public class DataGeneratorService {
 
     private String randomDepartment() {
         return new ArrayList<>(doctorsByDept.keySet()).get(rnd.nextInt(doctorsByDept.size()));
-    }
-
-    /** anchor 之后 minGapDays..minGapDays+29 天；越界到 now 则回退近期过去，保证不出未来/重叠数据。 */
-    private LocalDateTime nextAdmissionTime(LocalDateTime anchor, int minGapDays) {
-        LocalDateTime admission = anchor.plusDays(minGapDays).plusDays(rnd.nextInt(1, 31));
-        LocalDateTime now = LocalDateTime.now();
-        if (admission.isAfter(now)) {
-            admission = now.minusHours(rnd.nextInt(1, 48));
-        }
-        return admission;
     }
 
     private ClinicalPathway pathwayFor(String diagnosisName) {

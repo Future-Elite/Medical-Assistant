@@ -398,6 +398,23 @@ class DataGeneratorServiceTest {
         for (VitalSign vs : insertedVitals) {
             assertThat(vs.getRecordedAt()).isBefore(admById.get(vs.getAdmissionId()).getDischargeTime());
         }
+
+        // Finding 1：同一患者多次住院严格升序、互不重叠、入院时间不晚于 now。
+        LocalDateTime now = LocalDateTime.now();
+        Map<Long, List<Admission>> byPatient = insertedAdmissions.stream()
+                .collect(Collectors.groupingBy(Admission::getPatientId));
+        for (List<Admission> admissions : byPatient.values()) {
+            admissions.sort(Comparator.comparing(Admission::getAdmissionTime));
+            for (int i = 1; i < admissions.size(); i++) {
+                Admission prev = admissions.get(i - 1);
+                Admission cur = admissions.get(i);
+                assertThat(cur.getAdmissionTime()).isAfter(prev.getAdmissionTime());   // 严格升序
+                assertThat(cur.getAdmissionTime()).isAfter(prev.getDischargeTime());   // 互不重叠
+            }
+            for (Admission a : admissions) {
+                assertThat(a.getAdmissionTime()).isBeforeOrEqualTo(now);               // 无未来入院
+            }
+        }
     }
 
     @Test

@@ -99,7 +99,9 @@ public class TimelineServiceImpl implements TimelineService {
             events.add(new TimelineEvent("PRESCRIPTION", p.getPrescribedAt(), p));
         }
 
-        labTestMapper.selectList(new LambdaQueryWrapper<LabTest>().eq(LabTest::getPatientId, patientId))
+        labTestMapper.selectList(new LambdaQueryWrapper<LabTest>()
+                        .eq(LabTest::getPatientId, patientId)
+                        .isNull(LabTest::getAdmissionId))
                 .forEach(l -> events.add(new TimelineEvent("LAB_TEST", l.getTestedAt(), l)));
 
         admissionMapper.selectList(new LambdaQueryWrapper<Admission>().eq(Admission::getPatientId, patientId))

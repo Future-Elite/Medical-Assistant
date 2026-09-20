@@ -39,7 +39,23 @@
         <el-table-column prop="diastolicBp" label="舒张压" width="80" />
       </el-table>
 
-      <el-empty v-if="!loading && !orders.length && !vitals.length" description="暂无住院记录" />
+      <el-table v-if="labs.length" :data="labs" size="small" border style="margin-top: 12px">
+        <el-table-column label="时间" width="160">
+          <template #default="{ row }">{{ formatDateTime(row.testedAt) }}</template>
+        </el-table-column>
+        <el-table-column prop="itemName" label="检验项目" min-width="140" />
+        <el-table-column prop="resultValue" label="结果" width="90" />
+        <el-table-column prop="unit" label="单位" width="70" />
+        <el-table-column prop="referenceRange" label="参考范围" min-width="120" />
+        <el-table-column label="异常" width="70">
+          <template #default="{ row }">
+            <el-tag v-if="row.isAbnormal" type="danger" size="small">异常</el-tag>
+            <span v-else class="muted">正常</span>
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <el-empty v-if="!loading && !orders.length && !vitals.length && !labs.length" description="暂无住院记录" />
     </el-card>
   </div>
 </template>
@@ -47,7 +63,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { listOrders, listVitalSigns } from '../api/inpatient'
+import { listOrders, listVitalSigns, getAdmissionTimeline } from '../api/inpatient'
 import Chart from '../components/Chart.vue'
 
 const route = useRoute()
@@ -55,6 +71,7 @@ const router = useRouter()
 const loading = ref(false)
 const orders = ref([])
 const vitals = ref([])
+const labs = ref([])
 
 const admissionNo = computed(() => route.query.admissionNo || '-')
 const diagnosis = computed(() => route.query.diagnosis || '-')
@@ -86,12 +103,14 @@ const goBack = () => router.back()
 onMounted(async () => {
   loading.value = true
   const admissionId = route.params.id
-  const [oRes, vRes] = await Promise.all([
+  const [oRes, vRes, tRes] = await Promise.all([
     listOrders({ admissionId }).catch(() => null),
-    listVitalSigns({ admissionId }).catch(() => null)
+    listVitalSigns({ admissionId }).catch(() => null),
+    getAdmissionTimeline(admissionId).catch(() => null)
   ])
   orders.value = (oRes?.data || []).map((o) => ({ ...o, orderTypeText: ORDER_TYPE[o.orderType] ?? o.orderType }))
   vitals.value = vRes?.data || []
+  labs.value = (tRes?.data?.events || []).filter((e) => e.type === 'LAB_TEST').map((e) => e.data)
   loading.value = false
 })
 </script>
