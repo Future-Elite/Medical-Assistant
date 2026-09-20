@@ -13,6 +13,7 @@ public class LabTest {
     private Long id;
     private Long patientId;
     private Long visitId;
+    private Long admissionId;
     private String itemCode;
     private String itemName;
     private String resultValue;
