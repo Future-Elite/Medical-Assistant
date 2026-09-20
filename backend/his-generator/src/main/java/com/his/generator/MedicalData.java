@@ -6,8 +6,6 @@ public final class MedicalData {
     public record DiagnosisRule(String code, String name, List<Long> drugIds) {}
     public record LabItem(String code, String name, String unit, String ref, double low, double high) {}
 
-    public static final String[] DEPARTMENTS = {"内科","外科","儿科","妇科","五官科","皮肤科"};
-    public static final String[] DOCTORS = {"王冠杰","李静","张伟","刘洋","陈晨","赵敏"};
     public static final String[] SURNAMES = {"王","李","张","刘","陈","杨","赵","黄","周","吴"};
     public static final String[] GIVEN = {"伟","芳","娜","敏","静","磊","军","洋","勇","艳","杰","涛","明","超","秀英"};
 

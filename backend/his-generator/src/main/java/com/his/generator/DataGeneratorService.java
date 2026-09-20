@@ -44,6 +44,8 @@ public class DataGeneratorService {
      * 90 天是实测折中：单日峰值约为基线的 1.6 倍（原为 54 倍），且衰减只覆盖最近约 3 个月。
      */
     static final int TAIL_SPREAD_DAYS = 90;
+    /** 每次就诊落在主科室的概率（其余落到其他科室） */
+    private static final double HOME_DEPT_RATIO = 0.8;
     /** 清空时保留 drug / rule_config 字典 */
     private static final List<String> DATA_TABLES =
             List.of("patient", "visit", "diagnosis", "prescription", "prescription_item", "lab_test");
@@ -62,6 +64,7 @@ public class DataGeneratorService {
     private final LabTestMapper labTestMapper;
     private final DrugMapper drugMapper;
     private final RuleConfigMapper ruleConfigMapper;
+    private final DoctorMapper doctorMapper;
     private final JdbcTemplate jdbcTemplate;
 
     /** 生成前清空六张业务数据表，使重复执行等价于「重新生成」（默认开启） */
@@ -70,6 +73,7 @@ public class DataGeneratorService {
 
     private Map<Long, Drug> drugsById;
     private List<MedicalData.DiagnosisRule> rules;
+    private Map<String, List<String>> doctorsByDept;
     private ThreadLocalRandom rnd;
 
     /** 生成 patientCount 名患者及各自就诊链，返回统计信息 */
@@ -82,6 +86,7 @@ public class DataGeneratorService {
         drugsById = drugMapper.selectList(null).stream()
                 .collect(Collectors.toMap(Drug::getId, d -> d));
         rules = loadRules();
+        doctorsByDept = loadDoctors();
 
         long visits = 0, diagnoses = 0, pres = 0, items = 0, labs = 0;
         List<Patient> patientBuf = new ArrayList<>(BATCH_SIZE);
@@ -263,18 +268,38 @@ public class DataGeneratorService {
         long windowMinutes = Duration.between(windowStart, windowEnd).toMinutes();
 
         long[] offsets = visitOffsets(visitCount, windowMinutes);
+
+        // 主科室：该患者 80% 的就诊落在这里，其余散到其他科室；医生必须属于就诊科室。
+        List<String> departments = new ArrayList<>(doctorsByDept.keySet());
+        String homeDept = departments.get(rnd.nextInt(departments.size()));
+
         List<Visit> visits = new ArrayList<>(visitCount);
         for (int j = 0; j < visitCount; j++) {
+            String department = (rnd.nextDouble() < HOME_DEPT_RATIO)
+                    ? homeDept
+                    : pickOtherDept(departments, homeDept);
+            List<String> doctors = doctorsByDept.get(department);
+            String doctor = doctors.get(rnd.nextInt(doctors.size()));
+
             Visit v = new Visit();
             v.setPatientId(p.getId());
             v.setVisitNo("V" + p.getId() + "-" + (j + 1));
-            v.setDepartment(MedicalData.DEPARTMENTS[rnd.nextInt(MedicalData.DEPARTMENTS.length)]);
-            v.setDoctor(MedicalData.DOCTORS[rnd.nextInt(MedicalData.DOCTORS.length)]);
+            v.setDepartment(department);
+            v.setDoctor(doctor);
             v.setVisitTime(windowStart.plusMinutes(offsets[j]));
             v.setStatus(0);
             visits.add(v);
         }
         return visits;
+    }
+
+    /** 从「非主科室」里均匀随机取一个（seed 保证 ≥2 个科室）。 */
+    private String pickOtherDept(List<String> departments, String homeDept) {
+        String other;
+        do {
+            other = departments.get(rnd.nextInt(departments.size()));
+        } while (other.equals(homeDept));
+        return other;
     }
 
     /**
@@ -343,6 +368,18 @@ public class DataGeneratorService {
                     "rule_config 中没有可用的诊断用药规则（enabled=1 且 drug_ids 非空），请先执行 backend/sql/seed.sql");
         }
         return loaded;
+    }
+
+    /** 加载医生并按键分组为「科室 → 医生姓名列表」；表为空时快速失败。 */
+    private Map<String, List<String>> loadDoctors() {
+        Map<String, List<String>> byDept = doctorMapper.selectList(null).stream()
+                .collect(Collectors.groupingBy(Doctor::getDepartment,
+                        Collectors.mapping(Doctor::getName, Collectors.toList())));
+        if (byDept.isEmpty()) {
+            throw new IllegalStateException(
+                    "doctor 表为空，请先执行 backend/sql/seed.sql 写入医生种子数据");
+        }
+        return byDept;
     }
 
     /** drug_ids 可为 NULL / 空串 / 逗号列表 */

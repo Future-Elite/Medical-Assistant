@@ -16,6 +16,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiConsumer;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -36,6 +37,7 @@ class DataGeneratorServiceTest {
     private final List<PrescriptionItem> insertedItems = new ArrayList<>();
 
     private RuleConfigMapper ruleConfigMapper;
+    private DoctorMapper doctorMapper;
     private PrescriptionMapper prescriptionMapper;
     private JdbcTemplate jdbcTemplate;
     private final AtomicLong idSeq = new AtomicLong();
@@ -49,7 +51,12 @@ class DataGeneratorServiceTest {
         LabTestMapper lm = mock(LabTestMapper.class);
         DrugMapper drugM = mock(DrugMapper.class);
         ruleConfigMapper = mock(RuleConfigMapper.class);
+        doctorMapper = mock(DoctorMapper.class);
         jdbcTemplate = mock(JdbcTemplate.class);
+
+        Doctor doc1 = new Doctor(); doc1.setId(1L); doc1.setName("李建华"); doc1.setDepartment("内科");
+        Doctor doc2 = new Doctor(); doc2.setId(2L); doc2.setName("杨文博"); doc2.setDepartment("外科");
+        when(doctorMapper.selectList(any())).thenReturn(List.of(doc1, doc2));
 
         Drug d1 = new Drug(); d1.setId(RULE_DRUG_1); d1.setName("感冒灵颗粒"); d1.setPrice(new BigDecimal("12.00")); d1.setUnit("盒");
         Drug d2 = new Drug(); d2.setId(RULE_DRUG_2); d2.setName("布洛芬"); d2.setPrice(new BigDecimal("15.80")); d2.setUnit("盒");
@@ -65,7 +72,7 @@ class DataGeneratorServiceTest {
         stubBatchInsert(im, insertedItems, PrescriptionItem::setId);
         stubBatchInsert(lm, null, LabTest::setId);
 
-        return new DataGeneratorService(pm, vm, dm, prescriptionMapper, im, lm, drugM, ruleConfigMapper, jdbcTemplate);
+        return new DataGeneratorService(pm, vm, dm, prescriptionMapper, im, lm, drugM, ruleConfigMapper, doctorMapper, jdbcTemplate);
     }
 
     /** 模拟 MyBatis-Plus 批量插入：逐条回填自增 id，并按需收集到 sink */
@@ -363,5 +370,48 @@ class DataGeneratorServiceTest {
         assertThatThrownBy(() -> svc.generate(1))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("999");
+    }
+
+    @Test
+    void visit_doctor_matches_its_department() {
+        DataGeneratorService svc = buildService();
+        svc.generate(50);
+
+        Map<String, List<String>> deptDoctors = Map.of(
+                "内科", List.of("李建华"),
+                "外科", List.of("杨文博"));
+        for (Visit v : insertedVisits) {
+            assertThat(deptDoctors.get(v.getDepartment())).contains(v.getDoctor());
+        }
+    }
+
+    @Test
+    void patients_are_concentrated_in_a_home_department() {
+        DataGeneratorService svc = buildService();
+        svc.generate(200);
+
+        // 汇总校验：所有患者「最常就诊科室」的就诊数合计，应显著高于均匀分布。
+        // 均匀分布（6 科室）最常科室占比 ≈ 1/6；80/20 主科室占比 ≈ 0.8，二者差距大，
+        // 汇总后小样本随机波动相互抵消，不会因个别低就诊数患者（如 5 次）而误报。
+        long totalVisits = 0;
+        long maxDeptVisits = 0;
+        for (List<Visit> visits : visitsByPatient().values()) {
+            Map<String, Long> deptCount = visits.stream()
+                    .collect(Collectors.groupingBy(Visit::getDepartment, Collectors.counting()));
+            long max = deptCount.values().stream().mapToLong(Long::longValue).max().orElse(0);
+            totalVisits += visits.size();
+            maxDeptVisits += max;
+        }
+        assertThat(maxDeptVisits).isGreaterThan(totalVisits * 60 / 100);
+    }
+
+    @Test
+    void fails_fast_when_doctor_table_empty() {
+        DataGeneratorService svc = buildService();
+        when(doctorMapper.selectList(any())).thenReturn(List.of());
+
+        assertThatThrownBy(() -> svc.generate(1))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("doctor");
     }
 }
