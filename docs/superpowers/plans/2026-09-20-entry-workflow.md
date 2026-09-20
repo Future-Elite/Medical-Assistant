@@ -178,6 +178,7 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ```java
 package com.his.server.controller;
 
+import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.his.common.entity.Doctor;
 import com.his.server.service.DoctorService;
 import org.junit.jupiter.api.Test;
@@ -204,7 +205,7 @@ class DoctorControllerTest {
     void list_returns_doctors() throws Exception {
         Doctor d = new Doctor();
         d.setId(1L); d.setName("李建华"); d.setDepartment("内科");
-        when(doctorService.list(any())).thenReturn(List.of(d));
+        when(doctorService.list(any(Wrapper.class))).thenReturn(List.of(d));
 
         mockMvc.perform(get("/api/doctors"))
                 .andExpect(status().isOk())
@@ -466,6 +467,7 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ```java
 package com.his.server.controller;
 
+import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.his.common.entity.Visit;
 import com.his.server.service.VisitService;
 import org.junit.jupiter.api.Test;
@@ -494,7 +496,7 @@ class VisitControllerTest {
         Visit v = new Visit();
         v.setId(1L); v.setPatientId(10L); v.setVisitNo("V10-1");
         v.setDepartment("内科"); v.setVisitTime(LocalDateTime.of(2026, 9, 20, 9, 0));
-        when(visitService.list(any())).thenReturn(List.of(v));
+        when(visitService.list(any(Wrapper.class))).thenReturn(List.of(v));
 
         mockMvc.perform(get("/api/visits")
                         .param("patientId", "10")
