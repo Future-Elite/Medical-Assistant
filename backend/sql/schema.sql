@@ -19,7 +19,8 @@ CREATE TABLE visit (
   department VARCHAR(50), doctor VARCHAR(50),
   visit_time DATETIME NOT NULL,
   status TINYINT NOT NULL DEFAULT 0, remark VARCHAR(255),
-  KEY idx_visit_patient_time (patient_id, visit_time)
+  KEY idx_visit_patient_time (patient_id, visit_time),
+  KEY idx_visit_department (department)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='就诊记录表';
 
 CREATE TABLE diagnosis (
@@ -67,3 +68,10 @@ CREATE TABLE rule_config (
   diagnosis_code VARCHAR(20), diagnosis_name VARCHAR(100) NOT NULL,
   drug_ids VARCHAR(500), enabled TINYINT DEFAULT 1
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='诊断用药配置规则表';
+
+CREATE TABLE doctor (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(50) NOT NULL,
+  department VARCHAR(50) NOT NULL,
+  KEY idx_doctor_department (department)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='医生表';
