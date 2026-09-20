@@ -44,6 +44,33 @@
       />
     </el-card>
 
+    <el-row :gutter="16" class="metric-row">
+      <el-col :xs="24" :md="8">
+        <el-card shadow="never">
+          <div class="metric">
+            <div class="metric-value">{{ pct(admission?.ratio) }}</div>
+            <div class="metric-label">住院占比</div>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :xs="24" :md="8">
+        <el-card shadow="never">
+          <div class="metric">
+            <div class="metric-value">{{ pct(rational?.rationalRate) }}</div>
+            <div class="metric-label">合理用药率</div>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :xs="24" :md="8">
+        <el-card shadow="never">
+          <div class="metric">
+            <div class="metric-value">{{ pct(pathway?.executionRate) }}</div>
+            <div class="metric-label">路径执行率</div>
+          </div>
+        </el-card>
+      </el-col>
+    </el-row>
+
     <el-row :gutter="16" class="charts-row">
       <!-- 就诊频率：趋势，单序列折线 -->
       <el-col :xs="24" :lg="12">
@@ -86,7 +113,14 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import { drugDistribution, randomPatient, visitFrequency } from '../api/dashboard'
+import {
+  admissionRatio,
+  drugDistribution,
+  pathwayRate,
+  randomPatient,
+  rationalDrugRate,
+  visitFrequency
+} from '../api/dashboard'
 import { getTimeline } from '../api/patient'
 import Timeline from '../components/Timeline.vue'
 import Chart from '../components/Chart.vue'
@@ -253,6 +287,14 @@ const drugOption = computed(() => {
   }
 })
 
+/* ---------- 汇总指标（住院占比 / 合理用药率 / 路径执行率） ---------- */
+const admission = ref(null)
+const rational = ref(null)
+const pathway = ref(null)
+
+// 后端三个接口都返回 0~1 的比例；缺失时显示 '-' 而不是误导性的 0.0%
+const pct = (v) => (v == null ? '-' : (Number(v) * 100).toFixed(1) + '%')
+
 /* ---------- 加载 ---------- */
 const loadStats = async () => {
   freqLoading.value = true
@@ -260,15 +302,23 @@ const loadStats = async () => {
   freqError.value = ''
   drugError.value = ''
 
-  const [freqRes, drugRes] = await Promise.all([
+  const [freqRes, drugRes, admissionRes, rationalRes, pathwayRes] = await Promise.all([
     visitFrequency().catch(() => null),
-    drugDistribution().catch(() => null)
+    drugDistribution().catch(() => null),
+    admissionRatio().catch(() => null),
+    rationalDrugRate().catch(() => null),
+    pathwayRate().catch(() => null)
   ])
 
   freqRows.value = Array.isArray(freqRes?.data) ? freqRes.data : []
   drugRows.value = Array.isArray(drugRes?.data) ? drugRes.data : []
   if (!freqRes) freqError.value = '就诊频率统计加载失败'
   if (!drugRes) drugError.value = '用药分布统计加载失败'
+
+  // 三个指标卡没有独立的错误位：任一接口失败都只让对应卡片显示 '-'，不阻断其余内容
+  admission.value = admissionRes?.data ?? null
+  rational.value = rationalRes?.data ?? null
+  pathway.value = pathwayRes?.data ?? null
 
   freqLoading.value = false
   drugLoading.value = false
@@ -317,5 +367,27 @@ onMounted(loadStats)
 
 .muted {
   color: #909399;
+}
+
+/* 汇总指标卡：与校验报告页（ValidationReport.vue）保持同一套样式 */
+.metric-row {
+  margin-bottom: 16px;
+}
+
+.metric {
+  text-align: center;
+  padding: 8px 0;
+}
+
+.metric-value {
+  font-size: 30px;
+  font-weight: 700;
+  color: #409EFF;
+}
+
+.metric-label {
+  font-size: 13px;
+  color: #909399;
+  margin-top: 4px;
 }
 </style>

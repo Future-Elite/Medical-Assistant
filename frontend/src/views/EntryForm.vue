@@ -3,7 +3,7 @@
     <div class="page-head">
       <div>
         <h2 class="page-title">诊疗录入</h2>
-        <p class="page-tip">挂号登记自由填写；诊断 / 处方 / 检验需先选医生，再选本科室的患者与就诊。</p>
+        <p class="page-tip">挂号登记、住院登记、收费、发药自由填写；诊断 / 处方 / 检验需先选医生，再选本科室的患者与就诊。</p>
       </div>
       <el-button v-if="lastPatientId" type="success" plain @click="goTimeline">
         查看时间轴（患者 {{ lastPatientId }}）
@@ -239,6 +239,143 @@
           </el-form-item>
         </el-form>
       </el-tab-pane>
+
+      <!-- 5. 住院登记（独立表单，直接填患者 ID，不依赖当前接诊） -->
+      <el-tab-pane label="住院登记" name="admission">
+        <el-form ref="admissionFormRef" :model="admissionForm" :rules="admissionRules" label-width="96px" class="entry-form">
+          <el-row :gutter="16">
+            <el-col :xs="24" :md="12">
+              <el-form-item label="患者 ID" prop="patientId">
+                <el-input-number v-model="admissionForm.patientId" class="full" :min="1" :precision="0" :controls="false" placeholder="必填" />
+              </el-form-item>
+            </el-col>
+            <el-col :xs="24" :md="12">
+              <el-form-item label="住院号" prop="admissionNo">
+                <el-input v-model="admissionForm.admissionNo" placeholder="如 A10001-1" />
+              </el-form-item>
+            </el-col>
+            <el-col :xs="24" :md="12">
+              <el-form-item label="科室" prop="department">
+                <el-input v-model="admissionForm.department" placeholder="如 内科" />
+              </el-form-item>
+            </el-col>
+            <el-col :xs="24" :md="12">
+              <el-form-item label="医生" prop="doctor">
+                <el-input v-model="admissionForm.doctor" placeholder="如 张三" />
+              </el-form-item>
+            </el-col>
+            <el-col :xs="24" :md="12">
+              <el-form-item label="床位" prop="bedNo">
+                <el-input v-model="admissionForm.bedNo" placeholder="如 12床" />
+              </el-form-item>
+            </el-col>
+            <el-col :xs="24" :md="12">
+              <el-form-item label="入院诊断" prop="diagnosis">
+                <el-input v-model="admissionForm.diagnosis" placeholder="如 上呼吸道感染" />
+              </el-form-item>
+            </el-col>
+            <el-col :xs="24" :md="12">
+              <el-form-item label="入院时间" prop="admissionTime">
+                <el-date-picker v-model="admissionForm.admissionTime" class="full" type="datetime" value-format="YYYY-MM-DDTHH:mm:ss" placeholder="选择入院时间" />
+              </el-form-item>
+            </el-col>
+          </el-row>
+          <el-form-item>
+            <el-button type="primary" :loading="submitting" @click="submitAdmission">提交住院登记</el-button>
+          </el-form-item>
+        </el-form>
+      </el-tab-pane>
+
+      <!-- 6. 收费录入（独立表单） -->
+      <el-tab-pane label="收费" name="charge">
+        <el-form ref="chargeFormRef" :model="chargeForm" :rules="chargeRules" label-width="96px" class="entry-form">
+          <el-row :gutter="16">
+            <el-col :xs="24" :md="12">
+              <el-form-item label="患者 ID" prop="patientId">
+                <el-input-number v-model="chargeForm.patientId" class="full" :min="1" :precision="0" :controls="false" placeholder="必填" />
+              </el-form-item>
+            </el-col>
+            <el-col :xs="24" :md="12">
+              <el-form-item label="就诊 ID" prop="visitId">
+                <el-input-number v-model="chargeForm.visitId" class="full" :min="1" :precision="0" :controls="false" placeholder="必填" />
+              </el-form-item>
+            </el-col>
+            <el-col :xs="24" :md="12">
+              <el-form-item label="收费类型" prop="itemType">
+                <el-select v-model="chargeForm.itemType" class="full">
+                  <el-option label="挂号费" :value="0" />
+                  <el-option label="药费" :value="1" />
+                  <el-option label="检验费" :value="2" />
+                </el-select>
+              </el-form-item>
+            </el-col>
+            <el-col :xs="24" :md="12">
+              <el-form-item label="收费项目" prop="itemName">
+                <el-input v-model="chargeForm.itemName" placeholder="如 门诊挂号费" />
+              </el-form-item>
+            </el-col>
+            <el-col :xs="24" :md="12">
+              <el-form-item label="收费单号" prop="chargeNo">
+                <el-input v-model="chargeForm.chargeNo" placeholder="如 C10001-1" />
+              </el-form-item>
+            </el-col>
+            <el-col :xs="24" :md="12">
+              <el-form-item label="金额（元）" prop="amount">
+                <el-input-number v-model="chargeForm.amount" class="full" :min="0" :precision="2" :controls="false" placeholder="必填" />
+              </el-form-item>
+            </el-col>
+            <el-col :xs="24" :md="12">
+              <el-form-item label="收费时间" prop="chargedAt">
+                <el-date-picker v-model="chargeForm.chargedAt" class="full" type="datetime" value-format="YYYY-MM-DDTHH:mm:ss" placeholder="选择收费时间" />
+              </el-form-item>
+            </el-col>
+          </el-row>
+          <el-form-item>
+            <el-button type="primary" :loading="submitting" @click="submitCharge">提交收费</el-button>
+          </el-form-item>
+        </el-form>
+      </el-tab-pane>
+
+      <!-- 7. 发药录入（独立表单） -->
+      <el-tab-pane label="发药" name="dispense">
+        <el-form ref="dispenseFormRef" :model="dispenseForm" :rules="dispenseRules" label-width="96px" class="entry-form">
+          <el-row :gutter="16">
+            <el-col :xs="24" :md="12">
+              <el-form-item label="患者 ID" prop="patientId">
+                <el-input-number v-model="dispenseForm.patientId" class="full" :min="1" :precision="0" :controls="false" placeholder="必填" />
+              </el-form-item>
+            </el-col>
+            <el-col :xs="24" :md="12">
+              <el-form-item label="就诊 ID" prop="visitId">
+                <el-input-number v-model="dispenseForm.visitId" class="full" :min="1" :precision="0" :controls="false" placeholder="必填" />
+              </el-form-item>
+            </el-col>
+            <el-col :xs="24" :md="12">
+              <el-form-item label="处方 ID" prop="prescriptionId">
+                <el-input-number v-model="dispenseForm.prescriptionId" class="full" :min="1" :precision="0" :controls="false" placeholder="必填" />
+              </el-form-item>
+            </el-col>
+            <el-col :xs="24" :md="12">
+              <el-form-item label="药品名称" prop="drugName">
+                <el-input v-model="dispenseForm.drugName" placeholder="如 阿莫西林胶囊" />
+              </el-form-item>
+            </el-col>
+            <el-col :xs="24" :md="12">
+              <el-form-item label="数量" prop="quantity">
+                <el-input-number v-model="dispenseForm.quantity" class="full" :min="0.01" :precision="2" :controls="false" placeholder="可选" />
+              </el-form-item>
+            </el-col>
+            <el-col :xs="24" :md="12">
+              <el-form-item label="发药时间" prop="dispensedAt">
+                <el-date-picker v-model="dispenseForm.dispensedAt" class="full" type="datetime" value-format="YYYY-MM-DDTHH:mm:ss" placeholder="选择发药时间" />
+              </el-form-item>
+            </el-col>
+          </el-row>
+          <el-form-item>
+            <el-button type="primary" :loading="submitting" @click="submitDispense">提交发药</el-button>
+          </el-form-item>
+        </el-form>
+      </el-tab-pane>
     </el-tabs>
   </el-card>
 </template>
@@ -248,6 +385,8 @@ import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { createVisit, createDiagnosis, createPrescription, createLabTest, listDoctors, listVisits } from '../api/business'
+import { createAdmission } from '../api/inpatient'
+import { createCharge, createDispense } from '../api/charge'
 import { listPatients } from '../api/patient'
 
 const router = useRouter()
@@ -349,16 +488,36 @@ const newPrescriptionForm = () => ({ prescribedAt: nowIso(), items: [newItem()] 
 const newLabForm = () => ({
   itemCode: '', itemName: '', resultValue: '', unit: '', referenceRange: '', isAbnormal: 0, testedAt: nowIso()
 })
+// 住院 / 收费 / 发药是独立表单：直接填 patientId（收费、发药另填 visitId 等外键），
+// 不依赖「当前医生 / 当前患者」上下文，因此无需先在顶部选医生。
+const newAdmissionForm = () => ({
+  patientId: null, admissionNo: '', department: '', doctor: '',
+  bedNo: '', diagnosis: '', admissionTime: nowIso()
+})
+const newChargeForm = () => ({
+  patientId: null, visitId: null, itemType: 0, itemName: '',
+  chargeNo: '', amount: null, chargedAt: nowIso()
+})
+const newDispenseForm = () => ({
+  patientId: null, visitId: null, prescriptionId: null,
+  drugName: '', quantity: null, dispensedAt: nowIso()
+})
 
 const visitForm = ref(newVisitForm())
 const diagnosisForm = ref(newDiagnosisForm())
 const prescriptionForm = ref(newPrescriptionForm())
 const labForm = ref(newLabForm())
+const admissionForm = ref(newAdmissionForm())
+const chargeForm = ref(newChargeForm())
+const dispenseForm = ref(newDispenseForm())
 
 const visitFormRef = ref()
 const diagnosisFormRef = ref()
 const prescriptionFormRef = ref()
 const labFormRef = ref()
+const admissionFormRef = ref()
+const chargeFormRef = ref()
+const dispenseFormRef = ref()
 
 const required = (message) => ({ required: true, message, trigger: ['blur', 'change'] })
 
@@ -377,6 +536,26 @@ const prescriptionRules = {
 const labRules = {
   itemName: [required('请输入检验项目名称')],
   testedAt: [required('请选择检验时间')]
+}
+// 只校验 NOT NULL 列：admission(patient_id/admission_no/admission_time)、
+// charge(patient_id/visit_id/charge_no/charged_at)、dispense(patient_id/visit_id/prescription_id/dispensed_at)
+const admissionRules = {
+  patientId: [required('请输入患者 ID')],
+  admissionNo: [required('请输入住院号')],
+  admissionTime: [required('请选择入院时间')]
+}
+const chargeRules = {
+  patientId: [required('请输入患者 ID')],
+  visitId: [required('请输入就诊 ID')],
+  chargeNo: [required('请输入收费单号')],
+  amount: [required('请输入金额')],
+  chargedAt: [required('请选择收费时间')]
+}
+const dispenseRules = {
+  patientId: [required('请输入患者 ID')],
+  visitId: [required('请输入就诊 ID')],
+  prescriptionId: [required('请输入处方 ID')],
+  dispensedAt: [required('请选择发药时间')]
 }
 
 const validateForm = async (formRef) => {
@@ -464,6 +643,31 @@ const submitLab = async () => {
   const payload = { patientId: currentPatient.value.id, visitId: currentVisit.value.id, ...labForm.value }
   if (await submit(() => createLabTest(payload), '检验录入成功', payload.patientId)) {
     labForm.value = newLabForm()
+  }
+}
+
+const submitAdmission = async () => {
+  if (!(await validateForm(admissionFormRef))) return
+  // status 有 DB 默认值，但显式给 0（在院）语义更清晰
+  const payload = { ...admissionForm.value, status: 0 }
+  if (await submit(() => createAdmission(payload), '住院登记成功', payload.patientId)) {
+    admissionForm.value = newAdmissionForm()
+  }
+}
+
+const submitCharge = async () => {
+  if (!(await validateForm(chargeFormRef))) return
+  const payload = { ...chargeForm.value }
+  if (await submit(() => createCharge(payload), '收费录入成功', payload.patientId)) {
+    chargeForm.value = newChargeForm()
+  }
+}
+
+const submitDispense = async () => {
+  if (!(await validateForm(dispenseFormRef))) return
+  const payload = { ...dispenseForm.value }
+  if (await submit(() => createDispense(payload), '发药录入成功', payload.patientId)) {
+    dispenseForm.value = newDispenseForm()
   }
 }
 
