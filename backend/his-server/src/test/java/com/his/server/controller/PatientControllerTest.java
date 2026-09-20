@@ -1,5 +1,6 @@
 package com.his.server.controller;
 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.his.common.entity.Patient;
 import com.his.server.service.PatientService;
 import com.his.server.service.TimelineService;
@@ -10,6 +11,8 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -33,6 +36,18 @@ class PatientControllerTest {
                         .content("{\"name\":\"张三\",\"gender\":0}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(0));
+    }
+
+    @Test
+    void list_with_department_delegates_to_pageByDepartment() throws Exception {
+        when(patientService.pageByDepartment(1, 10, "内科", null)).thenReturn(new Page<>());
+
+        mockMvc.perform(get("/api/patients").param("department", "内科"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0));
+
+        verify(patientService).pageByDepartment(1, 10, "内科", null);
+        verify(patientService, never()).page(any(), any());
     }
 
     @Test

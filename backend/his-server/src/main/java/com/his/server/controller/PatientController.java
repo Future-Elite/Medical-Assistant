@@ -27,7 +27,11 @@ public class PatientController {
     @GetMapping
     public Result<Page<Patient>> list(@RequestParam(defaultValue = "1") long page,
                                       @RequestParam(defaultValue = "10") long size,
-                                      @RequestParam(required = false) String keyword) {
+                                      @RequestParam(required = false) String keyword,
+                                      @RequestParam(required = false) String department) {
+        if (department != null && !department.isBlank()) {
+            return Result.ok(patientService.pageByDepartment(page, size, department, keyword));
+        }
         LambdaQueryWrapper<Patient> qw = new LambdaQueryWrapper<>();
         if (keyword != null && !keyword.isBlank()) {
             qw.like(Patient::getName, keyword)
