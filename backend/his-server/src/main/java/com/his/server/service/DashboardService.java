@@ -8,4 +8,7 @@ public interface DashboardService {
     Patient randomPatient();
     List<Map<String, Object>> visitFrequency();
     List<Map<String, Object>> drugDistribution();
+    Map<String, Object> admissionRatio();
+    Map<String, Object> rationalDrugRate();
+    Map<String, Object> pathwayRate();
 }

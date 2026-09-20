@@ -27,6 +27,8 @@ class DashboardServiceTest {
     private VisitMapper vm;
     private PrescriptionItemMapper im;
     private PatientMapper pm;
+    private AdmissionMapper admissionMapper;
+    private ValidationService validationService;
     private StringRedisTemplate redis;
     private ValueOperations<String, String> ops;
 
@@ -36,6 +38,8 @@ class DashboardServiceTest {
         vm = mock(VisitMapper.class);
         im = mock(PrescriptionItemMapper.class);
         pm = mock(PatientMapper.class);
+        admissionMapper = mock(AdmissionMapper.class);
+        validationService = mock(ValidationService.class);
         redis = mock(StringRedisTemplate.class);
         ops = mock(ValueOperations.class);
         when(redis.opsForValue()).thenReturn(ops);
@@ -43,7 +47,8 @@ class DashboardServiceTest {
     }
 
     private DashboardServiceImpl svc() {
-        return new DashboardServiceImpl(pm, vm, im, redis, new ObjectMapper());
+        return new DashboardServiceImpl(pm, vm, im, redis, new ObjectMapper(),
+                admissionMapper, validationService);
     }
 
     private static Map<String, Object> row(Object... kv) {
@@ -180,5 +185,19 @@ class DashboardServiceTest {
 
         assertThat(svc().randomPatient()).isNull();
         verify(pm, never()).selectById(any());
+    }
+
+    // -------------------------------------------------------------- 看板新增统计
+
+    @Test
+    void admission_ratio_computes_from_counts() {
+        when(admissionMapper.selectAdmissionPatientCount()).thenReturn(2000L);
+        when(pm.selectCount(null)).thenReturn(10000L);
+
+        Map<String, Object> m = svc().admissionRatio();
+
+        assertThat(m.get("ratio")).isEqualTo(0.2);
+        assertThat(m).containsEntry("admissionPatients", 2000L)
+                .containsEntry("totalPatients", 10000L);
     }
 }

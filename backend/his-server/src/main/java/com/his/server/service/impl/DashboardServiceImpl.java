@@ -2,11 +2,15 @@ package com.his.server.service.impl;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.his.common.dto.PathwayReport;
+import com.his.common.dto.RationalDrugReport;
 import com.his.common.entity.Patient;
+import com.his.common.mapper.AdmissionMapper;
 import com.his.common.mapper.PatientMapper;
 import com.his.common.mapper.PrescriptionItemMapper;
 import com.his.common.mapper.VisitMapper;
 import com.his.server.service.DashboardService;
+import com.his.server.service.ValidationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.RedisConnectionFailureException;
@@ -19,6 +23,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.Supplier;
 
 /**
  * 数据看板统计：随机病人、每月就诊数、药品使用分布。
@@ -43,6 +48,9 @@ public class DashboardServiceImpl implements DashboardService {
     /** 设计文档第 9 节规定的看板统计缓存键与 TTL。 */
     private static final String STATS_VISIT_FREQUENCY = "stats:visit-frequency";
     private static final String STATS_DRUG_DISTRIBUTION = "stats:drug-distribution";
+    private static final String STATS_ADMISSION_RATIO = "stats:admission-ratio";
+    private static final String STATS_RATIONAL_DRUG = "stats:rational-drug-rate";
+    private static final String STATS_PATHWAY = "stats:pathway-rate";
     private static final Duration STATS_TTL = Duration.ofMinutes(10);
 
     private static final TypeReference<List<Map<String, Object>>> ROWS_TYPE =
@@ -54,6 +62,8 @@ public class DashboardServiceImpl implements DashboardService {
     private final PrescriptionItemMapper itemMapper;
     private final StringRedisTemplate redis;
     private final ObjectMapper objectMapper;
+    private final AdmissionMapper admissionMapper;
+    private final ValidationService validationService;
 
     @Override
     public Patient randomPatient() {
@@ -93,6 +103,68 @@ public class DashboardServiceImpl implements DashboardService {
         }
         writeCache(STATS_DRUG_DISTRIBUTION, rows);
         return rows;
+    }
+
+    // -------------------------------------------------------------- 看板新增统计
+
+    /** 住院占比：至少住院过一次的患者数 / 患者总数。 */
+    @Override
+    public Map<String, Object> admissionRatio() {
+        long admissionPatients = admissionMapper.selectAdmissionPatientCount();
+        long totalPatients = patientMapper.selectCount(null);
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("admissionPatients", admissionPatients);
+        m.put("totalPatients", totalPatients);
+        m.put("ratio", totalPatients == 0 ? 0.0 : (double) admissionPatients / totalPatients);
+        return m;
+    }
+
+    /** 合理用药率：复用 Task 8 的校验报告，按 10 分钟缓存。 */
+    @Override
+    public Map<String, Object> rationalDrugRate() {
+        return cached(STATS_RATIONAL_DRUG, () -> {
+            RationalDrugReport r = validationService.run().getRationalDrug();
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("totalPrescriptions", r.getTotalPrescriptions());
+            m.put("violationPrescriptions", r.getViolationPrescriptions());
+            m.put("rationalRate", r.getRationalRate());
+            return m;
+        });
+    }
+
+    /** 路径变异率：复用 Task 8 的校验报告，按 10 分钟缓存。 */
+    @Override
+    public Map<String, Object> pathwayRate() {
+        return cached(STATS_PATHWAY, () -> {
+            PathwayReport p = validationService.run().getPathway();
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("enrolledAdmissions", p.getEnrolledAdmissions());
+            m.put("executionRate", p.getExecutionRate());
+            return m;
+        });
+    }
+
+    /**
+     * 对象型统计的通用缓存：命中直接返回；未命中回调源计算并写回。
+     * Redis 读、写失败都只退化到回源，不影响响应。
+     */
+    private Map<String, Object> cached(String key, Supplier<Map<String, Object>> loader) {
+        String json;
+        try {
+            json = redis.opsForValue().get(key);
+            if (json != null) {
+                return objectMapper.readValue(json, new TypeReference<Map<String, Object>>() { });
+            }
+        } catch (Exception ignored) {
+            log.warn("读取看板统计缓存失败，改为回源计算: key={}", key, ignored.toString());
+        }
+        Map<String, Object> m = loader.get();
+        try {
+            redis.opsForValue().set(key, objectMapper.writeValueAsString(m), STATS_TTL);
+        } catch (Exception ignored) {
+            log.warn("写入看板统计缓存失败（本次响应不受影响）: key={}", key, ignored.toString());
+        }
+        return m;
     }
 
     // ---------------------------------------------------------------- 缓存与取值
