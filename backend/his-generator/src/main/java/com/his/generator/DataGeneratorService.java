@@ -3,6 +3,7 @@ package com.his.generator;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.his.common.entity.*;
 import com.his.common.mapper.*;
+import com.his.common.ontology.OntologyRules;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -96,8 +97,6 @@ public class DataGeneratorService {
     /** 数值型参考区间（diagnosis_lab.ref_range 的常见形态，如 {@code 4.0-10.0}） */
     private static final Pattern NUMERIC_RANGE =
             Pattern.compile("^\\s*([0-9]+(?:\\.[0-9]+)?)\\s*-\\s*([0-9]+(?:\\.[0-9]+)?)\\s*$");
-    /** 频次里的次数（{@code 每日3次} / {@code 每晚1次}），取不到按 1 次 */
-    private static final Pattern FIRST_INT = Pattern.compile("([0-9]+)");
 
     private final PatientMapper patientMapper;
     private final VisitMapper visitMapper;
@@ -694,7 +693,9 @@ public class DataGeneratorService {
         }
         doseFromOntology++;
         double single = dose.getSingleDose() == null ? 1.0 : dose.getSingleDose().doubleValue();
-        int perDay = dosesPerDay(dose.getFrequency());
+        // 频次取值域只有 OntologyRules 一份：校验器 RationalDrugValidator 判日剂量上限时
+        // 调的是同一个方法，生成器另写一份就会造出校验器认不得的频次
+        int perDay = OntologyRules.timesPerDay(dose.getFrequency());
         int lo = dose.getDaysMin() == null ? 3 : dose.getDaysMin();
         int hi = dose.getDaysMax() == null ? Math.max(lo, 7) : Math.max(lo, dose.getDaysMax());
         int days = rnd.nextInt(lo, hi + 1);
@@ -1000,15 +1001,6 @@ public class DataGeneratorService {
     /** BigDecimal → 文本：去掉无意义的尾随 0（{@code 1.00} → {@code 1}，{@code 1.50} → {@code 1.5}）。 */
     private static String plain(BigDecimal x) {
         return x == null ? "1" : x.stripTrailingZeros().toPlainString();
-    }
-
-    /** 频次里的每日次数：{@code 每日3次} → 3，{@code 每晚1次} → 1，取不到按 1。 */
-    private static int dosesPerDay(String frequency) {
-        if (frequency == null) {
-            return 1;
-        }
-        Matcher m = FIRST_INT.matcher(frequency);
-        return m.find() ? Math.max(1, Integer.parseInt(m.group(1))) : 1;
     }
 
     /**

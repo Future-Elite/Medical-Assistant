@@ -1,5 +1,6 @@
 package com.his.generator;
 
+import com.his.common.ontology.OntologyRules;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -256,12 +257,17 @@ class SeedSqlConsistencyTest {
     @Test
     @DisplayName("drug_dose 的 单次×每日次数 不超过日上限")
     void drugDoseRespectsDailyCap() {
-        Map<String, Integer> times = Map.of(
-                "每日1次", 1, "每日2次", 2, "每日3次", 3, "每日4次", 4, "每晚1次", 1);
         for (Map<String, String> r : allRows("drug_dose")) {
             String freq = r.get("frequency");
-            assertTrue(times.containsKey(freq), "频次不在取值域: " + freq + " (" + r.get("drug_id") + ")");
-            BigDecimal perDay = dec(r, "single_dose").multiply(BigDecimal.valueOf(times.get(freq)));
+            // 取值域只有 OntologyRules 一份（生成器与校验器 RationalDrugValidator 调的都是它）；
+            // 这里再写一张 Map 就等于让本测试校验的是副本，不是那份真正被用的。
+            int times;
+            try {
+                times = OntologyRules.timesPerDay(freq);
+            } catch (IllegalStateException e) {
+                throw new AssertionError("频次不在取值域: " + freq + " (" + r.get("drug_id") + ")", e);
+            }
+            BigDecimal perDay = dec(r, "single_dose").multiply(BigDecimal.valueOf(times));
             assertTrue(perDay.compareTo(dec(r, "max_daily_dose")) <= 0,
                     "药 " + r.get("drug_id") + " 日剂量 " + perDay + " 超过上限 " + r.get("max_daily_dose"));
             assertTrue(num(r, "days_min") >= 1, "疗程下限小于 1 天: " + r.get("drug_id"));
