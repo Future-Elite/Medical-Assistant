@@ -81,4 +81,4 @@ UNION ALL SELECT 'dept_diagnosis       onto §3', COUNT(*) FROM dept_diagnosis
 UNION ALL SELECT 'diagnosis_lab        onto §4', COUNT(*) FROM diagnosis_lab
 UNION ALL SELECT 'diagnosis_operation  onto §5', COUNT(*) FROM diagnosis_operation
 UNION ALL SELECT 'diagnosis_drug       onto §6', COUNT(*) FROM diagnosis_drug
-UNION ALL SELECT 'drug_dose            onto §7（未编写）', COUNT(*) FROM drug_dose;"
+UNION ALL SELECT 'drug_dose            onto §7', COUNT(*) FROM drug_dose;"

@@ -2617,7 +2617,7 @@ git commit -m "feat(sql): 药品剂量表 142 行，并收紧硝苯地平/二甲
 
 **Interfaces:**
 - Consumes: Task 1 的 7 张表、Task 3–8 写入 `seed.sql`/`seed-extension.sql`/`seed-ontology.sql` 的全部行
-- Produces: 16 个断言方法；`RationalDrugValidator` 与生成器的**数据前置条件**由本测试守住
+- Produces: 15 个断言方法；`RationalDrugValidator` 与生成器的**数据前置条件**由本测试守住
 
 **为什么放在 his-generator：** `his-common` 没有 test 依赖（它只放实体与 Mapper），
 `his-server` 的测试是全 Slice 的、要起 Spring 上下文。本测试只读文件、不需要数据库，
@@ -3028,7 +3028,7 @@ Expected: 4 个测试 **PASS**。
     }
 ```
 
-- [ ] **Step 4: 跑，确认 16 个断言全绿**
+- [ ] **Step 4: 跑，确认 15 个断言全绿**
 
 Run: `cd backend && mvn -o -pl his-generator -Dtest=SeedSqlConsistencyTest test`
 
