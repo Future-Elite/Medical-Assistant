@@ -75,7 +75,7 @@
 - 修改：`service/impl/DashboardServiceImpl.java` —— 「医学合理性」指标卡数据
 
 **frontend**
-- 修改：`views/Timeline.vue`（手术事件卡片）、`views/AdmissionDetail.vue`（手术信息区）
+- 修改：`components/Timeline.vue`（`TYPE_META` 加 `OPERATION`）、`views/AdmissionDetail.vue`（手术信息区）
 - 修改：`views/Dashboard.vue`（医学合理性指标卡）
 - 修改：`views/ValidationReport.vue`（本体一致率 + 八类明细 + 未判定数）
 
@@ -4298,7 +4298,14 @@ public class OntologyConsistencyValidator {
         }
 
         // 检查 4：住院的入院诊断必须 admission_eligible=1
-        for (Admission a : admissionMapper.selectList(null)) {
+        // `allAdmissions` / `admissionsById` 提成局部变量：Task 24 的检查 5~8 要按 id 定位住院，
+        // 提到这里之后整趟校验只全表扫一次 admission。
+        List<Admission> allAdmissions = admissionMapper.selectList(null);
+        Map<Long, Admission> admissionsById = new HashMap<>();
+        for (Admission a : allAdmissions) {
+            admissionsById.put(a.getId(), a);
+        }
+        for (Admission a : allAdmissions) {
             String diag = a.getAdmissionDiagnosis() != null ? a.getAdmissionDiagnosis() : a.getDiagnosis();
             // 新老两个诊断列都为空：无从判定，报 unchecked 而不是静默放过
             if (diag == null) {
@@ -11048,20 +11055,31 @@ Expected: 编译失败（三个 mock 字段与构造参数不存在）。
 
 - [ ] **Step 4: 在 `validate()` 末尾追加手术四类**
 
+先做一处**前置改动**：把 Task 11 检查 4 的循环头改成遍历提到前面的局部变量，
+并顺带建好 id → 住院的映射（见下方「前置改动」）。**这处不改的话本步编译不过**：
+`admissionsById` 在 `validate()` 里根本不存在。
+
+```java
+        // 检查 4：住院的入院诊断必须 admission_eligible=1
+        List<Admission> allAdmissions = admissionMapper.selectList(null);
+        Map<Long, Admission> admissionsById = new HashMap<>();
+        for (Admission a : allAdmissions) {
+            admissionsById.put(a.getId(), a);
+        }
+        for (Admission a : allAdmissions) {
+            ...（检查 4 原有循环体逐字不动）
+        }
+```
+
 在检查 4（住院）之后、`report.setChecked(checked);` 之前插入：
 
 ```java
         // 检查 5~8：逐条手术判。**四类都判在 operation 行上**（spec §8.3）——
         // 一条越界手术计一次，而不是把所属住院计一次。
+        List<Operation> allOps = operationMapper.selectList(null);   // 全表扫一次，循环里复用
         List<DiagnosisOperation> opOntology = diagnosisOperationMapper.selectList(null).stream()
                 .filter(x -> x.getIcdCode() != null && x.getOperationCode() != null)
                 .toList();
-        Map<String, List<Operation>> opsByAdmission = new HashMap<>();
-        for (Operation op : operationMapper.selectList(null)) {
-            if (op.getAdmissionId() != null) {
-                opsByAdmission.computeIfAbsent(op.getAdmissionId(), k -> new ArrayList<>()).add(op);
-            }
-        }
         // 住院科室 -> 该科室的医生名单（检查 7 的判据来源）
         Map<String, Set<String>> doctorsByDept = new HashMap<>();
         for (Doctor doc : doctorMapper.selectList(null)) {
@@ -11070,7 +11088,7 @@ Expected: 编译失败（三个 mock 字段与构造参数不存在）。
             }
         }
 
-        for (Operation op : operationMapper.selectList(null)) {
+        for (Operation op : allOps) {
             Admission a = op.getAdmissionId() == null ? null : admissionsById.get(op.getAdmissionId());
             if (a == null) {
                 unchecked++;        // 手术挂在一张查不到的住院单上：无法定位科室与诊断
@@ -11199,6 +11217,7 @@ git commit -m "feat(validation): 本体校验器补齐手术四类，8 类违规
 - Create: `backend/his-server/src/main/java/com/his/server/service/impl/OperationServiceImpl.java`
 - Create: `backend/his-server/src/main/java/com/his/server/controller/OperationController.java`
 - Modify: `frontend/src/api/inpatient.js`（`listOperations` / `createOperation`）
+- Modify: `frontend/src/components/Timeline.vue`（`TYPE_META` 加 `OPERATION`）
 - Modify: `frontend/src/views/AdmissionDetail.vue`（手术信息区）
 - Test: `backend/his-server/src/test/java/com/his/server/service/TimelineServiceTest.java`
 - Test: `backend/his-server/src/test/java/com/his/server/service/OperationServiceImplTest.java`
@@ -11235,20 +11254,32 @@ git commit -m "feat(validation): 本体校验器补齐手术四类，8 类违规
         when(vitalSignMapper.selectList(any())).thenReturn(List.of());
         when(labTestMapper.selectList(any())).thenReturn(List.of());
 
-        Operation op = new Operation();
-        op.setId(100L); op.setAdmissionId(9L); op.setPatientId(1L);
-        op.setOperationCode("47.01");
-        op.setStartTime(LocalDateTime.of(2026, 3, 2, 9, 0));
-        op.setEndTime(LocalDateTime.of(2026, 3, 2, 10, 30));
-        when(operationMapper.selectList(any())).thenReturn(List.of(op));
+        Operation later = new Operation();
+        later.setId(101L); later.setAdmissionId(9L); later.setPatientId(1L);
+        later.setOperationCode("47.09");
+        later.setStartTime(LocalDateTime.of(2026, 3, 4, 9, 0));
+        later.setEndTime(LocalDateTime.of(2026, 3, 4, 10, 30));
+
+        Operation earlier = new Operation();
+        earlier.setId(100L); earlier.setAdmissionId(9L); earlier.setPatientId(1L);
+        earlier.setOperationCode("47.01");
+        earlier.setStartTime(LocalDateTime.of(2026, 3, 2, 9, 0));
+        earlier.setEndTime(LocalDateTime.of(2026, 3, 2, 10, 30));
+
+        // **故意「晚的在前」返回**：mapper 的返回顺序不影响时间轴顺序，排序是 service 的职责。
+        // 只插 1 个事件的话，「时间线事件严格按 time 升序」这条全局约束实际没有被断言——
+        // 用例名字里有 sorted，测的却只有 1 个元素。
+        when(operationMapper.selectList(any())).thenReturn(List.of(later, earlier));
 
         TimelineVO vo = service.getAdmissionTimeline(9L);
 
-        assertThat(vo.getEvents()).hasSize(1);
-        assertThat(vo.getEvents().get(0).getType()).isEqualTo("OPERATION");
-        // time 取开始时刻，不是结束时刻
-        assertThat(vo.getEvents().get(0).getTime()).isEqualTo(LocalDateTime.of(2026, 3, 2, 9, 0));
-        assertThat(vo.getEvents().get(0).getData()).isSameAs(op);
+        assertThat(vo.getEvents()).hasSize(2);
+        assertThat(vo.getEvents()).extracting(TimelineEvent::getType).containsOnly("OPERATION");
+        assertThat(vo.getEvents()).extracting(TimelineEvent::getTime).containsExactly(
+                LocalDateTime.of(2026, 3, 2, 9, 0),      // time 取**开始**时刻，不是结束时刻
+                LocalDateTime.of(2026, 3, 4, 9, 0));
+        assertThat(vo.getEvents().get(0).getData()).isSameAs(earlier);
+        assertThat(vo.getEvents().get(1).getData()).isSameAs(later);
     }
 ```
 
@@ -11484,6 +11515,20 @@ const typeLabel = (t) => TYPE_LABELS[t] || t
 const typeTag = (t) => TYPE_TAGS[t] || 'info'
 ```
 
+**`frontend/src/components/Timeline.vue` 的 `TYPE_META` 也要加一项**（该文件第 148 行起，
+病人时间轴与住院时间轴都由它渲染）：
+
+```js
+  OPERATION: { label: '手术', color: '#F56C6C' },
+```
+
+不加的后果不是报错，而是**静默降级**：`metaOf` 的兜底是
+`TYPE_META[type] || { label: type || '其他', color: '#909399' }`，
+于是手术事件会渲染成一个灰底标签、上面写着英文 `OPERATION`——
+看起来像「这个系统压根没有手术这类事件」，而不是「前端漏配了一个 color」。
+红色 `#F56C6C` 是 Element Plus 的 `danger` 色，与 `AdmissionDetail.vue` 里
+`OPERATION: 'danger'` 那格一致，两处不要各挑一个色。
+
 手术明细表放在住院信息之下：
 
 ```vue
@@ -11540,7 +11585,8 @@ git add backend/his-server/src/main/java/com/his/server/service/OperationService
         backend/his-server/src/test/java/com/his/server/service/TimelineServiceTest.java \
         backend/his-server/src/test/java/com/his/server/service/OperationServiceImplTest.java \
         backend/his-server/src/test/java/com/his/server/controller/OperationControllerTest.java \
-        frontend/src/api/inpatient.js frontend/src/views/AdmissionDetail.vue
+        frontend/src/api/inpatient.js frontend/src/views/AdmissionDetail.vue \
+        frontend/src/components/Timeline.vue
 git commit -m "feat(server,frontend): 手术进住院时间轴、新增手术写入接口并失效住院缓存" -m "Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ```
 
@@ -11549,7 +11595,7 @@ git commit -m "feat(server,frontend): 手术进住院时间轴、新增手术写
 ## Task 26: 阶段四出口实测与测试报告收尾
 
 **Files:**
-- Modify: `backend/sql/verify-phase2.sql`（追加第 3 节：手术域 9 项）
+- Modify: `backend/sql/verify-phase2.sql`（追加第 3 节：手术域 3.1~3.11 共 11 项 + 手术级别分布）
 - Modify: `backend/sql/verify-final.sql`（§1.2/§1.4/§2.4/§3.3.2 四处失效断言若 Task 18 未改，本任务补齐）
 - Modify: `docs/test-report.md`（§7.2 住院与手术域实测、§9 阶段四出口）
 - Modify: `docs/superpowers/specs/2026-09-21-medical-realism-design.md`（**仅在实测与 spec 不符时**改：把实测值写进 §5.3 的「需逐条核实」行列，或标注为假设）
@@ -11613,7 +11659,27 @@ UNION ALL SELECT '3.8 DEATH 患者此后仍有记录(应 0)', (
 UNION ALL SELECT '3.9 术后时段无医嘱的住院(应 0)', COUNT(*) FROM (
   SELECT o.admission_id, o.end_time FROM operation o) x
   WHERE NOT EXISTS (SELECT 1 FROM medical_order m
-    WHERE m.admission_id = x.admission_id AND m.start_time > x.end_time);
+    WHERE m.admission_id = x.admission_id AND m.start_time > x.end_time)
+UNION ALL SELECT '3.10 无手术本体的诊断却产出了手术(应 0)', COUNT(*) FROM operation o
+  JOIN admission a ON a.id = o.admission_id
+  JOIN dept_diagnosis dd ON dd.diagnosis_name = a.admission_diagnosis
+  WHERE NOT EXISTS (SELECT 1 FROM diagnosis_operation dop
+    WHERE dop.icd_code = dd.icd_code
+      AND (dop.department IS NULL OR dop.department = a.department))
+UNION ALL SELECT '3.11 术前 1~2 天缺 required=1 检验的手术(应 0)', COUNT(*) FROM operation o
+  JOIN admission a ON a.id = o.admission_id
+  JOIN dept_diagnosis dd ON dd.diagnosis_name = a.admission_diagnosis
+  WHERE EXISTS (SELECT 1 FROM diagnosis_lab dl
+      WHERE dl.icd_code = dd.icd_code AND dl.required = 1
+        AND (dl.department IS NULL OR dl.department = a.department))
+    AND NOT EXISTS (SELECT 1 FROM lab_test l
+      WHERE l.admission_id = a.id
+        AND l.tested_at < o.start_time
+        AND l.tested_at >= o.start_time - INTERVAL 2 DAY
+        AND EXISTS (SELECT 1 FROM diagnosis_lab dl2
+          WHERE dl2.icd_code = dd.icd_code AND dl2.required = 1
+            AND dl2.item_code = l.item_code
+            AND (dl2.department IS NULL OR dl2.department = a.department)));
 -- `operation_level` 必须写 `o.operation_level`：两张表都有这一列，
 -- 不限定表名 MySQL 报 ERROR 1052 (Column 'operation_level' in field list is ambiguous)。
 SELECT o.operation_level, COUNT(*) AS n, MIN(dop.min_postop_days) AS mn, MAX(dop.min_postop_days) AS mx
@@ -11621,11 +11687,17 @@ SELECT o.operation_level, COUNT(*) AS n, MIN(dop.min_postop_days) AS mn, MAX(dop
   GROUP BY o.operation_level ORDER BY o.operation_level;
 ```
 
-> **3.4 / 3.5 的 `JOIN dept_diagnosis ON dd.diagnosis_name = a.admission_diagnosis`**：
+> **3.4 / 3.5 / 3.10 / 3.11 的 `JOIN dept_diagnosis ON dd.diagnosis_name = a.admission_diagnosis`**：
 > `admission` 存的是诊断**名称**。若同一名称在本体里对应两个 ICD（理论上不该发生，
-> 但种子写重复就说不准），这两条会给出偏大的结果。**先跑 `SELECT diagnosis_name, COUNT(DISTINCT icd_code)
+> 但种子写重复就说不准），这四条会给出偏大的结果。**先跑 `SELECT diagnosis_name, COUNT(DISTINCT icd_code)
 > FROM dept_diagnosis GROUP BY diagnosis_name HAVING COUNT(DISTINCT icd_code) > 1;`
 > 确认返回空**，再把结果抄进报告。
+>
+> 这四条里凡是比对 `diagnosis_operation.department` / `diagnosis_lab.department` 的地方，
+> **都写成 `department IS NULL OR department = a.department`**：这两列的含义是
+> 「NULL=全部科室适用」（见 `diagnosis_lab` 的建表注释），直接写等号会把
+> 全科室适用的行整批漏掉，而漏掉的方向恰好是「少判违规」——数字会好看，
+> 但是假的。
 
 - [ ] **Step 2: 重跑生成器并对全部断言**
 
@@ -11679,17 +11751,33 @@ Expected: **8 个键全部存在**，`violations` 与 `unchecked` 全为 0，
 
 ### 9.1 手术域九项断言（spec §11「手术域行为」①~⑨）
 
-| # | 检查 | 实测值 | 判据 | 结果 |
+| # | 检查 | 实测值 | 判据 | 来源查询 |
 |---|---|---|---|---|
-| ① | 手术时间落在住院区间内且 `end > start` | （实测） | 0 | |
-| ② | 术者属于该住院科室 | （实测） | 0 | |
-| ③ | `discharge_time - end_time >= min_postop_days` | （实测） | 0 | |
-| ④ | 术式在该住院诊断的手术清单中 | （实测） | 0 | |
-| ⑤ | 无手术本体的诊断不产生手术 | （实测） | 0 | |
-| ⑥ | 3~4 级全身麻醉且麻醉医师非空 | （实测） | 0 | |
-| ⑦ | 术后时段存在医嘱 | （实测） | 0 | |
-| ⑧ | 术前 1~2 天存在 `required=1` 检验项 | （实测，见 §7.2 的对应查询） | 0 | |
-| ⑨ | DEATH 患者此后无就诊记录 | （实测） | 0 | |
+| ① | 手术时间落在住院区间内且 `end > start` | （实测） | 0 | §3 的 3.2 |
+| ② | 术者属于该住院科室 | （实测） | 0 | §3 的 3.3 |
+| ③ | `discharge_time - end_time >= min_postop_days` | （实测） | 0 | §3 的 3.4 |
+| ④ | 术式在该住院诊断的手术清单中 | （实测） | 0 | §3 的 3.5 |
+| ⑤ | 无手术本体的诊断不产生手术 | （实测） | 0 | §3 的 3.10 |
+| ⑥ | 3~4 级全身麻醉且麻醉医师非空 | （实测） | 0 | §3 的 3.7 |
+| ⑦ | 术后时段存在医嘱 | （实测） | 0 | §3 的 3.9 |
+| ⑧ | 术前 1~2 天存在 `required=1` 检验项 | （实测） | 0 | §3 的 3.11 |
+| ⑨ | DEATH 患者此后无就诊记录 | （实测） | 0 | §3 的 3.8 |
+
+> **不要把 ⑤ 填成 3.6 的数**：3.6 查的是**相反方向**的性质——「挂了手术本体的诊断却一行手术都没有」
+> （本体有、数据缺，是**覆盖**问题）；⑤ 查的是「本体里根本没有术式的诊断却产出了手术」
+> （本体没有、数据有，是**越界**问题）。两者都是 0 才算过关，但**是两个不同的 0**，
+> 混填会把「覆盖数」当成「越界数」写进论文。
+>
+> 3.10 是 3.5 的**子集**（本体里一项术式都没有，显然是「术式不在清单中」的极端情形），
+> 所以恒有 `3.10 ≤ 3.5`。留成两条是因为 spec §11 的 ①~⑨ 各要一个独立数字，
+> 而 3.5 的计数里混着「清单里有 A 却做了 B」的情形，答不了「本体完全没写」这一问。
+>
+> 3.11 的判据与 Task 23 的 `required_preop_labs_exist_before_the_surgery` 一致，
+> 但**下界更严**：测试只断言 `tested_at < start_time`，3.11 还要求
+> `tested_at >= start_time - INTERVAL 2 DAY`（spec §6.3 的「术前 1~2 天」原文）。
+> 生成器的 `preopLabs` 取 `start_time - 1~2 天`，术前 2 天落在入院之前时**钳到入院当天**，
+> 那个钳位值仍落在本窗口内，所以这条应恒为 0。**若实测非 0**，说明钳位逻辑改了，
+> 要回头核对 `preopLabs`，不要去放宽窗口。
 
 ### 9.2 生成器行为 ⑧⑨（spec §11）
 
