@@ -2269,6 +2269,18 @@ git commit -m "feat(sql): 药品剂量表 142 行，并收紧硝苯地平/二甲
 放在 `his-generator`（已有纯 Mockito 测试、且 surefire 工作目录就是模块目录）最省事。
 surefire 的工作目录是 `backend/his-generator`，所以 `../sql` 正好是 `backend/sql`。
 
+> **若日后要把本测试改成「连真库比对」，先读这两条**（Task 2 评审在真库上实测得出，
+> 两者都会让断言**假失败**——红的是比法，不是数据，而假失败最容易被改成放宽断言来「修好」）：
+>
+> 1. **JSON 列会被 MySQL 规范化**：写入 `[0.6,0.7,0.8]`，读回是 `[0.6, 0.7, 0.8]`（逗号后带空格）。
+>    所以 `DeptDiagnosis.getMonthWeights()` **永远不等于**种子文件里的字面量。
+>    要比就 `ObjectMapper` 解析后比元素（这也是计划里 `parseMonthWeights` 的用法），
+>    **不要**字符串 `equals`。
+> 2. **`BigDecimal.equals` 比的是标度**：`new BigDecimal("1.000").equals(new BigDecimal("1.0"))` 是 `false`，
+>    而 `weight DECIMAL(6,3)` 读回恒带 3 位小数。比 DECIMAL 一律用 `compareTo` 或 `doubleValue()`。
+>
+> 本测试**只读文件、不连库**，所以当前不受影响——写在这里是因为它是全仓最像「顺手加一次库比对」的地方。
+
 **这个测试要解决什么：** 前六个任务产出的是**手写的中文医学数据 + 我在计划里逐条写下的断言**。
 断言写在计划文档里，只在我手工粘进 mysql 客户端时跑过一次——**下次有人改一行种子，
 没有任何东西会拦住他**。本任务把那批断言搬进 JUnit：改坏了，`mvn test` 就红。
@@ -4584,6 +4596,7 @@ curl -s "http://localhost:8080/api/validation/run" | python -m json.tool
 **Files:**
 - Create: `backend/his-generator/src/main/java/com/his/generator/Disease.java`
 - Create: `backend/his-generator/src/main/java/com/his/generator/OntologyRepository.java`
+- Modify: `backend/his-generator/src/main/resources/application.yml`（补一行 mybatis-plus 配置，见 Step 1）
 - Modify: `backend/his-generator/src/main/java/com/his/generator/DataGeneratorService.java`（字段区 + `generate()` 开头）
 - Test: `backend/his-generator/src/test/java/com/his/generator/OntologyRepositoryTest.java`
 - Modify: `backend/his-generator/src/test/java/com/his/generator/DataGeneratorServiceTest.java`（构造器多一个参数）
@@ -4637,6 +4650,24 @@ Task 15 用 `weight × monthWeight(month)` 加权抽取，7 月的流感权重�
 不得自己编一个「每日 3 次、每次 1 片」——那正是要消灭的编造。
 
 - [ ] **Step 1: 写失败的测试**
+
+**先把一行配置补上**：`backend/his-generator/src/main/resources/application.yml` 里补
+
+```yaml
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+```
+
+> 这一行**不改变任何行为**（MyBatis-Plus 的默认值就是 `true`，`his-server/application.yml:18` 也显式写着），
+> 作用是把它从「吃框架默认值」变成「写下来的约定」。Task 2 评审实测：把这个开关置为 `false` 后，
+> **连既有实体一起崩**（`Admission` 解析出 `patientId -> patientId`，真库 insert 报
+> `Unknown column 'patientId' in 'field list'`）。也就是说全仓的列名映射都吊在这个默认值上，
+> 而本任务起生成器开始读 `dept_diagnosis` / `diagnosis_drug` / `drug_dose` 等新表的
+> `month_weights` / `max_daily_dose` / `min_postop_days` 这些多词列名——依赖面只增不减。
+>
+> **不要**用 `@TableField("列名")` 去「修」这类问题：本期硬约束明确禁止在实体上加 `@TableField`。
+> 配置项是配置项，实体是实体。
 
 新建 `backend/his-generator/src/test/java/com/his/generator/OntologyRepositoryTest.java`：
 
@@ -7519,7 +7550,8 @@ git commit -m "feat(generator): 门诊链改为诊断决定科室 / 用药 / 检
   - `private MedicalOrder newInpatientOrder(Admission a, Drug drug, DrugDose dose, int orderType,
     LocalDateTime start, LocalDateTime discharge)` —— **`dose` 为 `null` 时返回 `null`**，
     调用方计入 `doseMissing`
-  - `generate()` 的返回 map 新增键 `pathway_lab_unmapped`
+  - `generate()` 的返回 map 新增三个键 `pathway_lab_unmapped` / `pathway_med_missing` /
+    `pathway_order_skipped`（三种跳过成因分开计数，理由见 Step 3(b) 的说明）
 - **阶段四（Task 23）会改的两处**，本任务先写成够用的样子并在注释里标出来：
   `dischargeDisposition(PatientProfile, boolean isLastAdmission)` 会加一个「是否手术」参数；
   `generateInpatientEvents` 里长期医嘱的时段会按 `postop=1` 拆成术前/术后两段。
@@ -7642,20 +7674,45 @@ Task 23 的术前检查、手术记录同理，都挂在住院下。
         }
     }
 
-    /** 出院诊断与入院诊断同科室（诊断演进不允许跨科室漂移）。 */
+    /**
+     * 出院诊断与入院诊断同科室（诊断演进不允许跨科室漂移）。
+     *
+     * <p><b>本用例自带一份「同科室两条诊断」的本体桩</b>，这是它有意义的前提：
+     * `buildService()` 的共享桩里内科、外科**各只有一条**可住院诊断，于是
+     * `evolveDiagnosis` 的 `sameDept` 恒为空、永远走「不演进」那一支——
+     * 断言比较的两个字符串必然相等，测的是一个恒真式。
+     * 换成两条内科诊断后，`sameDept` 里恰好有另一条，「演进」分支才真的会被走到。
+     */
     @Test
     void discharge_diagnosis_evolves_within_the_same_department() {
         DataGeneratorService svc = buildService();
-        svc.generate(60);
+        // 只留内科两条可住院诊断：此刻「同科室的另一个」唯一确定，演进结果可预期
+        when(ontologyRepository.diseasesFor(anyInt(), anyInt()))
+                .thenReturn(List.of(hypertensionDisease(), diabetesDisease()));
+        when(ontologyRepository.admissionEligibleDiseasesFor(anyInt(), anyInt()))
+                .thenReturn(List.of(hypertensionDisease(), diabetesDisease()));
+
+        svc.generate(200);
 
         Map<String, String> deptByName = Map.of(
-                "上呼吸道感染", "儿科", "原发性高血压", "内科", "胆囊结石伴胆囊炎", "外科");
+                "原发性高血压", "内科", "2型糖尿病", "内科");
+        int evolved = 0;
         for (Admission a : insertedAdmissions) {
+            assertThat(a.getAdmissionDiagnosis()).isIn(deptByName.keySet());
             assertThat(a.getDischargeDiagnosis()).isNotNull();
             assertThat(deptByName.get(a.getDischargeDiagnosis()))
                     .as("出院诊断跨科室漂移: " + a.getAdmissionDiagnosis() + " → " + a.getDischargeDiagnosis())
                     .isEqualTo(deptByName.get(a.getAdmissionDiagnosis()));
+            if (!a.getDischargeDiagnosis().equals(a.getAdmissionDiagnosis())) {
+                evolved++;
+            }
         }
+        // 这一句才是「同科室」那片的守门人：把 `DIAGNOSIS_EVOLUTION_RATE` 改成 0、或把
+        // `sameDept` 的过滤条件写反，上面那条断言会**全绿**——它比较的两个值永远相等。
+        // 200 名患者、约 40 人住院、约 80 次住院，`DIAGNOSIS_EVOLUTION_RATE = 0.25` 下一次都不演进
+        // 的概率约 1e-10；真落到 0 就说明分支死了，不该放过。
+        assertThat(evolved).as("一次演进都没发生，说明上面的同科室断言退化成了恒真式")
+                .isGreaterThan(0);
     }
 
     /**
@@ -7798,6 +7855,17 @@ Task 23 的术前检查、手术记录同理，都挂在住院下。
         return new Disease("K80.1", "胆囊结石伴胆囊炎", "外科", 0, 18, 89, true, true,
                 3.0, new double[]{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, 0.12);
     }
+
+    /**
+     * 内科的第二条可住院诊断。**不进 `allDiseases`**——它只为
+     * `discharge_diagnosis_evolves_within_the_same_department` 服务：那条用例需要一个
+     * 「同科室里还有另一条可住院诊断」的池子，否则诊断演进分支根本走不到（见该用例的说明）。
+     * 放进共享桩会改变其它用例的抽样序列，得不偿失。
+     */
+    private static Disease diabetesDisease() {
+        return new Disease("E11.9", "2型糖尿病", "内科", 0, 18, 89, true, true,
+                4.0, new double[]{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, 0.20);
+    }
 ```
 
 并把 Task 16 在 `buildService()` 里写的三个 `Disease` 局部变量换成这三个方法调用；
@@ -7833,15 +7901,42 @@ Expected: 编译失败——`Admission.getAdmissionDiagnosis()` / `getAdmissionR
 
 - [ ] **Step 3: 改住院段的调用点**
 
-**(a) `generate()` 里重置新计数器**：在 `doseMissing = 0;` 之后加 `pathwayLabUnmapped = 0;`；
-在 `stat.put("vital_signs", vitalCount);` 之后加 `stat.put("pathway_lab_unmapped", pathwayLabUnmapped);`。
+**(a) `generate()` 里重置新计数器**：在 `doseMissing = 0;` 之后加
 
-**(b) 字段区补一个计数**（与 `doseMissing` 放一起）：
+```java
+        pathwayLabUnmapped = 0;
+        pathwayMedMissing = 0;
+        pathwayOrderSkipped = 0;
+```
+
+在 `stat.put("vital_signs", vitalCount);` 之后加
+
+```java
+        stat.put("pathway_lab_unmapped", pathwayLabUnmapped);
+        stat.put("pathway_med_missing", pathwayMedMissing);
+        stat.put("pathway_order_skipped", pathwayOrderSkipped);
+```
+
+**(b) 字段区补三个计数**（与 `doseMissing` 放一起）：
 
 ```java
     /** `clinical_pathway` 的 LAB 步骤引用了该诊断 `diagnosis_lab` 里没有的检验项，被跳过的次数。 */
     private long pathwayLabUnmapped;
+
+    /** `clinical_pathway` 的 MED 步骤药名在 `drug` 字典里查不到，被跳过的次数。 */
+    private long pathwayMedMissing;
+
+    /** 路径步骤（LAB 或 MED）能映射到本体，但时间窗校验没过、未能落成记录的次数。 */
+    private long pathwayOrderSkipped;
 ```
+
+> **为什么是三个而不是一个**（原稿只有一个 `pathwayLabUnmapped`，把三种完全不同的
+> 成因堆在同一个计数器里，还冠以 `lab` 之名）：这三者排障时指向的方向完全不同——
+> `pathwayLabUnmapped` 说明**本体缺检查项**（补 `diagnosis_lab`），
+> `pathwayMedMissing` 说明**字典缺药**（补 `seed-ontology.sql`），
+> `pathwayOrderSkipped` 说明**时间窗算错了**（改 `newInpatientOrder`）。
+> 合成一个数，看到 `pathway_lab_unmapped = 137` 的人第一反应必然是去翻检验本体，
+> 而真实成因可能一个都不在那。三个数字各自都能直接对上一条修法，这才叫「如实计数」。
 
 **(c) `flushPatients` 的住院段**整体替换（门诊段见 (e)，顺序在**前**——本段读它建好的
 `anchorByPatient`，且收治判定已移到那里，本段不再消耗随机数）：
@@ -8094,17 +8189,17 @@ Expected: 编译失败——`Admission.getAdmissionDiagnosis()` / `getAdmissionR
                         inpatientLabBuf.add(lt);
                     }
                 } else if ("MED".equals(step.action())) {
-                    // 路径里的药名不一定在本体里，能在 drugsById 里找到才开；找不到计入 doseMissing
+                    // 路径里的药名不一定在 drug 字典里，查得到才开；查不到计入 pathwayMedMissing
                     Drug drug = drugsById.values().stream()
                             .filter(x -> x.getName().equals(step.item())).findFirst().orElse(null);
                     if (drug == null) {
-                        pathwayLabUnmapped++;
+                        pathwayMedMissing++;
                         continue;
                     }
                     MedicalOrder o = newInpatientOrder(a, drug, ontologyRepository.doseOf(drug.getId()), 1,
                             a.getAdmissionTime().plusDays(step.day()).plusHours(10), discharge);
                     if (o == null) {
-                        pathwayLabUnmapped++;
+                        pathwayOrderSkipped++;  // 映射得到，但时间窗没过：与「缺本体/缺药」不是一回事
                     } else {
                         orderBuf.add(o);
                     }
@@ -8279,7 +8374,9 @@ git commit -m "feat(generator): 住院链延续门诊诊断，医嘱与检验取
 ```sql
 SELECT '=== 1.4 处方药是否都在该诊断的 diagnosis_drug 里（越界应为 0）===' AS section;
 SELECT COUNT(*) AS items_total,
-       SUM(dd.drug_id IS NULL AND ddl.drug_id IS NULL) AS violations
+       SUM(dd.drug_id IS NULL AND ddl.drug_id IS NULL
+           AND EXISTS (SELECT 1 FROM diagnosis_drug x WHERE x.icd_code = d.icd_code)) AS violations,
+       SUM(NOT EXISTS (SELECT 1 FROM diagnosis_drug x WHERE x.icd_code = d.icd_code)) AS uncovered
 FROM prescription_item i
 JOIN prescription pr ON i.prescription_id = pr.id
 JOIN diagnosis d ON d.visit_id = pr.visit_id
@@ -8291,8 +8388,12 @@ LEFT JOIN diagnosis_drug ddl
 ```
 
 > 两个 LEFT JOIN 对应 `OntologyRules.select` 的两级匹配（先精确科室、再 NULL 回落），
-> 任一命中即算合规。**没有该诊断的行**（本体未覆盖）不计入 `violations`——
-> 那是「未覆盖」，不是「越界」，两者混在一个数里会让这个指标失去意义。
+> 任一命中即算合规。**`violations` 里那个 `EXISTS` 不能省**：没有它，这句 SQL 数的是
+> 「该诊断在本体里一行都没有」的处方项——那正是「未覆盖」，不是「越界」。
+> 两者混在一个数里会让这个指标失去意义：把一个本体没覆盖的诊断当成越界，
+> 于是「越界 = 0」这个判据会在**补本体**时莫名其妙地变红，而越界本身早已清零。
+> 所以拆成两列各报各的：`violations` 才是判据，`uncovered` 如实报出、单独看
+> （本体覆盖不足是 Task 11 `OntologyConsistencyValidator` 的 `unchecked` 该管的事）。
 
 §3.3.2 替换为：
 
@@ -8378,19 +8479,24 @@ FROM (SELECT gap,
                        v.visit_time) AS gap
             FROM diagnosis d
             JOIN visit v ON v.id = d.visit_id
-            JOIN dept_diagnosis dg
-              ON dg.icd_code = d.icd_code AND dg.chronic = 1) g
+            WHERE EXISTS (SELECT 1 FROM dept_diagnosis dg
+                           WHERE dg.icd_code = d.icd_code AND dg.chronic = 1)) g
       WHERE gap IS NOT NULL AND gap > 0) t;
 
 -- 指标 3：急性病就诊的复发（同一急性病的第二次就诊）
 --   这是「重复就诊率」的分母之外的一个补充视角：慢病的重复本该出现，
 --   急性病的重复才是「同一个人反复感冒」这类真实但低频的现象。
+--   2.2/2.3 都写成 EXISTS 而不是 JOIN dept_diagnosis：同一个 ICD 在
+--   dept_diagnosis 里可能有多个科室行（见 Task 4 的「部门归属」注），
+--   JOIN 会按科室数扇出，把同一次就诊数成多次——2.2 的相邻间隔会被复制、
+--   中位数失真，2.3 的 c >= 2 会在只去过一次时就成立。
 SELECT '=== 2.3 急性病同病重复（非慢病）===' AS section;
 SELECT COUNT(*) AS acute_pairs, SUM(c >= 2) AS repeated_pairs,
        ROUND(100.0 * SUM(c >= 2) / COUNT(*), 2) AS repeat_pct
 FROM (SELECT d.patient_id, d.icd_code, COUNT(*) c
       FROM diagnosis d
-      JOIN dept_diagnosis dg ON dg.icd_code = d.icd_code AND dg.chronic = 0
+      WHERE EXISTS (SELECT 1 FROM dept_diagnosis dg
+                     WHERE dg.icd_code = d.icd_code AND dg.chronic = 0)
       GROUP BY d.patient_id, d.icd_code) x;
 
 -- 指标 4：季节峰是否生效
@@ -8454,6 +8560,24 @@ SELECT '=== 2.8 入院途径分布 ===' AS section;
 SELECT admission_route, COUNT(*) AS cnt,
        ROUND(100.0 * COUNT(*) / (SELECT COUNT(*) FROM admission), 2) AS pct
 FROM admission GROUP BY admission_route ORDER BY cnt DESC;
+
+-- 指标 9：人均年就诊次数（§7.3 敏感性分析的第三列）
+--   定义：分母是**患者·年**，不是患者数。每名患者的病史跨度是 1~3 年（Task 15 的事件日历），
+--   拿「总次数 / 患者数」得到的是「人均历史就诊次数」——它会随病史长短变化，
+--   三档敏感性分析之间**没有可比性**（换一档参数、跨度分布就变了，量出来的差可能全来自分母）。
+--   患者·年 = Σ max(365, 末次就诊 − 首次就诊 的天数) / 365。下限按 1 年计：
+--   否则一个只来过一次的患者（跨度 0 天）会以近 0 的分母把人均值顶到天上。
+--   两个口径都报出来，是为了让读报告的人一眼看出自己手上的是哪一个。
+SELECT '=== 2.9 人均年就诊次数（分母为患者·年）===' AS section;
+SELECT s.visits_total,
+       (SELECT COUNT(*) FROM patient) AS patients_total,
+       ROUND(s.patient_years, 1) AS patient_years,
+       ROUND(s.visits_total / s.patient_years, 2) AS visits_per_patient_year,
+       ROUND(s.visits_total / (SELECT COUNT(*) FROM patient), 2) AS visits_per_patient_history
+FROM (SELECT SUM(n) AS visits_total,
+             SUM(GREATEST(365, TIMESTAMPDIFF(DAY, lo, hi))) / 365.0 AS patient_years
+      FROM (SELECT patient_id, MIN(visit_time) lo, MAX(visit_time) hi, COUNT(*) n
+            FROM visit GROUP BY patient_id) p) s;
 ```
 
 > **2.6 的四条断言必须按「诊断名称」关联，不得按 `icd_code`**：
@@ -8506,9 +8630,16 @@ cd backend && mvn -q -pl his-generator -am install -DskipTests
 java -jar his-generator/target/his-generator-1.0.0.jar
 ```
 
-Expected: 生成结束打印各表行数，且 `dose_missing` / `pathway_lab_unmapped` 两个计数
-**都不为 0 也不大得离谱**（前者的合理解释见 Task 8 注②的甲氨蝶呤；后者是 `clinical_pathway`
-里引用了本诊断没有的检验项）。两个数都要抄进报告——它们是「生成器如实报出了自己跳过了什么」的证据。
+Expected: 生成结束打印各表行数，且 `dose_missing` / `pathway_lab_unmapped` / `pathway_med_missing` /
+`pathway_order_skipped` 四个计数**都不为 0 也不大得离谱**（`dose_missing` 的合理解释见 Task 8 注②的
+甲氨蝶呤；`pathway_lab_unmapped` 是 `clinical_pathway` 引用了本诊断没有的检验项；
+`pathway_med_missing` 是路径药名不在 `drug` 字典里；`pathway_order_skipped` 是时间窗没过）。
+四个数都要抄进报告——它们是「生成器如实报出了自己跳过了什么」的证据。
+
+> `pathway_order_skipped` 若**明显偏大**（比如与 LAB 步骤数同量级），多半不是路径的问题，
+> 而是 `newInpatientOrder` 的时间窗把落点算到出院之后了——先按 Task 17 Step 3(c) 的
+> `newInpatientOrder` 定义核对 `start`/`discharge` 的先后，再去怀疑数据。
+> 这正是把它与另外两个分开计数的价值：一个数就能把排查方向缩到一处。
 
 - [ ] **Step 4: 跑出口脚本，把实测值抄进 `docs/test-report.md`**
 
@@ -8524,13 +8655,22 @@ mysql -uhis_user -p'his@2026' -D his_demo --default-character-set=utf8mb4 -t < b
 
 ### 7.0 前提与复现命令
 
-（填：库版本、生成器版本、患者数、`dose_missing` / `pathway_lab_unmapped` 两个计数、
-以下两条命令的原样输出位置）
+（填：库版本、生成器版本、患者数、`dose_missing` / `pathway_lab_unmapped` /
+`pathway_med_missing` / `pathway_order_skipped` 四个计数、以下两条命令的原样输出位置）
 
 ### 7.1 本体约束（阶段一出口判据）
 
-（填 `verify-final.sql` 中 §1.4 处方药越界数、§2.6 住院一致性五项、
-以及接口 `GET /api/validation/ontology` 的 `consistencyRate` / `coverage`）
+（填 `verify-final.sql` 中 §1.4 处方药越界数与未覆盖数、§2.6 住院一致性五项，
+以及 Task 21 实测的 `POST /api/validation/run` 里的 `ontology.checked` / `ontology.unchecked` /
+`ontology.consistentRate`）
+
+> **接口名与字段名以 Task 12 的 `ValidationController` 为准：`POST /api/validation/run`，
+> 字段是 `consistentRate`。** 本节早先写的 `GET /api/validation/ontology` + `consistencyRate`
+> 两个名字都不存在——照抄会拿到 404 与一个空值。
+> **覆盖率（`coverage`）不在这个响应里**：校验报告只算「已检查的项里合规的比例」，
+> 而分母本身就受本体覆盖影响，一个接口同时报两者会自相矛盾。
+> 覆盖率由前端 `ValidationReport.vue` 用 `dept_diagnosis` 的覆盖比例单独算出来展示
+> （见 Task 21），要写进报告时从**页面**抄，不要从接口找。
 
 ### 7.2 患者疾病轨迹（阶段二出口判据）
 
@@ -8553,6 +8693,11 @@ mysql -uhis_user -p'his@2026' -D his_demo --default-character-set=utf8mb4 -t < b
 | 低档 | `-Dhis.followUpMedianDays=60` | | | |
 | 高档 | `-Dhis.followUpMedianDays=120` | | | |
 | 复诊高频 | `-Dhis.recheckProbMin=0.25 -Dhis.recheckProbMax=0.35` | | | |
+
+> 三列全部取自 `verify-phase2.sql`：随访间隔中位数 = §2.2 的 `median_gap`、
+> 重复就诊率 = §2.1 的 `repeat_rate_pct`、人均年就诊次数 = §2.9 的 `visits_per_patient_year`。
+> **第三列必须用 `visits_per_patient_year`，不是 `visits_per_patient_history`**——
+> 后者的分母是患者数，会跟着病史跨度分布一起变，三档之间不可比（理由见 §2.9 的注释）。
 
 （每档都要**删掉上一档的数据再重跑**——生成器会 TRUNCATE 数据表，所以直接重跑即可，
 但同一档的 `verify-phase2.sql` 输出必须与生成器日志中的 `patients` / `visits` 数对上。）
@@ -9873,17 +10018,17 @@ Expected: 编译失败——`Operation` 未 import、`inserted` 里没有 `Opera
                         inpatientLabBuf.add(lt);
                     }
                 } else if ("MED".equals(step.action())) {
-                    // 路径里的药名不一定在本体里，能在 drugsById 里找到才开；找不到计入 doseMissing
+                    // 路径里的药名不一定在 drug 字典里，查得到才开；查不到计入 pathwayMedMissing
                     Drug drug = drugsById.values().stream()
                             .filter(x -> x.getName().equals(step.item())).findFirst().orElse(null);
                     if (drug == null) {
-                        pathwayLabUnmapped++;
+                        pathwayMedMissing++;
                         continue;
                     }
                     MedicalOrder o = newInpatientOrder(a, drug, ontologyRepository.doseOf(drug.getId()), 1,
                             admissionTime.plusDays(step.day()).plusHours(10), discharge);
                     if (o == null) {
-                        pathwayLabUnmapped++;
+                        pathwayOrderSkipped++;  // 映射得到，但时间窗没过：与「缺本体/缺药」不是一回事
                     } else {
                         orderBuf.add(o);
                     }
@@ -11112,8 +11257,9 @@ cd backend && mvn -q -pl his-generator -am install -DskipTests
 java -jar his-generator/target/his-generator-1.0.0.jar
 ```
 
-Expected: 控制台输出的统计里 `operations` 非 0、`postop_missing` 为 0、
-`pathway_lab_unmapped` 与 `dose_missing` 都**非 0但不离谱**（与 Task 18 Step 3 同一判据）。
+Expected: 控制台输出的统计里 `operations` 非 0、`postop_missing` 为 0，
+`pathway_lab_unmapped` / `pathway_med_missing` / `pathway_order_skipped` 与 `dose_missing`
+四个计数都**非 0但不离谱**（与 Task 18 Step 3 同一判据）。
 
 ```bash
 mysql -uhis_user -p'his@2026' -D his_demo --default-character-set=utf8mb4 -t < backend/sql/verify-phase2.sql
@@ -11151,7 +11297,8 @@ Expected: **8 个键全部存在**，`violations` 与 `unchecked` 全为 0，
 
 **实测时间**：（填写）
 **数据规模**：（patient / admission / operation 三个行数，实测）
-**生成器统计**：`operations=`、`postop_missing=`、`dose_missing=`、`pathway_lab_unmapped=`（实测）
+**生成器统计**：`operations=`、`postop_missing=`、`dose_missing=`、`pathway_lab_unmapped=`、
+`pathway_med_missing=`、`pathway_order_skipped=`（实测）
 
 ### 9.1 手术域九项断言（spec §11「手术域行为」①~⑨）
 
