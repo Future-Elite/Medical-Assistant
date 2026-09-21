@@ -189,7 +189,7 @@ CREATE TABLE dept_diagnosis (
   chronic TINYINT NOT NULL DEFAULT 0 COMMENT '1=慢病，可被患者终身携带',
   admission_eligible TINYINT NOT NULL DEFAULT 0 COMMENT '1=可收住院',
   weight DECIMAL(6,3) NOT NULL DEFAULT 1.000 COMMENT '同科室同年龄段内的相对常见度，>0',
-  month_weights JSON NULL COMMENT '长度12的正数数组，季节乘子；全1表示无季节性',
+  month_weights JSON NULL COMMENT '长度12的正数数组，季节乘子；NULL表示无季节性（不是全1）',
   prevalence DECIMAL(6,4) NOT NULL DEFAULT 0 COMMENT '慢病的年龄性别基线患病率；非慢病置0',
   KEY idx_dd_dept (department),
   KEY idx_dd_icd (icd_code),
@@ -422,13 +422,14 @@ public class DeptDiagnosis {
     private String department;
     private String icdCode;
     private String diagnosisName;
+    /** 0不限1仅男2仅女。**与 `Patient.gender`（0男1女）不是同一个域**，勿跨表套用。 */
     private Integer gender;
     private Integer minAge;
     private Integer maxAge;
     private Integer chronic;
     private Integer admissionEligible;
     private BigDecimal weight;
-    /** JSON 文本，长度 12 的正数数组；由调用方用 ObjectMapper 解析。 */
+    /** JSON 文本，长度 12 的正数数组；由调用方用 ObjectMapper 解析。**列可为 NULL，表示无季节性（不是全 1）**。 */
     private String monthWeights;
     private BigDecimal prevalence;
 }
