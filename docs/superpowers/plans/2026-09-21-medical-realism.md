@@ -54,8 +54,21 @@
     ```
 
     这一段覆盖 **§2~§7 共六节**（visit_rate / dept_diagnosis / diagnosis_lab /
-    diagnosis_operation / diagnosis_drug / drug_dose）。然后按 Task 3~8 各自的 Step 4（Task 7 是
-    Step 3）跑断言。
+    diagnosis_operation / diagnosis_drug / drug_dose）。然后跑各节的断言——**断言步的位置逐任务不同，
+    不要按「都是 Step 4」去找**（2026-09-21 逐条核对后更正）：
+
+    | 任务 | 该节的库操作与断言在哪一步 |
+    |------|--------------------------|
+    | Task 3（§1+§2） | **Step 4**：整份跑一次 **+ 断言**（`drug_total`/`drug_new`/`drug_min_id`/`drug_max_id`/`visit_rate`）；**Step 5** 是另一条断言（原 12 种药逐字未变） |
+    | Task 4（§3） | Step 4：入库走 D-4 + 断言（Step 5 是 Commit） |
+    | Task 5（§4） | Step 4：入库走 D-4 + 断言（含重复检测） |
+    | Task 6（§5） | Step 4：入库走 D-4 + 断言 |
+    | Task 7（§6） | **Step 3**：入库走 D-4 + 断言（Step 4 是 Commit） |
+    | Task 8（§7） | **Step 3**：断言（Step 4 是 Commit）；另 **Step 1** 有 `seed-extension.sql` 的「先查再 UPDATE」 |
+
+    **Task 8 另有一条 D-4 覆盖不到的库操作**：它的 Step 1 要改 `seed-extension.sql` 里硝苯地平/
+    二甲双胍的日上限，而**改文件不会改到已入库的行**——那一节自带「先查再决定要不要 UPDATE」的判断，
+    必须照它执行，否则校验器读到的仍是旧阈值。
   - **D-4 的前置条件（执行前必须确认，否则第 1 条语句就会失败）**：本段引用的 6 张表
     （`visit_rate`/`dept_diagnosis`/`diagnosis_lab`/`diagnosis_operation`/`diagnosis_drug`/`drug_dose`）
     **必须已存在**。`main` 分支的 `schema.sql` 里这 6 张表和 `admission` 的 4 个新列**都不存在**，
