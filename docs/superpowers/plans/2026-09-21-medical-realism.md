@@ -1422,6 +1422,10 @@ K         血钾                  mmol/L        3.5-5.5      NONE  0.060
 NA        血钠                  mmol/L        137-147      NONE  0.050
 CA        血钙                  mmol/L        2.1-2.6      NONE  0.060
 
+心肌酶
+CK-MB     肌酸激酶同工酶          U/L           0-25         HIGH  0.060
+CTNI      肌钙蛋白I              ng/mL         0-0.04       HIGH  0.050
+
 甲状腺
 TSH       促甲状腺激素            mIU/L         0.27-4.2     HIGH  0.100
 FT3       游离三碘甲状腺原氨酸      pmol/L        3.1-6.8      NONE  0.060
@@ -1430,12 +1434,8 @@ FT4       游离甲状腺素            pmol/L        12-22        NONE  0.060
 尿便
 URINE-WBC 尿白细胞              /HPF          0-5          HIGH  0.100
 URINE-PRO 尿蛋白                g/L           0-0.15       HIGH  0.080
-URINE-GLU 尿糖                  mmol/L        0            HIGH  0.060
 STOOL-RT  便常规                /HPF          0-3          HIGH  0.100
 STOOL-OB  便隐血                —             阴性          HIGH  0.080
-
-微生物
-MP-AB     肺炎支原体抗体          —             阴性          HIGH  0.050
 
 影像与功能（spec §9.2 明确把心电图归入检验项目）
 ECG       心电图                —             正常          HIGH  0.150
@@ -1445,7 +1445,33 @@ US-GYN    妇科超声              —             正常          HIGH  0.150
 US-THY    甲状腺超声             —             正常          HIGH  0.150
 ```
 
-合计 **50 项**（10+5+4+3+4+7+3+3+5+1+5），落在 spec §9.2 的 30~50 项区间上限。
+合计 **50 项**（10+5+4+3+4+7+3+2+3+4+5 = 50，共 11 类），落在 spec §9.2 的 30~50 项区间上限。
+
+> **2026-09-21 两项替换（Task 5 评审提出，已裁定）**：删 **`URINE-GLU`（尿糖）** 与
+> **`MP-AB`（肺炎支原体抗体）**，加 **`CK-MB`（肌酸激酶同工酶）** 与 **`CTNI`（肌钙蛋白I）**。
+>
+> spec §4.3 的规模要求把两件事写在同一句里：「项目池扩到 **30~50 项**」**且**要「覆盖…
+> **心肌酶**…等常用组套」。本表原本正好卡在 50 项**且没有心肌酶**——两句要求互相顶住，
+> 故只能**换**不能**加**（加就破 30~50，而 Task 9 有一条机器断言
+> `@DisplayName("diagnosis_lab 的检验项目数落在 spec §9.2 要求的 30~50")` 会当场报错）。
+>
+> 换掉的两项是**信息冗余**的：尿糖与血糖（`GLU-F`/`GLU-2H`/`HBA1C`）重复表达同一件事，
+> 且临床上已基本淘汰；`MP-AB` 是**只有一个成员的「微生物」类**，删掉它整类消失，
+> 换来的是一个**此前完全缺失的类**——心肌酶。被删两项的覆盖损失：
+> 尿常规仍由 `URINE-WBC`/`URINE-PRO` 表示，呼吸道病原学不再是本表的范围。
+>
+> **一处连带后果，已核对**：`URINE-GLU` 是这 50 项里**唯一**参考范围写成单个数字
+> （`0`）的项目，删掉它之后，Step 1 的 40 个不同 `参考范围` 取值**全部**是 `a-b` 区间
+> 或定性文本（`正常`/`阴性`）——即 Task 11 的 `LabResults.parseRefRange` 所支持的
+> 「三种形态」里，**单个数那一支在数据中再无使用者**。
+> 处理方式是**保留解析分支与它的单元测试**（`parse_ref_range_handles_three_shapes`），
+> 只把注释里「URINE-GLU 的参考范围就是 0」的措辞改掉——
+> 分支保留是刻意的：它是纯函数的单元测试，且日后项目池若再加单值项目，语义已在此固定。
+> **不要**为了「让测试有数据支撑」而把 `URINE-GLU` 加回来（那会破 30~50）。
+>
+> **不做这次替换的代价**：`I25.1`（冠心病，本表唯一的冠脉诊断）的化验里**没有任何一项
+> 能反映心肌损伤**，只有血脂、心电图与胸片——而「心肌酶」正是 spec 点名要覆盖的组套。
+> 对一篇以医学真实感为主题的论文，这是一个会被直接指出的空洞。
 
 - [ ] **Step 2: 定义检验项目组**
 
@@ -1467,7 +1493,7 @@ US-THY    甲状腺超声             —             正常          HIGH  0.15
 --   G-LIPID = TC, TG, LDL-C, HDL-C
 --   G-LIVER = ALT, AST, TBIL, ALB
 --   G-RENAL = CREA, BUN, EGFR, URINE-PRO
---   G-URINE = URINE-WBC, URINE-PRO, URINE-GLU
+--   G-URINE = URINE-WBC, URINE-PRO
 --   G-STOOL = STOOL-RT, STOOL-OB
 --   G-THYROID = TSH, FT3, FT4
 --   G-THYUS = TSH, FT3, FT4, US-THY
@@ -1476,7 +1502,7 @@ US-THY    甲状腺超声             —             正常          HIGH  0.15
 --   G-USABD = US-ABD
 --   G-USGYN = US-GYN
 --   G-ELECT = K, NA, CA
---   G-MPAB  = MP-AB
+--   G-CARDIAC = CK-MB, CTNI（心肌酶；spec §4.3 点名的组套，此前整类缺失）
 ```
 
 - [ ] **Step 3: 按 (科室, 诊断) 展开为行**
@@ -1485,13 +1511,29 @@ US-THY    甲状腺超声             —             正常          HIGH  0.15
 
 1. 每个条目形如 `科室 ICD: 组[*][(项=概率,…)] …`；
 2. 组不带 `*` → 该组展开出的每行 `required = 0`；带 `*` → `required = 1`；
-3. `(项=概率,…)` 只覆盖**本组内**列出的项，其余项用 Step 1 的默认异常率；
+3. 覆盖有两种写法，都只作用于**本组内**列出的项，未写出的字段保持 Step 1 的值：
+   - `(项=概率)` —— 只改**异常率**，方向沿用 Step 1；
+   - `(项=方向:概率)` —— **同时改方向与异常率**，`方向` ∈ `HIGH`/`LOW`/`NONE`。
+   例：`G-THYROID*(TSH=LOW:0.900,FT3=HIGH:0.850)`。
+   **为什么要有第二种**：本表每一行都是「某个诊断下的某一项」，而**方向是随诊断变的**——
+   同一个 `TSH`，在 `E05.9`（甲亢）下是**偏低**，在 `E04.1`/`I48` 下可以是偏高；
+   同一个 `K`，在 `A09.9`（腹泻）下是**偏低**，在 `N18.9`（慢性肾衰）下是**偏高**。
+   旧写法只有概率、方向一律沿用 Step 1 的全局默认，**表达不了这种差别**，
+   于是会出现「甲亢患者的 TSH 异常率 0.900 却朝着偏高走」这类**方向反了**的行
+   （Task 5 评审实测到 `seed-ontology.sql:606-608`，见下）；
+   以及「概率写了 0.350、方向却是 `NONE`」的行——`NONE` 意味着**没有可用的异常方向**，
+   概率写得再高也渲染不出任何异常值，那两行是**死配置**。
+   `NONE` 只应出现在**确实没有特定方向**的项上（如 `NA`/`FIB`），且此时概率应保持低位默认值；
 4. `weight` 一律 `1.000`（本期不区分项目权重，留列待用）；
 5. `department` 一律写该条目的科室名（**不写 NULL**——本表的每一行都对应 Task 4 的某个
    `(科室, ICD)` 组合，故必然有具体科室）；
 6. **同一 (科室, ICD, item_code) 被多个组覆盖时合并成一行**：
    `required` 取 `1`（`required` 是「必查」，只要任一组要求必查就是必查）；
    `abnormal_prob` 取两者中的**较大值**（同一诊断下更可能异常的那个来源更贴合该病）；
+   **`abnormal_direction` 取被显式写出的那个**——Step 1 的默认方向**不算**「写出」，
+   所以「一组显式写 `TSH=LOW:0.900`、另一组只写 `TSH=0.200`」的结果是 **`LOW` + 0.900**。
+   若两个组对同一项**都显式写出了方向且不同**，那是书写错误：
+   **停下来报出，不要任选其一**（静默选一边正是这类表最容易骗过断言的地方）。
    其余元数据取自 Step 1，不存在分歧。
 
 ```
@@ -1500,39 +1542,39 @@ I10:    G-CBC, G-LIPID, G-RENAL, G-GLU, G-ELECT, G-ECG*
 E11.9:  G-GLU2*, G-LIPID, G-RENAL, G-LIVER, G-ELECT
 K29.5:  G-CBC, G-STOOL, G-LIVER, G-USABD
 E78.5:  G-LIPID*, G-LIVER, G-GLU, G-ECG
-I25.1:  G-CBC, G-LIPID(LDL-C=0.600), G-GLU, G-ECG*(ECG=0.550), G-CXRAY, G-RENAL
+I25.1:  G-CBC, G-LIPID(LDL-C=0.600), G-GLU, G-ECG*(ECG=0.550), G-CXRAY, G-RENAL, G-CARDIAC(CTNI=0.350,CK-MB=0.300)
 K21.0:  G-CBC, G-USABD, G-ECG
 J44.9:  G-CBC, G-CXRAY(CXRAY=0.800), G-ECG, G-INFLAM(CRP=0.450)
-N18.9:  G-RENAL*(CREA=0.850,EGFR=0.800,URINE-PRO=0.700), G-CBC(BLD-HB=0.400), G-ELECT(K=0.350), G-USABD
+N18.9:  G-RENAL*(CREA=0.850,EGFR=0.800,URINE-PRO=0.700,BUN=0.500), G-CBC(BLD-HB=0.400), G-ELECT(K=HIGH:0.350), G-USABD
 I48:    G-ECG*(ECG=0.950), G-CBC, G-THYROID(TSH=0.200), G-COAG
-E05.9:  G-THYROID*(TSH=0.900,FT3=0.850,FT4=0.850), G-CBC(BLD-WBC=0.250), G-LIVER
-J06.9:  G-CBC(BLD-WBC=0.450,BLD-LYMPH=0.500), G-INFLAM(CRP=0.400)
+E05.9:  G-THYROID*(TSH=LOW:0.900,FT3=HIGH:0.850,FT4=HIGH:0.850), G-CBC(BLD-WBC=0.250), G-LIVER
+J06.9:  G-CBC(BLD-WBC=LOW:0.200,BLD-LYMPH=0.500), G-INFLAM(CRP=0.400)
 J20.9:  G-CBC(BLD-WBC=0.500), G-INFLAM(CRP=0.500), G-CXRAY(CXRAY=0.350)
-A09.9:  G-CBC(BLD-WBC=0.400), G-STOOL(STOOL-RT=0.600), G-ELECT(K=0.250), G-URINE
+A09.9:  G-CBC(BLD-WBC=0.400), G-STOOL(STOOL-RT=0.600), G-ELECT(K=LOW:0.250), G-URINE
 R50.9:  G-CBC(BLD-WBC=0.550), G-INFLAM(CRP=0.550,PCT=0.350), G-URINE, G-CXRAY
 G43.9:  G-CBC, G-ECG
 
 外科（全部含 G-PREOP*，即 spec §9.2 要求的术前检查组，全部 required=1）
-K35.8:  G-PREOP*, G-CBC(BLD-WBC=0.850,BLD-NEUT=0.800), G-INFLAM(CRP=0.750,PCT=0.400), G-USABD(US-ABD=0.650)
+K35.8:  G-PREOP*, G-CBC(BLD-WBC=0.850,BLD-NEUT=0.800), G-INFLAM(CRP=0.750,PCT=0.400), G-USABD(US-ABD=0.650), G-LIVER
 K80.1:  G-PREOP*, G-LIVER(TBIL=0.450,ALT=0.400), G-USABD*(US-ABD=0.900), G-INFLAM(CRP=0.550)
-S52.5:  G-PREOP*, G-CBC(BLD-HB=0.300), G-ELECT(CA=0.200)
-E04.1:  G-PREOP*, G-THYUS*(US-THY=0.950,TSH=0.250), G-ELECT(CA=0.150)
-M17.9:  G-PREOP*, G-INFLAM(CRP=0.350,ESR=0.400), G-ELECT(CA=0.150)
-I84.2:  G-PREOP*, G-CBC(BLD-HB=0.450)
-S61.0:  G-PREOP*, G-CBC(BLD-WBC=0.450), G-INFLAM(CRP=0.400)
-K40.9:  G-PREOP*, G-USABD(US-ABD=0.300)
-L02.9:  G-PREOP*, G-CBC(BLD-WBC=0.750), G-INFLAM(CRP=0.600)
-D23.9:  G-PREOP*
-K63.5:  G-PREOP*, G-CBC(BLD-HB=0.400), G-STOOL(STOOL-OB=0.550)
-K42.9:  G-PREOP*, G-USABD(US-ABD=0.300)
-C73:    G-PREOP*, G-THYUS*(US-THY=0.950,TSH=0.200), G-ELECT(CA=0.300), G-LIVER
+S52.5:  G-PREOP*, G-CBC(BLD-HB=0.300), G-ELECT(CA=LOW:0.200), G-LIVER
+E04.1:  G-PREOP*, G-THYUS*(US-THY=0.950,TSH=0.250), G-ELECT(CA=LOW:0.150), G-LIVER
+M17.9:  G-PREOP*, G-INFLAM(CRP=0.350,ESR=0.400), G-ELECT(CA=LOW:0.150), G-LIVER
+I84.2:  G-PREOP*, G-CBC(BLD-HB=0.450), G-LIVER
+S61.0:  G-PREOP*, G-CBC(BLD-WBC=0.450), G-INFLAM(CRP=0.400), G-LIVER
+K40.9:  G-PREOP*, G-USABD(US-ABD=0.300), G-LIVER
+L02.9:  G-PREOP*, G-CBC(BLD-WBC=0.750), G-INFLAM(CRP=0.600), G-LIVER
+D23.9:  G-PREOP*, G-LIVER
+K63.5:  G-PREOP*, G-CBC(BLD-HB=0.400), G-STOOL(STOOL-OB=0.550), G-LIVER
+K42.9:  G-PREOP*, G-USABD(US-ABD=0.300), G-LIVER
+C73:    G-PREOP*, G-THYUS*(US-THY=0.950,TSH=0.200), G-ELECT(CA=LOW:0.300), G-LIVER
 
 儿科（department='儿科'，与内科同 ICD 但独立成行，异常率按儿童调整）
-J06.9:  G-CBC(BLD-WBC=0.380,BLD-LYMPH=0.580), G-INFLAM(CRP=0.320)
+J06.9:  G-CBC(BLD-WBC=LOW:0.180,BLD-LYMPH=0.580), G-INFLAM(CRP=0.320)
 R50.9:  G-CBC(BLD-WBC=0.600), G-INFLAM(CRP=0.580,PCT=0.420), G-URINE, G-CXRAY(CXRAY=0.300)
-A09.9:  G-CBC(BLD-WBC=0.350), G-STOOL(STOOL-RT=0.650), G-ELECT(K=0.300), G-URINE
-J18.0:  G-CBC(BLD-WBC=0.800,BLD-NEUT=0.750), G-INFLAM(CRP=0.700,PCT=0.450), G-CXRAY*(CXRAY=0.850), G-MPAB(MP-AB=0.350)
-K52.9:  G-CBC(BLD-WBC=0.300), G-STOOL(STOOL-RT=0.550), G-ELECT(K=0.350), G-URINE
+A09.9:  G-CBC(BLD-WBC=0.350), G-STOOL(STOOL-RT=0.650), G-ELECT(K=LOW:0.300), G-URINE
+J18.0:  G-CBC(BLD-WBC=0.800,BLD-NEUT=0.750), G-INFLAM(CRP=0.700,PCT=0.450), G-CXRAY*(CXRAY=0.850)
+K52.9:  G-CBC(BLD-WBC=0.300), G-STOOL(STOOL-RT=0.550), G-ELECT(K=LOW:0.350), G-URINE
 J02.9:  G-CBC(BLD-WBC=0.450), G-INFLAM(CRP=0.400)
 B08.4:  G-CBC(BLD-WBC=0.500,BLD-LYMPH=0.450), G-INFLAM(CRP=0.350)
 H66.9:  G-CBC(BLD-WBC=0.400), G-INFLAM(CRP=0.300)
@@ -1542,28 +1584,28 @@ K40.9:  G-CBC(BLD-WBC=0.200)
 
 妇科（department='妇科'；需手术的诊断挂 G-PREOP*）
 N76.0:  G-CBC(BLD-WBC=0.350), G-URINE(URINE-WBC=0.600), G-USGYN*(US-GYN=0.450)
-D25.9:  G-PREOP*, G-USGYN*(US-GYN=0.950)
+D25.9:  G-PREOP*, G-USGYN*(US-GYN=0.950), G-LIVER
 N92.6:  G-CBC(BLD-HB=0.450), G-THYROID(TSH=0.250), G-USGYN(US-GYN=0.400), G-COAG
 N72:    G-CBC(BLD-WBC=0.350), G-URINE(URINE-WBC=0.400), G-USGYN(US-GYN=0.300)
 N73.9:  G-CBC(BLD-WBC=0.600), G-INFLAM(CRP=0.550,ESR=0.500), G-URINE(URINE-WBC=0.500), G-USGYN(US-GYN=0.550)
-N83.2:  G-PREOP*, G-USGYN*(US-GYN=0.900)
+N83.2:  G-PREOP*, G-USGYN*(US-GYN=0.900), G-LIVER
 N94.6:  G-CBC, G-USGYN(US-GYN=0.350)
-N84.0:  G-PREOP*, G-USGYN*(US-GYN=0.850)
-N80.0:  G-PREOP*, G-USGYN*(US-GYN=0.850)
+N84.0:  G-PREOP*, G-USGYN*(US-GYN=0.850), G-LIVER
+N80.0:  G-PREOP*, G-USGYN*(US-GYN=0.850), G-LIVER
 N97.9:  G-CBC, G-THYROID(TSH=0.200), G-USGYN(US-GYN=0.600)
-N85.6:  G-PREOP*, G-USGYN*(US-GYN=0.900)
+N85.6:  G-PREOP*, G-USGYN*(US-GYN=0.900), G-LIVER
 
 五官科
 J02.9:  G-CBC(BLD-WBC=0.450), G-INFLAM(CRP=0.400)
 J30.4:  G-CBC(BLD-EOS=0.450), G-INFLAM(ESR=0.200)
-H25.9:  G-PREOP*
+H25.9:  G-PREOP*, G-LIVER
 J31.0:  G-CBC(BLD-WBC=0.300), G-INFLAM(CRP=0.250)
-J35.0:  G-PREOP*, G-INFLAM(CRP=0.350,ESR=0.300)
+J35.0:  G-PREOP*, G-INFLAM(CRP=0.350,ESR=0.300), G-LIVER
 H66.9:  G-CBC(BLD-WBC=0.450), G-INFLAM(CRP=0.400)
 H10.9:  G-CBC(BLD-WBC=0.300), G-INFLAM(CRP=0.250)
-J34.2:  G-PREOP*
+J34.2:  G-PREOP*, G-LIVER
 H40.9:  G-CBC, G-GLU, G-ECG
-J33.9:  G-PREOP*
+J33.9:  G-PREOP*, G-LIVER
 H81.1:  G-CBC, G-ECG
 
 皮肤科（全部不挂 G-PREOP——spec §9.2 规定皮肤科不挂手术）
@@ -1573,12 +1615,35 @@ L50.9:  G-CBC(BLD-EOS=0.350), G-INFLAM(CRP=0.300,ESR=0.250)
 L20.9:  G-CBC(BLD-EOS=0.500)
 B35.9:  G-CBC(BLD-EOS=0.250), G-LIVER(ALT=0.150)
 L21.9:  G-CBC, G-INFLAM(CRP=0.200)
-B02.9:  G-CBC(BLD-LYMPH=0.350), G-INFLAM(CRP=0.300)
+B02.9:  G-CBC(BLD-LYMPH=LOW:0.300), G-INFLAM(CRP=0.300)
 L08.9:  G-CBC(BLD-WBC=0.600), G-INFLAM(CRP=0.550,PCT=0.300)
 L60.0:  G-CBC(BLD-WBC=0.450), G-INFLAM(CRP=0.350), G-COAG
 L40.9:  G-CBC, G-LIVER(ALT=0.300,AST=0.250), G-LIPID, G-ECG
 L03.9:  G-CBC(BLD-WBC=0.750), G-INFLAM(CRP=0.650,PCT=0.350), G-GLU
 ```
+
+**与 spec §4.3「每个诊断挂 2~8 项」的偏差（已裁定为记录在案，不靠删数据达标）**：
+
+按上表逐字展开得到 **72 个 `(科室, ICD)`**，逐个诊断数它去重后实际挂到的检验项目数
+（含 `required=1` 的必查项）：
+
+| 项数 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 18 | 21 | 22 | 23 | 24 | 25 | 27 | 28 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 诊断数 | 3 | 3 | 1 | 20 | 5 | 2 | 3 | 5 | 2 | 3 | 1 | 7 | 7 | 1 | 4 | 2 | 1 | 2 |
+
+即 **6/72 落在 2~8 内，66/72 超过 8，0 个低于 2**；最少 7 项（儿科 `L20.9` 湿疹），
+最多 28 项（外科 `E04.1` / `C73`）。
+（这是**按本文件 Step 3 的表逐字展开**算出来的，不是实测库里的数——
+入库后的真实值在 Step 4 里量，两者不一致就是抄错了，以 Step 4 的实测为准并如实报出差异。）
+
+**为什么不能靠删数据达标**：超标的 66 个里绝大多数是外科/妇科/五官科的**手术诊断**，
+它们的项数下限被 spec §9.2 的**术前检查组**钉死——`G-PREOP` 一个组就是 17 项
+（血常规 7 + 凝血 5 + 感染筛查 4 + 心电图 1），且全部 `required=1`。
+要压进 8 项，只能在「删掉术前检查组」（违反 §9.2）和「删掉除术前检查组外的全部检验」
+（内、儿科诊断的诊断特异性检验立刻清零）之间二选一——两条都比「超标」更违背 spec。
+
+**故按「记录在案」处理**：Step 3 的表**逐字生成，一行都不要删**；
+Task 9 的 Step 6 作者复核表里有一条对应的确认项。
 
 - [ ] **Step 4: 入库并断言（含重复检测）**
 
@@ -1631,6 +1696,44 @@ HAVING 血常规 = 0 OR 凝血 = 0 OR 感染筛查 = 0 OR 心电图 = 0;"
 ```
 
 Expected: **零行**。任何一行输出都表示该外科诊断缺术前检查项，须补 `G-PREOP*`。
+
+**spec §4.3 的「不得只会偏高」也必须单独验一遍**。那句话是两句，都要验：
+前半句「`abnormal_direction` 必须支持 `LOW`」，后半句
+「**每个诊断至少有一条 `LOW` 或 `NONE` 的**可选**项目**，杜绝『只会偏高』」。
+
+```bash
+mysql -uroot -p123456 --default-character-set=utf8mb4 -e "
+SELECT '没有 LOW/NONE 可选项目的诊断数(应 0)' AS chk, COUNT(*) AS v
+  FROM his_demo.dept_diagnosis dd WHERE NOT EXISTS (
+    SELECT 1 FROM his_demo.diagnosis_lab dl
+    WHERE dl.icd_code = dd.icd_code AND dl.department = dd.department
+      AND dl.required = 0 AND dl.abnormal_direction IN ('LOW','NONE'))
+UNION ALL SELECT '死配置：方向 NONE 却写了高异常率(应 0)', COUNT(*)
+  FROM his_demo.diagnosis_lab
+  WHERE abnormal_direction = 'NONE' AND abnormal_prob > 0.100
+UNION ALL SELECT '挂了心肌酶的诊断数(应 1)', COUNT(DISTINCT icd_code)
+  FROM his_demo.diagnosis_lab WHERE item_code IN ('CK-MB','CTNI')
+UNION ALL SELECT 'I25.1 挂的心肌酶项目数(应 2)', COUNT(*)
+  FROM his_demo.diagnosis_lab WHERE icd_code = 'I25.1' AND item_code IN ('CK-MB','CTNI');"
+```
+
+Expected: 依次 `0`、`0`、`1`、`2`。
+
+三条判据的来路（都不是拍脑袋定的，**不要因为「看着多余」就删掉任何一条**）：
+
+- **第一条把 `NONE` 也算合格**：`FIB`/`K`/`NA`/`CA`/`FT3`/`FT4` 这 6 项在 Step 1 里
+  本来就是 `NONE`（没有固定的偏高/偏低方向）。一个诊断只要挂了其中任一项、
+  **且该行 `required = 0`**，它就已经不是「只会偏高」。
+  **`required = 1` 的项不算数**——这正是这条断言的价值：外科诊断的 `G-PREOP*` 里
+  虽然含 `FIB`（`NONE`），但它是必查项，不是 spec 说的「可选项目」，
+  光靠它并不满足要求。Task 5 评审实测到 17 个外科诊断正是栽在这里。
+- **第二条的阈值 `0.100` 来自 Step 1**：50 项里 `NONE` 项的默认异常率**最高**是
+  `0.060`（`FIB`/`K`/`CA`/`FT3`/`FT4`，`NA` 是 `0.050`），
+  所以 `0.100` 以上还写着 `NONE` 的行**不可能**来自 Step 1 的默认值，
+  只能是「显式写了概率、忘了写方向」——那正是**死配置**：
+  方向为 `NONE` 时，概率写得再高也渲染不出任何异常值。
+- **第三、四条**验本次替换补上的心肌酶：`I25.1`（本表唯一的冠脉诊断）
+  必须同时挂 `CK-MB` 与 `CTNI`；全表只应有 `I25.1` 一个诊断挂心肌酶。
 
 - [ ] **Step 5: Commit**
 
@@ -3001,6 +3104,32 @@ mysql -uroot -p123456 --default-character-set=utf8mb4 his_demo < backend/sql/ver
 - [ ] **外科类诊断的术前检查**：确认血常规、凝血、感染筛查（乙肝/梅毒/HIV）、心电图
       确实都是 `required=1`（机器已断言，请你确认这个组合本身正确）
 - [ ] **`abnormal_prob`**：**假设值**。抽查 10 个诊断，确认异常率的量级符合直觉
+- [ ] **两项替换（Task 5 评审后裁定，2026-09-21）**：删 `URINE-GLU`（尿糖）与
+      `MP-AB`（肺炎支原体抗体），加 `CK-MB` 与 `CTNI`（心肌酶）。请确认三件事：
+      ① 尿糖确实可以不要（血糖三项 `GLU-F`/`GLU-2H`/`HBA1C` 已覆盖同一件事）；
+      ② 你接受「呼吸道病原学不再是本表的范围」；
+      ③ 心肌酶**只挂 `I25.1`（冠心病）一个诊断**够不够——其余心脏诊断是 `I10`/`I48`/`E78.5`。
+      **是「换」不是「加」的原因**：项目池正好卡在 spec §9.2 的 30~50 项上限，加就超。
+- [ ] **spec §4.3「每个诊断挂 2~8 项」这条本批数据做不到，请确认接受「记录在案」**：
+      实测 72 个诊断里 **6 个落在 2~8 内，66 个超过 8**（最少 7 项，最多 28 项）。
+      不是漏做，是**结构性冲突**：`G-PREOP` 术前检查组一个组就是 17 项，
+      而 spec §9.2 要求全部外科诊断必查——两条不能同时成立。
+      本计划选择**满足 §9.2、把 §4.3 的项数上限记为偏差**（展开见 Task 5 Step 3 末尾）。
+      若你认为该反过来（砍术前检查组去满足 2~8），请在结论栏写明：
+      那要改的是 spec，不是这批数据。
+- [ ] **`abnormal_direction` 的逐诊断方向（本次修了一批，请复核）**：
+      这是 Task 5 评审提出的两类问题——「方向反了」与「死配置（写了概率、方向是 `NONE`）」。
+      已按临床常规修正，请逐条确认：
+      - 甲亢 `E05.9`：`TSH` **偏低**、`FT3`/`FT4` 偏高（旧版把 `TSH` 也写成偏高）；
+      - 血钾方向**随病相反**：腹泻 `A09.9`/`K52.9` 偏低，肾衰 `N18.9` 偏高；
+      - 低钙 `CA=LOW` 出现在 `S52.5`/`E04.1`/`M17.9`/`C73`（骨折/术后/骨病方向）；
+      - 病毒性上感 `J06.9`：白细胞**偏低**、淋巴细胞偏高（旧版白细胞是偏高）；
+      - 慢肾衰 `N18.9` 的 `BUN` 异常率从 0.080 提到了 0.500（它是必查项，
+        0.080 等于「肾衰病人尿素氮基本正常」，说不通）。
+      **其中一条我拿不准，请你裁决**：带状疱疹 `B02.9` 的淋巴细胞
+      从「偏高 0.350」改成了「偏低 0.300」。病毒感染通常是淋巴细胞增高，
+      评审提的是原值不对、我按「疱疹病毒再激活常伴相对淋巴细胞减少」改了；
+      如果你认为该改回偏高，请在结论栏点名（改一行的事）。
 
 ## 4. 手术本体 20 术式（Task 6）
 
@@ -6750,7 +6879,10 @@ class LabResultsTest {
         assertThat(range.high()).isEqualTo(10.0);
         assertThat(range.qualitative()).isNull();
 
-        // URINE-GLU 的参考范围就是「0」：下界 0、上界 0，异常只能偏高
+        // 单个数的形态：下界 0、上界即该数，异常只能偏高。
+        // 注意：2026-09-21 的两项替换把唯一使用该形态的 URINE-GLU（参考范围「0」）
+        // 移出了项目池，故当前 50 项里没有任何一行会走到这条分支。
+        // 保留解析与断言是刻意的——这是纯函数的单元测试，不是「数据里必然有」的断言。
         LabResults.RefRange zero = LabResults.parseRefRange("0");
         assertThat(zero.low()).isEqualTo(0.0);
         assertThat(zero.high()).isEqualTo(0.0);
@@ -6987,7 +7119,7 @@ final class LabResults {
 
     /** {@code a-b} 或 {@code 前缀 a-b}：数值型参考范围。 */
     private static final Pattern RANGE = Pattern.compile(".*?(-?\\d+(?:\\.\\d+)?)\\s*-\\s*(-?\\d+(?:\\.\\d+)?)\\s*$");
-    /** 单个数字：下界 0、上界即该数（如 URINE-GLU 的 {@code 0}）。 */
+    /** 单个数字：下界 0、上界即该数（如参考范围写作 {@code 0} 的项目）。当前 50 项里无使用者。 */
     private static final Pattern SINGLE = Pattern.compile("\\s*(-?\\d+(?:\\.\\d+)?)\\s*");
 
     private LabResults() {
