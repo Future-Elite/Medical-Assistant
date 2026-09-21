@@ -690,12 +690,13 @@ git commit -m "feat(common): 三期实体与 Mapper —— 6 张本体表 + oper
 
 ```sql
 -- 模拟 HIS 系统三期 —— 医学知识本体种子
--- 执行：mysql -uroot -p123456 --default-character-set=utf8mb4 his_demo < backend/sql/seed-ontology.sql
+-- 执行：mysql --default-character-set=utf8mb4 his_demo < backend/sql/seed-ontology.sql
+--       （用户名/口令按本地部署自行补充，本脚本不固化凭据）
 --
 -- 前置：必须先执行 seed.sql（drug 的 id 1~12 由它定义）与 seed-extension.sql。
 -- 注意：本脚本的 **drug 段只能执行一次**——drug 主键会拒绝重复插入。
---       visit_rate 段不同：它没有唯一键，故 Step 3 在 INSERT 前先 DELETE，
---       整段可重复执行（重复执行的后果与重建方法都写在 Step 3 的注释里）。
+--       visit_rate 段与 dept_diagnosis 段不同：它们没有唯一键，故各自在 INSERT 前先 DELETE，
+--       整段可重复执行（重复执行的后果与重建方法都写在对应节的注释里）。
 --
 -- 数据来源（spec §9）：
 --   诊断编码与名称  = ICD-10 国家临床版（卫健委）
@@ -1081,7 +1082,13 @@ SET @SPRING_AUTUMN = '[0.8,0.9,1.3,1.4,1.2,1.0,0.9,1.0,1.2,1.3,1.0,0.8]';
 列序即：**科室 / ICD-10 / 诊断名 / 性别 / 年龄下限 / 年龄上限 / 慢性 / 可住院 / 权重 / 季节 / 患病率**。
 性别 `0不限 1仅男 2仅女`；慢性与可住院 `0/1`；患病率仅慢病非零。
 
-**本节开头先加一条 `DELETE`**（与第 2 节的 `visit_rate` 同款纪律）：
+**本节加一条 `DELETE`**（与第 2 节的 `visit_rate` 同款纪律）。
+
+**位置是硬要求：放在三个 `SET @WINTER/@SUMMER/@SPRING_AUTUMN` 行之后、第一条 `INSERT` 之前。**
+不是放在节标题之后——本节的官方抽取锚点是 `SET` 那一行（见本步的抽取命令），
+`DELETE` 若在 `SET` 之前就会被那条命令**静默漏掉**，于是「本节可重复执行」名不副实，
+重跑照样累加成 144/216 行，正是这条纪律要防的事故。放在 `SET` 之后则抽取窗口 =
+3 个 `SET` + 1 个 `DELETE` + 6 条 `INSERT`，自洽。
 
 ```sql
 -- 本节可重复执行：dept_diagnosis **没有唯一键**（见 schema.sql，只有 idx_dd_dept/idx_dd_icd/idx_dd_chronic
