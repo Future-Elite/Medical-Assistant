@@ -9762,9 +9762,12 @@ git commit -m "docs: 改造前后基线反测数据落表，论文素材清单�
 
 **Files:**
 - Modify: `backend/his-generator/src/main/java/com/his/generator/DataGeneratorService.java`
-  （`generateInpatientEvents` 重排顺序；新增 `newOperation` / `operationMinutes` / `pickOther` /
-  `preopLabs` / `postopOrders` / `addNursingOrders` / `totalProbability`；
-  `pickDrugRows` 加列表重载；`dischargeDisposition` 加两个参数）
+  （`generateInpatientEvents` 重排顺序并追加 `PatientProfile profile` 形参；新增 `newOperation` /
+  `operationMinutes` / `pickOther` / `preopLabs` / `postopOrders` / `addNursingOrders` /
+  `totalProbability`；`pickDrugRows` 加列表重载；`dischargeDisposition` 加两个参数；
+  字段区末尾追加 `OperationMapper operationMapper`；新增字段
+  `Set<String> lastAdmissionNos`；`rnd` 的类型由 `ThreadLocalRandom` 改为 `RandomGenerator`
+  并与 `dischargeDisposition` 一起放开到包级可见，作为 `DEATH` 分支的测试缝）
 - Test: `backend/his-generator/src/test/java/com/his/generator/DataGeneratorServiceTest.java`
 
 **Interfaces:**
@@ -9800,6 +9803,24 @@ git commit -m "docs: 改造前后基线反测数据落表，论文素材清单�
 
 在 `DataGeneratorServiceTest` 里新增（`op(...)` 等 helper 放在文件末尾的 helper 区）：
 
+**(a) 字段区新增两个**
+
+```java
+    /** 本次生成落库的全部手术。取的路径与 `insertedAdmissions` 完全一致。 */
+    private final List<Operation> insertedOperations = new ArrayList<>();
+
+    /**
+     * 本用例自己建的 service。
+     *
+     * <p>**它不是 `run()` 里 `buildService()` 出来的临时对象**：本体桩（`stubInpatientDisease`）
+     * 必须在 `buildService()` **之后**打，因为 `ontologyRepository` 是那个方法里 `mock(...)`
+     * 出来的字段。等桩全打完了，`run()` 才拿这个已经配好的 service 去生成。
+     */
+    private DataGeneratorService svc;
+```
+
+**(b) 测试与 helper**
+
 ```java
     /** 一条手术本体行。 */
     private DiagnosisOperation op(String icd, String dept, String code, String name,
@@ -9816,9 +9837,107 @@ git commit -m "docs: 改造前后基线反测数据落表，论文素材清单�
         return o;
     }
 
-    /** 从统计 map 与缓冲区里取回本次生成的全部手术。 */
+    /** 本次生成落库的全部手术。 */
     private List<Operation> operations() {
-        return inserted.get(Operation.class);
+        return insertedOperations;
+    }
+
+    /** 本次生成落库的全部住院。 */
+    private List<Admission> admissions() {
+        return insertedAdmissions;
+    }
+
+    /** 本次生成落库的全部住院医嘱。 */
+    private List<MedicalOrder> orders() {
+        return insertedOrders;
+    }
+
+    /** 本次生成落库的全部检验。 */
+    private List<LabTest> labs() {
+        return insertedLabs;
+    }
+
+    /** 住院 id → 住院单。id 由 `stubBatchInsert` 在插入时回填，所以这里取到的是真 id。 */
+    private Map<Long, Admission> admissionsById() {
+        return insertedAdmissions.stream()
+                .collect(Collectors.toMap(Admission::getId, a -> a));
+    }
+
+    /**
+     * 某科室的全部医生姓名。**从 `doctorMapper` 的桩读回**（与生成器的取数路径一致），
+     * 而不是另抄一份名单——抄一份就等于测「名单没抄错」，不是测「术者来自本科室」。
+     */
+    private List<String> doctorsOf(String dept) {
+        return doctorMapper.selectList(null).stream()
+                .filter(d -> dept.equals(d.getDepartment()))
+                .map(Doctor::getName)
+                .toList();
+    }
+
+    /**
+     * 把「该诊断可住院、挂给定的术式本体、用药本体为空」装进本体仓库，
+     * **并顺带把 service 建好**（`svc` 字段）。
+     *
+     * <p>**必须先建 service 再打桩**：`ontologyRepository` 是 `buildService()` 里
+     * `mock(...)` 出来的字段，service 没建之前它是 `null`，这里每一行 `when(...)` 都会 NPE。
+     * 所以本方法内部先 `svc = buildService();`，后面的 `stubDrugs` / `stubRequiredLab`
+     * 才有同一个 `ontologyRepository` 可以继续打桩，`run()` 也不再重建。
+     *
+     * <p>造一个**可住院**的诊断是这套测试的前提：不可住院的诊断根本走不到住院循环，
+     * 手术断言会空转成「没有手术也算通过」。所以这里同时桩上 `diseasesFor`（门诊用）与
+     * `admissionEligibleDiseasesFor`（住院用）——**只桩前者会让所有手术断言在零住院上通过**。
+     */
+    private void stubInpatientDisease(String icd, String name, String dept,
+                                      List<DiagnosisOperation> ops) {
+        stubInpatientDisease(icd, name, dept, ops, List.of());
+    }
+
+    private void stubInpatientDisease(String icd, String name, String dept,
+                                      List<DiagnosisOperation> ops,
+                                      List<DiagnosisDrug> drugs) {
+        svc = buildService();
+        Disease d = disease(icd, name, dept, 0, 18, 89, false, true, "4.000", 0);
+        when(ontologyRepository.diseasesFor(anyInt(), anyInt())).thenReturn(List.of(d));
+        when(ontologyRepository.admissionEligibleDiseasesFor(anyInt(), anyInt())).thenReturn(List.of(d));
+        when(ontologyRepository.operationsOf(d)).thenReturn(ops);
+        when(ontologyRepository.drugsOf(d)).thenReturn(drugs);
+        when(ontologyRepository.labsOf(any())).thenReturn(List.of());
+        // 剂量行必须给：拿不到剂量时生成器会跳过该条医嘱，术后用药断言会空转成「没有药」
+        when(ontologyRepository.doseOf(anyLong())).thenReturn(dose(1L, "1", "片", "每日3次", "4", 5, 7));
+    }
+
+    /**
+     * 覆盖掉 `stubInpatientDisease` 里那个空用药列表。
+     *
+     * <p>按 `icd` 过滤而不是整批返回——生产代码的 `drugsOf(disease)` 本来就只返回**该诊断**的行。
+     * 整批返回会让「诊断 A 拿到了诊断 B 的药」这种错误在测试里看不出来。
+     */
+    private void stubDrugs(String icd, DiagnosisDrug... rows) {
+        when(ontologyRepository.drugsOf(any())).thenAnswer(inv ->
+                List.of(rows).stream().filter(r -> icd.equals(r.getIcdCode())).toList());
+    }
+
+    /** 6 参重载：多指定一个 `postop`（1=仅术后使用）。Task 16 的 5 参版本固定 `postop=0`。 */
+    private DiagnosisDrug drugRow(String icd, String dept, Long drugId, int line,
+                                  double weight, int postop) {
+        DiagnosisDrug r = drugRow(icd, dept, drugId, line, String.valueOf(weight));
+        r.setPostop(postop);
+        return r;
+    }
+
+    /** 一条 `required=1` 的检验本体行，覆盖掉 `stubInpatientDisease` 里那个空列表。 */
+    private void stubRequiredLab(String icd, String dept, String itemCode, String name) {
+        when(ontologyRepository.labsOf(any())).thenAnswer(inv -> {
+            Disease d = inv.getArgument(0);
+            DiagnosisLab r = lab(d.icdCode(), d.department(), itemCode, "11.0-13.0", "NONE", "1.000", 1);
+            r.setItemName(name);
+            return List.of(r);
+        });
+    }
+
+    /** 跑一次生成。200 名患者约 40 人住院，样本够断言用又跑得快。 */
+    private void run() {
+        svc.generate(200);
     }
 
     @Test
@@ -9883,6 +10002,9 @@ git commit -m "docs: 改造前后基线反测数据落表，论文素材清单�
         stubInpatientDisease("I10", "高血压", "内科", List.of());
         run();
 
+        // 这一句是守门的：没有住院时 operations() 必然为空，本用例会退化成恒真式。
+        // 内科这条诊断本身可住院，所以确实会产生住院——若这里是空，说明桩打歪了。
+        assertThat(admissions()).as("没有住院就不会有手术，本断言会空转").isNotEmpty();
         assertThat(operations()).isEmpty();
     }
 
@@ -9960,6 +10082,47 @@ git commit -m "docs: 改造前后基线反测数据落表，论文素材清单�
                     .isBetween(3L, 16L);      // MIN_STAY_DAYS=3 → 最多 15 天 + 不足 1 天的余量
         }
     }
+
+    /**
+     * 只把 `nextDouble()` 钉成 0.0 的随机源，其余方法走 `RandomGenerator` 的默认实现。
+     * `0.0 < DEATH_RATE` 恒成立，于是「高龄 + 末次住院」这条通路必然被走到。
+     */
+    private static final class ZeroDoubleGenerator implements RandomGenerator {
+        @Override public long nextLong() { return 0L; }
+        @Override public long nextLong(long bound) { return 0L; }
+        @Override public double nextDouble() { return 0.0; }
+    }
+
+    /** 一位 90 岁患者。`PatientProfile` 的构造需要随机源，这里给个定种子的即可。 */
+    private static PatientProfile agedProfile() {
+        return PatientProfile.build(1L, 90, 0, List.of(), BigDecimal.ONE,
+                RandomGeneratorFactory.of("L64X128MixRandom").create(1L));
+    }
+
+    @Test
+    @DisplayName("末次住院 + 高龄 + 随机数落在 DEATH_RATE 内 → 出院情况必须是 DEATH")
+    void last_admission_of_an_aged_patient_can_return_death() {
+        svc = buildService();
+        svc.rnd = new ZeroDoubleGenerator();
+
+        assertThat(svc.dischargeDisposition(agedProfile(), true, false, 0)).isEqualTo("DEATH");
+    }
+
+    /**
+     * 这一条是 {@code isLastAdmission} 那个开关的守门人。
+     *
+     * <p>把 `lastAdmissionNos` 换成 `lastAdmissionIds`（即 Task 23 的 F-27 那个坑）、
+     * 或者干脆去掉 {@code if (isLastAdmission)} 这层，上面那条用例**依然全绿**——
+     * 它只证明「高龄 + 末次能死」。只有这一条能证明「非末次不能死」。
+     */
+    @Test
+    @DisplayName("非末次住院哪怕高龄、哪怕随机数落在 DEATH_RATE 内，也绝不写 DEATH")
+    void non_last_admission_never_returns_death() {
+        svc = buildService();
+        svc.rnd = new ZeroDoubleGenerator();
+
+        assertThat(svc.dischargeDisposition(agedProfile(), false, false, 0)).isNotEqualTo("DEATH");
+    }
 ```
 
 - [ ] **Step 2: 跑测试确认失败**
@@ -9968,24 +10131,62 @@ git commit -m "docs: 改造前后基线反测数据落表，论文素材清单�
 cd backend && mvn -o -pl his-generator -Dtest=DataGeneratorServiceTest test
 ```
 
-Expected: 编译失败——`Operation` 未 import、`inserted` 里没有 `Operation.class` 的键、
-`admissionsById()` / `doctorsOf(...)` / `orders()` / `labs()` / `admissions()` /
-`stubInpatientDisease(...)` / `stubDrugs(...)` / `drugRow(...)` / `stubRequiredLab(...)` 尚未定义。
+Expected: 编译失败——`Operation` / `RandomGenerator` / `RandomGeneratorFactory` 未 import、
+`insertedOperations` 未声明、`svc.rnd` 与 `svc.dischargeDisposition(...)` 是 `private` 够不着、
+`admissionsById()` / `doctorsOf(...)` / `stubInpatientDisease(...)` / `stubDrugs(...)` /
+`stubRequiredLab(...)` 尚未定义（`operations()` / `admissions()` / `orders()` / `labs()` /
+`ZeroDoubleGenerator` / `agedProfile()` 在本步一起建）。
 
-> 这些 helper 若在 Task 16/17 已经建过（`orders()` / `labs()` / `admissions()` 很可能有），
+> `svc.rnd` 与 `svc.dischargeDisposition(...)` 这两处够不着**不是笔误**：Step 5(e) 会把
+> 它们从 `private` 放开到包级可见（测试类与生成器同在 `com.his.generator` 包）。
+> 先看到这两条编译错误，才知道那道缝确实没开。
+
+> **动手前先看一眼既有的 helper 区**：`disease(...)` / `drugRow(...)` / `lab(...)` / `dose(...)`
+> 是 Task 16 建的，`uriDisease()` 等是 Task 17 建的，**都在同一个文件末尾**。
+> 本步新增的 `drugRow(...)` 6 参重载与 `stubRequiredLab(...)` 是**建立在它们之上**的
+> （6 参版委托给 5 参版，`stubRequiredLab` 复用 `lab(...)`），不要另写一份字段赋值序列。
+> 若发现 `orders()` / `labs()` / `admissions()` 在 Task 16/17 已经建过，
 > **直接复用，不要重复定义**——重名的 helper 会让编译报「already defined」，
 > 而那正是提醒你「这里已经有一条取数路径了」。缺的才补。
+
+> **`stubInpatientDisease` 内部先 `svc = buildService();` 再打桩，这件事不能调换。**
+> `ontologyRepository` 是 `buildService()` 里的 `mock(...)`，service 没建它就是 `null`，
+> 那一串 `when(...)` 会全部 NPE。反过来 `run()` **不要再 `buildService()`**——
+> 重建会丢掉刚打的桩，而症状是「手术断言全空、但一个错误都不报」：
+> 零住院时 `operations()` 就是空列表，`assertThat(operations()).isNotEmpty()` 才会红，
+> 而 `isEmpty()` 那一类会静默通过。
 
 - [ ] **Step 3: 改 `generateInpatientEvents` 的顺序**
 
 把 Task 17 版本的 `generateInpatientEvents` 改为（**体征与路径两段逐字保留，
 只有「先手术、再定出院」这一处与夹在其中的三处新增**）：
 
+> **签名在本任务由 5 参变 6 参**：末尾追加 `PatientProfile profile`（`dischargeDisposition` 要用它的
+> `age()`）。**追加在末尾而不是插在开头**：插开头会让 Task 17 的调用点里
+> `a` 与 `profile` 两个实参互换位置，而两者类型不同、换错编译不过——但若有人「修」成
+> `(profile, a, ...)` 与 `(a, profile, ...)` 各改一半，错误就落在两个相邻参数之间。
+> 追加在末尾时，调用点只需在行尾补一个实参，改法唯一。
+>
+> **调用点（Task 17 Step 3(c) 的循环）同步改为**：
+>
+> ```java
+>         for (Admission a : admissionBuf) {
+>             generateInpatientEvents(a, admissionDiseaseByPatient.get(a.getPatientId()),
+>                     orderBuf, vitalBuf, inpatientLabBuf,
+>                     profilesByPatient.get(a.getPatientId()));
+>         }
+> ```
+
 ```java
-    /** 生成一次住院的医嘱/生命体征/住院检验/手术，并回写出院字段（dischargeTime/totalCost/status）。 */
+    /**
+     * 生成一次住院的医嘱/生命体征/住院检验/手术，并回写出院字段（dischargeTime/totalCost/status）。
+     *
+     * @param profile 该患者的档案——只被 `dischargeDisposition` 用（DEATH_MIN_AGE 判定）
+     */
     private void generateInpatientEvents(Admission a, Disease disease,
                                          List<MedicalOrder> orderBuf,
-                                         List<VitalSign> vitalBuf, List<LabTest> inpatientLabBuf) {
+                                         List<VitalSign> vitalBuf, List<LabTest> inpatientLabBuf,
+                                         PatientProfile profile) {
         ClinicalPathway pathway = pathwayFor(a.getAdmissionDiagnosis());
         int totalDays = rnd.nextInt(MIN_STAY_DAYS, MAX_STAY_DAYS + 1);
         boolean compliant = pathway != null && rnd.nextDouble() < PATHWAY_COMPLIANCE_RATE;
@@ -10330,7 +10531,7 @@ Expected: 编译失败——`Operation` 未 import、`inserted` 里没有 `Opera
     private static final int POSTOP_MAX_DRUGS = 2;
 ```
 
-- [ ] **Step 5: 三处配套改动**
+- [ ] **Step 5: 五处配套改动**
 
 **(a) `operationBuf` / `operationCount` / `postopMissing` 的声明与入库**
 
@@ -10341,17 +10542,48 @@ Expected: 编译失败——`Operation` 未 import、`inserted` 里没有 `Opera
     private long postopMissing = 0;
 ```
 
+**字段区末尾再加一个 Mapper**（`@RequiredArgsConstructor` 按**字段声明顺序**生成构造器，
+所以它只能追加在最后一个字段之后，不能插在中间——插中间会让 Task 16/17 已经写好的
+`new DataGeneratorService(...)` 调用点全部错位）：
+
+```java
+    private final OperationMapper operationMapper;
+```
+
+同时补 `import com.his.common.mapper.OperationMapper;`。
+
 `generate()` 的局部缓冲区加 `List<Operation> operationBuf = new ArrayList<>();`，
-在既有的分批 `insertBatch` 序列里**紧接 `vitalSignMapper` 之后**加一段：
+在既有的分批入库序列里**紧接 `vitalSignMapper` 之后**加一段：
 
 ```java
         for (int i = 0; i < operationBuf.size(); i += BATCH_SIZE) {
-            operationMapper.insertBatch(operationBuf.subList(i, Math.min(i + BATCH_SIZE, operationBuf.size())));
+            operationMapper.insert(operationBuf.subList(i, Math.min(i + BATCH_SIZE, operationBuf.size())));
         }
 ```
 
+> **这里用 `insert(Collection<T>)`，不写 `insertBatch`。**
+> MyBatis-Plus 3.5.7 的 `BaseMapper` **只有 `insert(T)` 与 `insert(Collection<T>)` 两个重载，
+> 没有 `insertBatch`**（本项目用的版本实测如此）。写成 `insertBatch` 编译不过。
+> 同文件既有的 `patientMapper` / `visitMapper` 等分块入库用的也是这一对重载，
+> 照抄它们的形状即可。
+
 `generate()` 的返回 map 加两个键：`stats.put("operations", operationCount);`、
 `stats.put("postop_missing", postopMissing);`。
+
+**测试侧同步两处**（`DataGeneratorServiceTest`）：
+
+```java
+    private final OperationMapper operationMapper;   // 加到 mock 字段区（与 doctorMapper 并列）
+```
+```java
+        operationMapper = mock(OperationMapper.class);
+        ...
+        stubBatchInsert(operationMapper, insertedOperations, Operation::setId);
+```
+
+> `stubBatchInsert` 是既有的泛型 helper（`doAnswer(...).when(mapper).insert(anyList())`），
+> 它挂在 **`insert(Collection)` 这个重载**上。`insertedOperations` 是 Step 1(a) 新增的字段——
+> `operations()` 直接返回它，任务 24 起就不再需要别的取数路径。
 
 > **`operation` 必须在 `admission` 之后入库**——它带 `admission_id` 外键。
 > 上面「紧接 `vitalSignMapper` 之后」的位置已经满足，因为 `admission` 在更早的分块里。
@@ -10408,25 +10640,48 @@ Task 17 的签名 `(PatientProfile profile, boolean isLastAdmission)` 改为：
 1. `newAdmissions` 里删掉 `a.setDischargeDisposition(dischargeDisposition(profile, lastOne));` 一行，
    改为记录「本次住院是不是最后一次」——给 `Admission` 临时挂一个标记。**用
    `a.setDischargeDisposition(null)` 之外的载体**：新增一个字段
-   `private final Set<Long> lastAdmissionIds = new HashSet<>();`，
-   `newAdmissions` 里对最后一次住院执行 `lastAdmissionIds.add(a.getId())`。
+   `private final Set<String> lastAdmissionNos = new HashSet<>();`，
+   `newAdmissions` 里对最后一次住院执行 `lastAdmissionNos.add(a.getAdmissionNo());`。
+
+   > **必须用 `admissionNo` 而不是 `a.getId()`。** `newAdmissions` 里这一刻 `Admission` 的 id
+   > **还是 `null`**——它由后面那次 `admissionMapper.insert(admissionBuf)` 回填
+   > （见 Task 17 Step 3(c)），而**填充这行代码的执行顺序在回填之前**。
+   > 于是 `add(a.getId())` 往集合里放的是 `null`；等到 `generateInpatientEvents` 里
+   > 调 `contains(a.getId())` 时，`a.getId()` 已经是回填后的真 id，而集合里只有 `null`
+   > ——**对每一次住院都返回 `false`**，`isLastAdmission` 恒假。
+   >
+   > 后果不是报错，是**静默消失**：`DEATH` 永远不会被写出（Task 17 的
+   > `death_only_on_the_last_admission...` 与 Task 18 的 §2.5/§2.7 会一起红），
+   > 而「死亡是时间线的唯一终止出口」这条设计也就没了落地方式。这类 bug 的排查成本
+   > 极高——数据看起来完全正常，只是少了一个极低频的取值。
+   >
+   > `admissionNo` 在构造时就写成 `"A" + patientId + "-" + (i + 1)`，**插入前就非空且唯一**，
+   > 是这里唯一可用的稳定键。（用 `Set<Long>` 也是这样错的——键的类型换了，错法一模一样，
+   > 所以这里必须连类型一起改。）
 2. `generateInpatientEvents` 在 `if (op != null) { ... }` 之后、`a.setStatus(1)` 之前插入：
 
 ```java
-        a.setDischargeDisposition(dischargeDisposition(profile, lastAdmissionIds.contains(a.getId()),
+        a.setDischargeDisposition(dischargeDisposition(profile,
+                lastAdmissionNos.contains(a.getAdmissionNo()),
                 op != null, op == null ? 0 : op.getOperationLevel()));
 ```
 
 3. 这要求 `generateInpatientEvents` 能拿到 `profile`——Task 17 已经把
-   `profilesByPatient` 作为字段存在（`generateInpatientEvents(a, profilesByPatient.get(...), disease, ...)`
-   的调用点在那里改），**若 Task 17 的实现里 `generateInpatientEvents` 没有 `profile` 参数，
+   `profilesByPatient` 作为字段存在（调用点在 Task 17 Step 3 的住院循环里，
+   **`profile` 放在最后一个实参**，见 Step 6 与 Task 17 的 `Produces`），
+   **若 Task 17 的实现里 `generateInpatientEvents` 没有 `profile` 参数，
    就在本步加上**，并同步改 `Interfaces` 里已写的签名（那是 Task 17 的 `Produces`，
    本任务有权扩展它，但**要在 Task 17 的 Interfaces 块里加一行说明**，见 Step 6）。
 
-> **为什么用 `Set<Long>` 而不是把 `profile` 塞进 `generateInpatientEvents` 的签名就够了**：
+> **为什么用 `Set<String>` 而不是把「是否末次」直接传进 `generateInpatientEvents`**：
 > 「是不是最后一次住院」这个信息只在 `newAdmissions` 里算得出来（它遍历整个住院列表），
 > `generateInpatientEvents` 只看得见单张住院单。两种做法都行，本计划选 `Set` 是因为
-> 它不改 `generateInpatientEvents` 的入参形状，Task 24 的校验器测试不受影响。
+> 它不改 `generateInpatientEvents` 的入参形状——`profile` 那个参数是 Step 6 为了
+> `dischargeDisposition` 而加的，与「是否末次」无关。分开之后 Task 24 的校验器测试不受影响。
+>
+> 键必须用 `admissionNo`：`newAdmissions` 这一刻 `a.getId()` 还是 `null`（见上一条），
+> 用 id 做键的集合会被填进一个 `null`，之后 `contains` 恒假。
+> 集合里放的是「哪些住院号是末次」，而 `admissionNo` 在插入前就已唯一非空。
 
 **(c) `DATA_TABLES` 与截断测试**
 
@@ -10458,20 +10713,67 @@ Task 16 的 `pickDrugRows(Disease, int)` 内部是「取本体行 → 排序 →
 Task 16 的完成报告里写着「只有一个 pickDrugRows」，而 Task 23 的代码里出现两个——
 review 时会以为是 Task 23 私自复制了一份。
 
+**(e) 给 `dischargeDisposition` 开一道测试缝**
+
+Step 1 那两条 `DEATH` 用例要直接调 `dischargeDisposition` 并把随机数钉死，
+而现在这两样都是 `private`。做两处放开：
+
+```java
+    /**
+     * 随机源。生产路径是 {@code ThreadLocalRandom.current()}；
+     * **测试可以替换成定种子实现**，用来钉住那些「概率极小、靠抽样等不到」的分支。
+     * 类型是 {@code RandomGenerator} 而不是 {@code ThreadLocalRandom}——
+     * 本项目的 {@code PatientProfile.build} / {@code EventCalendar.build} 收的也是它，
+     * 换了类型反而与既有约定一致。
+     */
+    RandomGenerator rnd = ThreadLocalRandom.current();
+```
+
+```java
+    /** 出院情况。**包级可见是为了让测试能直接钉住 DEATH 分支**，见本步说明。 */
+    String dischargeDisposition(PatientProfile profile, boolean isLastAdmission,
+                                boolean operated, int operationLevel) {
+```
+
+补 `import java.util.random.RandomGenerator;`（`java.util.concurrent.ThreadLocalRandom` 保留）。
+
+> **为什么值得为它放开可见性**：`DEATH` 是「患者此后不再有任何记录」的唯一出口，
+> 而它的发生率是 `DEATH_RATE = 0.03` 再叠「末次住院」和「年龄 ≥ 75」——
+> 抽样观测下期望值约 0.1 条，**靠跑生成器断言它出现要么长期红、要么长期空转**
+> （Task 17 的 `death_only_on_the_last_admission...` 里那句 `assertThat(deaths).isGreaterThan(0)`
+> 已经因此被删掉了）。删掉之后，`DEATH` 这条通路就**一段测试都没有**：
+> 把 `if (isLastAdmission)` 拿掉、或把 `lastAdmissionNos` 写成 id 集合，全套测试依旧全绿，
+> 而线上数据里 `DEATH` 恒不出现——这正是 F-27 那个坑第二次发作的形态。
+> 这两条用例把它变成确定性的：`ZeroDoubleGenerator` 让 `nextDouble()` 恒为 0.0。
+>
+> 代价只是同包内可见。**不要**为此把 `dischargeDisposition` 提成 `public`——
+> 它不该出现在这个类的对外面上。
+
 - [ ] **Step 6: 回填 Task 17 的 Interfaces**
 
-`generateInpatientEvents` 的签名在本任务被扩展（加 `PatientProfile profile` 与
-`Set<Long> lastAdmissionIds` 的用法）。到 Task 17 的 `Produces` 块里把那一行改为：
+`generateInpatientEvents` 的签名在本任务被扩展（末尾追加 `PatientProfile profile`）。
+到 Task 17 的 `Produces` 块里把那一行改为：
 
 ```
-  - `private void generateInpatientEvents(PatientProfile profile, Admission a, Disease disease,
-    List<MedicalOrder> orderBuf, List<VitalSign> vitalBuf, List<LabTest> inpatientLabBuf)` ——
+  - `private void generateInpatientEvents(Admission a, Disease disease,
+    List<MedicalOrder> orderBuf, List<VitalSign> vitalBuf, List<LabTest> inpatientLabBuf,
+    PatientProfile profile)` ——
     **Task 23 会在不改形状的前提下用它回写出院情况**（`profile` 现在只被
     `dischargeDisposition` 用；Task 17 不加这个参数是因为那一刻还没有手术信息）
 ```
 
-同一处再加一句：`dischargeDisposition(profile, isLastAdmission)` 在 Task 17 只写保守治疗那一支，
-**Task 23 会把它扩成四参数**——Task 17 的实现者看到这行就知道签名会变，不会以为写错了。
+**`profile` 必须放在最后一个形参位。** Task 17 的实现者按 `Interfaces` 里给的顺序写，
+本任务在其尾部追加，插在中间会让 Task 17 已写好的 5 个调用点全部错位——
+那种错在编译期报的是「类型不匹配」，看不出是参数顺序问题，会白烧一轮 review。
+
+同一处再加两句：
+
+- `dischargeDisposition(profile, isLastAdmission)` 在 Task 17 只写保守治疗那一支，
+  **Task 23 会把它扩成四参数**——Task 17 的实现者看到这行就知道签名会变，不会以为写错了。
+- Task 23 会新增字段 `private final Set<String> lastAdmissionNos = new HashSet<>();`，
+  在 `newAdmissions` 里填、在 `generateInpatientEvents` 里读。**Task 17 不需要写它**，
+  这个字段整个属于 Task 23；这里提一句只是让 Task 17 的实现者知道
+  「末次住院」这件事有人在管，不要自己另造一套标记。
 
 - [ ] **Step 7: 跑生成器测试**
 
