@@ -624,14 +624,18 @@ public class DataGeneratorService {
      *
      * <p>{@code line} 用于保证一线药优先：池里有非术后的 {@code line=1} 药时先按 {@code weight}
      * 定一条，再按 {@code weight} 从全池（含二线/三线）补足到 1-3 条。
-     * {@code postop=1} 的条目只用于术后阶段，本次没有术后场景，一律排除；
-     * 若某个 (ICD, 科室) 除了术后药之外没有药（外科研 D23.9 / K42.9），则返回空明细——
-     * <b>不</b>拿术后药或随机药凑数（空处方在收费里体现为药费 0，发药与检验费照常）。
+     * {@code postop=1} 只表示「可作术后用药」，<b>不是</b>「仅限术后」，故非术后场景优先排除；
+     * 但若某个 (ICD, 科室) 的药<b>整组</b>都标了 postop（实测只有 外科 D23.9 皮肤良性肿瘤
+     * 与 外科 K42.9 脐疝 这两组），过滤后池子为空，此时<b>必须回退到全集</b>——否则这两类患者
+     * 门诊看完、诊断开出来，却一条药都没有（未回退时实测产生 2103 张空处方）。
      */
     private List<PrescriptionItem> buildItems(DeptDiagnosis dx) {
         List<DiagnosisDrug> pool = drugsByDiagnosis.get(new DxDept(dx.getIcdCode(), dx.getDepartment()));
         List<DiagnosisDrug> eligible = pool == null ? List.of()
                 : pool.stream().filter(r -> r.getPostop() == null || r.getPostop() == 0).toList();
+        if (eligible.isEmpty()) {
+            eligible = pool == null ? List.of() : pool;   // 整组皆术后药 → 回退全集
+        }
         if (eligible.isEmpty()) {
             return List.of();
         }
@@ -776,10 +780,15 @@ public class DataGeneratorService {
         int totalDays = rnd.nextInt(MIN_STAY_DAYS, MAX_STAY_DAYS + 1);
         boolean compliant = pathway != null && rnd.nextDouble() < PATHWAY_COMPLIANCE_RATE;
 
-        // 住院用药同样走 diagnosis_drug（按 icd_code + department 双列过滤，排除 postop=1）
+        // 住院用药同样走 diagnosis_drug（按 icd_code + department 双列过滤）。
+        // 优先排除 postop=1；整组皆术后药时与 buildItems 一样回退到全集，
+        // 否则该次住院开不出任何长期医嘱（实测未回退时 60 次住院无药）。
         List<DiagnosisDrug> drugPool = drugsByDiagnosis.get(new DxDept(dx.getIcdCode(), dx.getDepartment()));
         List<DiagnosisDrug> usable = drugPool == null ? List.of()
                 : drugPool.stream().filter(r -> r.getPostop() == null || r.getPostop() == 0).toList();
+        if (usable.isEmpty()) {
+            usable = drugPool == null ? List.of() : drugPool;   // 整组皆术后药 → 回退全集
+        }
 
         // 长期医嘱（首日开，执行至出院）
         if (usable.isEmpty()) {
