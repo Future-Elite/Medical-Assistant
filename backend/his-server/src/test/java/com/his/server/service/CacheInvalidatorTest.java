@@ -18,6 +18,15 @@ class CacheInvalidatorTest {
         verify(redis).delete("timeline:42");
     }
 
+    @Test
+    void evicts_the_admission_timeline_key() {
+        StringRedisTemplate redis = mock(StringRedisTemplate.class);
+
+        new CacheInvalidator(redis).evictAdmissionTimeline(9L);
+
+        verify(redis).delete("timeline:admission:9");
+    }
+
     /**
      * 重要 #1：失效发生在数据落库「之后」。Redis 挂掉时若把异常抛出去，
      * 客户端会收到 500 而误以为写入失败并重试（产生重复数据）。

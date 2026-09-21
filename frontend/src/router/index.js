@@ -19,7 +19,9 @@ const routes = [
   { path: '/', name: 'patient-list', component: view('PatientList') },
   { path: '/patient/:id', name: 'patient-detail', component: view('PatientDetail') },
   { path: '/entry', name: 'entry', component: view('EntryForm') },
-  { path: '/dashboard', name: 'dashboard', component: view('Dashboard') }
+  { path: '/dashboard', name: 'dashboard', component: view('Dashboard') },
+  { path: '/admission/:id', name: 'admission-detail', component: view('AdmissionDetail') },
+  { path: '/validation', name: 'validation', component: view('ValidationReport') }
 ]
 
 const router = createRouter({

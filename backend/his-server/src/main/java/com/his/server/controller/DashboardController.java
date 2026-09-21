@@ -27,4 +27,19 @@ public class DashboardController {
     public Result<List<Map<String, Object>>> drugDistribution() {
         return Result.ok(dashboardService.drugDistribution());
     }
+
+    @GetMapping("/stats/admission-ratio")
+    public Result<Map<String, Object>> admissionRatio() {
+        return Result.ok(dashboardService.admissionRatio());
+    }
+
+    @GetMapping("/stats/rational-drug-rate")
+    public Result<Map<String, Object>> rationalDrugRate() {
+        return Result.ok(dashboardService.rationalDrugRate());
+    }
+
+    @GetMapping("/stats/pathway-rate")
+    public Result<Map<String, Object>> pathwayRate() {
+        return Result.ok(dashboardService.pathwayRate());
+    }
 }

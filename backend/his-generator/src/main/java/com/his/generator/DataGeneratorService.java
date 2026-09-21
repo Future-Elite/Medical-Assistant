@@ -48,7 +48,26 @@ public class DataGeneratorService {
     private static final double HOME_DEPT_RATIO = 0.8;
     /** 清空时保留 drug / rule_config 字典 */
     private static final List<String> DATA_TABLES =
-            List.of("patient", "visit", "diagnosis", "prescription", "prescription_item", "lab_test");
+            List.of("patient", "visit", "diagnosis", "prescription", "prescription_item", "lab_test",
+                    "charge", "dispense", "admission", "medical_order", "vital_sign");
+    /** 挂号费固定金额 */
+    private static final BigDecimal REGISTRATION_FEE = new BigDecimal("10.00");
+    /** 每检验项费用 */
+    private static final BigDecimal LAB_FEE = new BigDecimal("15.00");
+    /** 处方违规注入概率 */
+    static final double VIOLATION_RATE = 0.03;
+    /** 有住院史的患者占比 */
+    private static final double INPATIENT_RATIO = 0.2;
+    /** 每位住院患者 1-3 次住院 */
+    private static final int MIN_ADMISSIONS = 1;
+    private static final int MAX_ADMISSIONS = 3;
+    /** 每次住院 3-15 天 */
+    private static final int MIN_STAY_DAYS = 3;
+    private static final int MAX_STAY_DAYS = 15;
+    /** 相邻住院的固定间隔（天）：> MAX_STAY_DAYS(15)，使多次住院严格升序且互不重叠由构造直接保证 */
+    private static final int ADMISSION_GAP_DAYS = MAX_STAY_DAYS + 1;
+    /** 入院诊断命中临床路径时按路径执行的占比（其余偏离，制造变异） */
+    private static final double PATHWAY_COMPLIANCE_RATE = 0.7;
     /** 身份证地区码（GB 11643，北京市东城区） */
     private static final String ID_REGION_CODE = "110101";
     /** GB 11643 校验位权重（前 17 位） */
@@ -66,8 +85,15 @@ public class DataGeneratorService {
     private final RuleConfigMapper ruleConfigMapper;
     private final DoctorMapper doctorMapper;
     private final JdbcTemplate jdbcTemplate;
+    private final ChargeMapper chargeMapper;
+    private final DispenseMapper dispenseMapper;
+    private final RationalRuleMapper rationalRuleMapper;
+    private final AdmissionMapper admissionMapper;
+    private final MedicalOrderMapper medicalOrderMapper;
+    private final VitalSignMapper vitalSignMapper;
+    private final ClinicalPathwayMapper pathwayMapper;
 
-    /** 生成前清空六张业务数据表，使重复执行等价于「重新生成」（默认开启） */
+    /** 生成前清空八张业务数据表，使重复执行等价于「重新生成」（默认开启） */
     @Value("${generator.clear-before-run:true}")
     private boolean clearBeforeRun = true;
 
@@ -75,6 +101,11 @@ public class DataGeneratorService {
     private List<MedicalData.DiagnosisRule> rules;
     private Map<String, List<String>> doctorsByDept;
     private ThreadLocalRandom rnd;
+    private List<RationalRule> interactionRules;
+    private Map<Long, RationalRule> doseRulesByDrug;
+    private long chargeCount, dispenseCount;
+    private List<ClinicalPathway> pathways;
+    private long admissionCount, orderCount, vitalCount;
 
     /** 生成 patientCount 名患者及各自就诊链，返回统计信息 */
     public Map<String, Long> generate(long patientCount) {
@@ -87,6 +118,22 @@ public class DataGeneratorService {
                 .collect(Collectors.toMap(Drug::getId, d -> d));
         rules = loadRules();
         doctorsByDept = loadDoctors();
+        interactionRules = new ArrayList<>();
+        doseRulesByDrug = new HashMap<>();
+        for (RationalRule r : rationalRuleMapper.selectList(
+                new LambdaQueryWrapper<RationalRule>().eq(RationalRule::getEnabled, 1))) {
+            if (r.getRuleType() != null && r.getRuleType() == 1
+                    && r.getDrugAId() != null && r.getDrugBId() != null) {
+                interactionRules.add(r);
+            } else if (r.getRuleType() != null && r.getRuleType() == 2 && r.getDrugId() != null) {
+                doseRulesByDrug.put(r.getDrugId(), r);
+            }
+        }
+        chargeCount = 0;
+        dispenseCount = 0;
+        pathways = pathwayMapper.selectList(
+                new LambdaQueryWrapper<ClinicalPathway>().eq(ClinicalPathway::getEnabled, 1));
+        admissionCount = 0; orderCount = 0; vitalCount = 0;
 
         long visits = 0, diagnoses = 0, pres = 0, items = 0, labs = 0;
         List<Patient> patientBuf = new ArrayList<>(BATCH_SIZE);
@@ -107,11 +154,16 @@ public class DataGeneratorService {
         stat.put("prescriptions", pres);
         stat.put("prescription_items", items);
         stat.put("lab_tests", labs);
+        stat.put("charges", chargeCount);
+        stat.put("dispenses", dispenseCount);
+        stat.put("admissions", admissionCount);
+        stat.put("orders", orderCount);
+        stat.put("vital_signs", vitalCount);
         stat.put("elapsed_ms", System.currentTimeMillis() - start);
         return stat;
     }
 
-    /** 幂等：清空六张业务数据表（不动 drug / rule_config） */
+    /** 幂等：清空八张业务数据表（不动 drug / rule_config） */
     private void clearDataTables() {
         for (String table : DATA_TABLES) {
             jdbcTemplate.execute("TRUNCATE TABLE " + table);
@@ -119,7 +171,7 @@ public class DataGeneratorService {
     }
 
     /**
-     * 按批写入：患者 → 就诊 → (诊断, 处方) → (处方明细, 检验)。
+     * 按批写入：患者 → 就诊 → (诊断, 处方) → (处方明细, 检验) → (收费, 发药)。
      * 全部走 MyBatis-Plus 的 JDBC 批量接口，自增主键回填到实体，保证外键都取自真实 id。
      *
      * @return {就诊数, 诊断数, 处方数, 明细数, 检验数}
@@ -158,32 +210,100 @@ public class DataGeneratorService {
         // 先插处方、拿回自增 id，明细才能引用到真实 prescription_id
         prescriptionMapper.insert(presBuf.stream().map(PendingPrescription::prescription).toList());
 
-        // 处方明细 + 检验（依赖已回填的 prescription.id / visit.id）
+        // 处方明细 + 检验 + 发药（依赖已回填的 prescription.id / visit.id）
+        Map<Long, LocalDateTime> visitTimeById = new HashMap<>();
+        for (Visit v : visitBuf) {
+            visitTimeById.put(v.getId(), v.getVisitTime());
+        }
         List<PrescriptionItem> itemBuf = new ArrayList<>();
         List<LabTest> labBuf = new ArrayList<>();
+        List<Dispense> dispBuf = new ArrayList<>();
+        Map<Long, BigDecimal> amountByVisit = new HashMap<>();
+        Map<Long, Integer> labCountByVisit = new HashMap<>();
         for (PendingPrescription pp : presBuf) {
             Prescription pr = pp.prescription();
-            BigDecimal total = BigDecimal.ZERO;
-            for (Long drugId : pickDrugIds(pp.rule())) {
-                Drug drug = drugsById.get(drugId);
-                if (drug == null) {
-                    throw new IllegalStateException("rule_config 的诊断 " + pp.rule().code()
-                            + " 引用了不存在的 drug_id=" + drugId + "，请修正种子数据");
-                }
-                PrescriptionItem it = new PrescriptionItem();
-                it.setPrescriptionId(pr.getId());
-                it.setDrugId(drug.getId()); it.setDrugName(drug.getName());
-                it.setDosage(rnd.nextInt(1, 3) + "片"); it.setFrequency("每日" + rnd.nextInt(1, 3) + "次");
-                it.setDays(rnd.nextInt(3, 15)); it.setQuantity(BigDecimal.valueOf(rnd.nextInt(1, 4)));
-                it.setUnit(drug.getUnit());
-                total = total.add(drug.getPrice().multiply(it.getQuantity()));
-                itemBuf.add(it);
+            List<PrescriptionItem> its = buildItems(pp.rule());
+            if (rnd.nextDouble() < VIOLATION_RATE) {
+                injectViolation(its, pp.rule());
             }
+            for (PrescriptionItem it : its) {
+                it.setPrescriptionId(pr.getId());
+            }
+            // total 重算（违规注入后 drugId 可能指向规则外药品；缺药/缺价一律按 0 计，杜绝 NPE）
+            BigDecimal total = its.stream().map(i -> {
+                Drug d = i.getDrugId() == null ? null : drugsById.get(i.getDrugId());
+                return (d == null || d.getPrice() == null ? BigDecimal.ZERO
+                        : d.getPrice().multiply(i.getQuantity() == null ? BigDecimal.ZERO : i.getQuantity()));
+            }).reduce(BigDecimal.ZERO, BigDecimal::add);
             pr.setTotalAmount(total);
-            labBuf.addAll(newLabTests(pr));
+            itemBuf.addAll(its);
+            amountByVisit.merge(pr.getVisitId(), total, BigDecimal::add);
+
+            // 发药：一张处方一条；药物名/数量取自首条明细（不是诊断名）；时间严格晚于收费
+            if (!its.isEmpty()) {
+                PrescriptionItem first = its.get(0);
+                Dispense disp = new Dispense();
+                disp.setPatientId(pr.getPatientId());
+                disp.setVisitId(pr.getVisitId());
+                disp.setPrescriptionId(pr.getId());
+                disp.setDrugName(first.getDrugName());
+                disp.setQuantity(first.getQuantity());
+                disp.setDispensedAt(visitTimeById.get(pr.getVisitId()).plusMinutes(rnd.nextInt(165, 205)));
+                disp.setPharmacist(randomPharmacist());
+                dispBuf.add(disp);
+            }
+
+            List<LabTest> labs = newLabTests(pr);
+            labBuf.addAll(labs);
+            labCountByVisit.merge(pr.getVisitId(), labs.size(), Integer::sum);
         }
         itemMapper.insert(itemBuf);
         labTestMapper.insert(labBuf);
+        // 收费：按就诊汇总药费 + 检验费；时间严格晚于检验、早于发药
+        List<Charge> chargeBuf = new ArrayList<>();
+        for (Visit v : visitBuf) {
+            BigDecimal drugFee = amountByVisit.getOrDefault(v.getId(), BigDecimal.ZERO);
+            int labCount = labCountByVisit.getOrDefault(v.getId(), 0);
+            BigDecimal labFee = LAB_FEE.multiply(BigDecimal.valueOf(labCount));
+            chargeBuf.add(newCharge(v, 0, "挂号费", REGISTRATION_FEE));
+            chargeBuf.add(newCharge(v, 1, "药费", drugFee));
+            if (labCount > 0) {
+                chargeBuf.add(newCharge(v, 2, "检验费", labFee));
+            }
+        }
+        chargeMapper.insert(chargeBuf);
+        dispenseMapper.insert(dispBuf);
+        chargeCount += chargeBuf.size();
+        dispenseCount += dispBuf.size();
+
+        // 住院：先只构造 Admission，回填 id 之后再生成医嘱/体征/住院检验
+        Map<Long, LocalDateTime> lastVisitByPatient = new HashMap<>();
+        for (Visit v : visitBuf) {
+            lastVisitByPatient.merge(v.getPatientId(), v.getVisitTime(),
+                    (a, b) -> a.isAfter(b) ? a : b);
+        }
+        List<Admission> admissionBuf = new ArrayList<>();
+        List<MedicalOrder> orderBuf = new ArrayList<>();
+        List<VitalSign> vitalBuf = new ArrayList<>();
+        List<LabTest> inpatientLabBuf = new ArrayList<>();
+        for (Patient p : patients) {
+            if (rnd.nextDouble() >= INPATIENT_RATIO) {
+                continue;
+            }
+            admissionBuf.addAll(newAdmissions(p, lastVisitByPatient.get(p.getId())));
+        }
+        admissionMapper.insert(admissionBuf);      // 回填 admission.id
+        for (Admission a : admissionBuf) {
+            generateInpatientEvents(a, orderBuf, vitalBuf, inpatientLabBuf);
+        }
+        medicalOrderMapper.insert(orderBuf);
+        vitalSignMapper.insert(vitalBuf);
+        labTestMapper.insert(inpatientLabBuf);
+        admissionMapper.updateById(admissionBuf);  // 回写出院字段 dischargeTime/totalCost/status
+        admissionCount += admissionBuf.size();
+        orderCount += orderBuf.size();
+        vitalCount += vitalBuf.size();
+
         // 回写处方总额（批量按 id 更新）
         prescriptionMapper.updateById(presBuf.stream().map(PendingPrescription::prescription).toList());
 
@@ -345,6 +465,291 @@ public class DataGeneratorService {
             labs.add(lt);
         }
         return labs;
+    }
+
+    /** 从该诊断的规则药品生成处方明细（不含 prescription_id 与金额，由调用方回填）。 */
+    private List<PrescriptionItem> buildItems(MedicalData.DiagnosisRule rule) {
+        List<PrescriptionItem> items = new ArrayList<>();
+        for (Long drugId : pickDrugIds(rule)) {
+            Drug drug = drugsById.get(drugId);
+            if (drug == null) {
+                throw new IllegalStateException("rule_config 的诊断 " + rule.code()
+                        + " 引用了不存在的 drug_id=" + drugId + "，请修正种子数据");
+            }
+            PrescriptionItem it = new PrescriptionItem();
+            it.setDrugId(drug.getId()); it.setDrugName(drug.getName());
+            it.setDosage(rnd.nextInt(1, 3) + "片"); it.setFrequency("每日" + rnd.nextInt(1, 3) + "次");
+            it.setDays(rnd.nextInt(3, 15)); it.setQuantity(BigDecimal.valueOf(rnd.nextInt(1, 4)));
+            it.setUnit(drug.getUnit());
+            items.add(it);
+        }
+        return items;
+    }
+
+    private Charge newCharge(Visit v, int itemType, String itemName, BigDecimal amount) {
+        Charge c = new Charge();
+        c.setPatientId(v.getPatientId()); c.setVisitId(v.getId());
+        c.setChargeNo("C" + v.getId() + "-" + itemType);
+        c.setItemType(itemType); c.setItemName(itemName); c.setAmount(amount);
+        c.setChargedAt(v.getVisitTime().plusMinutes(rnd.nextInt(125, 155)));
+        return c;
+    }
+
+    private String randomPharmacist() {
+        // 药师名不得用「王冠杰」；固定非敏感名单
+        String[] surnames = {"刘", "陈", "杨", "周", "吴"};
+        String[] given = {"静", "磊", "军", "艳", "涛"};
+        return surnames[rnd.nextInt(surnames.length)] + given[rnd.nextInt(given.length)];
+    }
+
+    /** 构造一名患者的住院记录（1-3 次），只填 Admission 字段；医嘱/体征/检验在回填 id 之后生成。 */
+    private List<Admission> newAdmissions(Patient p, LocalDateTime lastVisit) {
+        LocalDateTime now = LocalDateTime.now();
+        int count = rnd.nextInt(MIN_ADMISSIONS, MAX_ADMISSIONS + 1);
+        // 相邻住院固定隔 ADMISSION_GAP_DAYS 天（> 最大住院 15 天 + 出院最多 +23h），
+        // 「严格升序 + 互不重叠 + 末次入院不晚于 now」由构造直接保证，无需再回退钳制。
+        // 末次门诊距今太近、放不下 count 次时，逐级减少次数（末次门诊必早于 now，故至少保留 1 次）。
+        LocalDateTime latestFirst = now;
+        while (count > 0) {
+            latestFirst = now.minusDays((count - 1) * (long) ADMISSION_GAP_DAYS);
+            if (lastVisit.isBefore(latestFirst)) {
+                break;
+            }
+            count--;
+        }
+
+        // 首次入院在 (lastVisit, latestFirst] 内随机；其后每次 = 前一次 + ADMISSION_GAP_DAYS 天。
+        long windowMinutes = Duration.between(lastVisit, latestFirst).toMinutes();
+        LocalDateTime first = windowMinutes <= 1
+                ? latestFirst
+                : lastVisit.plusMinutes(rnd.nextLong(1, windowMinutes + 1));
+
+        List<Admission> list = new ArrayList<>(count);
+        for (int i = 0; i < count; i++) {
+            ClinicalPathway pathway = pathways.isEmpty() ? null
+                    : pathways.get(rnd.nextInt(pathways.size()));
+            String diagnosis = pathway != null ? pathway.getDiagnosisName()
+                    : randomDiagnosisName();
+            String department = randomDepartment();
+            String doctor = doctorsByDept.get(department)
+                    .get(rnd.nextInt(doctorsByDept.get(department).size()));
+
+            Admission a = new Admission();
+            a.setPatientId(p.getId());
+            a.setAdmissionNo("A" + p.getId() + "-" + (i + 1));
+            a.setDepartment(department); a.setDoctor(doctor);
+            a.setBedNo(rnd.nextInt(1, 60) + "床");
+            a.setDiagnosis(diagnosis);
+            a.setAdmissionTime(first.plusDays((long) i * ADMISSION_GAP_DAYS));
+            a.setDeposit(BigDecimal.valueOf(rnd.nextInt(5, 21) * 100));
+            a.setStatus(0);
+            list.add(a);
+        }
+        return list;
+    }
+
+    /** 生成一次住院的医嘱/生命体征/住院检验，并回写出院字段（dischargeTime/totalCost/status）。 */
+    private void generateInpatientEvents(Admission a, List<MedicalOrder> orderBuf,
+                                         List<VitalSign> vitalBuf, List<LabTest> inpatientLabBuf) {
+        ClinicalPathway pathway = pathwayFor(a.getDiagnosis());
+        int totalDays = rnd.nextInt(MIN_STAY_DAYS, MAX_STAY_DAYS + 1);
+        boolean compliant = pathway != null && rnd.nextDouble() < PATHWAY_COMPLIANCE_RATE;
+
+        // 长期医嘱（首日开，执行至出院）
+        int longOrderCount = rnd.nextInt(1, 4);
+        for (int k = 0; k < longOrderCount; k++) {
+            MedicalOrder o = new MedicalOrder();
+            o.setPatientId(a.getPatientId()); o.setAdmissionId(a.getId());
+            o.setOrderType(0);
+            o.setItemName(randomDrugName());
+            o.setDosage("1片"); o.setFrequency("每日" + rnd.nextInt(1, 3) + "次");
+            o.setStartTime(a.getAdmissionTime().plusMinutes(rnd.nextInt(5, 60)));
+            o.setStatus(0); o.setDoctor(a.getDoctor());
+            orderBuf.add(o);
+        }
+
+        // 每日生命体征（早中晚 3 次，带趋势；day 0 落在入院时间之前的记录跳过）
+        for (int day = 0; day < totalDays; day++) {
+            for (int slot = 0; slot < 3; slot++) {
+                VitalSign vs = newVitalSign(a, day, slot);
+                if (!vs.getRecordedAt().isBefore(a.getAdmissionTime())) {
+                    vitalBuf.add(vs);
+                }
+            }
+        }
+
+        // 每日临时/检验医嘱
+        for (int day = 0; day < totalDays; day++) {
+            if (rnd.nextInt(3) == 0) {  // 临时医嘱
+                MedicalOrder o = new MedicalOrder();
+                o.setPatientId(a.getPatientId()); o.setAdmissionId(a.getId());
+                o.setOrderType(1); o.setItemName(randomDrugName());
+                o.setDosage("1片"); o.setFrequency("每日1次");
+                o.setStartTime(a.getAdmissionTime().plusDays(day).plusHours(9));
+                o.setStatus(2); o.setDoctor(a.getDoctor());
+                orderBuf.add(o);
+            }
+            if (rnd.nextInt(2) == 0) {  // 检验医嘱 -> lab_test
+                LabTest lt = newInpatientLabTest(a, day);
+                if (lt != null) inpatientLabBuf.add(lt);
+            }
+        }
+
+        // 路径：合规则按步骤补齐对应 LAB/MED 事件，不合规则跳过（自然变异）
+        if (compliant && pathway != null) {
+            for (PathwayStep step : parsePathwaySteps(pathway.getSteps())) {
+                if (step.day() >= totalDays) continue;
+                if ("LAB".equals(step.action())) {
+                    LabTest lt = labTestForItem(a, step);
+                    if (lt != null) inpatientLabBuf.add(lt);
+                } else if ("MED".equals(step.action())) {
+                    MedicalOrder o = new MedicalOrder();
+                    o.setPatientId(a.getPatientId()); o.setAdmissionId(a.getId());
+                    o.setOrderType(1); o.setItemName(step.item());
+                    o.setDosage("1片"); o.setFrequency("每日1次");
+                    o.setStartTime(a.getAdmissionTime().plusDays(step.day()).plusHours(10));
+                    o.setStatus(2); o.setDoctor(a.getDoctor());
+                    orderBuf.add(o);
+                }
+            }
+        }
+
+        // 出院
+        LocalDateTime discharge = a.getAdmissionTime().plusDays(totalDays).plusHours(rnd.nextInt(0, 24));
+        a.setDischargeTime(discharge);
+        a.setStatus(1);
+        a.setTotalCost(a.getDeposit().add(BigDecimal.valueOf(totalDays * 120L)));
+    }
+
+    private VitalSign newVitalSign(Admission a, int day, int slot) {
+        VitalSign vs = new VitalSign();
+        vs.setPatientId(a.getPatientId()); vs.setAdmissionId(a.getId());
+        // 体温带「先升后降」趋势：住院前段偏高，随天数回落
+        double trend = day < 2 ? 0.6 - day * 0.2 : 0.0;
+        double temp = 36.5 + trend + rnd.nextDouble() * 0.6;
+        vs.setTemperature(BigDecimal.valueOf(Math.round(temp * 10) / 10.0));
+        vs.setPulse(72 + rnd.nextInt(-8, 9));
+        vs.setRespiration(16 + rnd.nextInt(-2, 3));
+        vs.setSystolicBp(120 + rnd.nextInt(-12, 13));
+        vs.setDiastolicBp(78 + rnd.nextInt(-8, 9));
+        int hour = 6 + slot * 6 + rnd.nextInt(0, 2);
+        vs.setRecordedAt(a.getAdmissionTime().plusDays(day).withHour(hour).withMinute(rnd.nextInt(0, 60)));
+        vs.setNurse(randomPharmacist());
+        return vs;
+    }
+
+    private LabTest newInpatientLabTest(Admission a, int day) {
+        MedicalData.LabItem li = MedicalData.LAB_ITEMS.get(rnd.nextInt(MedicalData.LAB_ITEMS.size()));
+        LabTest lt = new LabTest();
+        lt.setPatientId(a.getPatientId()); lt.setAdmissionId(a.getId());
+        lt.setItemCode(li.code()); lt.setItemName(li.name());
+        double val = li.low() + rnd.nextDouble() * (li.high() - li.low());
+        boolean abnormal = rnd.nextDouble() < 0.15;
+        if (abnormal) val = li.high() + rnd.nextDouble() * li.high() * 0.3;
+        lt.setResultValue(String.format("%.2f", val));
+        lt.setUnit(li.unit()); lt.setReferenceRange(li.ref());
+        lt.setIsAbnormal(abnormal ? 1 : 0);
+        lt.setTestedAt(a.getAdmissionTime().plusDays(day).plusHours(8));
+        return lt;
+    }
+
+    private LabTest labTestForItem(Admission a, PathwayStep step) {
+        MedicalData.LabItem li = MedicalData.LAB_ITEMS.stream()
+                .filter(x -> x.name().equals(step.item())).findFirst().orElse(null);
+        if (li == null) return null;
+        LabTest lt = new LabTest();
+        lt.setPatientId(a.getPatientId()); lt.setAdmissionId(a.getId());
+        lt.setItemCode(li.code()); lt.setItemName(li.name());
+        double val = li.low() + rnd.nextDouble() * (li.high() - li.low());
+        lt.setResultValue(String.format("%.2f", val));
+        lt.setUnit(li.unit()); lt.setReferenceRange(li.ref()); lt.setIsAbnormal(0);
+        lt.setTestedAt(a.getAdmissionTime().plusDays(step.day()).plusHours(rnd.nextInt(1, Math.max(2, step.window()))));
+        return lt;
+    }
+
+    private String randomDrugName() {
+        return drugsById.values().stream().map(Drug::getName)
+                .toList().get(rnd.nextInt(drugsById.size()));
+    }
+
+    private String randomDiagnosisName() {
+        return rules.get(rnd.nextInt(rules.size())).name();
+    }
+
+    private String randomDepartment() {
+        return new ArrayList<>(doctorsByDept.keySet()).get(rnd.nextInt(doctorsByDept.size()));
+    }
+
+    private ClinicalPathway pathwayFor(String diagnosisName) {
+        return pathways.stream().filter(x -> x.getDiagnosisName().equals(diagnosisName))
+                .findFirst().orElse(null);
+    }
+
+    private record PathwayStep(int day, String action, String item, int window) {}
+
+    private List<PathwayStep> parsePathwaySteps(String json) {
+        if (json == null || json.isBlank()) return List.of();
+        try {
+            List<Map<String, Object>> raw = new com.fasterxml.jackson.databind.ObjectMapper()
+                    .readValue(json, new com.fasterxml.jackson.core.type.TypeReference<List<Map<String, Object>>>() {});
+            List<PathwayStep> steps = new ArrayList<>();
+            for (Map<String, Object> m : raw) {
+                int day = ((Number) m.get("day")).intValue();
+                String action = (String) m.get("action");
+                String item = (String) m.getOrDefault("item", "");
+                int window = ((Number) m.get("window")).intValue();
+                steps.add(new PathwayStep(day, action, item, window));
+            }
+            return steps;
+        } catch (Exception e) {
+            return List.of();
+        }
+    }
+
+    /** 以固定方式注入一类违规，返回违规类型（供测试断言）；不注入返回 null。 */
+    String injectViolation(List<PrescriptionItem> items, MedicalData.DiagnosisRule rule) {
+        if (interactionRules.isEmpty() && doseRulesByDrug.isEmpty()) {
+            return null;
+        }
+        int type = rnd.nextInt(3);
+        if (type == 0 && !doseRulesByDrug.isEmpty()) {
+            // 剂量：任取一条剂量规则，把对应药加进明细并设高剂量
+            RationalRule r = doseRulesByDrug.values().iterator().next();
+            PrescriptionItem it = items.isEmpty() ? null : items.get(0);
+            if (it != null) {
+                it.setDrugId(r.getDrugId());
+                Drug d = drugsById.get(r.getDrugId());
+                if (d != null) it.setDrugName(d.getName());
+                it.setDosage("4片"); it.setFrequency("每日3次");
+                return "DOSE";
+            }
+        } else if (type == 1 && !interactionRules.isEmpty()) {
+            // 相互作用：直接用一条相互作用规则的两个药作为两条明细
+            RationalRule r = interactionRules.get(rnd.nextInt(interactionRules.size()));
+            items.clear();
+            for (Long drugId : List.of(r.getDrugAId(), r.getDrugBId())) {
+                Drug d = drugsById.get(drugId);
+                if (d == null) return null;
+                PrescriptionItem it = new PrescriptionItem();
+                it.setDrugId(d.getId()); it.setDrugName(d.getName());
+                it.setDosage("1片"); it.setFrequency("每日1次");
+                it.setDays(7); it.setQuantity(BigDecimal.ONE); it.setUnit(d.getUnit());
+                items.add(it);
+            }
+            return "INTERACTION";
+        } else {
+            // 适应症：把首条明细换成规则外药品
+            List<Long> allowed = rule.drugIds();
+            List<Drug> others = drugsById.values().stream()
+                    .filter(d -> !allowed.contains(d.getId())).toList();
+            if (!others.isEmpty() && !items.isEmpty()) {
+                Drug d = others.get(rnd.nextInt(others.size()));
+                PrescriptionItem it = items.get(0);
+                it.setDrugId(d.getId()); it.setDrugName(d.getName());
+                return "INDICATION";
+            }
+        }
+        return null;
     }
 
     /** 从该诊断的规则药品中随机取 1-3 种 */

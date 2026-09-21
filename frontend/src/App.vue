@@ -6,6 +6,7 @@
         <el-menu-item index="/">患者列表</el-menu-item>
         <el-menu-item index="/entry">录入</el-menu-item>
         <el-menu-item index="/dashboard">看板</el-menu-item>
+        <el-menu-item index="/validation">校验报告</el-menu-item>
       </el-menu>
     </el-header>
     <el-main>

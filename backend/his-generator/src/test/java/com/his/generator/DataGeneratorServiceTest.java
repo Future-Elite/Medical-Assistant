@@ -35,10 +35,14 @@ class DataGeneratorServiceTest {
     private final List<Diagnosis> insertedDiagnoses = new ArrayList<>();
     private final List<Prescription> insertedPrescriptions = new ArrayList<>();
     private final List<PrescriptionItem> insertedItems = new ArrayList<>();
+    private final List<Admission> insertedAdmissions = new ArrayList<>();
+    private final List<MedicalOrder> insertedOrders = new ArrayList<>();
+    private final List<VitalSign> insertedVitals = new ArrayList<>();
 
     private RuleConfigMapper ruleConfigMapper;
     private DoctorMapper doctorMapper;
     private PrescriptionMapper prescriptionMapper;
+    private RationalRuleMapper rationalRuleMapper;
     private JdbcTemplate jdbcTemplate;
     private final AtomicLong idSeq = new AtomicLong();
 
@@ -53,6 +57,13 @@ class DataGeneratorServiceTest {
         ruleConfigMapper = mock(RuleConfigMapper.class);
         doctorMapper = mock(DoctorMapper.class);
         jdbcTemplate = mock(JdbcTemplate.class);
+        ChargeMapper chargeM = mock(ChargeMapper.class);
+        DispenseMapper dispenseM = mock(DispenseMapper.class);
+        rationalRuleMapper = mock(RationalRuleMapper.class);
+        AdmissionMapper admissionMapper = mock(AdmissionMapper.class);
+        MedicalOrderMapper medicalOrderMapper = mock(MedicalOrderMapper.class);
+        VitalSignMapper vitalSignMapper = mock(VitalSignMapper.class);
+        ClinicalPathwayMapper pathwayMapper = mock(ClinicalPathwayMapper.class);
 
         Doctor doc1 = new Doctor(); doc1.setId(1L); doc1.setName("李建华"); doc1.setDepartment("内科");
         Doctor doc2 = new Doctor(); doc2.setId(2L); doc2.setName("杨文博"); doc2.setDepartment("外科");
@@ -60,10 +71,21 @@ class DataGeneratorServiceTest {
 
         Drug d1 = new Drug(); d1.setId(RULE_DRUG_1); d1.setName("感冒灵颗粒"); d1.setPrice(new BigDecimal("12.00")); d1.setUnit("盒");
         Drug d2 = new Drug(); d2.setId(RULE_DRUG_2); d2.setName("布洛芬"); d2.setPrice(new BigDecimal("15.80")); d2.setUnit("盒");
-        when(drugM.selectList(any())).thenReturn(List.of(d1, d2));
+        Drug d3 = new Drug(); d3.setId(3L); d3.setName("硝苯地平"); d3.setPrice(new BigDecimal("28.00")); d3.setUnit("盒");
+        when(drugM.selectList(any())).thenReturn(List.of(d1, d2, d3));
 
         RuleConfig r1 = new RuleConfig(); r1.setDiagnosisCode("J06.9"); r1.setDiagnosisName("上呼吸道感染"); r1.setDrugIds("1,2"); r1.setEnabled(1);
         when(ruleConfigMapper.selectList(any())).thenReturn(List.of(r1));
+
+        // 默认无违规规则 → generate() 不注入违规，保证既有测试确定性
+        when(rationalRuleMapper.selectList(any())).thenReturn(List.of());
+
+        // 一条上呼吸道感染路径（steps JSON 与 Task 8 测试一致）
+        ClinicalPathway cp = new ClinicalPathway();
+        cp.setDiagnosisName("上呼吸道感染");
+        cp.setSteps("[{\"day\":0,\"action\":\"LAB\",\"item\":\"白细胞计数\",\"window\":24},{\"day\":1,\"action\":\"MED\",\"item\":\"阿莫西林\",\"window\":24},{\"day\":3,\"action\":\"DISCHARGE\",\"window\":24}]");
+        cp.setEnabled(1);
+        when(pathwayMapper.selectList(any())).thenReturn(List.of(cp));
 
         stubBatchInsert(pm, insertedPatients, Patient::setId);
         stubBatchInsert(vm, insertedVisits, Visit::setId);
@@ -71,8 +93,24 @@ class DataGeneratorServiceTest {
         stubBatchInsert(prescriptionMapper, insertedPrescriptions, Prescription::setId);
         stubBatchInsert(im, insertedItems, PrescriptionItem::setId);
         stubBatchInsert(lm, null, LabTest::setId);
+        stubBatchInsert(chargeM, null, Charge::setId);
+        stubBatchInsert(dispenseM, null, Dispense::setId);
+        stubBatchInsert(admissionMapper, insertedAdmissions, Admission::setId);
+        stubBatchInsert(medicalOrderMapper, insertedOrders, MedicalOrder::setId);
+        stubBatchInsert(vitalSignMapper, insertedVitals, VitalSign::setId);
 
-        return new DataGeneratorService(pm, vm, dm, prescriptionMapper, im, lm, drugM, ruleConfigMapper, doctorMapper, jdbcTemplate);
+        return new DataGeneratorService(pm, vm, dm, prescriptionMapper, im, lm, drugM, ruleConfigMapper,
+                doctorMapper, jdbcTemplate, chargeM, dispenseM, rationalRuleMapper,
+                admissionMapper, medicalOrderMapper, vitalSignMapper, pathwayMapper);
+    }
+
+    /** 构造一条仅设置药名/剂量/频次的处方明细（供违规注入测试） */
+    private PrescriptionItem item(Long drugId, String dosage, String freq) {
+        PrescriptionItem it = new PrescriptionItem();
+        it.setDrugId(drugId);
+        it.setDosage(dosage);
+        it.setFrequency(freq);
+        return it;
     }
 
     /** 模拟 MyBatis-Plus 批量插入：逐条回填自增 id，并按需收集到 sink */
@@ -323,13 +361,88 @@ class DataGeneratorServiceTest {
         assertThat(insertedItems).allSatisfy(it -> assertThat(it.getPrescriptionId()).isNotNull());
     }
 
-    /** 幂等守卫：生成前清空六张业务数据表，且不碰 drug / rule_config */
+    @Test
+    void generates_charges_and_dispenses_per_visit() {
+        DataGeneratorService svc = buildService();
+        Map<String, Long> stat = svc.generate(5);
+        assertThat(stat.get("charges")).isGreaterThanOrEqualTo(10L);   // 每就诊至少挂号+药费两条
+        assertThat(stat.get("dispenses")).isGreaterThanOrEqualTo(5L);
+    }
+
+    @Test
+    void inpatient_patients_get_admissions_with_strictly_increasing_events() {
+        DataGeneratorService svc = buildService();
+        Map<String, Long> stat = svc.generate(200);
+        assertThat(stat.get("admissions")).isGreaterThan(0L);
+        assertThat(stat.get("vital_signs")).isGreaterThan(0L);
+        assertThat(stat.get("orders")).isGreaterThan(0L);
+
+        Map<Long, Admission> admById = insertedAdmissions.stream()
+                .collect(Collectors.toMap(Admission::getId, a -> a));
+        for (MedicalOrder o : insertedOrders) {
+            Admission a = admById.get(o.getAdmissionId());
+            assertThat(a).isNotNull();
+            assertThat(o.getStartTime()).isAfterOrEqualTo(a.getAdmissionTime());
+        }
+        for (VitalSign vs : insertedVitals) {
+            Admission a = admById.get(vs.getAdmissionId());
+            assertThat(a).isNotNull();
+            assertThat(vs.getRecordedAt()).isAfterOrEqualTo(a.getAdmissionTime());
+        }
+        for (Admission a : insertedAdmissions) {
+            assertThat(a.getDischargeTime()).isAfter(a.getAdmissionTime());
+        }
+        for (MedicalOrder o : insertedOrders) {
+            assertThat(o.getStartTime()).isBefore(admById.get(o.getAdmissionId()).getDischargeTime());
+        }
+        for (VitalSign vs : insertedVitals) {
+            assertThat(vs.getRecordedAt()).isBefore(admById.get(vs.getAdmissionId()).getDischargeTime());
+        }
+
+        // Finding 1：同一患者多次住院严格升序、互不重叠、入院时间不晚于 now。
+        LocalDateTime now = LocalDateTime.now();
+        Map<Long, List<Admission>> byPatient = insertedAdmissions.stream()
+                .collect(Collectors.groupingBy(Admission::getPatientId));
+        for (List<Admission> admissions : byPatient.values()) {
+            admissions.sort(Comparator.comparing(Admission::getAdmissionTime));
+            for (int i = 1; i < admissions.size(); i++) {
+                Admission prev = admissions.get(i - 1);
+                Admission cur = admissions.get(i);
+                assertThat(cur.getAdmissionTime()).isAfter(prev.getAdmissionTime());   // 严格升序
+                assertThat(cur.getAdmissionTime()).isAfter(prev.getDischargeTime());   // 互不重叠
+            }
+            for (Admission a : admissions) {
+                assertThat(a.getAdmissionTime()).isBeforeOrEqualTo(now);               // 无未来入院
+            }
+        }
+    }
+
+    @Test
+    void injectViolation_produces_a_known_violation() {
+        DataGeneratorService svc = buildService();
+        RationalRule inter = new RationalRule();
+        inter.setRuleType(1); inter.setDrugAId(RULE_DRUG_1); inter.setDrugBId(RULE_DRUG_2); inter.setEnabled(1);
+        RationalRule dose = new RationalRule();
+        dose.setRuleType(2); dose.setDrugId(RULE_DRUG_1); dose.setMaxDailyDose(new BigDecimal("8")); dose.setEnabled(1);
+        when(rationalRuleMapper.selectList(any())).thenReturn(List.of(inter, dose));
+
+        svc.generate(1);  // 触发加载 interactionRules / doseRulesByDrug
+
+        MedicalData.DiagnosisRule rule = new MedicalData.DiagnosisRule("J06.9", "上呼吸道感染", List.of(RULE_DRUG_1, RULE_DRUG_2));
+        List<PrescriptionItem> items = new ArrayList<>();
+        items.add(item(RULE_DRUG_1, "1片", "每日1次"));
+        String type = svc.injectViolation(items, rule);
+        assertThat(type).isIn("DOSE", "INTERACTION", "INDICATION");
+    }
+
+    /** 幂等守卫：生成前清空十一张业务数据表，且不碰 drug / rule_config */
     @Test
     void clears_data_tables_before_generation() {
         DataGeneratorService svc = buildService();
         svc.generate(1);
 
-        for (String table : List.of("patient", "visit", "diagnosis", "prescription", "prescription_item", "lab_test")) {
+        for (String table : List.of("patient", "visit", "diagnosis", "prescription", "prescription_item",
+                "lab_test", "charge", "dispense", "admission", "medical_order", "vital_sign")) {
             verify(jdbcTemplate).execute("TRUNCATE TABLE " + table);
         }
         verify(jdbcTemplate, never()).execute(contains("drug"));

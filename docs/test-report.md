@@ -488,3 +488,332 @@ redis-cli del stats:visit-frequency stats:drug-distribution
 | 功能测试 | `bash backend/his-server/src/test/scripts/functional-test.sh` | **PASS=12 FAIL=0** |
 | 数据评估 | `mysql ... < backend/sql/verify-final.sql` | 完整性 / 时间一致性 / 分布检查全部通过，详见 §3 |
 | 前端回归 | `cd frontend && npm run build` | 构建成功（7.11 s），仅有一条既有的 chunk 体积告警，无源码改动 |
+
+---
+
+## 6. 二期扩展测试（住院时序 + 合理用药/路径校验 + 门诊收费/发药）
+
+> **本节口径声明（重要）**：本节对应二期扩展（`admission` / `medical_order` / `vital_sign` / `charge` /
+> `dispense` / `rational_rule` / `clinical_pathway` 七张新表与 `lab_test.admission_id` 增列，
+> 生成器住院时序与违规注入，`/api/validation/run` 一键校验，看板 3 个新统计接口，住院/校验两个前端页面）。
+> 观测日期：**2026-09-21**。
+>
+> **本次未重跑生成器、未做数据库级复测**，因此本节只写两类可落地的事实：
+> **(a)** 代码中的设计常量与由这些常量直接推导的期望值（推导过程全部写出，可逐行核对）；
+> **(b)** 本节**实际执行过**的测试输出（§6.5）。
+> 凡需「生成器全量重跑 + MySQL 断言」或「性能基准」才能得到的数值，一律标注为「**待实测**」并给出命令，
+> 不给出任何估算值冒充实测值。
+
+### 6.0 本节涉及的设计常量（源码取值，可核对）
+
+| 常量 | 取值 | 定义位置 | 含义 |
+|---|---:|---|---|
+| `INPATIENT_RATIO` | `0.2` | `DataGeneratorService.java:60` | 有住院史的患者比例（20%） |
+| `MIN_ADMISSIONS` / `MAX_ADMISSIONS` | `1` / `3` | 同上 `:62–63` | 每名住院患者的住院次数区间 |
+| `MIN_STAY_DAYS` / `MAX_STAY_DAYS` | `3` / `15` | 同上 `:65–66` | 单次住院天数区间（`nextInt(3, 16)`，闭区间 3–15） |
+| `PATHWAY_COMPLIANCE_RATE` | `0.7` | 同上 `:68` | **住院级别**的临床路径合规比例（30% 变异） |
+| `VIOLATION_RATE` | `0.03` | 同上 `:58` | 处方级合理用药违规注入比例（3%） |
+| `TAIL_SPREAD_DAYS` | `90` | 同上 `:46` | 门诊病史窗口右端的末段散开天数（一期遗留参数，本节沿用） |
+| 收费时间 | `visit_time + U[125,155) 分钟` | `newCharge` `:492` | 每就诊 2–3 条收费（挂号费 + 药费 + 有检验时的检验费） |
+| 发药时间 | `visit_time + U[165,205) 分钟` | 主循环 `:249` | 每张处方 1 条发药，**恒晚于该就诊全部收费**（165 > 155） |
+
+### 6.1 住院数据完整性
+
+**生成语义（源码事实）**：每名被抽中住院的患者生成 1–3 次住院，住院号 `A{patientId}-{序号}`；
+首次住院锚在**该患者末次门诊之后**，后续每次在上一次住院之后至少间隔 `MAX_STAY_DAYS`（15）天，
+从而「同患者多次住院严格升序且互不重叠」是**构造性成立**的。
+每次住院内生成：长期医嘱 1–3 条（`admission_time + U[5,60) min`，`status=0`）、
+每日临时医嘱（每天 1/3 概率，`+day 天 +9h`，`status=2`）、每日检验（每天 1/2 概率，`+day 天 +8h`）、
+每日 3 次生命体征（`+day 天`，时刻 `6 + slot×6 + U[0,1)` 时，即 06/12/18 时前后）、
+路径合规时补齐 `LAB`/`MED` 步骤事件；出院时间 `admission_time + totalDays 天 + U[0,24) 小时`，
+`total_cost = deposit + totalDays × 120`，`status=1`。
+`AdmissionController` 的 `POST /api/admissions` 直接落库 `Admission` 实体，**无服务端补默认值**，
+因此前端表单必须自带 `patient_id` / `admission_no` / `admission_time` 三个 NOT NULL 列（见 §6.5 改造说明）。
+
+**检查项与结果**：
+
+| # | 检查项 | 期望 | 实测 |
+|---|---|---|---|
+| 1 | 规模：`admission` / `medical_order` / `vital_sign` / `charge` / `dispense` 行数 | 非 0 且与门诊规模量级相称 | **待实测** |
+| 2 | `medical_order` / `vital_sign` / `lab_test` 的 `admission_id`、`patient_id` 孤儿行 | **0** | **待实测** |
+| 3 | 医嘱/体征时间早于入院（`start_time` / `recorded_at` < `admission_time`） | **0** | **待实测** |
+| 4 | 医嘱/体征时间晚于出院（> `discharge_time`） | **0** | **待实测** |
+| 5 | `discharge_time` ≤ `admission_time` | **0** | **待实测** |
+| 6 | 同患者多次住院重叠（`a2.admission_time` 落在 `a1` 住院区间内） | **0** | **待实测** |
+| 7 | 同患者住院时间严格升序（`LAG` 逐对比较） | **0 例非递增** | **待实测** |
+| 8 | 住院相关表无未来时间戳 | **0** | **待实测** |
+| 9 | `dispense.dispensed_at` 早于或等于同就诊任一 `charge.charged_at` | **0** | **待实测** |
+| 10 | 每就诊收费条数 ∈ {2, 3}、每处方发药条数 = 1 | 全部满足 | **待实测** |
+| 11 | 住院时间轴 `GET /api/admissions/{id}/timeline` 的 `ORDER` / `VITAL_SIGN` / `LAB_TEST` 事件按 `time` 升序 | 严格升序 | **待实测** |
+
+**复现命令**（全量重跑生成器取得干净数据集后执行；新库需先 `schema.sql` + `seed.sql` + `seed-extension.sql`）：
+
+```bash
+# 1) 全量重跑（TRUNCATE 十一张业务表后重建，含住院/收费/发药；同时打印 rows 与 elapsed_ms）
+cd backend && mvn -q -pl his-generator -am install -DskipTests
+java -jar his-generator/target/his-generator-1.0.0.jar
+#    输出示例：{"patients":10000,...,"admissions":N,"orders":N,"vital_signs":N,"charges":N,"dispenses":N,"elapsed_ms":M}
+
+# 2) 完整性 / 时间一致性断言（逐条应为 0 或落在期望区间）
+mysql -uhis_user -p'his@2026' -D his_demo --default-character-set=utf8mb4 -t <<'SQL'
+SELECT '规模' AS section;
+SELECT 'admission' AS t, COUNT(*) AS rows_ FROM admission
+UNION ALL SELECT 'medical_order', COUNT(*) FROM medical_order
+UNION ALL SELECT 'vital_sign',    COUNT(*) FROM vital_sign
+UNION ALL SELECT 'charge',        COUNT(*) FROM charge
+UNION ALL SELECT 'dispense',      COUNT(*) FROM dispense;
+
+SELECT '孤儿行（应全为 0）' AS section;
+SELECT 'order.admission_id' AS fk, COUNT(*) AS orphans FROM medical_order o LEFT JOIN admission a ON a.id=o.admission_id  WHERE a.id IS NULL
+UNION ALL SELECT 'order.patient_id',   COUNT(*) FROM medical_order o LEFT JOIN patient p ON p.id=o.patient_id WHERE p.id IS NULL
+UNION ALL SELECT 'vital.admission_id', COUNT(*) FROM vital_sign v  LEFT JOIN admission a ON a.id=v.admission_id WHERE a.id IS NULL
+UNION ALL SELECT 'vital.patient_id',   COUNT(*) FROM vital_sign v  LEFT JOIN patient p ON p.id=v.patient_id WHERE p.id IS NULL
+UNION ALL SELECT 'lab.admission_id',   COUNT(*) FROM lab_test l    LEFT JOIN admission a ON a.id=l.admission_id WHERE l.admission_id IS NOT NULL AND a.id IS NULL;
+
+SELECT '时间一致性（应全为 0）' AS section;
+SELECT '医嘱早于入院' AS c, COUNT(*) AS n FROM medical_order o JOIN admission a ON a.id=o.admission_id WHERE o.start_time   < a.admission_time
+UNION ALL SELECT '体征早于入院', COUNT(*) FROM vital_sign v JOIN admission a ON a.id=v.admission_id WHERE v.recorded_at < a.admission_time
+UNION ALL SELECT '医嘱晚于出院', COUNT(*) FROM medical_order o JOIN admission a ON a.id=o.admission_id WHERE o.start_time   > a.discharge_time
+UNION ALL SELECT '体征晚于出院', COUNT(*) FROM vital_sign v JOIN admission a ON a.id=v.admission_id WHERE v.recorded_at > a.discharge_time
+UNION ALL SELECT '出院不晚于入院', COUNT(*) FROM admission WHERE discharge_time IS NOT NULL AND discharge_time <= admission_time
+UNION ALL SELECT '同患者住院重叠', COUNT(*) FROM admission a1 JOIN admission a2
+      ON a1.patient_id = a2.patient_id AND a1.id <> a2.id
+     AND a2.admission_time > a1.admission_time AND a2.admission_time < a1.discharge_time
+UNION ALL SELECT '同患者住院非升序', COUNT(*) FROM (
+      SELECT patient_id, admission_time,
+             LAG(admission_time) OVER (PARTITION BY patient_id ORDER BY admission_time) AS prev
+      FROM admission) x
+      WHERE prev IS NOT NULL AND admission_time <= prev
+UNION ALL SELECT '未来时间戳', (SELECT COUNT(*) FROM admission     WHERE admission_time > NOW())
+      + (SELECT COUNT(*) FROM medical_order WHERE start_time  > NOW())
+      + (SELECT COUNT(*) FROM vital_sign    WHERE recorded_at > NOW())
+      + (SELECT COUNT(*) FROM charge        WHERE charged_at  > NOW())
+      + (SELECT COUNT(*) FROM dispense      WHERE dispensed_at > NOW());
+
+SELECT '门诊收费/发药时序（应全为 0 / 全满足）' AS section;
+SELECT '发药不晚于收费' AS c, COUNT(*) AS n FROM dispense d JOIN charge c ON c.visit_id=d.visit_id WHERE d.dispensed_at <= c.charged_at
+UNION ALL SELECT '每就诊收费条数越界', COUNT(*) FROM (
+      SELECT visit_id, COUNT(*) c FROM charge GROUP BY visit_id HAVING c NOT IN (2,3)) y
+UNION ALL SELECT '每处方发药条数<>1', COUNT(*) FROM (
+      SELECT prescription_id, COUNT(*) c FROM dispense GROUP BY prescription_id HAVING c <> 1) z;
+SQL
+
+# 3) 住院时间轴升序与响应体（对任一真实 admission_id，例如 1）
+curl -s "http://localhost:8080/api/admissions/1/timeline" | head -c 400
+```
+
+**说明**：以上 SQL 是本轮新写的断言，**尚未执行**；§6.1 表格中的 11 项因此全部标注「待实测」。
+一期报告 §0.3 的 `backend/sql/verify-final.sql` 经核对**不含任何二期表的检查**
+（`grep -ci "admission\|vital_sign\|charge\|dispense" verify-final.sql` = `0`），
+故二期数据评估需要上述新断言，建议后续并入该脚本形成 `verify-extension.sql`。
+
+### 6.2 体征趋势合理性
+
+体温采用「先升后降」的病程模型（`DataGeneratorService.newVitalSign` `:610–611`）：
+
+```java
+double trend = day < 2 ? 0.6 - day * 0.2 : 0.0;   // day0 = 0.6，day1 = 0.4，day2 起 = 0
+double temp  = 36.5 + trend + rnd.nextDouble() * 0.6;
+vs.setTemperature(BigDecimal.valueOf(Math.round(temp * 10) / 10.0));   // 保留 1 位小数
+```
+
+| 住院日 `day` | `trend` | 体温取值区间 | 期望均值 |
+|---:|---:|---|---:|
+| 0（入院当日） | 0.6 | `[37.1, 37.7)` | ≈ 37.4 ℃ |
+| 1 | 0.4 | `[36.9, 37.5)` | ≈ 37.2 ℃ |
+| ≥ 2 | 0.0 | `[36.5, 37.1)` | ≈ 36.8 ℃ |
+
+即住院初期呈现低热（37–37.7 ℃，符合感染/炎症急性期），第 2 天起回落到正常区间（36.5–37.1 ℃），
+「先升后降」的单调回落由**区间整体平移**实现，而非对单个患者做随机游走——
+因此该趋势在**群体均值**上可检出，而在**个体**上表现为逐日下采样。
+其余体征为围绕成人正常值的小幅抖动：脉搏 `72 ± 8`、呼吸 `16 ± 2`、收缩压 `120 ± 12`、
+舒张压 `78 ± 8`（`rnd.nextInt(-k, k+1)`，即边界均可达）。
+
+**待实测的验证方式**（群体层面，不依赖人工观察）：
+
+```sql
+-- 按住院日聚合体温均值，应看到 day0 > day1 > day2+ 的单调回落
+SELECT TIMESTAMPDIFF(DAY, a.admission_time, v.recorded_at) AS day_index,
+       COUNT(*) AS n, ROUND(AVG(v.temperature), 3) AS avg_temp,
+       MIN(v.temperature) AS min_temp, MAX(v.temperature) AS max_temp
+FROM vital_sign v JOIN admission a ON a.id = v.admission_id
+GROUP BY day_index HAVING day_index BETWEEN 0 AND 6 ORDER BY day_index;
+
+-- 全部体征应落在人体生理合理区间（防止抖动越界）
+SELECT MIN(temperature), MAX(temperature), MIN(pulse), MAX(pulse),
+       MIN(systolic_bp), MAX(systolic_bp) FROM vital_sign;
+```
+
+> 注意：`day=0` 的三条体征中，落在入院时刻**之前**的记录会被生成器丢弃
+> （`if (!vs.getRecordedAt().isBefore(a.getAdmissionTime()))`），因此 `day_index=0` 的样本数
+> 会少于 `3 × 住院数`；这是设计行为，不构成缺陷。上述两条查询均**待实测**。
+
+### 6.3 校验报告准确性（合理用药率 / 路径执行率）
+
+被测接口 `POST /api/validation/run` 返回 `ValidationReport{ rationalDrug, pathway }`。
+
+**（1）合理用药率：注入比例 ≠ 检测比例（本节最主要的发现）**
+
+`RationalDrugValidator` 逐处方检查三类规则：`INDICATION`（适应症，药品不在该诊断的 `rule_config`
+允许集内）、`INTERACTION`（相互作用对）、`DOSE`（日剂量上限）。
+先把可由代码**严格推导**的三项写清楚：
+
+| 规则类型 | 自然数据能否触发 | 推导 |
+|---|---|---|
+| `INDICATION` | **不能** | 生成器的自然处方明细全部取自该诊断的 `rule_config.drug_ids`（一期报告 §3.1 已实测 179 898/179 898 命中），只有注入才会替换为规则外药品 |
+| `DOSE` | **不能** | 校验器算 `parseInt(dosage) × parseInt(frequency)`；生成器给药 `"1片"` + `"每日1次"`/`"每日2次"` → 日剂量 1 或 2，而 `rational_rule` 的两条剂量上限均为 `8.00`。注入时改写为 `"4片"` + `"每日3次"` → 12 > 8，可稳定触发 |
+| `INTERACTION` | **能（且量不小）** | 见下 |
+
+`INTERACTION` 的自然触发来自 `I10`（原发性高血压）这一条规则：其 `rule_config.drug_ids = '4,9,10'`
+（4 硝苯地平控释片 / 9 阿司匹林肠溶片 / 10 苯磺酸氨氯地平片），而 `rational_rule` 中存在相互作用对
+`(4,10)`——「两种钙通道阻滞剂重复用药」。生成器取药方式是
+`k ~ U{1..min(3,m)}` 后从该规则的 `m` 种药里**无放回随机取 k 种**（`pickDrugIds` `:748–753`），
+故单张 `I10` 处方同时含 4 与 10 的概率为
+
+```
+P = P(k=2)·(1/C(3,2)) + P(k=3)·1 = (1/3)(1/3) + (1/3)(1) = 0.1111 + 0.3333 = 0.4444
+```
+
+按 8 条诊断规则均分（一期实测 125 220 张处方 / 8 ≈ 15 652 张），自然命中相互作用规则的处方约
+`0.4444 × 15 652 ≈ 6 957` 张，占全部处方 **≈ 5.6%**。另外两组相互作用对
+`(1,8)` 阿莫西林↔左氧氟沙星、`(3,9)` 布洛芬↔阿司匹林 的药物分属不同诊断规则，自然数据**不可能**同时出现。
+
+| 口径 | 值 | 性质 |
+|---|---:|---|
+| 注入比例 `VIOLATION_RATE` | 3.0% | 源码常量 |
+| 名义「合理用药率」（仅按注入比例） | **97.0%** | 设计期望 |
+| 校验器额外命中的自然违规（`(4,10)` 相互作用） | **≈ 5.6%** | 由上表推导 |
+| 两者重叠（注入与自然同处方） | ≈ 0.2% | 推导，量级可忽略 |
+| **推导合理用药率** | **≈ 91%** | 推导 → 与 97% 相差约 6 个百分点 |
+| 实测合理用药率 | **待实测** | 见下方命令 |
+
+**结论**：`PATHWAY_COMPLIANCE_RATE` / `VIOLATION_RATE` 这类参数刻画的是**生成器侧的注入/合规比例**，
+而报告接口输出的是**校验器侧的检出比例**，两者只有在「自然数据不会触发任何规则」时才相等。
+本节证明 `INTERACTION` 类型不满足该前提，因此报告中的合理用药率**预计明显低于 97%**。
+这既可能是生成器的缺陷（`I10` 合法处方不应同时开出两种 CCB，应与 `A09.9`/`K29.5` 等一样避免
+规则冲突组合），也可能是报告口径问题（`rationalRate` 应拆分为「注入违规检出」与「自然违规检出」两项）。
+**建议在写论文前先按下列命令实测一次，再把该结论写死。**
+
+```bash
+# 需后端 + Redis 运行中；首次调用为冷路径（全表扫描 12.5 万处方）
+curl -s -X POST http://localhost:8080/api/validation/run > /tmp/validation.json
+python -c "import json;d=json.load(open('/tmp/validation.json'))['data'];r=d['rationalDrug'];p=d['pathway'];print('total',r['totalPrescriptions'],'violations',r['violationPrescriptions'],'rationalRate',r['rationalRate']);print('enrolled',p['enrolledAdmissions'],'steps',p['totalSteps'],'fulfilled',p['fulfilledSteps'],'executionRate',p['executionRate'])"
+# 违规类型分布（确认自然违规确实集中在 INTERACTION）
+python -c "import json,collections;d=json.load(open('/tmp/validation.json'))['data'];print(collections.Counter(v['ruleType'] for v in d['rationalDrug']['violations']))"
+```
+
+**（2）路径执行率：住院级合规 ≠ 步骤级执行率**
+
+`PathwayReport.executionRate = fulfilledSteps / totalSteps`，是**步骤级**指标；
+而 `PATHWAY_COMPLIANCE_RATE = 0.7` 是**住院级**的「是否补齐路径事件」开关。两者不等价，
+差异集中在 `DISCHARGE` 步骤上：
+
+- 校验器对 `DISCHARGE` 的判定是 `discharge_time ∈ [admission_time + day 天, +day 天 + window 小时]`
+  （`PathwayValidator` `:63–65`）；两条路径的 `DISCHARGE` 步骤分别是 `day=3 window=24`（J06.9）与
+  `day=5 window=24`（E11.9），即要求出院时间恰好落在第 3 或第 5 个住院日内。
+- 生成器的住院天数 `totalDays ~ U{3..15}`（13 个取值）**独立于路径**，
+  出院时间为 `admission_time + totalDays 天 + U[0,24) 小时`，
+  因此 `DISCHARGE` 步骤命中的充要条件是 `totalDays == day`，概率仅 `1/13 ≈ 0.077`。
+- 合规住院的 `LAB`/`MED` 步骤由 `labTestForItem`（`+day 天 + U[1,window) 小时`）与医嘱
+  （`+day 天 + 10 小时`）生成，**必然**落在窗口内；且生成时有 `step.day() >= totalDays → continue`
+  的守卫，会让「步骤日超出住院时长」的步骤直接缺事件。
+
+由此推导（`STEP_HIT` 为步骤命中数）：
+
+| 路径 | 步骤数 | 合规住院的期望 `STEP_HIT` | 期望执行率 |
+|---|---:|---:|---:|
+| J06.9 上呼吸道感染 | 3（LAB+MED+DISCHARGE） | `1 + 1 + 1/13 = 2.077` | 0.692 |
+| E11.9 2 型糖尿病 | 4（LAB+MED+LAB+DISCHARGE） | `1 + 1 + 1 + 1/13 = 3.077` | 0.769 |
+| 两条路径等概率 | — | — | **0.731** |
+
+变异住院（30%）仍可能被随机日常事件偶然命中（校验器不看「是否补齐」，只看事件是否落在窗口内），
+粗估每步骤 0.08–0.20。合并后：
+
+| 口径 | 值 | 性质 |
+|---|---:|---|
+| `PATHWAY_COMPLIANCE_RATE`（住院级） | 70.0% | 源码常量 |
+| 推导步骤级执行率 | **≈ 55%**（`0.7 × 0.731 + 0.3 × ≈0.12`） | 推导 |
+| 实测路径执行率 | **待实测** | 见上方命令 |
+
+**结论**：`executionRate ≈ 70%` 这一预期**不成立**，预计落在 50–60% 区间；
+主因是 `DISCHARGE` 步骤的窗口与 `totalDays` 的均匀分布近乎独立。
+若希望报告中的执行率贴近 0.7，需让 `totalDays` 与路径的出院日挂钩
+（合规住院把 `totalDays` 设为路径 `DISCHARGE` 步骤的 `day`），或把 `DISCHARGE` 步骤的判定
+放宽为「出院时间晚于该步骤下界」即可。以上均为**推导**，须按本节上文（1）的命令实测确认后才可写入论文。
+
+### 6.4 性能（全部待实测）
+
+本节三项均需重跑生成器或运行压测脚本，**本次未执行**，故只给出口径与命令，不给任何数值。
+口径与一期一致：迭代次数与预热次数沿用 §2.2 的「迭代 20 次 / 预热 3 次」，
+中位数按「偶数样本取中间两者均值」计算。
+
+| # | 指标 | 测量口径 | 命令 | 结果 |
+|---|---|---|---|---|
+| 1 | 住院批量写入耗时 | 生成器全量重跑后输出的 `elapsed_ms`（含全部 11 张表的批量写入；一期 6 张表实测 588 889 ms 可作对照基线） | `java -jar his-generator/target/his-generator-1.0.0.jar`，读取输出 JSON 的 `elapsed_ms` 与 `admissions` / `orders` / `vital_signs` 计数 | **待实测** |
+| 2 | 住院时间轴查询延迟 | `GET /api/admissions/{id}/timeline`；**冷**轮每次迭代前 `DEL timeline:admission:{id}`（键名与 `TimelineServiceImpl.ADMISSION_CACHE_PREFIX` 一致，TTL 30 分钟），**热**轮预热后连读。响应体为 `ORDER`/`VITAL_SIGN`/`LAB_TEST` 三类事件的升序数组 | 见下方脚本（一期的 `PerformanceTest.java` 只覆盖患者时间线与看板统计，**尚未覆盖**该接口与 `/api/validation/run`） | **待实测** |
+| 3 | 校验引擎扫描耗时 | `POST /api/validation/run` 的端到端响应时间；引擎需全量载入 125 220 张处方 + 179 898 条明细 + 250 930 项检验，并为每条路径同时命中做 3–4 次逐步窗口判定 | `curl -w '%{time_total}s\n' -s -o /dev/null -X POST http://localhost:8080/api/validation/run`（首次为冷路径） | **待实测** |
+| 4 | 看板 3 个新统计接口 | `GET /api/dashboard/stats/{admission-ratio,rational-drug-rate,pathway-rate}`，各自带 `stats:*` 缓存（TTL 10 分钟，见 `DashboardServiceImpl:51–54`） | 复测前先 `redis-cli del stats:admission-ratio stats:rational-drug-rate stats:pathway-rate`（沿用 §0.3 的提示：生成器绕过 service 层，**不会**失效这些缓存） | **待实测** |
+
+```bash
+# 住院时间轴冷热两轮（替换 ADMISSION_ID 为任一真实住院 id；Redis 需可用）
+ADMISSION_ID=1
+redis-cli del "timeline:admission:$ADMISSION_ID" >/dev/null
+for i in $(seq 1 20); do
+  redis-cli del "timeline:admission:$ADMISSION_ID" >/dev/null
+  curl -o /dev/null -s -w 'cold %{time_total}s\n' "http://localhost:8080/api/admissions/$ADMISSION_ID/timeline"
+done
+for i in $(seq 1 20); do
+  curl -o /dev/null -s -w 'hot  %{time_total}s\n' "http://localhost:8080/api/admissions/$ADMISSION_ID/timeline"
+done
+```
+
+> **对一期性能结论的影响**：本期新增的住院/校验接口尚未纳入性能脚本，
+> 因此 §2 的一期结论（时间线冷 8.6 ms、看板统计热 0.9/0.6 ms 等）**不覆盖**这些新接口，
+> 不能直接外推。
+
+### 6.5 本节实际执行的验证结果
+
+以下两项是本节**真实执行**的输出，可直接复现。
+
+| 验证项 | 命令 | 实际结果 |
+|---|---|---|
+| 后端单元测试（含二期全部新增用例） | `cd backend && mvn -o test` | **BUILD SUCCESS**；`his-server` **54 run / 0 failures / 0 errors / 2 skipped**，`his-generator` **21 run / 0 failures / 0 errors / 0 skipped**（合计 75 run / 0 失败，跳过的是 `PerformanceTest` 的 2 例显式开关用例）。总耗时 11.9 s |
+| 前端构建 | `cd frontend && npm run build` | **构建成功（7.07 s）**，产物生成；仅剩既有的 chunk 体积告警（`Chart-*.js` 1 035.56 kB、`index-*.js` 1 052.94 kB 超过 500 kB 阈值），无编译/ESLint 错误 |
+
+二期相关的通过用例（逐类实测，均为 0 失败）：
+
+| 用例集 | run | 覆盖内容 |
+|---|---:|---|
+| `AdmissionControllerTest` | 1 | `POST/GET /api/admissions`、出院、时间轴（切片测试） |
+| `ChargeControllerTest` / `DispenseControllerTest` | 1 / 1 | 收费与发药落库 |
+| `VitalSignControllerTest` / `MedicalOrderControllerTest` | 1 / 2 | 体征与医嘱接口 |
+| `ValidationControllerTest` | 1 | `POST /api/validation/run` 返回信封 |
+| `RationalDrugValidatorTest` / `PathwayValidatorTest` | 3 / 2 | 合理用药三类规则、路径步骤命中与变异 |
+| `AdmissionServiceImplTest` | 2 | 住院服务（含出院回写） |
+| `DashboardServiceTest` | 10 | 含 3 个新统计接口与 Redis 降级 |
+| `DataGeneratorServiceTest` | 21 | 含 `inpatient_patients_get_admissions_with_strictly_increasing_events`（断言医嘱/体征时间 ≥ 入院时间且 < 出院时间、出院时间 > 入院时间）、`generates_charges_and_dispenses_per_visit`、`injectViolation_produces_a_known_violation` |
+
+> 说明：上表的 0 失败是**单元/切片测试**结论（Mapper 多为 mock，不连真实 MySQL），
+> 它验证的是「代码分支正确」，**不能**替代 §6.1 的数据库级完整性断言。
+> §6.1 的 11 项、§6.2 的 2 条查询、§6.3 的两个比例、§6.4 的 4 项性能均**待实测**。
+
+**本节相应的前端改造**（与上述测试同批提交）：
+`Dashboard.vue` 在图表行之前新增「住院占比 / 合理用药率 / 路径执行率」三张指标卡，
+`loadStats()` 由 2 路并发扩为 5 路并发，任一接口失败只让对应卡片显示 `-`（不抛错、不阻断其余内容），
+字段绑定为 `ratio` / `rationalRate` / `executionRate`；
+`EntryForm.vue` 新增「住院登记 / 收费 / 发药」三个**独立表单** tab（直接填患者 ID，不依赖顶部医生/患者上下文），
+并针对后端 NOT NULL 列做了必填校验（住院：`admissionNo` / `admissionTime`；收费：`visitId` / `chargeNo` / `amount` / `chargedAt`；
+发药：`visitId` / `prescriptionId` / `dispensedAt`），三个提交函数均复用既有的 `submit()` 助手
+（统一 `ElMessage` 提示 + `lastPatientId` 回填），避免与一期四个 tab 的行为分叉。
+
+### 6.6 本节小结
+
+- **本次真正跑通的**：后端 75 例单元/切片测试 0 失败；前端构建成功、无错误。这两项构成本节的全部实测证据。
+- **本次未跑、已如实标注「待实测」的**：住院数据完整性 11 项、体征趋势 2 条查询、
+  合理用药率与路径执行率两侧比值、4 项性能指标——均已给出可直接执行的 SQL / 命令，复现口径与一期 §0.3 一致。
+- **两处需要作者决策的口径问题（均由代码推导得出，实测后应写进论文的「局限」）**：
+  1. 「注入比例 ≠ 检出比例」：合理用药率预计 **≈91%** 而非 97%，差额来自生成器合法产出的
+     `I10` 处方可同时含硝苯地平与氨氯地平，被 `INTERACTION` 规则（正确地）判为违规；
+  2. 「住院级合规 ≠ 步骤级执行率」：路径执行率预计 **≈55%** 而非 70%，主因是 `DISCHARGE` 步骤
+     的 24 小时窗口与 `totalDays ~ U{3..15}` 近乎独立，命中概率仅 1/13。
+  两项都不是「报告造假」，而是**指标口径与生成器参数之间的错位**；修法已在上文分别给出。

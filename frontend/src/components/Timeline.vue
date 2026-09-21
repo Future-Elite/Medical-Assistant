@@ -70,6 +70,48 @@
             <span class="muted lab-ref">参考 {{ d(e).referenceRange || '-' }}</span>
           </div>
         </div>
+
+        <!-- 收费 -->
+        <div v-if="group.charges.length" class="section">
+          <div class="section-label" style="--c: #8e44ad"><span class="dot"></span>收费</div>
+          <div v-for="(e, i) in group.charges" :key="'c' + i" class="section-line">
+            <span>{{ d(e).itemName || '-' }}</span>
+            <span class="amount">¥{{ d(e).amount ?? '-' }}</span>
+          </div>
+        </div>
+
+        <!-- 发药 -->
+        <div v-if="group.dispenses.length" class="section">
+          <div class="section-label" style="--c: #16a085"><span class="dot"></span>发药</div>
+          <div v-for="(e, i) in group.dispenses" :key="'disp' + i" class="section-line">
+            <span>{{ d(e).drugName || '-' }}</span>
+            <span class="muted">{{ d(e).quantity ?? '-' }}</span>
+          </div>
+        </div>
+      </el-card>
+    </el-timeline-item>
+
+    <!-- 住院卡：ADMISSION/DISCHARGE 按住院 id 归并为一张卡 -->
+    <el-timeline-item
+      v-for="(adm, index) in grouped.admissions"
+      :key="'adm-' + index"
+      :timestamp="formatDateTime(timeStr2(adm))"
+      placement="top"
+      size="large"
+      color="#909399"
+    >
+      <el-card shadow="hover" class="visit-card">
+        <el-tag color="#909399" effect="dark" size="small" class="type-tag">住院</el-tag>
+        <div class="section-line">
+          <span>{{ d(adm.admission).diagnosis || '-' }}</span>
+          <span class="muted">· {{ d(adm.admission).department || '-' }} · {{ d(adm.admission).bedNo || '-' }}</span>
+        </div>
+        <div class="section-line muted">
+          入院 {{ formatDateTime(adm.admission?.time) }}
+          <template v-if="adm.discharge"> → 出院 {{ formatDateTime(adm.discharge.time) }}</template>
+        </div>
+        <el-button link type="primary" size="small"
+          @click="openAdmission(adm.admission)">查看住院时间轴</el-button>
       </el-card>
     </el-timeline-item>
 
@@ -94,17 +136,24 @@
 
 <script setup>
 import { computed } from 'vue'
+import { useRouter } from 'vue-router'
 
 const props = defineProps({
   events: { type: Array, default: () => [] }
 })
+
+const router = useRouter()
 
 // 事件类型 -> 颜色 / 标签
 const TYPE_META = {
   VISIT: { label: '就诊', color: '#409EFF' },
   DIAGNOSIS: { label: '诊断', color: '#F56C6C' },
   PRESCRIPTION: { label: '处方', color: '#67C23A' },
-  LAB_TEST: { label: '检验', color: '#E6A23C' }
+  LAB_TEST: { label: '检验', color: '#E6A23C' },
+  ADMISSION: { label: '入院', color: '#909399' },
+  DISCHARGE: { label: '出院', color: '#909399' },
+  CHARGE: { label: '收费', color: '#8e44ad' },
+  DISPENSE: { label: '发药', color: '#16a085' }
 }
 
 const metaOf = (type) => TYPE_META[type] || { label: type || '其他', color: '#909399' }
@@ -125,12 +174,32 @@ const formatDateTime = (t) => (t ? String(t).replace('T', ' ').slice(0, 19) : ''
 // ISO 时间字符串长度固定，字典序即时间序
 const timeStr = (event) => (event?.time ? String(event.time) : '')
 
+// 住院卡：入院/出院事件二选一取时间
+const timeStr2 = (adm) => (adm.admission || adm.discharge)?.time || ''
+
+// 用 router.push 跳转并带上住院头部信息（路由为 createWebHistory，无 hash 片段）
+const openAdmission = (event) => {
+  const data = d(event)
+  if (data.id == null) return
+  router.push({
+    path: '/admission/' + data.id,
+    query: {
+      admissionNo: data.admissionNo,
+      diagnosis: data.diagnosis,
+      department: data.department,
+      bedNo: data.bedNo
+    }
+  })
+}
+
 /**
- * 归并：以 VISIT 事件的 data.id 为键，把 DIAGNOSIS / PRESCRIPTION / LAB_TEST
- * 按 data.visitId 挂到对应就诊下。后端已按时间升序返回，归并后再按时间排一次保证组内有序。
+ * 归并：以 VISIT 事件的 data.id 为键，把 DIAGNOSIS / PRESCRIPTION / LAB_TEST /
+ * CHARGE / DISPENSE 按 data.visitId 挂到对应就诊下；ADMISSION / DISCHARGE 按
+ * 住院 data.id 归并为一张住院卡。后端已按时间升序返回，归并后再按时间排一次保证组内有序。
  */
 const grouped = computed(() => {
   const visitMap = new Map()
+  const admissionMap = new Map()
   const orphans = []
   for (const e of props.events) {
     const data = d(e)
@@ -141,7 +210,7 @@ const grouped = computed(() => {
       }
       let g = visitMap.get(data.id)
       if (!g) {
-        g = { visit: e, diagnoses: [], prescriptions: [], labTests: [] }
+        g = { visit: e, diagnoses: [], prescriptions: [], labTests: [], charges: [], dispenses: [] }
         visitMap.set(data.id, g)
       } else {
         g.visit = e
@@ -155,6 +224,24 @@ const grouped = computed(() => {
       } else {
         orphans.push(e)
       }
+    } else if (e.type === 'CHARGE' || e.type === 'DISPENSE') {
+      const g = data.visitId != null ? visitMap.get(data.visitId) : null
+      if (g) {
+        if (e.type === 'CHARGE') (g.charges ||= []).push(e)
+        else (g.dispenses ||= []).push(e)
+      } else {
+        orphans.push(e)
+      }
+    } else if (e.type === 'ADMISSION' || e.type === 'DISCHARGE') {
+      const key = data.id
+      if (key == null) {
+        orphans.push(e)
+        continue
+      }
+      let a = admissionMap.get(key)
+      if (!a) { a = { admission: null, discharge: null }; admissionMap.set(key, a) }
+      if (e.type === 'ADMISSION') a.admission = e
+      else a.discharge = e
     } else {
       orphans.push(e)
     }
@@ -166,8 +253,13 @@ const grouped = computed(() => {
     g.diagnoses.sort((a, b) => timeStr(a).localeCompare(timeStr(b)))
     g.prescriptions.sort((a, b) => timeStr(a).localeCompare(timeStr(b)))
     g.labTests.sort((a, b) => timeStr(a).localeCompare(timeStr(b)))
+    g.charges.sort((a, b) => timeStr(a).localeCompare(timeStr(b)))
+    g.dispenses.sort((a, b) => timeStr(a).localeCompare(timeStr(b)))
   }
-  return { groups, orphans }
+  const admissions = [...admissionMap.values()].sort((x, y) =>
+    timeStr2(x).localeCompare(timeStr2(y))
+  )
+  return { groups, orphans, admissions }
 })
 
 const orphanSummary = (event) => {

@@ -25,7 +25,7 @@ UNION ALL SELECT 'prescription_item.prescription_id', COUNT(*) FROM prescription
 UNION ALL SELECT 'prescription_item.drug_id', COUNT(*) FROM prescription_item i
   LEFT JOIN drug dr ON i.drug_id = dr.id WHERE dr.id IS NULL
 UNION ALL SELECT 'lab_test.visit_id', COUNT(*) FROM lab_test l
-  LEFT JOIN visit v ON l.visit_id = v.id WHERE v.id IS NULL;
+  LEFT JOIN visit v ON l.visit_id = v.id WHERE v.id IS NULL AND l.admission_id IS NULL;
 
 SELECT '=== 1.2 每名患者就诊次数（应 min>=5, max<=20）===' AS section;
 SELECT MIN(c) AS min_visits, MAX(c) AS max_visits, ROUND(AVG(c),2) AS avg_visits,
