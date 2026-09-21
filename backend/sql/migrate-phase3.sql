@@ -1,5 +1,7 @@
 -- 三期迁移：为已存在的 his_demo 库补列。**只能执行一次**（MySQL 8 不支持 ADD COLUMN IF NOT EXISTS）。
 -- 全新安装不需要本文件——schema.sql 已含全部列。
+-- 库名写死为 his_demo（下一行 USE 与第 13 行注释都按它写）：若目标库改了名，
+-- 改下一行的 USE 即可，其余语句都是相对当前库的。
 USE his_demo;
 
 ALTER TABLE admission
