@@ -128,3 +128,12 @@ CREATE TABLE operation (
   KEY idx_op_admission (admission_id),
   KEY idx_op_patient_time (patient_id, start_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='手术记录表';
+
+-- ===== 三期：lab_test 放宽 visit_id（本文件此前漏掉的一条）=====
+-- 住院检验挂在住院（admission_id）下、不属于任何一次门诊 visit，因此 visit_id 必须
+-- 可为 NULL —— schema.sql:58 从一开始写的就是 `visit_id BIGINT NULL`。
+-- 已部署库的 lab_test.visit_id 却是 BIGINT NOT NULL（旧版本遗留），生成器写住院检验时
+-- 会抛 `BatchUpdateException: Field 'visit_id' doesn't have a default value`；
+-- 报错点又落在批处理中段，表现为「业务表清空后只灌进几百名患者就崩、库里留半成品」。
+-- MODIFY 是幂等的，重复执行无副作用。
+ALTER TABLE lab_test MODIFY visit_id BIGINT NULL;
