@@ -7,6 +7,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -25,24 +27,64 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.Mockito.*;
 
+/**
+ * 生成器行为测试。
+ *
+ * <p>本测试用的「医学本体」是一份最小夹具（2 个科室 / 3 个诊断 / 3 种药），
+ * 所有「诊断随科室、用药随（诊断,科室）、剂量随药品」的断言都对着这份夹具做，
+ * 因此断言失败即代表生成器没有真正按本体取材。
+ */
 class DataGeneratorServiceTest {
 
-    private static final long RULE_DRUG_1 = 1L;
-    private static final long RULE_DRUG_2 = 2L;
+    // ===== 本体夹具：药品（id 与 drug / drug_dose 对齐）=====
+    private static final long DRUG_AMOX = 1L;      // 阿莫西林胶囊 盒 ¥18.50 spec 0.25g*24粒 → 每盒 24 粒
+    private static final long DRUG_GANMAO = 2L;    // 感冒灵颗粒   盒 ¥12.00 spec 10g*9袋  → 每盒 9 袋
+    private static final long DRUG_IBUPROFEN = 3L; // 布洛芬缓释胶囊 盒 ¥15.80 spec 0.3g*20粒 → 每盒 20 粒
+
+    // ===== 本体夹具：诊断 =====
+    private static final String ICD_URI = "J06.9";    // 上呼吸道感染（内科）
+    private static final String ICD_HTN = "I10";      // 原发性高血压（内科）
+    private static final String ICD_WOUND = "S61.0";  // 手部开放性伤口（外科）
+    private static final Map<String, String> DX_NAME = Map.of(
+            ICD_URI, "上呼吸道感染", ICD_HTN, "原发性高血压", ICD_WOUND, "手部开放性伤口");
+    private static final Map<String, String> DX_DEPT = Map.of(
+            ICD_URI, "内科", ICD_HTN, "内科", ICD_WOUND, "外科");
+    /** 科室 → 该科室本体里可诊断的 ICD */
+    private static final Map<String, Set<String>> DEPT_DX = Map.of(
+            "内科", Set.of(ICD_URI, ICD_HTN),
+            "外科", Set.of(ICD_WOUND));
+    /** (ICD|科室) → 本体用药池 */
+    private static final Map<String, Set<Long>> DRUG_POOL = Map.of(
+            ICD_URI + "|内科", Set.of(DRUG_AMOX, DRUG_GANMAO, DRUG_IBUPROFEN),
+            ICD_HTN + "|内科", Set.of(DRUG_IBUPROFEN),
+            ICD_WOUND + "|外科", Set.of(DRUG_GANMAO));
+    /** (ICD|科室) → 本体一线药（line=1） */
+    private static final Map<String, Set<Long>> FIRST_LINE = Map.of(
+            ICD_URI + "|内科", Set.of(DRUG_AMOX, DRUG_GANMAO),
+            ICD_HTN + "|内科", Set.of(DRUG_IBUPROFEN),
+            ICD_WOUND + "|外科", Set.of(DRUG_GANMAO));
+    /** (ICD|科室) → 本体检验池 */
+    private static final Map<String, Set<String>> LAB_POOL = Map.of(
+            ICD_URI + "|内科", Set.of("BLD-WBC", "CXRAY"),
+            ICD_HTN + "|内科", Set.of("GLU-F"),
+            ICD_WOUND + "|外科", Set.of("BLD-WBC"));
 
     private final List<Patient> insertedPatients = new ArrayList<>();
     private final List<Visit> insertedVisits = new ArrayList<>();
     private final List<Diagnosis> insertedDiagnoses = new ArrayList<>();
     private final List<Prescription> insertedPrescriptions = new ArrayList<>();
     private final List<PrescriptionItem> insertedItems = new ArrayList<>();
+    private final List<LabTest> insertedLabs = new ArrayList<>();
     private final List<Admission> insertedAdmissions = new ArrayList<>();
     private final List<MedicalOrder> insertedOrders = new ArrayList<>();
     private final List<VitalSign> insertedVitals = new ArrayList<>();
 
-    private RuleConfigMapper ruleConfigMapper;
+    private DeptDiagnosisMapper deptDiagnosisMapper;
+    private DiagnosisDrugMapper diagnosisDrugMapper;
+    private DiagnosisLabMapper diagnosisLabMapper;
+    private DrugDoseMapper drugDoseMapper;
     private DoctorMapper doctorMapper;
     private PrescriptionMapper prescriptionMapper;
-    private RationalRuleMapper rationalRuleMapper;
     private JdbcTemplate jdbcTemplate;
     private final AtomicLong idSeq = new AtomicLong();
 
@@ -54,33 +96,55 @@ class DataGeneratorServiceTest {
         PrescriptionItemMapper im = mock(PrescriptionItemMapper.class);
         LabTestMapper lm = mock(LabTestMapper.class);
         DrugMapper drugM = mock(DrugMapper.class);
-        ruleConfigMapper = mock(RuleConfigMapper.class);
         doctorMapper = mock(DoctorMapper.class);
         jdbcTemplate = mock(JdbcTemplate.class);
         ChargeMapper chargeM = mock(ChargeMapper.class);
         DispenseMapper dispenseM = mock(DispenseMapper.class);
-        rationalRuleMapper = mock(RationalRuleMapper.class);
         AdmissionMapper admissionMapper = mock(AdmissionMapper.class);
         MedicalOrderMapper medicalOrderMapper = mock(MedicalOrderMapper.class);
         VitalSignMapper vitalSignMapper = mock(VitalSignMapper.class);
         ClinicalPathwayMapper pathwayMapper = mock(ClinicalPathwayMapper.class);
+        deptDiagnosisMapper = mock(DeptDiagnosisMapper.class);
+        diagnosisDrugMapper = mock(DiagnosisDrugMapper.class);
+        diagnosisLabMapper = mock(DiagnosisLabMapper.class);
+        drugDoseMapper = mock(DrugDoseMapper.class);
 
         Doctor doc1 = new Doctor(); doc1.setId(1L); doc1.setName("李建华"); doc1.setDepartment("内科");
         Doctor doc2 = new Doctor(); doc2.setId(2L); doc2.setName("杨文博"); doc2.setDepartment("外科");
         when(doctorMapper.selectList(any())).thenReturn(List.of(doc1, doc2));
 
-        Drug d1 = new Drug(); d1.setId(RULE_DRUG_1); d1.setName("感冒灵颗粒"); d1.setPrice(new BigDecimal("12.00")); d1.setUnit("盒");
-        Drug d2 = new Drug(); d2.setId(RULE_DRUG_2); d2.setName("布洛芬"); d2.setPrice(new BigDecimal("15.80")); d2.setUnit("盒");
-        Drug d3 = new Drug(); d3.setId(3L); d3.setName("硝苯地平"); d3.setPrice(new BigDecimal("28.00")); d3.setUnit("盒");
+        Drug d1 = new Drug(); d1.setId(DRUG_AMOX); d1.setName("阿莫西林胶囊"); d1.setPrice(new BigDecimal("18.50"));
+        d1.setUnit("盒"); d1.setSpec("0.25g*24粒");
+        Drug d2 = new Drug(); d2.setId(DRUG_GANMAO); d2.setName("感冒灵颗粒"); d2.setPrice(new BigDecimal("12.00"));
+        d2.setUnit("盒"); d2.setSpec("10g*9袋");
+        Drug d3 = new Drug(); d3.setId(DRUG_IBUPROFEN); d3.setName("布洛芬缓释胶囊"); d3.setPrice(new BigDecimal("15.80"));
+        d3.setUnit("盒"); d3.setSpec("0.3g*20粒");
         when(drugM.selectList(any())).thenReturn(List.of(d1, d2, d3));
 
-        RuleConfig r1 = new RuleConfig(); r1.setDiagnosisCode("J06.9"); r1.setDiagnosisName("上呼吸道感染"); r1.setDrugIds("1,2"); r1.setEnabled(1);
-        when(ruleConfigMapper.selectList(any())).thenReturn(List.of(r1));
+        // ===== 本体夹具 =====
+        when(deptDiagnosisMapper.selectList(any())).thenReturn(List.of(
+                deptDx("内科", ICD_URI, "上呼吸道感染", 1.0),
+                deptDx("内科", ICD_HTN, "原发性高血压", 3.0),
+                deptDx("外科", ICD_WOUND, "手部开放性伤口", 1.0)));
+        when(diagnosisDrugMapper.selectList(any())).thenReturn(List.of(
+                dxDrug(ICD_URI, "内科", DRUG_AMOX, 1, 1.0),
+                dxDrug(ICD_URI, "内科", DRUG_GANMAO, 1, 0.6),
+                dxDrug(ICD_URI, "内科", DRUG_IBUPROFEN, 2, 0.7),
+                dxDrug(ICD_HTN, "内科", DRUG_IBUPROFEN, 1, 1.0),
+                dxDrug(ICD_WOUND, "外科", DRUG_GANMAO, 1, 1.0),
+                // 术后专用条目：没有术后场景，生成器必须完全不使用
+                dxPostop(ICD_WOUND, "外科", DRUG_AMOX, 1, 0.9)));
+        when(diagnosisLabMapper.selectList(any())).thenReturn(List.of(
+                dxLab(ICD_URI, "内科", "BLD-WBC", "白细胞计数", "10^9/L", "4.0-10.0", "HIGH", 0.10),
+                dxLab(ICD_URI, "内科", "CXRAY", "胸部X线", "—", "正常", "HIGH", 0.15),
+                dxLab(ICD_HTN, "内科", "GLU-F", "空腹血糖", "mmol/L", "3.9-6.1", "HIGH", 0.10),
+                dxLab(ICD_WOUND, "外科", "BLD-WBC", "白细胞计数", "10^9/L", "4.0-10.0", "HIGH", 0.50)));
+        when(drugDoseMapper.selectList(any())).thenReturn(List.of(
+                dose(DRUG_AMOX, 1, "粒", "每日3次", 5, 7),
+                dose(DRUG_GANMAO, 1, "袋", "每日3次", 3, 7),
+                dose(DRUG_IBUPROFEN, 1, "粒", "每日2次", 7, 14)));
 
-        // 默认无违规规则 → generate() 不注入违规，保证既有测试确定性
-        when(rationalRuleMapper.selectList(any())).thenReturn(List.of());
-
-        // 一条上呼吸道感染路径（steps JSON 与 Task 8 测试一致）
+        // 一条上呼吸道感染路径（steps JSON 与既有测试一致）
         ClinicalPathway cp = new ClinicalPathway();
         cp.setDiagnosisName("上呼吸道感染");
         cp.setSteps("[{\"day\":0,\"action\":\"LAB\",\"item\":\"白细胞计数\",\"window\":24},{\"day\":1,\"action\":\"MED\",\"item\":\"阿莫西林\",\"window\":24},{\"day\":3,\"action\":\"DISCHARGE\",\"window\":24}]");
@@ -92,25 +156,55 @@ class DataGeneratorServiceTest {
         stubBatchInsert(dm, insertedDiagnoses, Diagnosis::setId);
         stubBatchInsert(prescriptionMapper, insertedPrescriptions, Prescription::setId);
         stubBatchInsert(im, insertedItems, PrescriptionItem::setId);
-        stubBatchInsert(lm, null, LabTest::setId);
+        stubBatchInsert(lm, insertedLabs, LabTest::setId);
         stubBatchInsert(chargeM, null, Charge::setId);
         stubBatchInsert(dispenseM, null, Dispense::setId);
         stubBatchInsert(admissionMapper, insertedAdmissions, Admission::setId);
         stubBatchInsert(medicalOrderMapper, insertedOrders, MedicalOrder::setId);
         stubBatchInsert(vitalSignMapper, insertedVitals, VitalSign::setId);
 
-        return new DataGeneratorService(pm, vm, dm, prescriptionMapper, im, lm, drugM, ruleConfigMapper,
-                doctorMapper, jdbcTemplate, chargeM, dispenseM, rationalRuleMapper,
-                admissionMapper, medicalOrderMapper, vitalSignMapper, pathwayMapper);
+        return new DataGeneratorService(pm, vm, dm, prescriptionMapper, im, lm, drugM,
+                doctorMapper, jdbcTemplate, chargeM, dispenseM,
+                admissionMapper, medicalOrderMapper, vitalSignMapper, pathwayMapper,
+                deptDiagnosisMapper, diagnosisDrugMapper, diagnosisLabMapper, drugDoseMapper);
     }
 
-    /** 构造一条仅设置药名/剂量/频次的处方明细（供违规注入测试） */
-    private PrescriptionItem item(Long drugId, String dosage, String freq) {
-        PrescriptionItem it = new PrescriptionItem();
-        it.setDrugId(drugId);
-        it.setDosage(dosage);
-        it.setFrequency(freq);
-        return it;
+    // ===== 夹具构造帮手 =====
+    private static DeptDiagnosis deptDx(String dept, String icd, String name, double weight) {
+        DeptDiagnosis d = new DeptDiagnosis();
+        d.setDepartment(dept); d.setIcdCode(icd); d.setDiagnosisName(name);
+        d.setGender(0); d.setMinAge(0); d.setMaxAge(89);
+        d.setChronic(0); d.setAdmissionEligible(0); d.setWeight(BigDecimal.valueOf(weight));
+        return d;
+    }
+
+    private static DiagnosisDrug dxDrug(String icd, String dept, long drugId, int line, double weight) {
+        DiagnosisDrug d = new DiagnosisDrug();
+        d.setIcdCode(icd); d.setDepartment(dept); d.setDrugId(drugId);
+        d.setLine(line); d.setWeight(BigDecimal.valueOf(weight)); d.setPostop(0);
+        return d;
+    }
+
+    private static DiagnosisDrug dxPostop(String icd, String dept, long drugId, int line, double weight) {
+        DiagnosisDrug d = dxDrug(icd, dept, drugId, line, weight);
+        d.setPostop(1);
+        return d;
+    }
+
+    private static DiagnosisLab dxLab(String icd, String dept, String code, String name, String unit,
+                                      String ref, String direction, double prob) {
+        DiagnosisLab d = new DiagnosisLab();
+        d.setIcdCode(icd); d.setDepartment(dept); d.setItemCode(code); d.setItemName(name);
+        d.setUnit(unit); d.setRefRange(ref); d.setAbnormalDirection(direction);
+        d.setAbnormalProb(BigDecimal.valueOf(prob)); d.setWeight(BigDecimal.ONE); d.setRequired(0);
+        return d;
+    }
+
+    private static DrugDose dose(long drugId, double single, String unit, String freq, int min, int max) {
+        DrugDose d = new DrugDose();
+        d.setDrugId(drugId); d.setSingleDose(BigDecimal.valueOf(single)); d.setDoseUnit(unit);
+        d.setFrequency(freq); d.setMaxDailyDose(BigDecimal.valueOf(10)); d.setDaysMin(min); d.setDaysMax(max);
+        return d;
     }
 
     /** 模拟 MyBatis-Plus 批量插入：逐条回填自增 id，并按需收集到 sink */
@@ -135,6 +229,34 @@ class DataGeneratorServiceTest {
         return byPatient;
     }
 
+    private Map<Long, Visit> visitById() {
+        return insertedVisits.stream().collect(Collectors.toMap(Visit::getId, v -> v));
+    }
+
+    private Map<Long, Diagnosis> diagnosisByVisit() {
+        return insertedDiagnoses.stream().collect(Collectors.toMap(Diagnosis::getVisitId, d -> d, (a, b) -> a));
+    }
+
+    /** 处方 id → 「ICD|科室」（来自该处方所属就诊的诊断与科室） */
+    private Map<Long, String> dxDeptByPrescription() {
+        Map<Long, Visit> vById = visitById();
+        Map<Long, Diagnosis> dByVisit = diagnosisByVisit();
+        Map<Long, String> out = new HashMap<>();
+        for (Prescription p : insertedPrescriptions) {
+            Diagnosis d = dByVisit.get(p.getVisitId());
+            out.put(p.getId(), d.getIcdCode() + "|" + vById.get(p.getVisitId()).getDepartment());
+        }
+        return out;
+    }
+
+    private Map<Long, List<PrescriptionItem>> itemsByPrescription() {
+        Map<Long, List<PrescriptionItem>> out = new HashMap<>();
+        for (PrescriptionItem it : insertedItems) {
+            out.computeIfAbsent(it.getPrescriptionId(), k -> new ArrayList<>()).add(it);
+        }
+        return out;
+    }
+
     @Test
     void visits_are_strictly_increasing_in_time() {
         DataGeneratorService svc = buildService();
@@ -152,16 +274,176 @@ class DataGeneratorServiceTest {
         }
     }
 
+    // ===================== 缺陷 1：诊断必须出自就诊科室的本体 =====================
+
+    /** 诊断的 ICD 必须在该次就诊科室的 dept_diagnosis 里（「妇科医生看肠胃炎」的回归断言） */
     @Test
-    void diagnoses_come_from_rule_config() {
+    void diagnoses_belong_to_the_department_of_their_visit() {
         DataGeneratorService svc = buildService();
-        svc.generate(2);
+        svc.generate(50);
 
         assertThat(insertedDiagnoses).isNotEmpty();
+        Map<Long, Visit> vById = visitById();
         for (Diagnosis d : insertedDiagnoses) {
-            assertThat(d.getIcdCode()).isEqualTo("J06.9");
+            String dept = vById.get(d.getVisitId()).getDepartment();
+            assertThat(DEPT_DX.get(dept))
+                    .as("就诊科室 %s 的诊断 %s 不在该科室本体里", dept, d.getIcdCode())
+                    .contains(d.getIcdCode());
         }
     }
+
+    /** 诊断名必须与本体 dept_diagnosis 的行一致，而不是从全局池里瞎抽 */
+    @Test
+    void diagnosis_names_come_from_the_ontology_row() {
+        DataGeneratorService svc = buildService();
+        svc.generate(20);
+
+        for (Diagnosis d : insertedDiagnoses) {
+            assertThat(DX_NAME.get(d.getIcdCode())).isEqualTo(d.getDiagnosisName());
+            assertThat(DX_DEPT.get(d.getIcdCode()))
+                    .isEqualTo(visitById().get(d.getVisitId()).getDepartment());
+        }
+    }
+
+    // ===================== 缺陷 2：用药必须出自 (ICD, 科室) 的本体 =====================
+
+    /** 处方药必须同时落在「该诊断 + 该科室」的 diagnosis_drug 池里；postop=1 的药绝不能被开出来 */
+    @Test
+    void prescribed_drugs_come_from_the_ontology_of_diagnosis_and_department() {
+        DataGeneratorService svc = buildService();
+        svc.generate(30);
+
+        assertThat(insertedItems).isNotEmpty();
+        Map<Long, String> dxDept = dxDeptByPrescription();
+        for (PrescriptionItem it : insertedItems) {
+            String key = dxDept.get(it.getPrescriptionId());
+            assertThat(key).isNotNull();
+            assertThat(DRUG_POOL.get(key))
+                    .as("处方药 %s 不在 (%s) 的本体用药池里", it.getDrugName(), key)
+                    .contains(it.getDrugId());
+        }
+        // 夹具里阿莫西林在 (S61.0, 外科) 是 postop=1（术后专用）；没有术后场景，绝不能开给外科就诊
+        assertThat(insertedItems).noneMatch(it -> it.getDrugId() == DRUG_AMOX
+                && "S61.0|外科".equals(dxDept.get(it.getPrescriptionId())));
+    }
+
+    /** line=1 的一线药优先：夹具里每个池都有一线药，因此每张处方都至少含一条一线药 */
+    @Test
+    void every_prescription_contains_a_first_line_drug() {
+        DataGeneratorService svc = buildService();
+        svc.generate(30);
+
+        Map<Long, String> dxDept = dxDeptByPrescription();
+        Map<Long, List<PrescriptionItem>> byRx = itemsByPrescription();
+        for (Prescription pr : insertedPrescriptions) {
+            Set<Long> firstLine = FIRST_LINE.get(dxDept.get(pr.getId()));
+            assertThat(byRx.get(pr.getId()).stream().map(PrescriptionItem::getDrugId))
+                    .as("处方 %s 一条一线药都没有", pr.getId())
+                    .anyMatch(firstLine::contains);
+        }
+    }
+
+    // ===================== 缺陷 3：检验项必须出自 (ICD, 科室) 的本体 =====================
+
+    /** 门诊检验项必须落在「该诊断 + 该科室」的 diagnosis_lab 池里；结果值与参考区间自洽 */
+    @Test
+    void lab_tests_come_from_the_ontology_of_diagnosis_and_department() {
+        DataGeneratorService svc = buildService();
+        svc.generate(20);
+
+        Map<Long, Visit> vById = visitById();
+        Map<Long, Diagnosis> dByVisit = diagnosisByVisit();
+        List<LabTest> outpatient = insertedLabs.stream().filter(x -> x.getVisitId() != null).toList();
+        assertThat(outpatient).isNotEmpty();
+        for (LabTest lt : outpatient) {
+            Diagnosis d = dByVisit.get(lt.getVisitId());
+            String key = d.getIcdCode() + "|" + vById.get(lt.getVisitId()).getDepartment();
+            assertThat(LAB_POOL.get(key))
+                    .as("检验项 %s 不在 (%s) 的本体检验池里", lt.getItemCode(), key)
+                    .contains(lt.getItemCode());
+
+            boolean qualitative = "CXRAY".equals(lt.getItemCode());
+            assertThat(lt.getIsAbnormal()).isIn(0, 1);
+            if (qualitative) {
+                // 定性项：区间列存「正常」，异常时写「异常」
+                assertThat(lt.getReferenceRange()).isEqualTo("正常");
+                assertThat(lt.getResultValue()).isIn("正常", "异常");
+                assertThat(lt.getIsAbnormal()).isEqualTo("异常".equals(lt.getResultValue()) ? 1 : 0);
+            } else {
+                String[] bounds = lt.getReferenceRange().split("-");
+                double low = Double.parseDouble(bounds[0]);
+                double high = Double.parseDouble(bounds[1]);
+                double val = Double.parseDouble(lt.getResultValue());
+                if (lt.getIsAbnormal() == 1) {
+                    assertThat(val < low || val > high)
+                            .as("异常值 %s 未越出参考区间 %s", lt.getResultValue(), lt.getReferenceRange())
+                            .isTrue();
+                } else {
+                    assertThat(val).isBetween(low, high);
+                }
+            }
+        }
+    }
+
+    // ===================== 缺陷 4：剂量必须出自 drug_dose =====================
+
+    /** 剂量/频次/疗程取自 drug_dose；数量按「单次剂量 × 每日次数 × 疗程 ÷ 每盒装量」折算成盒 */
+    @Test
+    void dosages_and_quantities_come_from_drug_dose_ontology() {
+        DataGeneratorService svc = buildService();
+        Map<String, Long> stat = svc.generate(10);
+
+        assertThat(insertedItems).isNotEmpty();
+        assertThat(stat.get("dose_fallbacks")).isZero();
+        assertThat(stat.get("order_dose_fallbacks")).isZero();
+        assertThat(stat.get("dose_from_drug_dose")).isEqualTo((long) insertedItems.size());
+
+        Map<Long, String> dosage = Map.of(DRUG_AMOX, "1粒", DRUG_GANMAO, "1袋", DRUG_IBUPROFEN, "1粒");
+        Map<Long, String> frequency = Map.of(DRUG_AMOX, "每日3次", DRUG_GANMAO, "每日3次", DRUG_IBUPROFEN, "每日2次");
+        Map<Long, int[]> days = Map.of(DRUG_AMOX, new int[]{5, 7}, DRUG_GANMAO, new int[]{3, 7},
+                DRUG_IBUPROFEN, new int[]{7, 14});
+        Map<Long, Integer> perDay = Map.of(DRUG_AMOX, 3, DRUG_GANMAO, 3, DRUG_IBUPROFEN, 2);
+        Map<Long, Integer> perBox = Map.of(DRUG_AMOX, 24, DRUG_GANMAO, 9, DRUG_IBUPROFEN, 20);
+
+        for (PrescriptionItem it : insertedItems) {
+            long id = it.getDrugId();
+            assertThat(it.getDosage()).isEqualTo(dosage.get(id));
+            assertThat(it.getFrequency()).isEqualTo(frequency.get(id));
+            assertThat(it.getDays()).isBetween(days.get(id)[0], days.get(id)[1]);
+            assertThat(it.getUnit()).isEqualTo("盒");
+            long packs = (long) Math.ceil(1.0 * perDay.get(id) * it.getDays() / perBox.get(id));
+            assertThat(it.getQuantity()).isEqualByComparingTo(BigDecimal.valueOf(Math.max(1, packs)));
+        }
+    }
+
+    /** drug_dose 缺行时必须回退到旧写法，并把回退条数计入统计（不得静默） */
+    @Test
+    void missing_drug_dose_rows_fall_back_and_are_counted() {
+        DataGeneratorService svc = buildService();
+        when(drugDoseMapper.selectList(any())).thenReturn(List.of());
+        Map<String, Long> stat = svc.generate(3);
+
+        assertThat(insertedItems).isNotEmpty();
+        assertThat(stat.get("dose_from_drug_dose")).isZero();
+        assertThat(stat.get("dose_fallbacks")).isEqualTo((long) insertedItems.size());
+        assertThat(insertedItems).allSatisfy(it -> {
+            assertThat(it.getDosage()).matches("[0-9]+片");
+            assertThat(it.getFrequency()).matches("每日[0-9]+次");
+        });
+    }
+
+    // ===================== 缺陷 5：不存在任何违规注入机制 =====================
+
+    /** 硬约束：生成器不得保留任何「故意注入违规」的机制（方法 / 常量 / 字段都不许有） */
+    @Test
+    void violation_injection_mechanism_is_gone() {
+        assertThat(Arrays.stream(DataGeneratorService.class.getDeclaredMethods()).map(Method::getName))
+                .noneMatch(n -> n.toLowerCase(Locale.ROOT).contains("violation"));
+        assertThat(Arrays.stream(DataGeneratorService.class.getDeclaredFields()).map(Field::getName))
+                .noneMatch(n -> n.toUpperCase(Locale.ROOT).contains("VIOLATION"));
+    }
+
+    // ===================== 既有不变量 =====================
 
     @Test
     void stats_always_report_elapsed_ms() {
@@ -311,17 +593,20 @@ class DataGeneratorServiceTest {
         assertThat(insertedPrescriptions).isNotEmpty();
         assertThat(insertedItems).isNotEmpty();
 
-        Map<Long, BigDecimal> priceById = Map.of(RULE_DRUG_1, new BigDecimal("12.00"), RULE_DRUG_2, new BigDecimal("15.80"));
-        Map<Long, List<PrescriptionItem>> itemsByPrescription = new HashMap<>();
+        Map<Long, BigDecimal> priceById = Map.of(
+                DRUG_AMOX, new BigDecimal("18.50"),
+                DRUG_GANMAO, new BigDecimal("12.00"),
+                DRUG_IBUPROFEN, new BigDecimal("15.80"));
+        Map<Long, List<PrescriptionItem>> byRx = new HashMap<>();
         for (PrescriptionItem it : insertedItems) {
             assertThat(it.getPrescriptionId()).isNotNull();          // 必须引用真实处方 id
-            itemsByPrescription.computeIfAbsent(it.getPrescriptionId(), k -> new ArrayList<>()).add(it);
+            byRx.computeIfAbsent(it.getPrescriptionId(), k -> new ArrayList<>()).add(it);
         }
-        assertThat(itemsByPrescription.keySet())
+        assertThat(byRx.keySet())
                 .containsExactlyInAnyOrderElementsOf(insertedPrescriptions.stream().map(Prescription::getId).toList());
 
         for (Prescription pr : insertedPrescriptions) {
-            List<PrescriptionItem> its = itemsByPrescription.get(pr.getId());
+            List<PrescriptionItem> its = byRx.get(pr.getId());
             assertThat(its).isNotNull();
             BigDecimal expected = its.stream()
                     .map(it -> priceById.get(it.getDrugId()).multiply(it.getQuantity()))
@@ -330,18 +615,6 @@ class DataGeneratorServiceTest {
         }
         // 总额是在插入之后回写的：一旦去掉 updateById，本断言即失败
         verify(prescriptionMapper, atLeastOnce()).updateById(anyList());
-    }
-
-    /** 选用的药品必须来自该诊断的 rule_config.drug_ids */
-    @Test
-    void prescribed_drugs_are_subset_of_rule_drug_ids() {
-        DataGeneratorService svc = buildService();
-        svc.generate(5);
-
-        assertThat(insertedItems).isNotEmpty();
-        for (PrescriptionItem it : insertedItems) {
-            assertThat(it.getDrugId()).isIn(RULE_DRUG_1, RULE_DRUG_2);
-        }
     }
 
     /** 跨越 BATCH_SIZE 分块边界时同样正确（分批写入路径） */
@@ -417,22 +690,69 @@ class DataGeneratorServiceTest {
         }
     }
 
+    /**
+     * 住院链的入院诊断也必须来自本体：延续该患者<b>自己的门诊诊断</b>，
+     * 且该诊断属于<b>住院科室</b>的 dept_diagnosis；旧列 {@code diagnosis} 继续写且等于
+     * {@code admission_diagnosis}。
+     */
     @Test
-    void injectViolation_produces_a_known_violation() {
+    void admission_diagnosis_continues_an_outpatient_diagnosis_of_its_department() {
         DataGeneratorService svc = buildService();
-        RationalRule inter = new RationalRule();
-        inter.setRuleType(1); inter.setDrugAId(RULE_DRUG_1); inter.setDrugBId(RULE_DRUG_2); inter.setEnabled(1);
-        RationalRule dose = new RationalRule();
-        dose.setRuleType(2); dose.setDrugId(RULE_DRUG_1); dose.setMaxDailyDose(new BigDecimal("8")); dose.setEnabled(1);
-        when(rationalRuleMapper.selectList(any())).thenReturn(List.of(inter, dose));
+        svc.generate(200);
+        assertThat(insertedAdmissions).isNotEmpty();
 
-        svc.generate(1);  // 触发加载 interactionRules / doseRulesByDrug
+        Map<Long, Set<String>> outpatientByPatient = new HashMap<>();
+        for (Diagnosis d : insertedDiagnoses) {
+            outpatientByPatient.computeIfAbsent(d.getPatientId(), k -> new HashSet<>())
+                    .add(d.getIcdCode() + "|" + d.getDiagnosisName());
+        }
+        Map<String, String> icdByName = DX_NAME.entrySet().stream()
+                .collect(Collectors.toMap(Map.Entry::getValue, Map.Entry::getKey));
 
-        MedicalData.DiagnosisRule rule = new MedicalData.DiagnosisRule("J06.9", "上呼吸道感染", List.of(RULE_DRUG_1, RULE_DRUG_2));
-        List<PrescriptionItem> items = new ArrayList<>();
-        items.add(item(RULE_DRUG_1, "1片", "每日1次"));
-        String type = svc.injectViolation(items, rule);
-        assertThat(type).isIn("DOSE", "INTERACTION", "INDICATION");
+        for (Admission a : insertedAdmissions) {
+            assertThat(a.getDiagnosis()).isNotBlank();
+            assertThat(a.getAdmissionDiagnosis()).isEqualTo(a.getDiagnosis());   // 旧列不留空且两列相等
+            String icd = icdByName.get(a.getDiagnosis());
+            assertThat(icd).as("入院诊断「%s」不是本体里的诊断", a.getDiagnosis()).isNotNull();
+            assertThat(DX_DEPT.get(icd))
+                    .as("入院诊断 %s 不属于住院科室 %s", icd, a.getDepartment())
+                    .isEqualTo(a.getDepartment());
+            assertThat(outpatientByPatient.get(a.getPatientId()))
+                    .as("入院诊断未延续该患者的门诊诊断")
+                    .contains(icd + "|" + a.getDiagnosis());
+        }
+    }
+
+    /** 住院用药同样走 diagnosis_drug（药名必须落在住院诊断的用药池里） */
+    @Test
+    void inpatient_orders_use_the_ontology_drugs_of_the_admission_diagnosis() {
+        DataGeneratorService svc = buildService();
+        svc.generate(200);
+
+        Map<Long, Admission> admById = insertedAdmissions.stream()
+                .collect(Collectors.toMap(Admission::getId, a -> a));
+        Map<String, String> icdByName = DX_NAME.entrySet().stream()
+                .collect(Collectors.toMap(Map.Entry::getValue, Map.Entry::getKey));
+        Set<String> ontologyDrugNames = Set.of("阿莫西林胶囊", "感冒灵颗粒", "布洛芬缓释胶囊");
+
+        assertThat(insertedOrders).isNotEmpty();
+        for (MedicalOrder o : insertedOrders) {
+            Admission a = admById.get(o.getAdmissionId());
+            String icd = icdByName.get(a.getDiagnosis());
+            if (icd == null) {
+                continue;   // 路径步骤里写的药名（clinical_pathway.steps），不由诊断池决定
+            }
+            if (!ontologyDrugNames.contains(o.getItemName())) {
+                continue;   // 同上：路径 MED 步骤的 item
+            }
+            assertThat(DRUG_POOL.get(icd + "|" + a.getDepartment()))
+                    .as("医嘱药 %s 不在 (%s|%s) 的用药池里", o.getItemName(), icd, a.getDepartment())
+                    .isNotEmpty();
+        }
+        // 长期医嘱（orderType=0）的药名必须来自本体药名，不允许随机药
+        List<MedicalOrder> longOrders = insertedOrders.stream().filter(o -> o.getOrderType() == 0).toList();
+        assertThat(longOrders).isNotEmpty();
+        assertThat(longOrders).allSatisfy(o -> assertThat(ontologyDrugNames).contains(o.getItemName()));
     }
 
     /** 幂等守卫：生成前清空十一张业务数据表，且不碰 drug / rule_config */
@@ -458,27 +778,26 @@ class DataGeneratorServiceTest {
         verifyNoInteractions(jdbcTemplate);
     }
 
-    /** rule_config 没有可用规则时快速失败，并给出可读信息（含 drug_ids 为 NULL 的行） */
+    /** 本体为空时必须快速失败并给出可读信息（而不是静默生成一堆没科室归属的诊断） */
     @Test
-    void fails_fast_when_no_usable_rule_configured() {
+    void fails_fast_when_ontology_is_empty() {
         DataGeneratorService svc = buildService();
-        RuleConfig nullDrugIds = new RuleConfig();
-        nullDrugIds.setDiagnosisCode("R50.9"); nullDrugIds.setDiagnosisName("发热"); nullDrugIds.setDrugIds(null); nullDrugIds.setEnabled(1);
-        when(ruleConfigMapper.selectList(any())).thenReturn(List.of(nullDrugIds));
+        when(deptDiagnosisMapper.selectList(any())).thenReturn(List.of());
 
         assertThatThrownBy(() -> svc.generate(1))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("rule_config");
+                .hasMessageContaining("dept_diagnosis");
         assertThat(insertedVisits).isEmpty();
     }
 
-    /** 规则引用了不存在的 drug_id 时必须显式失败，而不是静默丢弃该药 */
+    /** 本体引用了不存在的 drug_id 时必须显式失败，而不是静默丢弃该药 */
     @Test
-    void fails_loudly_when_rule_references_missing_drug() {
+    void fails_loudly_when_ontology_references_a_missing_drug() {
         DataGeneratorService svc = buildService();
-        RuleConfig bad = new RuleConfig();
-        bad.setDiagnosisCode("Z00.0"); bad.setDiagnosisName("体检"); bad.setDrugIds("999"); bad.setEnabled(1);
-        when(ruleConfigMapper.selectList(any())).thenReturn(List.of(bad));
+        when(diagnosisDrugMapper.selectList(any())).thenReturn(List.of(
+                dxDrug(ICD_URI, "内科", 999L, 1, 1.0),
+                dxDrug(ICD_HTN, "内科", 999L, 1, 1.0),
+                dxDrug(ICD_WOUND, "外科", 999L, 1, 1.0)));
 
         assertThatThrownBy(() -> svc.generate(1))
                 .isInstanceOf(IllegalStateException.class)
@@ -504,7 +823,7 @@ class DataGeneratorServiceTest {
         svc.generate(200);
 
         // 汇总校验：所有患者「最常就诊科室」的就诊数合计，应显著高于均匀分布。
-        // 均匀分布（6 科室）最常科室占比 ≈ 1/6；80/20 主科室占比 ≈ 0.8，二者差距大，
+        // 均匀分布（2 科室）最常科室占比 ≈ 1/2；80/20 主科室占比 ≈ 0.8，二者差距大，
         // 汇总后小样本随机波动相互抵消，不会因个别低就诊数患者（如 5 次）而误报。
         long totalVisits = 0;
         long maxDeptVisits = 0;
