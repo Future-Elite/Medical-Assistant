@@ -666,8 +666,8 @@ git commit -m "feat(common): 三期实体与 Mapper —— 6 张本体表 + oper
 
 **药品 id 必须显式指定**：`diagnosis_drug.drug_id` 引用的是数字 id，
 若靠自增顺序隐式决定，任何一次插入顺序变动都会静默错位。故本节
-**全部 186 行都显式写 `id`**：既有 12 行（id 1~12，`seed.sql` 已定，不得改动）保持不变，
-新增 174 行用 id 13~186。**本脚本依赖 `seed.sql` 先执行**，且**只能执行一次**
+**全部 196 行都显式写 `id`**：既有 12 行（id 1~12，`seed.sql` 已定，不得改动）保持不变，
+新增 184 行用 id 13~196。**本脚本依赖 `seed.sql` 先执行**，且**只能执行一次**
 （重复执行会主键冲突——与 `seed.sql` 相同的前提）。
 
 **价格与规格的性质**：spec §9 只为药品来源列了「国家医保药品目录（2024）——**通用名与剂型**」。
@@ -693,11 +693,11 @@ git commit -m "feat(common): 三期实体与 Mapper —— 6 张本体表 + oper
 --
 -- 每条 INSERT 前的注释标注该段的来源；凡标「假设」的取值必须在论文中声明为假设。
 
--- ===== 1. 药品字典扩充：id 13~186（id 1~12 见 seed.sql，不得改动）=====
+-- ===== 1. 药品字典扩充：id 13~196（id 1~12 见 seed.sql，不得改动）=====
 -- 来源：国家医保药品目录（2024）通用名与剂型；价格为模拟价
 ```
 
-- [ ] **Step 2: 写入 174 种新增药品**
+- [ ] **Step 2: 写入 184 种新增药品**
 
 按下方清单逐行转成 `INSERT INTO drug (id, name, category, spec, unit, price) VALUES ...`。
 列序即：**id / 通用名 / 分类 / 规格 / 单位 / 模拟价**。分类名与既有 12 行保持同一取值域。
@@ -903,6 +903,7 @@ git commit -m "feat(common): 三期实体与 Mapper —— 6 张本体表 + oper
 ```
 
 汇总校验：174 行 = 24+26+18+16+14+12+14+8+12+8+6+16。加原有 12 行，至此 `drug` 共 186 行。
+（这是 id 13~186 这一批的**中途校验**；紧接着还有下面追加的 10 种，最终是 196 行。）
 
 **追加 10 种：起草用药映射时暴露的字典缺口（映射见 Task 7）**
 
@@ -988,7 +989,7 @@ Expected: 逐行为 `1 阿莫西林胶囊 抗感染` … `12 复方甘草口服�
 
 ```bash
 git add backend/sql/seed-ontology.sql
-git commit -m "feat(sql): 三期本体种子 —— 药品字典扩充至 186 种 + 就诊率配置" -m "Co-Authored-By: Claude Code <noreply@anthropic.com>"
+git commit -m "feat(sql): 三期本体种子 —— 药品字典扩充至 196 种 + 就诊率配置" -m "Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ```
 
 ---
@@ -8345,7 +8346,7 @@ git commit -m "feat(generator): 住院链延续门诊诊断，医嘱与检验取
 慢病随访间隔中位数落在设计值附近」）**不是靠单元测试证明的**。
 `EventCalendarTest` 证明的是「日历这个函数算得对」，它拿的是合成池与固定种子；
 而出口判据问的是「生成出来的这张表在真实本体上长什么样」。
-两者之间隔着 72 条种子、40 个科室医生、170 种药——只有跑一遍真库才看得见。
+两者之间隔着 72 条种子、40 个科室医生、196 种药——只有跑一遍真库才看得见。
 把这一步合并进 Task 17，就会出现「测试全绿但没人知道随访间隔实际是多少」的状态。
 
 ### 关于「实测」的硬要求
@@ -9340,7 +9341,9 @@ git commit -m "feat(generator): 就诊时刻按星期/日内分布与环节耗�
 - Consumes：Task 11 的 `OntologyReport`（`checked` / `violations` / `unchecked` / `consistentRate` /
   `byType` / `details`）、Task 10 的 `RationalDrugReport.unchecked`、Task 12 的
   `ValidationReport.ontology`
-- Produces：前端「数据质量校验报告」页新增两张指标卡与一张八类明细表
+- Produces：前端「数据质量校验报告」页新增两张指标卡与一张**按 `byType` 实际键渲染**的明细表
+  （`TYPE_LABELS` 里写了八类的标签，那是**全集**；阶段一~三的 `CHECK_TYPES` 只有 4 类，
+  故此刻响应里只有 4 个键。**不要为了凑满八行去造数据**——手术四类在 Task 24 由校验器自己补齐）
 
 **为什么覆盖率必须单独占一张卡，而不是并进一致率**：`consistentRate` 是
 `(checked - violations) / checked`，分母里**不含** `unchecked`。所以
@@ -9577,10 +9580,20 @@ java -jar his-generator/target/his-generator-1.0.0.jar
 立即导出快照（此刻库里就是基线数据）：
 
 ```bash
+# 此刻 cwd 是 ../his-baseline/backend，主仓库根是它的 ../../his_demo。
+# 用显式相对路径，别写 his_demo/backend/...（那会落到 ../his-baseline/backend/his_demo/... 上）
 mysqldump -uhis_user -p'his@2026' --default-character-set=utf8mb4 \
   --no-create-info --complete-insert his_demo patient visit diagnosis prescription \
   prescription_item lab_test charge dispense admission medical_order vital_sign \
-  > his_demo/backend/sql/baseline-dataset.sql
+  > ../../his_demo/backend/sql/baseline-dataset.sql
+```
+
+导出后立刻核对落点与行数（**路径写错时 mysqldump 会「成功」地写到一个新目录里**，
+`echo $?` 是 0，只有看文件才看得出来）：
+
+```bash
+ls -l ../../his_demo/backend/sql/baseline-dataset.sql
+grep -c "^INSERT INTO \`visit\`" ../../his_demo/backend/sql/baseline-dataset.sql
 ```
 
 - [ ] **Step 3: 用新校验器反测基线快照**
@@ -9607,7 +9620,65 @@ print('rational  total=%s violations=%s unchecked=%s rate=%s'%(r['totalPrescript
 
 **这些数字就是论文里的「改造前」一列。** 一个都不许估。
 
-- [ ] **Step 4: 恢复改造后的数据**
+- [ ] **Step 4: 建 `verify-baseline.sql` 并在**数据仍是基线**时跑掉它**
+
+`§8` 的表里有两行（同患者重复就诊率、慢病随访间隔中位数）**不是校验器能给的**——
+它们出自 SQL 聚合，而 Step 5 就把库恢复成改造后的了。
+所以这一步必须**排在恢复之前**，否则那两个格子只剩「未实测」可填。
+
+新建 `backend/sql/verify-baseline.sql`，**查询体与 `verify-phase2.sql` 的 §2.1 / §2.2 逐字相同**
+（口径必须一致，否则「改造前 vs 改造后」比的是两把尺子）：
+
+```sql
+-- 基线数据集（改造前）的轨迹指标，供 docs/test-report.md §8 的「改造前」一列使用。
+-- 只在「库里是基线数据」的那段时间内执行一次。
+-- 口径与 verify-phase2.sql §2.1 / §2.2 完全相同，以便与改造后逐格对比。
+-- 用法：mysql -uhis_user -p'his@2026' -D his_demo --default-character-set=utf8mb4 -t < verify-baseline.sql
+
+SELECT '=== B.1 同患者重复就诊率（口径同 verify-phase2.sql §2.1）===' AS section;
+SELECT COUNT(*) AS patients_with_visits,
+       SUM(repeat_kinds > 0) AS patients_with_repeat,
+       ROUND(100.0 * SUM(repeat_kinds > 0) / COUNT(*), 2) AS repeat_rate_pct,
+       SUM(kinds) AS distinct_patient_diagnosis_pairs
+FROM (SELECT patient_id, COUNT(*) AS kinds, SUM(c >= 2) AS repeat_kinds
+      FROM (SELECT d.patient_id, d.icd_code, COUNT(*) c
+            FROM diagnosis d WHERE d.icd_code IS NOT NULL
+            GROUP BY d.patient_id, d.icd_code) x
+      GROUP BY patient_id) y;
+
+-- 基线可能一行都取不到：旧生成器的 ICD 来自 rule_config 的 8 条，
+-- 它们未必都在 dept_diagnosis 里 —— 那样「慢病」这个筛选条件就无从谈起。
+-- 取不到就**如实写「基线口径下不可计算」并把本查询的输出贴进报告**，不许跳过这一格。
+SELECT '=== B.2 慢病随访间隔（天）中位数（口径同 verify-phase2.sql §2.2）===' AS section;
+SELECT COUNT(*) AS intervals,
+       MIN(gap) AS min_gap, MAX(gap) AS max_gap,
+       ROUND(AVG(gap), 1) AS mean_gap,
+       ROUND(AVG(CASE WHEN rn IN (FLOOR((n + 1) / 2), CEIL((n + 1) / 2)) THEN gap END), 1) AS median_gap,
+       ROUND(AVG(CASE WHEN rn IN (FLOOR(n * 0.25), CEIL(n * 0.25)) THEN gap END), 1) AS p25_gap,
+       ROUND(AVG(CASE WHEN rn IN (FLOOR(n * 0.75), CEIL(n * 0.75)) THEN gap END), 1) AS p75_gap
+FROM (SELECT gap,
+             ROW_NUMBER() OVER (ORDER BY gap) AS rn,
+             COUNT(*) OVER () AS n
+      FROM (SELECT d.patient_id, d.icd_code,
+                   TIMESTAMPDIFF(DAY,
+                       LAG(v.visit_time) OVER (PARTITION BY d.patient_id, d.icd_code
+                                               ORDER BY v.visit_time),
+                       v.visit_time) AS gap
+            FROM diagnosis d
+            JOIN visit v ON v.id = d.visit_id
+            WHERE EXISTS (SELECT 1 FROM dept_diagnosis dg
+                           WHERE dg.icd_code = d.icd_code AND dg.chronic = 1)) g
+      WHERE gap IS NOT NULL AND gap > 0) t;
+```
+
+```bash
+mysql -uhis_user -p'his@2026' -D his_demo --default-character-set=utf8mb4 -t \
+  < backend/sql/verify-baseline.sql
+```
+
+把这条命令的**原样输出**贴进 `docs/test-report.md` §8 下方，并把两个数填进「改造前」列。
+
+- [ ] **Step 5: 恢复改造后的数据**
 
 ```bash
 mysql -uhis_user -p'his@2026' --default-character-set=utf8mb4 his_demo < /tmp/his-after.sql
@@ -9620,7 +9691,7 @@ mysql -uhis_user -p'his@2026' -D his_demo --default-character-set=utf8mb4 -e "
 SELECT 'visit' t, COUNT(*) c FROM visit UNION ALL SELECT 'admission', COUNT(*) FROM admission;"
 ```
 
-- [ ] **Step 5: 写 `docs/test-report.md` §8**
+- [ ] **Step 6: 写 `docs/test-report.md` §8**
 
 ```markdown
 ## 8. 改造前后量化对比（论文核心数字）
@@ -9643,12 +9714,16 @@ SELECT 'visit' t, COUNT(*) c FROM visit UNION ALL SELECT 'admission', COUNT(*) F
 | 同患者重复就诊率 | （实测） | （实测） | 改造后 > 0 |
 | 慢病随访间隔中位数（天） | （实测） | （实测） | 改造后 ≈ 91 |
 
-**复现命令**：见 §7.0；基线的三条命令见本文件的「基线重建」小节。
+**复现命令**：
+- **改造后**一列 = `verify-phase2.sql` + `POST /api/validation/run`，命令见 §7.0；
+- 「改造前」一列 = 本任务 Step 1–5（worktree 重建 → 反测 → `verify-baseline.sql` → 恢复），
+  三条命令按 Step 顺序原样记在本节上方，**连同 `BASE_COMMIT` 一起**；
+- 下面这张表的每一格都要能追到**某一条具体命令的输出**。填不出处的格子写「未实测」+ 命令，不许填估算值。
 
 （若某一格确实没测，写「未实测」并附命令，**不得填估算值**。）
 ```
 
-- [ ] **Step 6: 整理论文素材清单**
+- [ ] **Step 7: 整理论文素材清单**
 
 在 `docs/references/README.md` 末尾新增一节，逐条列出 spec §12 的八项论文产出
 及其**当前状态**（已完成 / 待实测 / 无法完成及原因）：
@@ -9668,7 +9743,7 @@ SELECT 'visit' t, COUNT(*) c FROM visit UNION ALL SELECT 'admission', COUNT(*) F
 | 8 住院与手术域完整性论证 | `docs/test-report.md` §7.2、§9 | 阶段四完成后填 |
 ```
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
 git add backend/sql/baseline-dataset.sql backend/sql/verify-baseline.sql \
