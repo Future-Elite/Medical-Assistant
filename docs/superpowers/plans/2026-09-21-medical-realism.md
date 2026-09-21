@@ -9769,7 +9769,7 @@ git commit -m "docs: 改造前后基线反测数据落表，论文素材清单�
 
 **Files:**
 - Modify: `backend/his-generator/src/main/java/com/his/generator/DataGeneratorService.java`
-  （`generateInpatientEvents` 重排顺序并追加 `PatientProfile profile` 形参；新增 `newOperation` /
+  （`generateInpatientEvents` 重排顺序并追加 `List<Operation> operationBuf` 形参；新增 `newOperation` /
   `operationMinutes` / `pickOther` / `preopLabs` / `postopOrders` / `addNursingOrders` /
   `totalProbability`；`pickDrugRows` 加列表重载；`dischargeDisposition` 加两个参数；
   字段区末尾追加 `OperationMapper operationMapper`；新增字段
@@ -10168,19 +10168,30 @@ Expected: 编译失败——`Operation` / `RandomGenerator` / `RandomGeneratorFa
 把 Task 17 版本的 `generateInpatientEvents` 改为（**体征与路径两段逐字保留，
 只有「先手术、再定出院」这一处与夹在其中的三处新增**）：
 
-> **签名在本任务由 5 参变 6 参**：末尾追加 `PatientProfile profile`（`dischargeDisposition` 要用它的
-> `age()`）。**追加在末尾而不是插在开头**：插开头会让 Task 17 的调用点里
-> `a` 与 `profile` 两个实参互换位置，而两者类型不同、换错编译不过——但若有人「修」成
-> `(profile, a, ...)` 与 `(a, profile, ...)` 各改一半，错误就落在两个相邻参数之间。
-> 追加在末尾时，调用点只需在行尾补一个实参，改法唯一。
+> **签名在本任务由 5 参变 6 参**：末尾追加 `List<Operation> operationBuf`。
+>
+> **为什么必须加这个参数**：按 Step 5(a)，`operationBuf` 是 `generate()` 的**局部变量**，
+> 而本方法体里要写 `operationBuf.add(op);`——**在方法作用域里它不可达，编译不过**。
+> （同段的 `operationCount` 是字段、可达；只有 `operationBuf` 会红，所以这个错很容易只修一半。）
+>
+> **为什么不在签名里再加一个 `PatientProfile profile`**：不需要。`profilesByPatient`
+> **是本类的字段**（带初始化器的 `private final Map<Long, PatientProfile> = new HashMap<>()`，
+> 所以 Lombok 不会把它算进构造器参数），方法体内直接
+> `PatientProfile profile = profilesByPatient.get(a.getPatientId());` 就能拿到。
+> 把一个现成的字段再当参数传一遍，等于给调用点新增一处「传错人」的机会，
+> 而收益是零。
+>
+> **追加在末尾而不是插在开头**：插开头会让 Task 17 的调用点里
+> `a` 与 `operationBuf` 两个实参互换位置——两者类型不同、换错编译不过，
+> 但若有人「修」成 `(operationBuf, a, ...)` 与 `(a, operationBuf, ...)` 各改一半，
+> 错误就落在两个相邻参数之间。追加在末尾时，调用点只需在行尾补一个实参，改法唯一。
 >
 > **调用点（Task 17 Step 3(c) 的循环）同步改为**：
 >
 > ```java
 >         for (Admission a : admissionBuf) {
 >             generateInpatientEvents(a, admissionDiseaseByPatient.get(a.getPatientId()),
->                     orderBuf, vitalBuf, inpatientLabBuf,
->                     profilesByPatient.get(a.getPatientId()));
+>                     orderBuf, vitalBuf, inpatientLabBuf, operationBuf);
 >         }
 > ```
 
@@ -10188,12 +10199,13 @@ Expected: 编译失败——`Operation` / `RandomGenerator` / `RandomGeneratorFa
     /**
      * 生成一次住院的医嘱/生命体征/住院检验/手术，并回写出院字段（dischargeTime/totalCost/status）。
      *
-     * @param profile 该患者的档案——只被 `dischargeDisposition` 用（DEATH_MIN_AGE 判定）
+     * @param operationBuf 本次生成的手术缓冲区（`generate()` 的局部变量，必须显式传进来）
      */
     private void generateInpatientEvents(Admission a, Disease disease,
                                          List<MedicalOrder> orderBuf,
                                          List<VitalSign> vitalBuf, List<LabTest> inpatientLabBuf,
-                                         PatientProfile profile) {
+                                         List<Operation> operationBuf) {
+        PatientProfile profile = profilesByPatient.get(a.getPatientId());
         ClinicalPathway pathway = pathwayFor(a.getAdmissionDiagnosis());
         int totalDays = rnd.nextInt(MIN_STAY_DAYS, MAX_STAY_DAYS + 1);
         boolean compliant = pathway != null && rnd.nextDouble() < PATHWAY_COMPLIANCE_RATE;
@@ -10673,18 +10685,22 @@ Task 17 的签名 `(PatientProfile profile, boolean isLastAdmission)` 改为：
                 op != null, op == null ? 0 : op.getOperationLevel()));
 ```
 
-3. 这要求 `generateInpatientEvents` 能拿到 `profile`——Task 17 已经把
-   `profilesByPatient` 作为字段存在（调用点在 Task 17 Step 3 的住院循环里，
-   **`profile` 放在最后一个实参**，见 Step 6 与 Task 17 的 `Produces`），
-   **若 Task 17 的实现里 `generateInpatientEvents` 没有 `profile` 参数，
-   就在本步加上**，并同步改 `Interfaces` 里已写的签名（那是 Task 17 的 `Produces`，
-   本任务有权扩展它，但**要在 Task 17 的 Interfaces 块里加一行说明**，见 Step 6）。
+3. `profile` 从**字段**取，不要加形参：在方法体开头（Step 3 给的签名下方）写一行
+
+```java
+        PatientProfile profile = profilesByPatient.get(a.getPatientId());
+```
+
+   `profilesByPatient` 带初始化器（`private final Map<...> = new HashMap<>()`），
+   Lombok 不把它算进构造器参数，任何方法里都能直接读。
+   **本任务给 `generateInpatientEvents` 加的唯一形参是 `List<Operation> operationBuf`**（见 Step 3）——
+   那是编译必需的；`profile` 不是，多传一个就有了传错人的余地。
 
 > **为什么用 `Set<String>` 而不是把「是否末次」直接传进 `generateInpatientEvents`**：
 > 「是不是最后一次住院」这个信息只在 `newAdmissions` 里算得出来（它遍历整个住院列表），
 > `generateInpatientEvents` 只看得见单张住院单。两种做法都行，本计划选 `Set` 是因为
-> 它不改 `generateInpatientEvents` 的入参形状——`profile` 那个参数是 Step 6 为了
-> `dischargeDisposition` 而加的，与「是否末次」无关。分开之后 Task 24 的校验器测试不受影响。
+> 它不改 `generateInpatientEvents` 的入参形状——`operationBuf` 那个形参是 Step 3 为了
+> 写回手术缓冲区而加的，与「是否末次」无关。分开之后 Task 24 的校验器测试不受影响。
 >
 > 键必须用 `admissionNo`：`newAdmissions` 这一刻 `a.getId()` 还是 `null`（见上一条），
 > 用 id 做键的集合会被填进一个 `null`，之后 `contains` 恒假。
@@ -10758,20 +10774,24 @@ Step 1 那两条 `DEATH` 用例要直接调 `dischargeDisposition` 并把随机�
 
 - [ ] **Step 6: 回填 Task 17 的 Interfaces**
 
-`generateInpatientEvents` 的签名在本任务被扩展（末尾追加 `PatientProfile profile`）。
+`generateInpatientEvents` 的签名在本任务被扩展（末尾追加 `List<Operation> operationBuf`）。
 到 Task 17 的 `Produces` 块里把那一行改为：
 
 ```
   - `private void generateInpatientEvents(Admission a, Disease disease,
     List<MedicalOrder> orderBuf, List<VitalSign> vitalBuf, List<LabTest> inpatientLabBuf,
-    PatientProfile profile)` ——
-    **Task 23 会在不改形状的前提下用它回写出院情况**（`profile` 现在只被
-    `dischargeDisposition` 用；Task 17 不加这个参数是因为那一刻还没有手术信息）
+    List<Operation> operationBuf)` ——
+    **Task 23 会在不改形状的前提下用它回写出院情况**；`operationBuf` 是 `generate()`
+    的局部缓冲区，方法体里要往里 `add` 手术，所以必须显式传进来。
+    `profile` **没有**加成形参——`profilesByPatient` 本就是字段，方法体里直接读
+    （Task 17 那一刻还没有手术信息，也没有这个需求）
 ```
 
-**`profile` 必须放在最后一个形参位。** Task 17 的实现者按 `Interfaces` 里给的顺序写，
-本任务在其尾部追加，插在中间会让 Task 17 已写好的 5 个调用点全部错位——
-那种错在编译期报的是「类型不匹配」，看不出是参数顺序问题，会白烧一轮 review。
+**`operationBuf` 必须放在最后一个形参位。** Task 17 的实现者按 `Interfaces` 里给的顺序写，
+本任务在其尾部追加，插在中间会让 Task 17 已写好的调用点里
+`inpatientLabBuf` 与 `operationBuf` 两个实参错位——
+那种错在编译期报的是「类型不匹配」（两个都是 `List`，但泛型不同），
+看不出是参数顺序问题，会白烧一轮 review。
 
 同一处再加两句：
 
