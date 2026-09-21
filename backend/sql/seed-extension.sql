@@ -8,8 +8,8 @@ INSERT INTO rational_rule (rule_type, drug_a_id, drug_b_id, warning_level, messa
 (1, 4, 10, 1, '两种钙通道阻滞剂重复用药', 1);
 
 INSERT INTO rational_rule (rule_type, drug_id, max_daily_dose, warning_level, message, enabled) VALUES
-(2, 4, 8.00, 1, '硝苯地平每日最大剂量 8 片', 1),
-(2, 5, 8.00, 1, '二甲双胍每日最大剂量 8 片', 1);
+(2, 4, 2.00, 1, '硝苯地平控释片每日最大剂量 2 片（60mg）', 1),
+(2, 5, 4.00, 1, '二甲双胍片每日最大剂量 4 片（2g）', 1);
 
 INSERT INTO clinical_pathway (diagnosis_code, diagnosis_name, steps, enabled) VALUES
 ('J06.9','上呼吸道感染','[{"day":0,"action":"LAB","item":"白细胞计数","window":24},{"day":0,"action":"MED","item":"感冒灵颗粒","window":48},{"day":3,"action":"DISCHARGE","window":24}]',1),
