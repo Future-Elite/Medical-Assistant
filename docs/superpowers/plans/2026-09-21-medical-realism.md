@@ -2373,7 +2373,22 @@ INSERT INTO drug_dose (drug_id, single_dose, dose_unit, frequency, max_daily_dos
 
 **入库走 Global Constraints 里的 D-4**（从 §2 的 `DELETE FROM visit_rate;` 那行截到文件末尾，一次灌完 §2~§7）。
 **不要整份 `mysql < sql/seed-ontology.sql`**（§1 的 `drug` 主键冲突会让客户端中止，本节的语句执行不到）。
-本节还改了 `seed-extension.sql`（Step 1），那一份按 Task 1 的说明单独重灌，与 D-4 无关。
+
+**本节还改了 `seed-extension.sql`（Step 1），但那份文件不要重灌。**
+（2026-09-21 更正：此处原文写「按 Task 1 的说明单独重灌」，两头都错——Task 1 里根本没有这条说明，
+且重灌本身有害。）理由是**静默的**：`seed-extension.sql` 全文 **3 条 INSERT、0 条 DELETE**，
+落在 `rational_rule` 与 `clinical_pathway` 两张**永远不被生成器清空的字典表**上，
+而这两张表**都没有唯一键**——重灌不报错，只会把行数悄悄翻倍。
+后果分两种：
+- `rule_type=2` 的日上限会**出现两行同 `drug_id`**（旧的 8.00 与新的 2.00）。
+  DOSE 检查读到哪一行不确定，且本节断言「与 `rational_rule` 日上限不一致(应 0)」会**报出来**（响的）；
+- `rule_type=1` 的相互作用规则与 `clinical_pathway` 翻倍**没有任何断言覆盖**（静的）——
+  校验器会把同一条相互作用告警报两遍，临床路径也会重出。
+
+**正确做法**：已装载过 `seed-extension.sql` 的库，用 **Step 1 的「先查再 UPDATE」** 修正已入库的行
+（那一步就是为这件事写的）；从未装载过的库，按 Task 3 文件头的前置说明装载**一次**。
+**判断是否装载过**：`SELECT COUNT(*) FROM his_demo.rational_rule WHERE rule_type = 2;` —— 为 0
+说明从未装载，可整份灌一次；非 0 就**只跑 UPDATE，不重灌**。
 
 ```bash
 mysql -uroot -p123456 --default-character-set=utf8mb4 his_demo -e "
