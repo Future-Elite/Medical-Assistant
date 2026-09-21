@@ -1080,6 +1080,24 @@ SET @SPRING_AUTUMN = '[0.8,0.9,1.3,1.4,1.2,1.0,0.9,1.0,1.2,1.3,1.0,0.8]';
 列序即：**科室 / ICD-10 / 诊断名 / 性别 / 年龄下限 / 年龄上限 / 慢性 / 可住院 / 权重 / 季节 / 患病率**。
 性别 `0不限 1仅男 2仅女`；慢性与可住院 `0/1`；患病率仅慢病非零。
 
+**本节开头先加一条 `DELETE`**（与第 2 节的 `visit_rate` 同款纪律）：
+
+```sql
+-- 本节可重复执行：dept_diagnosis **没有唯一键**（见 schema.sql，只有 idx_dd_dept/idx_dd_icd/idx_dd_chronic
+-- 三个普通索引），重跑本段不会报错，而是**静默**累加成 144/216… 行。
+-- 而 72 这个数正是下游的契约：Task 5 的检验组、Task 7 的用药映射都按本表的
+-- (department, icd_code) 组合逐一对应，Task 11/13 把它当取样池——多一行就静默改变它们。
+-- 本表没有任何外键指向它，DELETE 永远安全。
+DELETE FROM dept_diagnosis;
+```
+
+> **抽取本节时必须整段取。** Step 1 的 `SET @WINTER/@SUMMER/@SPRING_AUTUMN`
+> 与本步的数据行是**两条独立语句**。若只抽 INSERT 部分执行，MySQL 对**未定义的用户变量取 `NULL`**，
+> 而 `month_weights` 列允许 `NULL` → **33 行的季节乘子被静默写成 `NULL`**：
+> 不报错、不告警，Step 4 原有的十条断言**一条都查不出来**（它们没有一条检查季节列）。
+> 这条路径很现实——「只抽 INSERT 灌库」是手工执行时最常见的做法。
+> 故 Step 4 追加一条季节完整性自检，且抽取时务必从 `SET` 那行开始。
+
 ```
 内科（15 条）
 内科  I10    原发性高血压                 0  18 89  1 1  4.000  NULL          0.2500
@@ -1187,13 +1205,19 @@ spec §9.2 只禁止皮肤科挂手术，没有禁止皮肤科收住院。
 
 - [ ] **Step 4: 入库并断言**
 
+**不能整份重跑**：第 1 节的 `drug` id 13~196 已在库里，`mysql` 客户端遇到主键冲突会**中止**，
+本节的语句根本执行不到。把本节**从 `SET @WINTER` 那行起**整段抽到临时文件再灌：
+
 ```bash
 cd backend
-mysql -uroot -p123456 --default-character-set=utf8mb4 his_demo < sql/seed-ontology.sql
+# 从本节起点（SET @WINTER）截到文件末尾；行号以当时文件为准，用 grep -n 定位
+grep -n 'SET @WINTER' sql/seed-ontology.sql
+sed -n '<该行号>,$p' sql/seed-ontology.sql > /tmp/section3.sql
+mysql --default-character-set=utf8mb4 his_demo < /tmp/section3.sql
 ```
 
 ```bash
-mysql -uroot -p123456 --default-character-set=utf8mb4 -e "
+mysql --default-character-set=utf8mb4 -e "
 SELECT '总行数' AS chk, COUNT(*) AS v FROM his_demo.dept_diagnosis
 UNION ALL SELECT '科室数', COUNT(DISTINCT department) FROM his_demo.dept_diagnosis
 UNION ALL SELECT '慢病数', COUNT(*) FROM his_demo.dept_diagnosis WHERE chronic = 1
@@ -1206,6 +1230,8 @@ UNION ALL SELECT '非法性别值(应0)', COUNT(*) FROM his_demo.dept_diagnosis 
 UNION ALL SELECT '年龄区间倒置(应0)', COUNT(*) FROM his_demo.dept_diagnosis WHERE min_age > max_age
 UNION ALL SELECT '非慢病却有患病率(应0)', COUNT(*) FROM his_demo.dept_diagnosis
   WHERE chronic = 0 AND prevalence <> 0
+UNION ALL SELECT '季节完整性(应33：72 行里 39 行无季节性写 NULL)', COUNT(*) FROM his_demo.dept_diagnosis
+  WHERE month_weights IS NOT NULL
 UNION ALL SELECT 'rule_config 的 8 个诊断未覆盖数(应0)', COUNT(*) FROM his_demo.rule_config rc
   WHERE NOT EXISTS (SELECT 1 FROM his_demo.dept_diagnosis dd WHERE dd.icd_code = rc.diagnosis_code);
 SELECT department, COUNT(*) AS n FROM his_demo.dept_diagnosis GROUP BY department ORDER BY n DESC;"
@@ -1214,7 +1240,12 @@ SELECT department, COUNT(*) AS n FROM his_demo.dept_diagnosis GROUP BY departmen
 Expected:
 `总行数 72`、`科室数 6`、`慢病数 18`、`可住院数 46`、
 `J06.9 可住院(应0) 0`、`皮肤科可住院(应2) 2`、`非法性别值(应0) 0`、`年龄区间倒置(应0) 0`、
-`非慢病却有患病率(应0) 0`、`rule_config 的 8 个诊断未覆盖数(应0) 0`；
+`非慢病却有患病率(应0) 0`、`季节完整性(应33) 33`、`rule_config 的 8 个诊断未覆盖数(应0) 0`；
+
+> **`季节完整性 33` 这条断言是补上的漏洞**：72 行里 39 行无季节性写 `NULL`，其余 33 行写季节数组。
+> 若某次执行只抽了 INSERT 而漏掉 Step 1 的 `SET`，这 33 行会被静默写成 `NULL`——
+> 原十条断言**一条都发现不了**（没有一条看季节列），而季节维度就此消失且无人察觉。
+> 实测不是 33（比如是 0）就说明抽取时漏了 `SET` 行，**不要改这个期望值**，去修执行方式。
 
 > **`可住院数 46` 是怎么来的**：72 行里 26 行 `admission_eligible=0`。
 > 这个数字**必须与 SQL 输出一致**——手数容易错，而它决定了后面
@@ -1245,6 +1276,15 @@ git commit -m "feat(sql): 科室↔诊断本体 72 条，覆盖 6 科室并纳�
 **Files:**
 - Modify: `backend/sql/seed-ontology.sql`（追加第 4 节）
 - Test: 无单元测试；本任务末尾是本表自洽性 SQL 断言，跨表一致性在 Task 9
+
+> **本节开头必须加 `DELETE FROM diagnosis_lab;`**（与第 3 节同款纪律）。
+> `diagnosis_lab` 在 schema.sql 里**没有唯一键**（只有 `idx_ddl_icd` / `idx_ddl_dept` 两个普通索引），
+> 重跑本节不会报错，而是**静默**把约 900 行累加成 1800/2700… 行。
+> 而本表是 Task 13 生成器的**检验项目池**（取代旧 `MedicalData.LAB_ITEMS`），
+> 也是 Task 23 术前检查的 `required` 来源——行数翻倍会改变抽样分布而不报任何错。
+> 本表没有任何外键指向它，DELETE 永远安全。
+> 若本节的 SQL 由代码/脚本生成，把这条 `DELETE` 写在**生成器的输出模板里**，
+> 不要只写在手工步骤的说明里。
 
 **Interfaces:**
 - Consumes: Task 4 的 `dept_diagnosis`（`(科室, ICD)` 组合必须与 Task 4 逐一对应）
@@ -1544,6 +1584,12 @@ git commit -m "feat(sql): 检验本体 50 项，外科诊断全部挂术前检�
 - Modify: `backend/sql/seed-ontology.sql`（追加第 5 节）
 - Test: 无单元测试；本任务末尾是本表自洽性 SQL 断言，跨表一致性在 Task 9
 
+> **本节开头必须加 `DELETE FROM diagnosis_operation;`**（与第 3 节同款纪律）。
+> `diagnosis_operation` 在 schema.sql 里**没有唯一键**（只有 `idx_dop_icd` / `idx_dop_dept` /
+> `idx_dop_code` 三个普通索引），重跑本节不报错而是**静默**把 22 行累加成 44/66… 行。
+> 而 `probability` 是「该诊断需手术的概率」——同一诊断出现两行会**静默放大手术量**，
+> 直接污染 Task 23~26 的手术域全部指标。本表无外键指向它，DELETE 永远安全。
+
 **Interfaces:**
 - Consumes: Task 4 的 `dept_diagnosis`（`(科室, ICD)` 必须与 Task 4 逐一对应）
 - Produces: `diagnosis_operation` **22 行**、20 个不同术式；被 Task 23 的手术生成器读取
@@ -1723,6 +1769,13 @@ git commit -m "feat(sql): 手术本体 20 术式，按科室区分成人与儿�
 **Files:**
 - Modify: `backend/sql/seed-ontology.sql`（追加第 6 节）
 - Test: 无单元测试；本任务末尾是本表自洽性 SQL 断言，跨表一致性在 Task 9
+
+> **本节开头必须加 `DELETE FROM diagnosis_drug;`**（与第 3 节同款纪律）。
+> `diagnosis_drug` 在 schema.sql 里**没有唯一键**（只有 `idx_ddg_icd` / `idx_ddg_dept` /
+> `idx_ddg_drug` 三个普通索引），重跑本节不报错而是**静默**把约 360 行累加成 720/1080… 行。
+> 而本表是 Task 10 的 `RationalDrugValidator` 的**适应症允许集**、阶段二生成器的**处方药品池**——
+> 同一 `(icd_code, drug_id)` 出现两行会静默把该药权重翻倍，进而扭曲处方分布。
+> 本表无外键指向它，DELETE 永远安全。
 
 **Interfaces:**
 - Consumes: Task 3 的 196 种药（`drug_id` 必须存在）、Task 4 的 `(科室, ICD)` 组合
@@ -2088,6 +2141,11 @@ UPDATE rational_rule SET max_daily_dose = 4.00, message = '二甲双胍片每日
 -- 覆盖集 = diagnosis_drug 引用到的全部药品 ∪ seed.sql 原 12 种
 -- 剂量为演示用常规成人剂量，非说明书逐字抄录；不构成用药建议
 -- ============================================================
+-- 幂等：drug_dose 有唯一键 uk_drug_dose(drug_id)，重跑本段会**报错**（Duplicate entry），
+--       是响的而不是静默的——但仍加 DELETE 前置，理由是执行是**手工**的（见 D-4 部署批）：
+--       报错会中止后续语句，留下「删了一半」的中间态，反而比静默更难收拾。
+--       本表无外键指向它，DELETE 永远安全。
+DELETE FROM drug_dose;
 INSERT INTO drug_dose (drug_id, single_dose, dose_unit, frequency, max_daily_dose, days_min, days_max) VALUES
 -- 抗感染
 (1 ,1 ,'粒','每日3次',4 ,5 ,7 ),
