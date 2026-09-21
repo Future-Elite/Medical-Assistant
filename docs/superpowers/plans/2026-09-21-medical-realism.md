@@ -1231,7 +1231,7 @@ git commit -m "feat(sql): 科室↔诊断本体 72 条，覆盖 6 科室并纳�
 ## Task 5: `diagnosis_lab` 检验本体 50 项（阶段一）
 
 **Files:**
-- Modify: `backend/sql/seed-ontology.sql`（追加第 3 节）
+- Modify: `backend/sql/seed-ontology.sql`（追加第 4 节）
 - Test: 无单元测试；本任务末尾是本表自洽性 SQL 断言，跨表一致性在 Task 9
 
 **Interfaces:**
@@ -1529,7 +1529,7 @@ git commit -m "feat(sql): 检验本体 50 项，外科诊断全部挂术前检�
 ## Task 6: `diagnosis_operation` 手术本体 20 术式（阶段一）
 
 **Files:**
-- Modify: `backend/sql/seed-ontology.sql`（追加第 4 节）
+- Modify: `backend/sql/seed-ontology.sql`（追加第 5 节）
 - Test: 无单元测试；本任务末尾是本表自洽性 SQL 断言，跨表一致性在 Task 9
 
 **Interfaces:**
@@ -1709,7 +1709,7 @@ git commit -m "feat(sql): 手术本体 20 术式，按科室区分成人与儿�
 ## Task 7: `diagnosis_drug` 用药本体（阶段一）
 
 **Files:**
-- Modify: `backend/sql/seed-ontology.sql`（追加第 5 节）
+- Modify: `backend/sql/seed-ontology.sql`（追加第 6 节）
 - Test: 无单元测试；本任务末尾是本表自洽性 SQL 断言，跨表一致性在 Task 9
 
 **Interfaces:**
@@ -2007,7 +2007,7 @@ git commit -m "feat(sql): 用药本体 —— 72 组诊断用药映射，儿科�
 ## Task 8: `drug_dose` 剂量表 + 修正 `seed-extension.sql` 过松阈值（阶段一）
 
 **Files:**
-- Modify: `backend/sql/seed-ontology.sql`（追加第三节 `drug_dose`）
+- Modify: `backend/sql/seed-ontology.sql`（追加第 7 节 `drug_dose`）
 - Modify: `backend/sql/seed-extension.sql:10-12`（硝苯地平/二甲双胍日上限）
 - Test: 无单元测试；本任务末尾是本表自洽性 SQL 断言，跨表一致性在 Task 9
 
@@ -2071,7 +2071,7 @@ UPDATE rational_rule SET max_daily_dose = 4.00, message = '二甲双胍片每日
 
 ```sql
 -- ============================================================
--- 第三节  drug_dose  药品剂量规则
+-- 第七节  drug_dose  药品剂量规则
 -- 单位与频次口径见 docs/superpowers/plans/2026-09-21-medical-realism.md Task 8
 -- 覆盖集 = diagnosis_drug 引用到的全部药品 ∪ seed.sql 原 12 种
 -- 剂量为演示用常规成人剂量，非说明书逐字抄录；不构成用药建议
