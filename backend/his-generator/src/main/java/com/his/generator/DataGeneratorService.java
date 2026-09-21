@@ -123,6 +123,8 @@ public class DataGeneratorService {
     private boolean clearBeforeRun = true;
 
     private Map<Long, Drug> drugsById;
+    /** {@code drug.name} → 该药。药名在 drug 表里唯一（196 行 196 名，有断言守着）。 */
+    private Map<String, Drug> drugsByName;
     private Map<String, List<String>> doctorsByDept;
     private ThreadLocalRandom rnd;
     /** 科室 → 该科室的候选诊断（本体 dept_diagnosis） */
@@ -155,8 +157,9 @@ public class DataGeneratorService {
         if (clearBeforeRun) {
             clearDataTables();
         }
-        drugsById = drugMapper.selectList(null).stream()
-                .collect(Collectors.toMap(Drug::getId, d -> d));
+        List<Drug> allDrugs = drugMapper.selectList(null);
+        drugsById = allDrugs.stream().collect(Collectors.toMap(Drug::getId, d -> d));
+        drugsByName = allDrugs.stream().collect(Collectors.toMap(Drug::getName, d -> d));
         loadOntology();
         doctorsByDept = loadDoctors();
         chargeCount = 0;
@@ -640,19 +643,29 @@ public class DataGeneratorService {
         }
         int want = Math.min(eligible.size(), rnd.nextInt(1, 4));
         List<DiagnosisDrug> chosen = new ArrayList<>(want);
+        // 同类药互斥：一张处方里同一药理分类最多取一种。
+        // 未加这条时实测 125537 条处方里有 168 条既开硝苯地平又开氨氯地平
+        // （两种 CCB，rational_rule id=8 判为重复用药）——两个药都在本体池里、
+        // 每一步都合法，是组合抽样涌现出来的，不是注入的。
+        Set<String> usedClasses = new HashSet<>();
         List<DiagnosisDrug> firstLine = eligible.stream()
                 .filter(r -> r.getLine() != null && r.getLine() == 1).toList();
         if (!firstLine.isEmpty()) {
-            chosen.add(weightedPick(firstLine, r -> num(r.getWeight())));
+            DiagnosisDrug first = weightedPick(firstLine, r -> num(r.getWeight()));
+            chosen.add(first);
+            addUsedClass(usedClasses, first);
         }
         while (chosen.size() < want) {
             List<DiagnosisDrug> rest = eligible.stream()
                     .filter(r -> chosen.stream().noneMatch(c -> c.getDrugId().equals(r.getDrugId())))
+                    .filter(r -> !usedClasses.contains(drugClassOf(r.getDrugId())))
                     .toList();
             if (rest.isEmpty()) {
                 break;
             }
-            chosen.add(weightedPick(rest, r -> num(r.getWeight())));
+            DiagnosisDrug picked = weightedPick(rest, r -> num(r.getWeight()));
+            chosen.add(picked);
+            addUsedClass(usedClasses, picked);
         }
 
         List<PrescriptionItem> items = new ArrayList<>(chosen.size());
@@ -665,6 +678,41 @@ public class DataGeneratorService {
             items.add(newItem(drug));
         }
         return items;
+    }
+
+    /**
+     * 该药的本体药理分类（{@code drug.drug_class}）；drug 缺失或未标分类时返回 {@code null}。
+     *
+     * <p>{@code null} 表示「分类未知」，**不参与同类互斥**——把未知当成一个共同分类，
+     * 会让所有没标分类的药互相排斥，那比不判更坏。
+     */
+    private String drugClassOf(Long drugId) {
+        Drug d = drugId == null ? null : drugsById.get(drugId);
+        return d == null ? null : d.getDrugClass();
+    }
+
+    /** 把已选中药的分类记入互斥集合；分类未知时不记，见 {@link #drugClassOf}。 */
+    private void addUsedClass(Set<String> usedClasses, DiagnosisDrug picked) {
+        String cls = drugClassOf(picked.getDrugId());
+        if (cls != null) {
+            usedClasses.add(cls);
+        }
+    }
+
+    /**
+     * 从池里取一个「分类尚未用过」的药，并记入互斥集合；分类都取遍时返回 {@code null}。
+     * 调用方拿到 {@code null} 就少开一条，不硬凑——凑出来的就是重复用药。
+     */
+    private DiagnosisDrug pickUnusedClass(List<DiagnosisDrug> pool, Set<String> usedClasses) {
+        List<DiagnosisDrug> rest = pool.stream()
+                .filter(r -> !usedClasses.contains(drugClassOf(r.getDrugId())))
+                .toList();
+        if (rest.isEmpty()) {
+            return null;
+        }
+        DiagnosisDrug picked = weightedPick(rest, r -> num(r.getWeight()));
+        addUsedClass(usedClasses, picked);
+        return picked;
     }
 
     /**
@@ -792,12 +840,19 @@ public class DataGeneratorService {
         }
 
         // 长期医嘱（首日开，执行至出院）
+        // 同类药互斥：一次住院的用药里同一药理分类最多一种，长期与临时医嘱共用这个集合
+        // ——同一次住院既开硝苯地平又开氨氯地平同样是重复用药。
+        Set<String> usedClasses = new HashSet<>();
         if (usable.isEmpty()) {
             admissionsWithoutDrugs++;
         } else {
             int longOrderCount = rnd.nextInt(1, 4);
             for (int k = 0; k < longOrderCount; k++) {
-                orderBuf.add(newMedOrder(a, weightedPick(usable, r -> num(r.getWeight())),
+                DiagnosisDrug picked = pickUnusedClass(usable, usedClasses);
+                if (picked == null) {
+                    break;   // 分类取遍了，凑不满就少开几条，不硬凑出重复用药
+                }
+                orderBuf.add(newMedOrder(a, picked,
                         a.getAdmissionTime().plusMinutes(rnd.nextInt(5, 60)), 0));   // 长期医嘱
             }
         }
@@ -815,8 +870,11 @@ public class DataGeneratorService {
         // 每日临时/检验医嘱
         for (int day = 0; day < totalDays; day++) {
             if (!usable.isEmpty() && rnd.nextInt(3) == 0) {  // 临时医嘱
-                orderBuf.add(newMedOrder(a, weightedPick(usable, r -> num(r.getWeight())),
-                        a.getAdmissionTime().plusDays(day).plusHours(9), 1));      // 临时医嘱
+                DiagnosisDrug picked = pickUnusedClass(usable, usedClasses);
+                if (picked != null) {
+                    orderBuf.add(newMedOrder(a, picked,
+                            a.getAdmissionTime().plusDays(day).plusHours(9), 1));      // 临时医嘱
+                }
             }
             if (rnd.nextInt(2) == 0) {  // 检验医嘱 -> lab_test
                 LabTest lt = newInpatientLabTest(a, day);
@@ -832,7 +890,19 @@ public class DataGeneratorService {
                     LabTest lt = labTestForItem(a, step);
                     if (lt != null) inpatientLabBuf.add(lt);
                 } else if ("MED".equals(step.action())) {
-                    // 路径步骤里的药名来自 clinical_pathway.steps，不改写
+                    // 路径步骤里的药名来自 clinical_pathway.steps，不改写；
+                    // 但它必须服从同一次住院的同类药互斥——路径是第三条下医嘱的路径，
+                    // 不走这个检查时，本体已开二甲双胍、路径再按名加一条二甲双胍片，
+                    // 就成了同一次住院重复用药（重跑前实测 127 次，全部是这一条路径造成的）。
+                    // 跳过不等于路径不合规：该分类本次住院已经在用，这一步的意图已被满足。
+                    Drug pathwayDrug = drugsByName.get(step.item());
+                    String pathwayClass = pathwayDrug == null ? null : pathwayDrug.getDrugClass();
+                    if (pathwayClass != null && usedClasses.contains(pathwayClass)) {
+                        continue;
+                    }
+                    if (pathwayClass != null) {
+                        usedClasses.add(pathwayClass);
+                    }
                     MedicalOrder o = new MedicalOrder();
                     o.setPatientId(a.getPatientId()); o.setAdmissionId(a.getId());
                     o.setOrderType(1); o.setItemName(step.item());

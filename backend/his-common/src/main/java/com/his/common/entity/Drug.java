@@ -16,4 +16,6 @@ public class Drug {
     private String spec;
     private String unit;
     private BigDecimal price;
+    /** 药理分类（ATC 第 4 层口径）。同类药同方互斥，取值见 seed-drug-class.sql。 */
+    private String drugClass;
 }

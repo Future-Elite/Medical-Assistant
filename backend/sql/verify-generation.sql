@@ -1,4 +1,4 @@
--- 生成结果的医学一致性断言：三条都应为 0。
+-- 生成结果的医学一致性断言：A1~A6 都应报 0。
 -- 这三条就是「妇科医生看肠胃炎」「肠胃炎用布洛芬」那类问题的机器判据。
 -- 用法：MYSQL_PWD=<口令> mysql -uroot --default-character-set=utf8mb4 his_demo < backend/sql/verify-generation.sql
 
@@ -31,6 +31,24 @@ WHERE NOT EXISTS (SELECT 1 FROM diagnosis_lab dl
 SELECT 'A4 一条明细都没有的处方' AS 断言, COUNT(*) AS 应为0
 FROM prescription p
 WHERE NOT EXISTS (SELECT 1 FROM prescription_item pi WHERE pi.prescription_id = p.id);
+
+-- A5 同类药同方：一张处方里出现两种同一药理分类的药（`drug.drug_class`）。
+-- 起因：I10 内科把硝苯地平(4) 与氨氯地平(10) 都列为 line=1，生成器组合用药时两者同时入选，
+-- 被 rational_rule id=8 判为重复用药——实测 168 条。修法是本体标分类（见 seed-drug-class.sql）
+-- 加生成器按类互斥。分类为空的行不计（未知不等于同类），口径见 seed-drug-class.sql 头部。
+SELECT 'A5 同方同类药重复' AS 断言, COUNT(*) AS 应为0 FROM (
+  SELECT pi.prescription_id FROM prescription_item pi JOIN drug d ON d.id = pi.drug_id
+  WHERE d.drug_class IS NOT NULL
+  GROUP BY pi.prescription_id, d.drug_class HAVING COUNT(*) > 1) t;
+
+-- A6 同类药同次住院：一次住院里出现两种同一药理分类的药（长期与临时医嘱合并看）。
+-- A5 只查门诊，住院走 medical_order 且没有 drug_id，只能按药名关联。
+-- 修 A5 后重跑仍实测 127 次——临床路径的 MED 步骤按 drug 名直接下医嘱，
+-- 绕开了生成器给「本体选药」加的互斥集合，是第三条下医嘱的路径（见 DataGeneratorService）。
+SELECT 'A6 同次住院同类药重复' AS 断言, COUNT(*) AS 应为0 FROM (
+  SELECT mo.admission_id FROM medical_order mo JOIN drug d ON d.name = mo.item_name
+  WHERE d.drug_class IS NOT NULL
+  GROUP BY mo.admission_id, d.drug_class HAVING COUNT(*) > 1) t;
 
 -- 分布证据：妇科到底在治什么
 SELECT v.department AS 科室, d.diagnosis_name AS 诊断, COUNT(*) AS 次数

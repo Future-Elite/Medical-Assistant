@@ -50,7 +50,9 @@ CREATE TABLE prescription_item (
 CREATE TABLE drug (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   name VARCHAR(100) NOT NULL, category VARCHAR(50),
-  spec VARCHAR(50), unit VARCHAR(20), price DECIMAL(10,2)
+  spec VARCHAR(50), unit VARCHAR(20), price DECIMAL(10,2),
+  drug_class VARCHAR(32) NULL COMMENT '药理分类（ATC第4层口径）：同类药同方互斥，生成器每个分类最多取一种。取值见 seed-drug-class.sql',
+  KEY idx_drug_class (drug_class)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='药品字典表';
 
 CREATE TABLE lab_test (

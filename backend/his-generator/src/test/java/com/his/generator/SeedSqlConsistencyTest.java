@@ -368,4 +368,71 @@ class SeedSqlConsistencyTest {
         long chronic = rows.stream().filter(r -> num(r, "chronic") == 1).count();
         assertTrue(chronic >= 10, "慢病数 " + chronic + " 少于 spec §9.2 要求的 10");
     }
+
+    /**
+     * 解析 {@code seed-drug-class.sql} 里的
+     * {@code UPDATE drug SET drug_class = 'X' WHERE id IN (1, 2);} 语句，返回 id -> 分类。
+     *
+     * <p>本表不需要 SQL 解析器——分类走的是 UPDATE 而不是 INSERT，上面的
+     * {@link #allRows} 只认 INSERT 行。这里单独认这一种固定写法即可。
+     */
+    static Map<Long, String> drugClassById() {
+        Path file = SQL_DIR.resolve("seed-drug-class.sql");
+        String text;
+        try {
+            text = Files.readString(file, StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            throw new AssertionError("读不到 seed-drug-class.sql: " + file, e);
+        }
+        Matcher m = Pattern.compile(
+                "UPDATE\\s+drug\\s+SET\\s+drug_class\\s*=\\s*'([^']+)'\\s+WHERE\\s+id\\s+IN\\s*\\(([^)]*)\\)")
+                .matcher(text);
+        Map<Long, String> out = new LinkedHashMap<>();
+        while (m.find()) {
+            String cls = m.group(1);
+            for (String part : m.group(2).split(",")) {
+                String id = part.trim();
+                if (id.isEmpty()) continue;
+                String prev = out.put(Long.parseLong(id), cls);
+                assertNull(prev, "drug id=" + id + " 被分类两次（" + prev + " 与 " + cls + "）");
+            }
+        }
+        assertFalse(out.isEmpty(), "seed-drug-class.sql 里一条 UPDATE 都没解析到——写法规格变了？");
+        return out;
+    }
+
+    @Test
+    @DisplayName("drug.drug_class：196 种药逐个分类，且与 drug 表的 id 集合完全一致")
+    void everyDrugHasExactlyOneDrugClass() {
+        Set<Long> all = new LinkedHashSet<>(drugIdToName().keySet());
+        Map<Long, String> classified = drugClassById();
+
+        // 少分类 -> 生成器把「分类未知」当成不参与互斥，同类重复用药会漏回去；
+        // 多分类 -> 指向了不存在的药，说明 seed-drug-class.sql 与 drug 表已经对不上。
+        Set<Long> missing = new LinkedHashSet<>(all);
+        missing.removeAll(classified.keySet());
+        assertTrue(missing.isEmpty(), "没被分类的药 id: " + missing);
+        Set<Long> extra = new LinkedHashSet<>(classified.keySet());
+        extra.removeAll(all);
+        assertTrue(extra.isEmpty(), "分类指向了不存在的药 id: " + extra);
+
+        classified.forEach((id, cls) -> {
+            assertFalse(cls.isBlank(), "drug id=" + id + " 的分类是空白");
+            assertEquals(cls.trim(), cls, "drug id=" + id + " 的分类首尾有空白: '" + cls + "'");
+        });
+    }
+
+    @Test
+    @DisplayName("回归：硝苯地平与氨氯地平必须同属一个分类（168 条重复用药的根因）")
+    void theTwoCalciumChannelBlockersShareOneClass() {
+        // 2026-09-22 实测：125537 条处方里 168 条既开硝苯地平又开氨氯地平。
+        // 两者原先只靠粗类目「心血管」归类，与缬沙坦、美托洛尔等 27 种药同属一类，
+        // 故生成器无法把它们识别为「同类可替换」。本测试钉住修复后它们确实同类。
+        Map<Long, String> cls = drugClassById();
+        Map<Long, String> names = drugIdToName();
+        assertNotNull(cls.get(4L), "硝苯地平(" + names.get(4L) + ") 没有药理分类");
+        assertEquals(cls.get(4L), cls.get(10L),
+                "硝苯地平(" + names.get(4L) + ") 与 氨氯地平(" + names.get(10L) + ") 必须同类，"
+                        + "否则生成器会把两者开进同一张处方");
+    }
 }

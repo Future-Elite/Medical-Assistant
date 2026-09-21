@@ -23,6 +23,10 @@
 #   2. seed-ontology.sql —— §1 药品字典扩充 id 13~196（带显式 id，重复执行
 #      报主键冲突，不会静默重复）；§2~§6 各自在 INSERT 前 DELETE，可重复执行。
 #      前置条件是 seed.sql 与 seed-extension.sql 已灌。
+#   3. seed-drug-class.sql —— drug.drug_class 药理分类（同类药同方互斥）。
+#      全是 UPDATE，**可重复执行**；前置条件是 drug 的 196 行都在。
+#      注意：它依赖 drug_class 列已存在。全新安装由 schema.sql 建好；
+#      已存在的库要先跑 migrate-drug-class.sql 补列（那份只能执行一次）。
 #
 # 任何一步报错立即中止（不使用 --force）——静默跳过错误正是要避免的。
 
@@ -63,16 +67,21 @@ if [ "$already" != "0" ]; then
   exit 1
 fi
 
-echo "==> [1/2] seed-extension.sql（rational_rule / clinical_pathway）"
+echo "==> [1/3] seed-extension.sql（rational_rule / clinical_pathway）"
 mysql_run "$MYSQL_DB" < "$SQL_DIR/seed-extension.sql"
 
-echo "==> [2/2] seed-ontology.sql（§1 药品字典 + §2~§6 本体）"
+echo "==> [2/3] seed-ontology.sql（§1 药品字典 + §2~§7 本体）"
 mysql_run "$MYSQL_DB" < "$SQL_DIR/seed-ontology.sql"
+
+# 分类值走 UPDATE，因此本步**可重复执行**——改分类时直接重跑这一步即可。
+echo "==> [3/3] seed-drug-class.sql（drug.drug_class 药理分类，幂等）"
+mysql_run "$MYSQL_DB" < "$SQL_DIR/seed-drug-class.sql"
 
 echo
 echo "==> 灌库后行数"
 mysql_run -t "$MYSQL_DB" -e "
 SELECT 'drug                 §1 扩到 196' AS 表, COUNT(*) AS 行数 FROM drug
+UNION ALL SELECT 'drug 已分类          class 应=196', COUNT(drug_class) FROM drug
 UNION ALL SELECT 'rule_config          seed.sql', COUNT(*) FROM rule_config
 UNION ALL SELECT 'rational_rule        ext §1~2', COUNT(*) FROM rational_rule
 UNION ALL SELECT 'clinical_pathway     ext §3', COUNT(*) FROM clinical_pathway
