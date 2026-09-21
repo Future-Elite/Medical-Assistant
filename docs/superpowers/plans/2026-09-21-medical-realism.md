@@ -1988,8 +1988,16 @@ INSERT INTO rational_rule (rule_type, drug_id, max_daily_dose, warning_level, me
 (2, 5, 4.00, 1, '二甲双胍片每日最大剂量 4 片（2g）', 1);
 ```
 
-**若运行库已经执行过旧版 `seed-extension.sql`**（见 `db-phase2-migration` 的部署顺序），
-编辑文件不会改到已入库的行，需补一条 UPDATE：
+**若运行库已经执行过旧版 `seed-extension.sql`**，编辑文件不会改到已入库的行，需补一条 UPDATE。
+判断方法（先查，再决定要不要跑下面的 UPDATE）：
+
+```bash
+mysql -uroot -p123456 -D his_demo -e \
+  "SELECT rule_type, drug_id, max_daily_dose FROM rational_rule WHERE rule_type = 2;"
+```
+
+若 `drug_id=4` 的 `max_daily_dose` 还是 `8.00`、`drug_id=5` 还是 `8.00`，
+说明入库的是旧版（旧版见 `seed-extension.sql` 的当前内容，已被本步改过），补跑：
 
 ```sql
 UPDATE rational_rule SET max_daily_dose = 2.00, message = '硝苯地平控释片每日最大剂量 2 片（60mg）'
