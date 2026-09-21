@@ -474,30 +474,75 @@ MIMIC（需 credentialed 资质）、CMeKG（授权不明）。
 
 #### 文献
 
+核实手段：arXiv 官方 API + Crossref CSL 元数据 + PubMed E-utilities（本机 `curl` 可用；
+`WebFetch` 被企业网络策略拦截）。已下载全文的位于 `docs/references/papers/`，
+完整清单与说明见 [`docs/references/README.md`](../../references/README.md)。
+
 | 文献 | 用途 | 核实状态 |
 |---|---|---|
-| Walonoski J, Kramer M, Nichols J, et al. Synthea: An approach, method, and software mechanism for generating synthetic patients and the synthetic electronic health care record. *JAMIA*. 2018;25(3):230-238. doi:10.1093/jamia/ocx079. PMID:29025144 | §5 患者级疾病轨迹的方法论出处 | **多源交叉一致**（PubMed / OUP / EuropePMC / OSTI 指向同一 DOI、PMID、卷期页）。仍需打开确认 |
-| Kartoun U. A Methodology to Generate Virtual Patient Repositories. arXiv:1608.00570 | 虚拟患者库的早期方法 | 由 Synthea 勘误条目**反向确认存在**，未打开 |
-| Generating Synthetic Electronic Health Record Data: A Methodological Scoping Review with Benchmarking. arXiv:2411.04281 | 方法分类（规则驱动 6 / GAN 21 / VAE 5 / Transformer 5 / 扩散 8）与领域缺口 | 搜索返回其正文片段，未打开 |
-| Evaluation of synthetic electronic health records: A systematic review and experimental assessment. *Neurocomputing*. doi:10.1016/j.neucom.2024.128253 | 评估指标分类（resemblance / utility / privacy / cost） | 仅标题与 DOI，未打开 |
-| Synthetic data generation methods for longitudinal and time series health data: a systematic review. *BMC Med Inform Decis Mak*. doi:10.1186/s12911-025-03326-8 | 纵向时序数据生成现状（§1.2 的依据） | 仅标题与 DOI，未打开 |
-| A Survey of Generative Adversarial Networks for Synthesizing Structured Electronic Health Records. *ACM Computing Surveys*. doi:10.1145/3636424 | GAN 路线代表综述（§3.2 排除该路线时引用） | 仅标题与 DOI，未打开 |
+| Walonoski J, Kramer M, Nichols J, et al. Synthea: An approach, method, and software mechanism for generating synthetic patients and the synthetic electronic health care record. *JAMIA*. 2018;25(3):230-238. doi:10.1093/jamia/ocx079. PMID:29025144 | §5 患者级疾病轨迹的方法论出处 | **元数据已核实**（PubMed：标题/期刊/2018-03-01/卷25/期3/页230-238/10 位作者逐字一致）。**但 `isOpenAccess: N`，原文未读到**——架构描述来自既有知识，引用具体机制前须取原文确认 |
+| Esteban C, Hyland SL, Rätsch G. Real-valued (Medical) Time Series Generation with Recurrent Conditional GANs. arXiv:1706.02633, 2017 | **TSTR 评估范式的原始出处** | 全文已下载并核对（13 页，标题/作者/摘要一致） |
+| Kartoun U. A Methodology to Generate Virtual Patient Repositories. arXiv:1608.00570, 2016 | 虚拟患者库的早期方法 | 全文已下载并核对（10 页） |
+| Chen X, Wu Z, Shi X, Cho H, Mukherjee B. Generating Synthetic EHR Data: a Methodological Scoping Review with Benchmarking on Phenotype Data and Open-Source Software. arXiv:2411.04281, 2024 | 方法五分类（规则驱动 / GAN / VAE / Transformer / 扩散） | 全文已下载并核对（80 页） |
+| Miletic M, Sariyar M. Synthetic data generation methods for longitudinal and time series health data: a systematic review. *BMC Med Inform Decis Mak*. 2026;26:30. doi:10.1186/s12911-025-03326-8 | **§1.1 立论缺口** | 全文已下载并核对（开放获取，24 页）。**可直接引用** |
+| Snoke J, Raab GM, Nowok B, Dibben C, Slavkovic A. General and specific utility measures for synthetic data. *JRSS-A*. 2018;181(3):663-688. doi:10.1111/rssa.12358 | pMSE 用于合成数据及其零假设分布（§12 量化口径） | 期刊版付费墙；已下载 **arXiv 预印本 1604.06651** 并核对五位作者一致 |
+| Woo MJ, Reiter JP, Oganian A, Karr AF. Global Measures of Data Utility for Microdata Masked for Disclosure Limitation. *J Privacy and Confidentiality*. 2009;1(1). doi:10.29012/jpc.v1i1.568 | **pMSE 最早出处** | 全文已下载并核对（开放获取，14 页） |
+| Raab GM, Nowok B, Dibben C. Guidelines for Producing Useful Synthetic Data. arXiv:1712.04078, 2017 | 合成数据效用评估的实操建议 | 全文已下载并核对（第一作者是 Raab，非 Snoke） |
+| Uppalapati K, Abdulkareem S, Yimenicioglu B, et al. RareGraph-Synth: Knowledge-Guided Diffusion Models for Generating Privacy-Preserving Synthetic Patient Trajectories in Ultra-Rare Diseases. arXiv:2510.06267, 2025 | **同类工作**（KG 约束生成）——§3.2 与相关工作定位 | 全文已下载并核对（PDF 元数据未改 IEEE 模板，正文标题作者一致） |
+| Wang H, Zhao Y, Zheng Y, Wu X. RareSyn: Health Record Synthesis for Rare Disease Diagnosis. EMNLP 2025 | 同类工作（KG + LLM 合成 EHR） | 全文已下载并核对（17 页） |
+| Ahmed MS, Dusanic M, Kirschner MN, et al. The Provenance Gap in Clinical AI: Evidence-Traceable Temporal Knowledge Graphs for Rare Disease Reasoning. arXiv:2604.17114, 2026 | 同类工作（时序知识图谱） | 全文已下载并核对（66 页） |
+| Sherafatmandjoo H, Akbari M, Rahmati Z. Semantic Reasoning in Medicine: The Role of Knowledge Graphs Across Five Key Domains. arXiv:2606.15155, 2026 | 背景：医学知识图谱综述 | 全文已下载并核对（25 页） |
+| Budu, Etminani, Soliman, et al. Evaluation of synthetic electronic health records: A systematic review and experimental assessment. *Neurocomputing*. 2024;603:128253. doi:10.1016/j.neucom.2024.128253 | 评估指标分类（resemblance / utility / privacy / cost） | 元数据已核实（Crossref：2024-10/卷603/页128253）。**付费墙，原文未读到** |
+| Ghosheh, Li, Zhu, et al. A Survey of Generative Adversarial Networks for Synthesizing Structured Electronic Health Records. *ACM Computing Surveys*. 2024;56:1-34. doi:10.1145/3636424 | GAN 路线代表综述 | 元数据已核实（Crossref：2024/卷56/页1-34）。**付费墙，原文未读到** |
 
-**两条硬规则**：
+#### 已剔除的检索错配（不得引用）
 
-1. 上表**任何一条**在打开原文确认之前，**不得**作为参考文献写入论文。
-   「核实状态」列须随引用一起更新，确认一条改一条。
-2. 本设计**不依赖**任何未核实文献的结论。§3.2 排除 ML/RL 的论证是**自洽推理**
+搜索引擎给出的两条关联是**错的**，最初转述时也是错的，现作废并留档警示：
+
+| 被误传为 | 实际是 | 判定 |
+|---|---|---|
+| doi:10.1186/s13040-026-00590-w「用 SNOMED/UMLS 校验生成序列的框架」 | 解析到**完全不同的论文**：*Explainable apprenticeship learning for hierarchical clinical decision modeling with multimodal alignment and safety-aware feedback*，*BioData Mining* | **不得引用** |
+| arXiv:2406.09235「TSTR 相关」 | *Variational Mode Decomposition as Trusted Data Augmentation in ML-based **Power System** Stability Assessment*——电力系统论文 | **不得引用**；TSTR 用 Esteban 2017 |
+
+**未核实 1 条**：中国专利 CN121938538A（医学知识图谱约束的患者数据生成方法）。专利库未能检索，若要用请自行到国家知识产权局确认。
+
+#### 三条硬规则
+
+1. **元数据已核实 ≠ 读过原文。** 上表中标注「付费墙，原文未读到」的三条
+   （Synthea / Budu / Ghosheh），**不得**据以陈述其具体机制或结论。
+   尤其 Synthea：本设计对状态机、`Delay` 状态的描述来自既有知识，
+   **论文里写「Synthea 采用 X 机制」之前必须先取得原文**。
+2. **不得从搜索摘要直接引文献。** 上节两条错配即为反例。
+3. **本设计不依赖任何未读到原文的文献。** §3.2 排除 ML/RL 的论证是**自洽推理**
    （无真实数据 → 无奖励信号 → 只能拟合自己的模拟器），
    即使上表文献全部不成立，该论证依然成立。
 
-**核实方法**：本机 `WebFetch` 被网络策略拦截（实测 `github.com` 与 `synthetichealth.github.io`
-均返回「Unable to verify if domain is safe to fetch」），需由作者在浏览器中逐条打开 DOI / PubMed 链接确认。
+#### 可直接支撑立论的原文摘录
 
-**已确证的领域缺口（可直接支撑立论）**：多篇综述一致指出该领域
-**缺乏标准化评估框架**、临床验证依赖主观判断、**对时序依赖与临床真实性关注不足**。
+出自 Miletic & Sariyar（*BMC Med Inform Decis Mak* 2026;26:30，已下载核对）：
+
+> Utility evaluations vary widely, with strong emphasis on descriptive statistics and predictive
+> performance, but **limited attention to inferential validity and clinical realism**.
+> Privacy assessments are sparse and inconsistently reported: only 30% of studies included any
+> metric, and just around 6% implemented differential privacy (DP), often without parameter disclosure.
+
+> Event-based EHR data are most commonly targeted, while **continuous and irregular time series
+> remain underexplored**.
+
 根因 ② 与根因 ⑤ 正是这一缺口在本项目中的具体体现——这构成本设计的问题陈述与贡献定位。
-（出处：arXiv:2411.04281 与 *BMC Med Inform Decis Mak* 两条，**引用前须打开确认**。）
+
+#### 中文文献（本项目无法代查）
+
+就诊时间分布、候诊时间实测、居民就诊率的时间序列分析，**必须从 CNKI / 万方 / 维普检索**；
+本机检索通道为 US-only，不覆盖中文数据库。建议检索词：
+
+```
+门诊就诊时间分布    候诊时间 纵向研究    分级诊疗 就诊人次 时间序列
+居民两周就诊率      医院门诊量 季节性     门诊人次 年龄 性别 差异
+```
+
+§5.3 中标为「需逐条核实」的参数，要么找到中文文献支撑后改为「有出处」，
+要么保留为「假设」并做敏感性分析。**不得**在无出处时按文献口吻陈述。
 
 ## 10. 分期交付
 
@@ -545,9 +590,10 @@ MIMIC（需 credentialed 资质）、CMeKG（授权不明）。
 5. **本体规模统计**：诊断数、药品数、关系边数、慢病数（实测）。
 6. **局限与未来工作**：§1.2 的可达边界表 + §3.2 的 ML/RL 论证，以及若要突破需具备什么条件
    （真实数据访问权 + 合规审查 + 可验证的评估协议）。
-7. **方法论参照章节**（现状完全缺失的一章）：§9.3 的公开实现与文献表。
+7. **方法论参照章节**（现状完全缺失的一章）：§9.3 的公开实现与文献表 + `docs/references/README.md`。
    含「本设计提出前的算法无任何出处」的**如实说明**，以及逐条的核实状态。
-   **交付前提**：表内每条须由作者打开原文确认后，方可写入正式参考文献列表。
+   **交付前提**：11 篇已下载全文的可直接引用；3 篇付费墙文献须先经学校图书馆取得原文，
+   且**不得**据以陈述其具体机制。
 
 ## 13. 全局约束（后续计划必须遵守）
 
@@ -574,6 +620,6 @@ MIMIC（需 credentialed 资质）、CMeKG（授权不明）。
 | `rule_config` 与 `diagnosis_drug` 双真相源 | 前端改了一处、生成器读另一处 | 过渡期用一致性测试卡住；后续可让前端编辑 `diagnosis_drug` 并废弃 `rule_config` |
 | **本体覆盖不全** | `unchecked > 0`，「违规率为 0」变成「没检查所以为 0」，论文核心数字失真 | 覆盖率作为一等指标报出（§12.2）；§11 断言 `unchecked == 0`；覆盖率 100% 才对外报数字 |
 | **删除注入后校验器恒返回 0** | 答辩被问「校验器到底有没有用」 | §8.4 三条路径：正例单测（代码级证据）+ `EntryForm` 人工录入活演示 + 平台定位是校验**外部**数据 |
-| **§9.3 文献均未打开原文** | 未核实即引用是学术风险；本机 `WebFetch` 被网络策略拦截，我无法代劳 | 逐条标注核实状态；作者在浏览器打开确认后才写入参考文献；§3.2 的核心论证设计为**不依赖**任何未经核实的文献 |
+| **3 篇付费墙文献原文未读到**（Synthea / Budu / Ghosheh） | 据以陈述其具体机制即为学术风险 | 元数据已逐字核实并留档；`docs/references/README.md` 列有获取途径（学校图书馆）；§9.3 硬规则明确禁止据以陈述机制。**Synthea 原文建议优先获取**——它是 §5 的骨架 |
 | 数据生成耗时因本体查询上升 | 万级患者生成变慢 | 本体表启动时全量加载进内存（与现有加载方式一致）；生成过程零 DB 往返 |
 | 三期工作量超出毕设周期 | 交付不完整 | 分期交付，每期独立可运行；阶段三是纯增量，可裁剪 |
