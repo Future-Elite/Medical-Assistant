@@ -18,6 +18,12 @@ public class Admission {
     private String doctor;
     private String bedNo;
     private String diagnosis;
+    /** OUTPATIENT门诊转入 / EMERGENCY急诊 / TRANSFER转院 */
+    private String admissionRoute;
+    /** CURED医嘱离院 / IMPROVED好转 / TRANSFER转院 / DEATH死亡 / AGAINST_ADVICE自动出院 */
+    private String dischargeDisposition;
+    private String admissionDiagnosis;
+    private String dischargeDiagnosis;
     private LocalDateTime admissionTime;
     private LocalDateTime dischargeTime;
     private BigDecimal deposit;
