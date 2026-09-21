@@ -56,6 +56,17 @@
     这一段覆盖 **§2~§7 共六节**（visit_rate / dept_diagnosis / diagnosis_lab /
     diagnosis_operation / diagnosis_drug / drug_dose）。然后按 Task 3~8 各自的 Step 4（Task 7 是
     Step 3）跑断言。
+  - **D-4 的前置条件（执行前必须确认，否则第 1 条语句就会失败）**：本段引用的 6 张表
+    （`visit_rate`/`dept_diagnosis`/`diagnosis_lab`/`diagnosis_operation`/`diagnosis_drug`/`drug_dose`）
+    **必须已存在**。`main` 分支的 `schema.sql` 里这 6 张表和 `admission` 的 4 个新列**都不存在**，
+    它们全部由本分支的 Task 1 引入——所以**任何在本次改造之前建好的库都缺表**。
+    已部署库先跑 **Task 1 Step 5 的迁移**（`mysql ... < sql/migrate-phase3.sql`，一次性），
+    或按 Task 1 Step 5 的断言确认这 7 张表已在（断言 1 应返回 7）。
+    **失败症状是响的、不是静默的**：`visit_rate` 不存在时 `mysql` 客户端在**第 1 条语句**
+    （`DELETE FROM visit_rate;`）即报 `Table 'his_demo.visit_rate' doesn't exist` 并中止，
+    **一行都不会灌进去**，重跑安全（§2~§7 幂等）。**不要**用 `--force` 掩盖它——
+    `--force` 会让客户端带着错误继续往下跑，于是「究竟哪几节真的进去了」只能靠逐节断言反推；
+    在「部分表已存在」的库上，它还会留下删了一半的中间态。
   - **`drug` 段（§1，id 13~196）是整份文件里唯一不可重跑的部分**：它显式写 id 又**没有** DELETE，
     重复执行会主键冲突，而 `mysql` 客户端遇错即**中止**——这正是必须从 §2 起截、
     **绝不能整份 `mysql < seed-ontology.sql`** 的原因。`drug` 只在 Task 3 首次装载时执行一次。
