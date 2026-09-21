@@ -39,13 +39,9 @@ FROM (SELECT prescription_id, COUNT(*) c FROM prescription_item GROUP BY prescri
 SELECT MIN(total_amount) AS min_amt, ROUND(AVG(total_amount),2) AS avg_amt, MAX(total_amount) AS max_amt,
        SUM(total_amount IS NULL OR total_amount <= 0) AS bad_amt FROM prescription;
 
-SELECT '=== 1.4 诊断↔用药规则一致性（越界应为 0）===' AS section;
-SELECT COUNT(*) AS items_total,
-       SUM(FIND_IN_SET(i.drug_id, rc.drug_ids) = 0) AS violations
-FROM prescription_item i
-JOIN prescription pr ON i.prescription_id = pr.id
-JOIN diagnosis d ON d.visit_id = pr.visit_id
-JOIN rule_config rc ON rc.diagnosis_code = d.icd_code AND rc.enabled = 1;
+-- 【已删除】原 §1.4「诊断↔用药规则一致性」断言：其判定依据 rule_config.drug_ids 在三期
+-- 已被 diagnosis_drug 取代，留着对新增的 64 个诊断一律假阳性、对真实违规又可能假阴性。
+-- 替代断言见本文件末尾的「三期：本体一致性」段。
 
 SELECT '=== 2.1 未来时间戳（全部应为 0）===' AS section;
 SELECT 'visit.visit_time' AS col, COUNT(*) AS future FROM visit WHERE visit_time > NOW()
@@ -155,3 +151,41 @@ SELECT 'VISIT' AS type, COUNT(*) AS c FROM visit WHERE patient_id = 1
 UNION ALL SELECT 'DIAGNOSIS', COUNT(*) FROM diagnosis WHERE patient_id = 1
 UNION ALL SELECT 'PRESCRIPTION', COUNT(*) FROM prescription WHERE patient_id = 1
 UNION ALL SELECT 'LAB_TEST', COUNT(*) FROM lab_test WHERE patient_id = 1;
+
+-- ============ 三期：本体一致性 ============
+-- 与 SeedSqlConsistencyTest 的 15 条 JUnit 断言一一对应，供作者在不装 Maven 的机器上直接验库。
+-- 前 6 行是计数（应等于括号里的值），其后每一行都应为 0。
+SELECT '药品数(>=150)' AS item, COUNT(*) AS v FROM drug
+UNION ALL SELECT 'dept_diagnosis(72)', COUNT(*) FROM dept_diagnosis
+UNION ALL SELECT '不同检验项目数(30~50)', COUNT(DISTINCT item_code) FROM diagnosis_lab
+UNION ALL SELECT '不同术式数(15~25)', COUNT(DISTINCT operation_code) FROM diagnosis_operation
+UNION ALL SELECT 'drug_dose(142)', COUNT(*) FROM drug_dose
+UNION ALL SELECT '慢病数(>=10)', COUNT(*) FROM dept_diagnosis WHERE chronic = 1
+UNION ALL SELECT '非慢病患病率非0(应 0)', COUNT(*) FROM dept_diagnosis
+  WHERE chronic = 0 AND prevalence <> 0
+UNION ALL SELECT '用药映射引用不存在的药(应 0)', COUNT(*) FROM diagnosis_drug dg
+  WHERE NOT EXISTS (SELECT 1 FROM drug d WHERE d.id = dg.drug_id)
+UNION ALL SELECT '映射锚到不存在的诊断(应 0)', COUNT(*) FROM (
+  SELECT department, icd_code FROM diagnosis_drug
+  UNION SELECT department, icd_code FROM diagnosis_lab
+  UNION SELECT department, icd_code FROM diagnosis_operation) x
+  WHERE NOT EXISTS (SELECT 1 FROM dept_diagnosis dd
+    WHERE dd.department = x.department AND dd.icd_code = x.icd_code)
+UNION ALL SELECT '被处方却无剂量规则(应 0)', COUNT(*) FROM (
+  SELECT DISTINCT drug_id FROM diagnosis_drug) dg
+  WHERE NOT EXISTS (SELECT 1 FROM drug_dose dd WHERE dd.drug_id = dg.drug_id)
+UNION ALL SELECT '原12种药缺剂量规则(应 0)', COUNT(*) FROM (
+  SELECT id FROM drug WHERE id <= 12) d
+  WHERE NOT EXISTS (SELECT 1 FROM drug_dose dd WHERE dd.drug_id = d.id)
+UNION ALL SELECT 'drug_dose 与 rational_rule 日上限不一致(应 0)', COUNT(*) FROM drug_dose dd
+  JOIN rational_rule rr ON rr.rule_type = 2 AND rr.drug_id = dd.drug_id
+  WHERE rr.max_daily_dose <> dd.max_daily_dose
+UNION ALL SELECT '【禁忌】儿科喹诺酮/阿司匹林(应 0)', COUNT(*) FROM diagnosis_drug
+  WHERE department = '儿科' AND drug_id IN (26,27,28,29,9)
+UNION ALL SELECT '【禁忌】青光眼抗胆碱能(应 0)', COUNT(*) FROM diagnosis_drug
+  WHERE icd_code = 'H40.9' AND drug_id IN (71,140,141,93)
+UNION ALL SELECT 'rule_config 诊断未覆盖(应 0)', COUNT(*) FROM rule_config rc
+  WHERE NOT EXISTS (SELECT 1 FROM dept_diagnosis dd WHERE dd.icd_code = rc.diagnosis_code)
+UNION ALL SELECT '同一(科室,ICD)术式概率和>1(应 0)', COUNT(*) FROM (
+  SELECT department, icd_code, SUM(probability) s FROM diagnosis_operation
+  GROUP BY department, icd_code HAVING s > 1) z;
