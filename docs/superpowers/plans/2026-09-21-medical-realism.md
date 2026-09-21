@@ -362,7 +362,7 @@ Expected: 第一条输出 `7`，第二条输出 `4`。若第二条为 `0` 而库
 
 ```bash
 git add backend/sql/schema.sql backend/sql/migrate-phase3.sql
-git commit -m "feat(sql): 三期建表 —— 6 张本体字典表 + operation + admission 增 4 列"
+git commit -m "feat(sql): 三期建表 —— 6 张本体字典表 + operation + admission 增 4 列" -m "Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ```
 
 ---
@@ -642,7 +642,7 @@ Expected: BUILD SUCCESS。
 
 ```bash
 git add backend/his-common/src/main/java/com/his/common/entity backend/his-common/src/main/java/com/his/common/mapper
-git commit -m "feat(common): 三期实体与 Mapper —— 6 张本体表 + operation + admission 增 4 列"
+git commit -m "feat(common): 三期实体与 Mapper —— 6 张本体表 + operation + admission 增 4 列" -m "Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ```
 
 ---
@@ -988,7 +988,7 @@ Expected: 逐行为 `1 阿莫西林胶囊 抗感染` … `12 复方甘草口服�
 
 ```bash
 git add backend/sql/seed-ontology.sql
-git commit -m "feat(sql): 三期本体种子 —— 药品字典扩充至 186 种 + 就诊率配置"
+git commit -m "feat(sql): 三期本体种子 —— 药品字典扩充至 186 种 + 就诊率配置" -m "Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ```
 
 ---
@@ -1188,7 +1188,7 @@ Expected:
 
 ```bash
 git add backend/sql/seed-ontology.sql
-git commit -m "feat(sql): 科室↔诊断本体 72 条，覆盖 6 科室并纳入既有 8 个诊断"
+git commit -m "feat(sql): 科室↔诊断本体 72 条，覆盖 6 科室并纳入既有 8 个诊断" -m "Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ```
 
 提交信息里附一行核对进度，例如
@@ -1485,7 +1485,7 @@ Expected: **零行**。任何一行输出都表示该外科诊断缺术前检查
 
 ```bash
 git add backend/sql/seed-ontology.sql
-git commit -m "feat(sql): 检验本体 50 项，外科诊断全部挂术前检查组"
+git commit -m "feat(sql): 检验本体 50 项，外科诊断全部挂术前检查组" -m "Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ```
 
 ---
@@ -1662,7 +1662,7 @@ Expected: **两行**，`外科 0.900` 与 `儿科 0.060`。
 
 ```bash
 git add backend/sql/seed-ontology.sql
-git commit -m "feat(sql): 手术本体 20 术式，按科室区分成人与儿科手术概率"
+git commit -m "feat(sql): 手术本体 20 术式，按科室区分成人与儿科手术概率" -m "Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ```
 
 提交信息附一行核对进度，如 `ICD-9-CM-3 核对：20/20` 或 `18/20（68.29、21.5 待作者确认）`。
@@ -1963,7 +1963,7 @@ Expected: `总行数` 约 360（填实测值）、`覆盖的(科室,ICD)组合�
 
 ```bash
 git add backend/sql/seed-ontology.sql
-git commit -m "feat(sql): 用药本体 —— 72 组诊断用药映射，儿科禁忌由断言卡住"
+git commit -m "feat(sql): 用药本体 —— 72 组诊断用药映射，儿科禁忌由断言卡住" -m "Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ```
 
 ---
@@ -2243,7 +2243,7 @@ Expected: `总行数 142`，其余**全部为 0**。
 
 ```bash
 git add backend/sql/seed-ontology.sql backend/sql/seed-extension.sql
-git commit -m "feat(sql): 药品剂量表 142 行，并收紧硝苯地平/二甲双胍的日上限"
+git commit -m "feat(sql): 药品剂量表 142 行，并收紧硝苯地平/二甲双胍的日上限" -m "Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ```
 
 ---
@@ -2821,7 +2821,7 @@ git commit -m "test(sql): 16 条种子一致性断言入 JUnit，附作者审校
 
 verify-final.sql 删除锚定 rule_config.drug_ids 的适应症断言：
 三期的适应症允许集改由 diagnosis_drug 提供，旧断言对新增的 64 个诊断
-一律假阳性、对真实违规又可能假阴性。替代断言见同文件新增的本体一致性段。"
+一律假阳性、对真实违规又可能假阴性。替代断言见同文件新增的本体一致性段。" -m "Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ```
 
 > **作者的审校门（本任务结束后、Task 10 开始前）**
@@ -3681,7 +3681,7 @@ git add backend/his-common/src/main/java/com/his/common/dto/RationalDrugReport.j
         backend/his-server/src/test/java/com/his/server/service/validation/RationalDrugValidatorTest.java \
         backend/his-server/src/test/java/com/his/server/service/validation/OntologyRulesTest.java \
         backend/his-generator/src/test/java/com/his/generator/SeedSqlConsistencyTest.java
-git commit -m "refactor(validation): 合理用药校验换用本体数据源，无法判定显式计入 unchecked"
+git commit -m "refactor(validation): 合理用药校验换用本体数据源，无法判定显式计入 unchecked" -m "Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ```
 
 ---
@@ -3896,7 +3896,8 @@ class OntologyConsistencyValidatorTest {
     void flags_gender_conflict() {
         stubVisit(1L, "妇科", 1L);
         stubDiagnosis(1L, "N80.0");
-        stubPatient(1L, 1, LocalDate.of(1990, 1, 1));   // 男患者
+        // 患者性别 0=男 / 1=女（见 Task 10 的取值域）；本体的 2=仅女，故 0 才构成冲突。
+        stubPatient(1L, 0, LocalDate.of(1990, 1, 1));   // 男患者
         when(ddm.selectList(any())).thenReturn(List.of(dept("妇科", "N80.0", 2, 15, 60)));
 
         OntologyReport report = validator().validate();
@@ -4195,7 +4196,11 @@ public class OntologyConsistencyValidator {
         // 检查 1 + 2：逐条门诊诊断判科室归属与年龄性别
         for (Diagnosis d : diagnosisMapper.selectList(null)) {
             Visit v = d.getVisitId() == null ? null : visitsById.get(d.getVisitId());
-            if (v == null) continue;
+            // 找不到对应就诊就无从判定：**不得静默跳过**（Global Constraints：无法判定的数据必须显式报出）
+            if (v == null) {
+                unchecked++;
+                continue;
+            }
             // 没有科室就没法判科室归属，也没法按科室取本体行 -> 如实记为未判定
             if (v.getDepartment() == null) {
                 unchecked++;
@@ -4232,10 +4237,19 @@ public class OntologyConsistencyValidator {
         // 检查 3：门诊检验（admissionId 为空）必须挂在该次就诊诊断的 diagnosis_lab 上，
         // 且该诊断的检验清单**按就诊科室**取（同 ICD 在不同科室的异常率不同，清单也可不同）
         for (LabTest lt : labTestMapper.selectList(null)) {
-            if (lt.getAdmissionId() != null) continue;   // 住院检验在阶段四的手术/本体检查里另判
-            if (lt.getVisitId() == null) continue;
+            // 这条是**范围切分**（住院检验交由阶段四的检查判定），不是静默跳过，保持原样。
+            if (lt.getAdmissionId() != null) continue;
+            // 下面两条是真正的「无从判定」：门诊检验必须挂在一次有诊断的就诊上，
+            // 缺就诊或该就诊没有诊断编码，都如实计入 unchecked。
+            if (lt.getVisitId() == null) {
+                unchecked++;
+                continue;
+            }
             String icd = icdByVisit.get(lt.getVisitId());
-            if (icd == null) continue;
+            if (icd == null) {
+                unchecked++;
+                continue;
+            }
             Visit v = visitsById.get(lt.getVisitId());
             String dept = v == null ? null : v.getDepartment();
             if (dept == null) {
@@ -4266,7 +4280,11 @@ public class OntologyConsistencyValidator {
         // 检查 4：住院的入院诊断必须 admission_eligible=1
         for (Admission a : admissionMapper.selectList(null)) {
             String diag = a.getAdmissionDiagnosis() != null ? a.getAdmissionDiagnosis() : a.getDiagnosis();
-            if (diag == null) continue;
+            // 新老两个诊断列都为空：无从判定，报 unchecked 而不是静默放过
+            if (diag == null) {
+                unchecked++;
+                continue;
+            }
             // admission 存的是诊断**名称**不是编码；名称对不上本体就无从判定，
             // 报 unchecked 而不是伪造成「不可收住院」
             String icd = icdOf(diag, ontology);
@@ -4332,7 +4350,7 @@ Expected: Tests run: 13, Failures: 0, Errors: 0。
 git add backend/his-common/src/main/java/com/his/common/dto \
         backend/his-server/src/main/java/com/his/server/service/validation/OntologyConsistencyValidator.java \
         backend/his-server/src/test/java/com/his/server/service/validation/OntologyConsistencyValidatorTest.java
-git commit -m "feat(validation): 新增本体一致性校验器（门诊四类）"
+git commit -m "feat(validation): 新增本体一致性校验器（门诊四类）" -m "Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ```
 
 ---
@@ -4523,7 +4541,7 @@ git commit -m "refactor: 校验报告汇总本体一致率；删除生成器的�
 
 违规不再由生成器制造，改由校验器发现。删除 VIOLATION_RATE、
 injectViolation 及其只为它存在的 interactionRules/doseRulesByDrug。
-rationalRuleMapper 保留：阶段二用它规避相互作用药对，用途与注入相反。"
+rationalRuleMapper 保留：阶段二用它规避相互作用药对，用途与注入相反。" -m "Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ```
 
 ---
@@ -5193,7 +5211,7 @@ git add backend/his-generator/src/main/java/com/his/generator/Disease.java \
         backend/his-generator/src/main/java/com/his/generator/DataGeneratorService.java \
         backend/his-generator/src/test/java/com/his/generator/OntologyRepositoryTest.java \
         backend/his-generator/src/test/java/com/his/generator/DataGeneratorServiceTest.java
-git commit -m "feat(generator): 本体一次性加载与按科室取样 —— 逐层条件抽样的数据源"
+git commit -m "feat(generator): 本体一次性加载与按科室取样 —— 逐层条件抽样的数据源" -m "Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ```
 
 ---
@@ -5247,6 +5265,7 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.random.RandomGeneratorFactory;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -5295,9 +5314,14 @@ class PatientProfileTest {
         int carried = 0;
         int draws = 1000;
         for (int i = 0; i < draws; i++) {
+            // **这里不能用 java.util.Random**：`new Random(seed).nextDouble()`（构造后取到的
+            // 第一个 double）有已知偏置——实测 1000 个连续种子，首个值全部落在 [0.466, 0.597]，
+            // 永远不小于 0.25。本用例的池只放 1 个病，Fisher-Yates 一次随机数都不消耗，
+            // 于是「第一个 nextDouble」正好就是那次患病率判定，`carried` 会恒为 0（断言必红）。
+            // 换成 L64X128MixRandom 后首个值均匀，250 上下。
             PatientProfile p = PatientProfile.build(1L, 50, 0,
                     List.of(chronic("I10", "原发性高血压", 0.25)),
-                    BigDecimal.ONE, new Random(SEED + i));
+                    BigDecimal.ONE, RandomGeneratorFactory.of("L64X128MixRandom").create(SEED + i));
             carried += p.chronicDiseases().size();
         }
         // 250 次上下；带宽取得宽松（0.20~0.30），只证明「按患病率抽」而不是「人人都得」
@@ -5586,7 +5610,7 @@ git add backend/his-generator/src/main/java/com/his/generator/PatientProfile.jav
         backend/his-generator/src/main/java/com/his/generator/DataGeneratorService.java \
         backend/his-generator/src/test/java/com/his/generator/PatientProfileTest.java \
         backend/his-generator/src/test/java/com/his/generator/DataGeneratorServiceTest.java
-git commit -m "feat(generator): 患者疾病档案 —— 慢病终身携带，年龄覆盖 0~89 岁"
+git commit -m "feat(generator): 患者疾病档案 —— 慢病终身携带，年龄覆盖 0~89 岁" -m "Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ```
 
 ---
@@ -6269,7 +6293,7 @@ chronic, admissionEligible, weight, monthWeights, prevalence`）——参数多�
 git add backend/his-generator/src/main/java/com/his/generator/PatientEvent.java \
         backend/his-generator/src/main/java/com/his/generator/EventCalendar.java \
         backend/his-generator/src/test/java/com/his/generator/EventCalendarTest.java
-git commit -m "feat(generator): 事件日历 —— 就诊时间与病种由患者档案驱动"
+git commit -m "feat(generator): 事件日历 —— 就诊时间与病种由患者档案驱动" -m "Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ```
 
 ---
@@ -6731,7 +6755,7 @@ final class LabResults {
      */
     static RefRange parseRefRange(String refRange) {
         if (refRange == null || refRange.isBlank() || "—".equals(refRange.trim()) || "-".equals(refRange.trim())) {
-            throw new IllegalStateException("diagnosis_lab.ref_range 缺失或为空占位符，无法生成化验值: " + refRange);
+            throw new IllegalStateException("参考范围 diagnosis_lab.ref_range 缺失或为空占位符，无法生成化验值: " + refRange);
         }
         String text = refRange.trim();
         Matcher m = RANGE.matcher(text);
@@ -6739,7 +6763,7 @@ final class LabResults {
             double low = Double.parseDouble(m.group(1));
             double high = Double.parseDouble(m.group(2));
             if (high < low) {
-                throw new IllegalStateException("ref_range 的上界小于下界: " + refRange);
+                throw new IllegalStateException("参考范围 ref_range 的上界小于下界: " + refRange);
             }
             return new RefRange(low, high, null);
         }
@@ -6752,7 +6776,7 @@ final class LabResults {
             return new RefRange(null, null, text);
         }
         throw new IllegalStateException(
-                "ref_range 既不是「a-b」、也不是单个数字、也不是「阴性」「正常」: " + refRange);
+                "参考范围 ref_range 既不是「a-b」、也不是单个数字、也不是「阴性」「正常」: " + refRange);
     }
 
     /**
@@ -6823,7 +6847,7 @@ final class LabResults {
 cd backend && mvn -o -pl his-generator -Dtest='WeightedTest,LabResultsTest' test
 ```
 
-Expected: `WeightedTest` Tests run: 6；`LabResultsTest` Tests run: 8，全部通过。
+Expected: `WeightedTest` Tests run: 5；`LabResultsTest` Tests run: 8，全部通过。
 
 > 若 `weight_ratio_is_respected` 越界，先确认 `Row::w` 取的是 `w()` 而不是 record 的另一个分量；
 > 分布断言用固定种子，越界只可能是抽样逻辑错，不会是随机波动。
@@ -7329,12 +7353,19 @@ Expected: Tests run: 10, Failures: 0, Errors: 0。
         DataGeneratorService svc = buildService();
         svc.generate(5);
 
-        assertThat(insertedLabs).isNotEmpty();
-        for (LabTest lt : insertedLabs) {
+        // **只看门诊检验**：住院链（newInpatientLabTest / labTestForItem）在同一批插入里
+        // 产出 BLD-HB、CRP 等本体外的项目，混进来会让本用例间歇性变红（INPATIENT_RATIO=0.2 下
+        // 5 个患者里至少一人住院的概率约 67%）。住院链的检验项由 Task 17 的用例单独断言。
+        List<LabTest> outpatientLabs = insertedLabs.stream()
+                .filter(lt -> lt.getAdmissionId() == null)
+                .toList();
+
+        assertThat(outpatientLabs).isNotEmpty();
+        for (LabTest lt : outpatientLabs) {
             assertThat(lt.getItemCode()).isIn("BLD-WBC", "K");
         }
         Map<Long, Set<String>> codesByVisit = new HashMap<>();
-        for (LabTest lt : insertedLabs) {
+        for (LabTest lt : outpatientLabs) {
             codesByVisit.computeIfAbsent(lt.getVisitId(), k -> new HashSet<>()).add(lt.getItemCode());
         }
         for (Visit v : insertedVisits) {
@@ -7422,7 +7453,7 @@ git add backend/his-generator/src/main/java/com/his/generator/Weighted.java \
         backend/his-generator/src/test/java/com/his/generator/WeightedTest.java \
         backend/his-generator/src/test/java/com/his/generator/LabResultsTest.java \
         backend/his-generator/src/test/java/com/his/generator/DataGeneratorServiceTest.java
-git commit -m "feat(generator): 门诊链改为诊断决定科室 / 用药 / 检验，事件日历驱动就诊时间"
+git commit -m "feat(generator): 门诊链改为诊断决定科室 / 用药 / 检验，事件日历驱动就诊时间" -m "Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ```
 
 ---
@@ -8116,7 +8147,7 @@ Expected: 各模块全绿。`his-server` 的测试与本次无关，但 `mvn -o 
 git add backend/his-generator/src/main/java/com/his/generator/DataGeneratorService.java \
         backend/his-generator/src/main/java/com/his/generator/MedicalData.java \
         backend/his-generator/src/test/java/com/his/generator/DataGeneratorServiceTest.java
-git commit -m "feat(generator): 住院链延续门诊诊断，医嘱与检验取自本体；清理 rule_config 死代码"
+git commit -m "feat(generator): 住院链延续门诊诊断，医嘱与检验取自本体；清理 rule_config 死代码" -m "Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ```
 
 ---
@@ -8483,7 +8514,7 @@ test-report 里若引用了「就诊星期分布」「日内到达分布」「�
 ```bash
 git add backend/sql/verify-final.sql backend/sql/verify-phase2.sql \
         docs/test-report.md docs/references/README.md
-git commit -m "test: 阶段二出口实测脚本与敏感性分析，作废四处失效断言"
+git commit -m "test: 阶段二出口实测脚本与敏感性分析，作废四处失效断言" -m "Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ```
 
 ---
@@ -8769,7 +8800,7 @@ final class TimeDistribution {
      * <p>形状：上午两段最高（开诊后的集中到达），午休（12~13 点）最低，下午再起一个小峰。
      * 合计 9.05，前四段（8~11 点）占 6.00，即约 66% 的患者在上午到达。
      */
-    static final double[] HOUR_WEIGHT = {1.60, 1.80, 1.50, 1.10, 0.60, 0.50, 1.20, 1.40, 1.00, 0.55};
+    static final double[] HOUR_WEIGHT = {1.60, 1.80, 1.50, 1.10, 0.45, 0.35, 0.60, 0.75, 0.55, 0.35};
 
     private TimeDistribution() {
     }
@@ -8790,8 +8821,13 @@ final class TimeDistribution {
      */
     static LocalDateTime deferToWorkday(LocalDateTime t, RandomGenerator rnd) {
         DayOfWeek dow = t.getDayOfWeek();
-        double accept = weekdayMultiplier(dow);
-        if (accept >= 1.0 || rnd.nextDouble() < accept) {
+        // 推迟只针对周末：`WEEKDAY_MULTIPLIER` 同时充当「选日的权重」，周五那格略低于 1.0
+        // 是为了保留「周五门诊量略降」的权重效果，**不是**「周五有 5% 概率被推到下周一」。
+        // 所以这里先按星期几显式分流，再用乘子作「照常就诊」的概率。
+        if (dow != DayOfWeek.SATURDAY && dow != DayOfWeek.SUNDAY) {
+            return t;
+        }
+        if (rnd.nextDouble() < weekdayMultiplier(dow)) {
             return t;
         }
         // 周六 getValue()=6 → +2 天；周日 =7 → +1 天
@@ -8888,7 +8924,7 @@ git add backend/his-generator/src/main/java/com/his/generator/TimeDistribution.j
         backend/his-generator/src/main/java/com/his/generator/ClinicTimeline.java \
         backend/his-generator/src/test/java/com/his/generator/TimeDistributionTest.java \
         backend/his-generator/src/test/java/com/his/generator/ClinicTimelineTest.java
-git commit -m "feat(generator): 时间分布纯函数 —— 星期推迟、日内到达、环节耗时级联"
+git commit -m "feat(generator): 时间分布纯函数 —— 星期推迟、日内到达、环节耗时级联" -m "Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ```
 
 > **本任务不接线**：`TimeDistribution` / `ClinicTimeline` 在这一步还没有调用方，接线在 Task 20。
@@ -8928,8 +8964,7 @@ git commit -m "feat(generator): 时间分布纯函数 —— 星期推迟、日�
     @Test
     @DisplayName("急症不因周末而推迟：急性事件的星期分布与自然日一致")
     void acute_events_are_never_deferred_to_monday() {
-        List<Disease> acute = List.of(seasonal("J06.9", "上呼吸道感染", "儿科", 0, 0, 89, false, false,
-                4.0, JANUARY_HEAVY, 0.5));
+        List<Disease> acute = List.of(seasonal("J06.9", "上呼吸道感染", 4.0, true));
         PatientProfile profile = new PatientProfile(1L, 30, 0, List.of(), 1.0, BigDecimal.ONE);
         RandomGenerator r = RandomGeneratorFactory.of("L64X128MixRandom").create(7L);
 
@@ -8946,8 +8981,10 @@ git commit -m "feat(generator): 时间分布纯函数 —— 星期推迟、日�
     }
 ```
 
-> `seasonal(...)` 与 `JANUARY_HEAVY` 用文件里**已有**的那份（Task 15 建过）；
-> 若名称不同，以文件里实际的为准，**不要**为此新写一个 helper。
+> `seasonal(...)` 用文件里**已有**的那份（`EventCalendarTest` 顶部那个 4 参 helper：
+> `seasonal(String icd, String name, double weight, boolean winterHigh)`）。
+> 这份测试数据只用来验「急性事件不被推迟」，季节形状与科室取值都无所谓，
+> 所以**不要**为此新写 helper，也**不要**引入 `JANUARY_HEAVY` 这类文件中不存在的常量。
 
 - [ ] **Step 2: 跑测试确认失败**
 
@@ -9063,7 +9100,7 @@ git add backend/his-generator/src/main/java/com/his/generator/EventCalendar.java
         backend/his-generator/src/main/java/com/his/generator/DataGeneratorService.java \
         backend/his-generator/src/test/java/com/his/generator/EventCalendarTest.java \
         backend/his-generator/src/test/java/com/his/generator/DataGeneratorServiceTest.java
-git commit -m "feat(generator): 就诊时刻按星期/日内分布与环节耗时级联生成"
+git commit -m "feat(generator): 就诊时刻按星期/日内分布与环节耗时级联生成" -m "Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ```
 
 ---
@@ -9255,7 +9292,7 @@ Expected: `{"code":0,...,"data":{"ontology":{"checked":...,"unchecked":...,"cons
 git add frontend/src/views/ValidationReport.vue frontend/src/api/validation.js \
         backend/his-server/src/test/java/com/his/server/controller/ValidationControllerTest.java \
         docs/test-report.md
-git commit -m "feat(frontend): 看板显示本体一致率与覆盖率，违规明细按 byType 渲染"
+git commit -m "feat(frontend): 看板显示本体一致率与覆盖率，违规明细按 byType 渲染" -m "Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ```
 
 ---
@@ -9412,7 +9449,7 @@ SELECT 'visit' t, COUNT(*) c FROM visit UNION ALL SELECT 'admission', COUNT(*) F
 ```bash
 git add backend/sql/baseline-dataset.sql backend/sql/verify-baseline.sql \
         docs/test-report.md docs/references/README.md
-git commit -m "docs: 改造前后基线反测数据落表，论文素材清单对齐 spec §12"
+git commit -m "docs: 改造前后基线反测数据落表，论文素材清单对齐 spec §12" -m "Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ```
 
 ---
@@ -10156,7 +10193,7 @@ Task 6 的表里 `47.01` 的 `min_postop_days=3`，而 2 级的名义区间是 3
 ```bash
 git add backend/his-generator/src/main/java/com/his/generator/DataGeneratorService.java \
         backend/his-generator/src/test/java/com/his/generator/DataGeneratorServiceTest.java
-git commit -m "feat(generator): 手术域生成 —— 术式抽取、出院时间按术后天数修正、术前检查与术后医嘱"
+git commit -m "feat(generator): 手术域生成 —— 术式抽取、出院时间按术后天数修正、术前检查与术后医嘱" -m "Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ```
 
 ---
@@ -10547,7 +10584,7 @@ Expected: Tests run: 21, Failures: 0, Errors: 0（既有 13 + 新增 8）。
 ```bash
 git add backend/his-server/src/main/java/com/his/server/service/validation/OntologyConsistencyValidator.java \
         backend/his-server/src/test/java/com/his/server/service/validation/OntologyConsistencyValidatorTest.java
-git commit -m "feat(validation): 本体校验器补齐手术四类，8 类违规口径齐全"
+git commit -m "feat(validation): 本体校验器补齐手术四类，8 类违规口径齐全" -m "Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ```
 
 ---
@@ -10903,7 +10940,7 @@ git add backend/his-server/src/main/java/com/his/server/service/OperationService
         backend/his-server/src/test/java/com/his/server/service/OperationServiceImplTest.java \
         backend/his-server/src/test/java/com/his/server/controller/OperationControllerTest.java \
         frontend/src/api/inpatient.js frontend/src/views/AdmissionDetail.vue
-git commit -m "feat(server,frontend): 手术进住院时间轴、新增手术写入接口并失效住院缓存"
+git commit -m "feat(server,frontend): 手术进住院时间轴、新增手术写入接口并失效住院缓存" -m "Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ```
 
 ---
@@ -11098,7 +11135,7 @@ Expected: 两端都成功。
 ```bash
 git add backend/sql/verify-phase2.sql backend/sql/verify-final.sql \
         docs/test-report.md docs/superpowers/specs/2026-09-21-medical-realism-design.md
-git commit -m "docs: 手术域九项断言实测落表，spec 时间参数按实测回填为假设值"
+git commit -m "docs: 手术域九项断言实测落表，spec 时间参数按实测回填为假设值" -m "Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ```
 
 ---
