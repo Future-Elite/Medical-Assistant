@@ -129,7 +129,7 @@ Task 16 内部也先落地两个纯工具类（`Weighted` 加权抽样、`LabRes
 **Files:**
 - Modify: `backend/sql/schema.sql`
 - Create: `backend/sql/migrate-phase3.sql`
-- Test: 无单元测试；本任务的验证是 `information_schema` 结构断言（Step 4）
+- Test: 无单元测试；本任务的验证是 `information_schema` 结构断言（Step 5）
 
 **Interfaces:**
 - Consumes: 无
@@ -292,9 +292,21 @@ CREATE TABLE operation (
 
 - [ ] **Step 4: 创建 `backend/sql/migrate-phase3.sql`（已有库的一次性迁移）**
 
+本文件必须包含**两部分**，缺一不可：
+
+1. 给已有库的 `admission` 补 4 列（`ALTER`，见下）；
+2. **Step 1 与 Step 2 里那 7 条 `CREATE TABLE` 也要原样放进本文件**（DDL 与 `schema.sql` 逐字一致）。
+
+> **为什么建表语句必须在这里重复一份**：`schema.sql` 的 `CREATE TABLE` **不带
+> `IF NOT EXISTS`**（全库 23 条都不带），所以对已存在的库重跑 `schema.sql` 会在第一条
+> `CREATE TABLE patient` 上直接报 "Table 'patient' already exists" 中止——**它只能用于全新安装**。
+> 而已部署的库跑完只有 `ALTER` 的迁移脚本后，7 张新表一张都不会被建，
+> Step 5 的断言 1（应为 7）恒为 0，且 Task 2 的实体映射、Task 3–9 的种子装载
+> 都会因表不存在而失败。**只写 `ALTER` 的版本是错的**，不要照抄。
+
 ```sql
--- 三期迁移：为已存在的 his_demo 库补列。**只能执行一次**（MySQL 8 不支持 ADD COLUMN IF NOT EXISTS）。
--- 全新安装不需要本文件——schema.sql 已含全部列。
+-- 三期迁移：为已存在的 his_demo 库补表 + 补列。**只能执行一次**。
+-- 全新安装不需要本文件——schema.sql 已含全部表与列。
 USE his_demo;
 
 ALTER TABLE admission
@@ -302,7 +314,20 @@ ALTER TABLE admission
   ADD COLUMN discharge_disposition VARCHAR(16) COMMENT 'CURED医嘱离院/IMPROVED好转/TRANSFER转院/DEATH死亡/AGAINST_ADVICE自动出院',
   ADD COLUMN admission_diagnosis VARCHAR(100) COMMENT '入院诊断',
   ADD COLUMN discharge_diagnosis VARCHAR(100) COMMENT '出院诊断，可与入院诊断不同（诊断演进）';
+
+-- 以下 7 张表的 DDL 与 schema.sql 逐字一致（Step 1 / Step 2）
+-- CREATE TABLE dept_diagnosis (...);
+-- CREATE TABLE diagnosis_drug (...);
+-- CREATE TABLE diagnosis_lab (...);
+-- CREATE TABLE drug_dose (...);
+-- CREATE TABLE visit_rate (...);
+-- CREATE TABLE diagnosis_operation (...);
+-- CREATE TABLE operation (...);
 ```
+
+> **重复执行的行为实测**（写进文件注释）：`ALTER` 在最前，第二次执行会先在第 5 行报
+> `Duplicate column name 'admission_route'`。**不加 `--force` 会就此中止，后面 7 条建表不执行**；
+> 加 `--force` 则连同 7 条 `Table already exists` 一起报出并继续跑完。两种输出都属预期。
 
 - [ ] **Step 5: 应用并断言结构（结构断言，非数值断言）**
 
