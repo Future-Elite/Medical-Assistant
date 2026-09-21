@@ -1982,17 +1982,17 @@ git commit -m "feat(sql): 手术本体 20 术式，按科室区分成人与儿�
 
 > **本节开头必须加 `DELETE FROM diagnosis_drug;`**（与第 3 节同款纪律）。
 > `diagnosis_drug` 在 schema.sql 里**没有唯一键**（只有 `idx_ddg_icd` / `idx_ddg_dept` /
-> `idx_ddg_drug` 三个普通索引），重跑本节不报错而是**静默**把约 360 行累加成 720/1080… 行。
+> `idx_ddg_drug` 三个普通索引），重跑本节不报错而是**静默**把 325 行累加成 650/975… 行。
 > 而本表是 Task 10 的 `RationalDrugValidator` 的**适应症允许集**、阶段二生成器的**处方药品池**——
 > 同一 `(icd_code, drug_id)` 出现两行会静默把该药权重翻倍，进而扭曲处方分布。
 > 本表无外键指向它，DELETE 永远安全。
 > **注释措辞有硬要求**：写入文件的那段注释必须带与第 2/3 节同款护栏——明写
-> 「**不加下面这行 DELETE 直接重跑**，会静默累加成 720/1080… 行」。不要笼统写「重跑本节会累加」：
+> 「**不加下面这行 DELETE 直接重跑**，会静默累加成 650/975… 行」。不要笼统写「重跑本节会累加」：
 > 那句话在 `DELETE` 就位之后**字面上是假的**（Task 4 复审就抓到过同款措辞）。
 
 **Interfaces:**
 - Consumes: Task 3 的 196 种药（`drug_id` 必须存在）、Task 4 的 `(科室, ICD)` 组合
-- Produces: `diagnosis_drug` 约 360 行；被 Task 10 的 `RationalDrugValidator` 当作**适应症允许集**，
+- Produces: `diagnosis_drug` **325 行**（按 Step 1 表逐项展开的实测值）；被 Task 10 的 `RationalDrugValidator` 当作**适应症允许集**，
   被阶段二生成器当作**处方药品池**
 
 **这张表是「肠胃炎用布洛芬」的正解，而且它与旧代码的差别不是「更准」而是「结构不同」。**
@@ -2254,22 +2254,46 @@ UNION ALL SELECT '【禁忌】儿科用了阿司匹林(应 0)', COUNT(*) FROM hi
 UNION ALL SELECT '【禁忌】青光眼用了抗胆碱能药(应 0)', COUNT(*) FROM his_demo.diagnosis_drug
   WHERE icd_code = 'H40.9' AND drug_id IN (71,140,141,93)
 UNION ALL SELECT 'rule_config 既有映射未保留的项数(应 0)', COUNT(*) FROM his_demo.rule_config rc
-  JOIN his_demo.dept_diagnosis dd ON dd.icd_code = rc.diagnosis_code
   WHERE NOT EXISTS (
     SELECT 1 FROM his_demo.diagnosis_drug dg
-    WHERE dg.icd_code = rc.diagnosis_code AND dg.department = dd.department
+    WHERE dg.icd_code = rc.diagnosis_code
       AND FIND_IN_SET(dg.drug_id, rc.drug_ids) > 0);
 SELECT department, COUNT(*) c FROM his_demo.diagnosis_drug GROUP BY department ORDER BY c DESC;"
 ```
 
-Expected: `总行数` 约 360（填实测值）、`覆盖的(科室,ICD)组合数 72`；
+Expected: `总行数` **325**（按 Step 1 表逐项展开的实测值，不是估算）、`覆盖的(科室,ICD)组合数 72`；
 其余应为 `0`，**尤其两条「【禁忌】」必须为 0**。
 最后一条按科室列出映射条数，用于确认没有哪个科室被漏掉（应 6 行）。
 
 > 倒数第二条断言是**跨版本的锚**：它要求既有 `rule_config` 的每个 `drug_ids` 成员，
-> 都在新表中以对应 `(科室, ICD)` 的行出现。这是「换数据源但没丢语义」的机器证明。
-> 注意 `J06.9`/`A09.9`/`R50.9` 这些**跨科室 ICD 会对多个科室各查一遍**——
-> 断言里按 `dd.department` 逐一比对，正是为了覆盖这种情况。
+> 都在新表里**至少以一条边存在**（按 `icd_code` 匹配，不限定科室）。这是「换数据源但没丢语义」的机器证明。
+>
+> **它此前被写成按 `(科室, ICD)` 逐科室比对，那是个错，已改成按 ICD。**
+> 理由：按科室比对要求**儿科继承成人的每一条药**，这与本表 `department` 列的存在理由
+> （儿科与成人用药不同：喹诺酮类、阿司匹林禁用）**直接矛盾**。实测的两处反例正是有意为之：
+> - `儿科 A09.9` 没有 `6 奥美拉唑肠溶胶囊`（旧 `rule_config` 是 `A09.9 → 7,6`）——
+>   儿童急性胃肠炎不常规用 PPI，一线是补液+蒙脱石散+益生菌；
+> - `儿科 R50.9` 没有 `2 感冒灵颗粒`（旧 `rule_config` 是 `R50.9 → 2,3`）——
+>   感冒灵是复方制剂（含对乙酰氨基酚与马来酸氯苯那敏），儿科退热取单方的 `97 对乙酰氨基酚片` 更稳妥。
+>
+> 这两处**不得为了让断言通过而把药补回儿科**（那是「为了凑数改数据」），
+> 而是要作为**有意的差异**报给作者看——见下面那条信息查询与 Task 9 作者复核单 §5。
+
+**顺带跑一条信息查询（不是断言，只供作者核对差异）**：列出每个 `(ICD, 科室)` 上「旧映射里有、该科室未继承」的旧药条数。
+预期只有 `儿科 A09.9 = 1` 与 `儿科 R50.9 = 1`，其余全 0；若出现别的非零行，那才是真的漏挂。
+
+```sql
+SELECT rc.diagnosis_code AS icd, dd.department,
+       rc.drug_ids AS 旧映射,
+       (SELECT COUNT(*) FROM his_demo.drug dr
+         WHERE FIND_IN_SET(dr.id, rc.drug_ids) > 0
+           AND NOT EXISTS (SELECT 1 FROM his_demo.diagnosis_drug dg
+             WHERE dg.icd_code = rc.diagnosis_code AND dg.department = dd.department
+               AND dg.drug_id = dr.id)) AS 该科室未继承的旧药数
+FROM his_demo.rule_config rc
+JOIN his_demo.dept_diagnosis dd ON dd.icd_code = rc.diagnosis_code
+ORDER BY dd.department, rc.diagnosis_code;
+```
 
 - [ ] **Step 4: Commit**
 
@@ -3210,12 +3234,23 @@ mysql -uroot -p123456 --default-character-set=utf8mb4 his_demo < backend/sql/ver
       处理、一律未挂。若你认为其中某个该挂（如 `N84.0` 宫腔镜息肉切除术、`N80.0` 全子宫切除术），
       请点名——扩表要同步改 Task 6 的「22 行 / 20 术式」契约与 Task 9 的对应断言，不是加一行的事。
 
-## 5. 用药映射 约 360 条（Task 7）
+## 5. 用药映射 325 条（Task 7）
 
 - [ ] **一线/二线/三线的划分**：抽查每个科室 2~3 个诊断
 - [ ] **`postop=1` 的标记**：确认「术后才用」的药没有被标成术前
 - [ ] **儿科**：确认除喹诺酮与阿司匹林外，没有其他你认得的儿童禁忌
 - [ ] **青光眼（H40.9）**：确认除抗胆碱能外无其他禁忌
+- [ ] **两处「儿科不继承成人」的有意差异，请确认接受**（`rule_config` 的旧映射是**按 ICD** 记的，
+      没有科室维度；新表按 `(科室, ICD)` 记，于是这两处显出了差别）：
+      - `儿科 A09.9 急性胃肠炎` 没有 `6 奥美拉唑肠溶胶囊`（旧映射 `A09.9 → 7,6`）——
+        按「儿童急性胃肠炎不常规用 PPI」处理；
+      - `儿科 R50.9 发热` 没有 `2 感冒灵颗粒`（旧映射 `R50.9 → 2,3`）——
+        按「复方制剂不如单方对乙酰氨基酚稳妥」处理。
+      **这两条不是漏挂**：Task 7 Step 3 的信息查询会列出全部「旧映射里有、该科室未继承」的条目，
+      预期**只有这两处为 1、其余全 0**。若你认为儿科该继承，请点名——补两行即可，
+      但那样儿科会多出两个不常规的用药。
+- [ ] **`rule_config` 那 8 个诊断的处方不会被判成 `unchecked`**（Task 9 换数据源后的锚）：
+      确认这 8 条旧映射的每个药，在新表里都还有边（断言已机器卡住，这里只请你确认这个口径本身合理）
 
 ## 6. 剂量规则 142 条（Task 8）
 
