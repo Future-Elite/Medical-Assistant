@@ -1304,8 +1304,13 @@ US-THY    甲状腺超声             —             正常          HIGH  0.15
 
 ```sql
 -- 检验项目组：仅用于本文件的书写便利，**不入库**。展开规则见 Step 3。
--- G-PREOP 是 spec §9.2 点名的术前检查组，含 6+5+4+1 = 16 项
---   G-CBC   = BLD-WBC, BLD-RBC, BLD-HB, BLD-PLT, BLD-NEUT, BLD-LYMPH
+-- G-PREOP 是 spec §9.2 点名的术前检查组，含 7+5+4+1 = 17 项
+--   G-CBC   = BLD-WBC, BLD-RBC, BLD-HB, BLD-PLT, BLD-NEUT, BLD-LYMPH, BLD-EOS
+--             （`BLD-EOS` 必须在组内：下面 6 处 `G-CBC(BLD-EOS=…)` 覆盖写的就是它。
+--              按展开规则 3「只覆盖本组内列出的项」，它若不在组里，这些覆盖会被静默丢弃，
+--              而 Step 1 的 50 项里有几项本来就不进任何组，`labItemCountInRange` 的
+--              30~50 区间断言照样通过——「嗜酸粒细胞参与过敏性疾病检验」的临床意图
+--              就这么没了，且没有任何断言会发现。）
 --   G-INFLAM= CRP, ESR, PCT
 --   G-COAG  = PT, APTT, INR, FIB, D-DIMER
 --   G-INFECT= HBSAG, HCVAB, TPAB, HIVAB
@@ -1644,7 +1649,7 @@ SELECT department, icd_code, operation_level, min_postop_days FROM his_demo.diag
 ORDER BY department, icd_code;"
 ```
 
-Expected: `总行数 21`、`不同术式数 20`；其余七条 `0`。
+Expected: `总行数 22`、`不同术式数 20`；其余八条 `0`。
 最后一条列出全部 22 行——人工扫一眼就能看出「内科/皮肤科混进来了」或「级别与术后天数错配」。
 
 **单独验一次 spec §9.2 的儿科要求**（这条是 `department` 列的存在理由，必须能证明它生效了）：
@@ -2502,9 +2507,9 @@ Expected: 4 个测试 **PASS**。
 *（这是一个诚实的说明：本步不是 TDD 的「先红后绿」，因为被测对象是已存在的数据文件；
 先红后绿从 Step 3 的跨表断言开始——那批断言**在写的时候我并不知道会不会全过**。）*
 
-- [ ] **Step 3: 补齐剩余 12 个跨表断言**
+- [ ] **Step 3: 补齐剩余 11 个跨表断言**
 
-把这 12 个方法追加到上面的类里（**只加方法，不动已有内容**）：
+把这 11 个方法追加到上面的类里（**只加方法，不动已有内容**）：
 
 ```java
     @Test
@@ -2660,7 +2665,7 @@ Expected: 4 个测试 **PASS**。
 
 Run: `cd backend && mvn -o -pl his-generator -Dtest=SeedSqlConsistencyTest test`
 
-Expected: `Tests run: 16, Failures: 0, Errors: 0`
+Expected: `Tests run: 15, Failures: 0, Errors: 0`
 
 **这一步的失败是真实的失败**——它意味着 Task 3~8 的某份手写数据自相矛盾。
 按报错信息里的药品 id / ICD 回查到对应任务修数据，**不要改断言来迁就数据**。
@@ -2741,13 +2746,13 @@ spec §9.1 定的是「由我方起草、注明来源，提交作者通读审校
 > 用途：spec §9.1 规定本批医学数据「由我方按来源起草，提交作者通读审校后入库」。
 > 本单是审校的凭据。**逐表签收，未签收的表在论文里不得声称为「已审校」**。
 > 机器能查的部分（引用完整性、禁忌、概率和、剂量不等式）已由
-> `SeedSqlConsistencyTest`（16 条）与 `verify-final.sql` 守住，**不必手工复核**。
+> `SeedSqlConsistencyTest`（15 条）与 `verify-final.sql` 守住，**不必手工复核**。
 > 本单只列**机器查不了的**——也就是「这条医学内容对不对」。
 
 ## 0. 先跑机器检查（不改数据，只读）
 
 ```bash
-cd backend && mvn -o -pl his-generator -Dtest=SeedSqlConsistencyTest test   # 应 16 过 0 败
+cd backend && mvn -o -pl his-generator -Dtest=SeedSqlConsistencyTest test   # 应 15 过 0 败
 mysql -uroot -p123456 --default-character-set=utf8mb4 his_demo < backend/sql/verify-final.sql
 ```
 
@@ -2763,7 +2768,9 @@ mysql -uroot -p123456 --default-character-set=utf8mb4 his_demo < backend/sql/ver
 ## 2. 科室↔诊断本体 72 条（Task 4）
 
 - [ ] **科室归属**：逐条看有没有「放错科室」的诊断（这是本次改造的核心目标，请重点看）
-- [ ] **`admission_eligible`**：确认 47 条可住院诊断里没有该门诊化的（皮肤科现为 0）
+- [ ] **`admission_eligible`**：确认 46 条可住院诊断里没有该门诊化的（皮肤科现为 2：甲沟炎/蜂窝织炎。
+  这个数与 Task 4 Step 4 的实测输出一致——**以那里的实际输出为准**，若实测不是 46/2，
+  改这里的数字并在审校单上写明偏差）
 - [ ] **`prevalence`**：**这是假设值，spec §9 无逐病患病率出处**。
       确认接受，或给出你找到的出处数据
 - [ ] **`season`**：冬夏/春秋/全年的归类是否符合你的临床印象
@@ -2817,7 +2824,7 @@ mysql -uroot -p123456 --default-character-set=utf8mb4 his_demo < backend/sql/ver
 ```bash
 git add backend/his-generator/src/test/java/com/his/generator/SeedSqlConsistencyTest.java \
         backend/sql/verify-final.sql backend/sql/AUTHOR-REVIEW-phase3.md
-git commit -m "test(sql): 16 条种子一致性断言入 JUnit，附作者审校单
+git commit -m "test(sql): 15 条种子一致性断言入 JUnit，附作者审校单
 
 verify-final.sql 删除锚定 rule_config.drug_ids 的适应症断言：
 三期的适应症允许集改由 diagnosis_drug 提供，旧断言对新增的 64 个诊断
@@ -3670,7 +3677,7 @@ Expected: `RationalDrugValidatorTest` Tests run: 9；`OntologyRulesTest` Tests r
 cd backend && mvn -o -pl his-generator -Dtest=SeedSqlConsistencyTest test
 ```
 
-Expected: Tests run: 16, Failures: 0, Errors: 0。
+Expected: Tests run: 15, Failures: 0, Errors: 0。
 
 - [ ] **Step 8: Commit**
 
@@ -6928,12 +6935,40 @@ Expected: Tests run: 10, Failures: 0, Errors: 0。
     private record PendingPrescription(Prescription prescription, Disease disease) {}
 ```
 
-**(e) `flushPatients` 的门诊段**替换为（住院段保持原样，只加一处 null 守卫）：
+**(e) `flushPatients` 的门诊段**替换为（住院段另见 (c)；两段在同一个方法里，
+**门诊段必须先执行**——住院段要读本段建好的 `anchorByPatient` 与裁过的 `pending`）：
 
 ```java
         List<PendingVisit> pending = new ArrayList<>();
+        // 收治锚点：患者 id → 该患者最后一次「可住院」门诊。**在门诊段就填好**，
+        // 供后面的住院段读取（收治判定与门诊链裁剪都在下面这个循环里做完，见相关注释）。
+        Map<Long, PendingVisit> anchorByPatient = new HashMap<>();
         for (Patient p : patients) {
-            pending.addAll(newPendingVisits(p, profilesByPatient.get(p.getId())));
+            List<PendingVisit> mine = newPendingVisits(p, profilesByPatient.get(p.getId()));
+
+            // ── 找 anchor：只看病种的 admissionEligible 标记，PendingVisit 造出来时就已确定，
+            //    **不必等住院构造完**。所以下面那刀能裁在「生成诊断 / 处方之前」，
+            //    删掉的门诊不会留下孤儿记录（诊断 / 处方 / 检验 / 收费 / 发药都还没生成）。
+            PendingVisit anchor = null;
+            for (PendingVisit pv : mine) {
+                if (pv.disease().admissionEligible()
+                        && (anchor == null || pv.visit().getVisitTime().isAfter(anchor.visit().getVisitTime()))) {
+                    anchor = pv;
+                }
+            }
+            if (anchor != null && rnd.nextDouble() < INPATIENT_RATIO) {
+                // ── 把 anchor 之后的门诊裁掉（推导见本节开头「死亡与『此后不再就诊』」）──
+                // 「全部门诊记录都早于首次入院」**不是自动成立的**：anchor 只是最后一次*可住院*
+                // 门诊，它之后完全可能还有若干次门诊（挂的是 admission_eligible=0 的诊断，如
+                // J06.9 感冒）。不裁的话这些门诊会晚于首次入院，进而可能晚于 DEATH 时刻，
+                // `death_only_on_the_last_admission_and_no_records_follow_it` 就会红。
+                // 裁在 anchor、而不是裁到「首次入院时刻」：anchor 此刻已知，后者要等
+                // newAdmissions 返回才有；裁得更早同样满足结论，且不必回头改已生成的记录。
+                final LocalDateTime cut = anchor.visit().getVisitTime();
+                mine.removeIf(pv -> pv.visit().getVisitTime().isAfter(cut));
+                anchorByPatient.put(p.getId(), anchor);
+            }
+            pending.addAll(mine);
         }
         List<Visit> visitBuf = new ArrayList<>(pending.size());
         for (PendingVisit pv : pending) {
@@ -6967,13 +7002,14 @@ Expected: Tests run: 10, Failures: 0, Errors: 0。
 （`if (rnd.nextDouble() < VIOLATION_RATE) { injectViolation(...); }` 与随后的
 「total 重算」注释里提到注入的那半句，已在 Task 12 一并删除；若这里还看得到它们，说明 Task 12 没做完。）
 
-住院段的第一行改一处：
+住院段**不是「改一处」，是整体替换**——权威版本在后面的 **(c)**（`flushPatients` 的住院段）。
+下面是**改动前**的旧代码，贴出来只为对照，**不要照着它改**（它用的是「末次门诊」`lastVisitByPatient`，
+而改造后锚点是「最后一次**可住院**门诊」，且收治判定已移到门诊段）：
 
 ```java
+        // 旧代码，仅作对照
         for (Patient p : patients) {
             LocalDateTime lastVisit = lastVisitByPatient.get(p.getId());
-            // lastVisit 为 null 表示该患者一次门诊都没有（见 newPendingVisits 的说明），
-            // 没有末次门诊就没有「入院延续门诊诊断」的起点，跳过而不是让 NPE 冒出去
             if (lastVisit == null || rnd.nextDouble() >= INPATIENT_RATIO) {
                 continue;
             }
@@ -7516,10 +7552,23 @@ Task 4 明确置 0）；若改为「按可住院病种重新抽一个」，那�
 `discharge_disposition=DEATH` 是**唯一**允许该患者此后再无记录的出口（spec §4.8）。
 本任务把它**限制在最后一次住院**上，理由是一条能算出来的时间关系：
 
-门诊链的窗口是 `(末次门诊, now]`，而住院的首次入院时间落在 `(末次门诊, latestFirst]` 内，
-其后每次 +`ADMISSION_GAP_DAYS` 天，`latestFirst ≤ now`。所以**全部门诊记录都早于首次入院**。
-于是只要死亡只发生在 `i == count - 1` 那次住院上，该患者死亡之后就不存在任何记录——
-不需要回头删已写入的门诊行。Task 23 的术前检查、手术记录同理，都挂在住院下。
+住院的首次入院时间落在 `(anchor, latestFirst]` 内（`anchor` = 该患者**最后一次可住院门诊**），
+其后每次 +`ADMISSION_GAP_DAYS` 天，`latestFirst ≤ now`。
+
+**但「全部门诊记录都早于首次入院」不是自动成立的**：`anchor` 只是最后一次*可住院*门诊，
+它之后完全可能还有若干次门诊（挂的是 `admission_eligible=0` 的诊断，如 J06.9 感冒）。
+这些门诊会晚于首次入院，进而可能晚于 DEATH 时刻，
+`death_only_on_the_last_admission_and_no_records_follow_it` 就会红。
+
+所以要**显式裁一刀**（见 (e) 的 `flushPatients` 门诊段）：对将被收治住院的患者，
+把其门诊链的右端裁到 `anchor`——`anchor` 之后不再产生任何记录。
+裁在 `anchor` 而不是裁到「首次入院时刻」，是因为 `anchor` 在门诊段就已知、
+后者要等 `newAdmissions` 返回才有；裁得更早同样满足结论，且这一刀落在诊断/处方/检验
+生成**之前**，不会留下孤儿记录。
+
+裁完之后链条是：`全部门诊记录 ≤ anchor < 首次入院 ≤ … ≤ 末次出院`。
+于是只要死亡只发生在 `i == count - 1` 那次住院上，该患者死亡之后就不存在任何记录。
+Task 23 的术前检查、手术记录同理，都挂在住院下。
 这条推理写成测试（`death_only_on_the_last_admission_and_no_records_follow_it`），
 **不要只写在注释里**：日后有人把 `isLastAdmission` 的判断改掉，这条关系就断了，而症状是
 「某个患者死后还有门诊记录」——从数据上很难一眼看出来。
@@ -7641,8 +7690,44 @@ Task 4 明确置 0）；若改为「按可住院病种重新抽一个」，那�
                 }
             }
         }
-        // 概率很小，但 200 人里一次都没有说明 DEATH 那条分支根本没跑通
-        assertThat(deaths).isGreaterThan(0);
+        // **这里不能断言 `deaths > 0`**：N=200 时死亡数的期望只有约 0.2。
+        // 要连过四关才有一次死亡——「该患者有住院」（INPATIENT_RATIO=0.2）、
+        // 「患者年龄 ≥ DEATH_MIN_AGE=75」、「恰好在最后一次住院上」、「rnd.nextDouble() < DEATH_RATE=0.03」。
+        // 相乘后的量级是 0.1~0.2，断言 `> 0` 等于掷硬币，而且是长年朝反面落的那种。
+        // DEATH 分支的**正向覆盖**交给 Task 23：那里 `dischargeDisposition(...)` 是显式传参的方法，
+        // 可以直接构造 `isLastAdmission=true` 并桩住随机数，断言它返回 "DEATH"，不必靠抽样去碰。
+        // 本用例只负责守住上面的时间不变量——「死亡只在最后一次住院」「死亡之后没有门诊记录」。
+    }
+
+    /**
+     * 「全部门诊记录都早于首次入院」——这是「死亡患者此后不再有记录」的地基。
+     *
+     * <p>原稿靠一段推理认为它自动成立，**实际不成立**（详见改造说明「死亡与『此后不再就诊』」）：
+     * `anchor` 只是最后一次*可住院*门诊，它之后还可能有门诊。现在由 `flushPatients` 的门诊段
+     * 把 `anchor` 之后的门诊裁掉来保证。本用例就是那一刀的守门人——裁剪被删掉、
+     * `isAfter` 写反、或裁剪被挪到诊断生成之后，它都会红。
+     */
+    @Test
+    void no_outpatient_record_follows_the_first_admission() {
+        DataGeneratorService svc = buildService();
+        svc.generate(200);
+
+        Map<Long, LocalDateTime> firstAdmission = new HashMap<>();
+        for (Admission a : insertedAdmissions) {
+            firstAdmission.merge(a.getPatientId(), a.getAdmissionTime(),
+                    (x, y) -> x.isBefore(y) ? x : y);
+        }
+        assertThat(firstAdmission).as("一个被收治的患者都没有，本断言会空转").isNotEmpty();
+
+        for (Visit v : insertedVisits) {
+            LocalDateTime first = firstAdmission.get(v.getPatientId());
+            if (first == null) {
+                continue;                       // 该患者未被收治，门诊链不受裁剪约束
+            }
+            assertThat(v.getVisitTime())
+                    .as("门诊记录晚于首次入院：patient=" + v.getPatientId())
+                    .isBefore(first);
+        }
     }
 
     /** 医嘱药品必须来自该住院诊断的用药本体，剂量取自 drug_dose。 */
@@ -7758,28 +7843,22 @@ Expected: 编译失败——`Admission.getAdmissionDiagnosis()` / `getAdmissionR
     private long pathwayLabUnmapped;
 ```
 
-**(c) `flushPatients` 的住院段**整体替换（门诊段不动）：
+**(c) `flushPatients` 的住院段**整体替换（门诊段见 (e)，顺序在**前**——本段读它建好的
+`anchorByPatient`，且收治判定已移到那里，本段不再消耗随机数）：
 
 ```java
         // 住院：先只构造 Admission，回填 id 之后再生成医嘱/体征/住院检验
         //
-        // 锚点 = 该患者最后一次「可住院」的门诊（见本节开头的说明）。
-        // 注意此处遍历的是 pending（时间已升序），merge 仍显式比较时间：
-        // 依赖「上游恰好有序」是那种改天有人动了排序就静默出错的地方。
-        Map<Long, PendingVisit> anchorByPatient = new HashMap<>();
-        for (PendingVisit pv : pending) {
-            if (!pv.disease().admissionEligible()) {
-                continue;
-            }
-            anchorByPatient.merge(pv.visit().getPatientId(), pv,
-                    (a, b) -> a.visit().getVisitTime().isAfter(b.visit().getVisitTime()) ? a : b);
-        }
+        // `anchorByPatient` 与收治判定（`rnd.nextDouble() < INPATIENT_RATIO`）都已在**门诊段**
+        // 做完——门诊段同时把 anchor 之后的门诊裁掉了（推导见本节开头「死亡与『此后不再就诊』」）。
+        // 本段只按 `patients` 的既有顺序把住院单造出来。**不要**在这里重新判定收治、
+        // 也不要再消耗一次 `rnd.nextDouble()`：那会让收治名单与已裁剪的门诊链对不上。
         List<Admission> admissionBuf = new ArrayList<>();
         Map<Long, Disease> admissionDiseaseByPatient = new HashMap<>();
         for (Patient p : patients) {
             PendingVisit anchor = anchorByPatient.get(p.getId());
-            if (anchor == null || rnd.nextDouble() >= INPATIENT_RATIO) {
-                continue;
+            if (anchor == null) {
+                continue;                       // 未被收治（或一条可住院诊断都没有）
             }
             admissionDiseaseByPatient.put(p.getId(), anchor.disease());
             admissionBuf.addAll(newAdmissions(p, profilesByPatient.get(p.getId()), anchor));
@@ -8122,7 +8201,7 @@ Expected: 编译失败——`Admission.getAdmissionDiagnosis()` / `getAdmissionR
 
 > **`ruleConfigMapper` 字段与构造器参数保留**：前端「规则配置」页读的是同一张表，
 > 表本身没废（spec §6.4），只是生成器不再拿它当数据源。
-> 删掉构造器参数会让 `@RequiredArgsConstructor` 的 17 个参数变 16 个，
+> 删掉构造器参数会让 `@RequiredArgsConstructor` 的 18 个参数变 17 个，
 > 而 `DataGeneratorServiceTest` 是**按位置**传参的——白改一处、白红一次。
 
 ```bash
