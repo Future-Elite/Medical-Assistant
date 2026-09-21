@@ -4,10 +4,8 @@
 --
 -- 前置：必须先执行 seed.sql（drug 的 id 1~12 由它定义）与 seed-extension.sql。
 -- 注意：本脚本的 **drug 段只能执行一次**——drug 主键会拒绝重复插入。
---       第 3 节 dept_diagnosis 段同理**只能执行一次**，但失败方式更隐蔽：
---       该表没有唯一键，重跑不会报错，而是**静默**累加成 144/216/… 行。
---       visit_rate 段不同：它没有唯一键，故 Step 3 在 INSERT 前先 DELETE，
---       整段可重复执行（重复执行的后果与重建方法都写在 Step 3 的注释里）。
+--       visit_rate 段与 dept_diagnosis 段不同：它们没有唯一键，故各自在 INSERT 前先 DELETE，
+--       整段可重复执行（重复执行的后果与重建方法都写在对应节的注释里）。
 --
 -- 数据来源（spec §9）：
 --   诊断编码与名称  = ICD-10 国家临床版（卫健委）
@@ -294,7 +292,7 @@ INSERT INTO visit_rate (age_min, age_max, gender, multiplier) VALUES
 --   而 patient.gender 是 **0=男 1=女**。两者域不同，切勿互抄（预检 F-5 就是这么错的）。
 -- 同 ICD 跨科室是合法的（J06.9 / A09.9 / R50.9 各有内科+儿科两行、K40.9 有外科+儿科两行），
 --   Task 8 的科室检查取并集判定。
--- 幂等：本表无唯一键，重跑本段**不报错**，只会静默累加行数。整段只能执行一次。
+-- 幂等：本表无唯一键，故本段在 INSERT 前先 DELETE（见下方），可重复执行。
 --
 -- month_weights 的季节模式（长度 12 的正数数组，索引 0=1月 … 11=12月；NULL 表示无季节性）
 -- 来源：卫健委《临床路径》各病种说明与统计公报分月数据；无逐病种公开分月数据的按病种性质归类
@@ -306,6 +304,13 @@ SET @SUMMER        = '[0.7,0.7,0.9,1.1,1.3,1.5,1.5,1.4,1.2,1.0,0.8,0.7]';
 SET @SPRING_AUTUMN = '[0.8,0.9,1.3,1.4,1.2,1.0,0.9,1.0,1.2,1.3,1.0,0.8]';
 -- 三个数组各自之和约等于 12（实测 12.2 / 12.8 / 12.8），相对形状有意义、绝对水平无意义——
 -- 生成器按「同科室同年龄段内归一化」使用，故不需要它们精确等于 12。
+
+-- 本节可重复执行：dept_diagnosis **没有唯一键**（见 schema.sql，只有 idx_dd_dept/idx_dd_icd/idx_dd_chronic
+-- 三个普通索引），重跑本段不会报错，而是**静默**累加成 144/216… 行。
+-- 而 72 这个数正是下游的契约：Task 5 的检验组、Task 7 的用药映射都按本表的
+-- (department, icd_code) 组合逐一对应，Task 11/13 把它当取样池——多一行就静默改变它们。
+-- 本表没有任何外键指向它，DELETE 永远安全。
+DELETE FROM dept_diagnosis;
 
 -- 内科（15 条）
 INSERT INTO dept_diagnosis (department, icd_code, diagnosis_name, gender, min_age, max_age, chronic, admission_eligible, weight, month_weights, prevalence) VALUES
