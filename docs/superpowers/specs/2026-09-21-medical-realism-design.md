@@ -85,6 +85,20 @@
 （`rule_config` 里 `A09.9 急性胃肠炎 → '7,6'`，即蒙脱石散 + 奥美拉唑，是正确的），
 而是 3% 注入分支的产物。该机制本次**整体删除**（§7），不是加标记。
 
+### 根因 ⑤：化验项目与诊断完全无关，且异常方向单一
+
+`DataGeneratorService.java:450-468`（门诊）、`641-654`（住院）、`656-665`（路径）三处化验生成：
+
+| 缺陷 | 代码事实 | 后果 |
+|---|---|---|
+| 与诊断**零关联** | 第 454 行 `MedicalData.LAB_ITEMS.get(rnd.nextInt(size()))`——全局均匀随机抽 | `MedicalData.LAB_ITEMS` **总共只有 5 项**（红细胞计数/白细胞计数/空腹血糖/血红蛋白/血小板计数）。2 型糖尿病有 80% 概率查不到血糖；急性胃肠炎几乎查不到白细胞 |
+| 异常方向**恒为偏高** | 第 460 行 `val = li.high() + rnd.nextDouble() * li.high() * 0.3` | 只向上加、从不向下减。**贫血（血红蛋白偏低）、低血糖、低钾这类结果物理上不可能出现** |
+| 异常概率**与疾病无关** | 第 459 行 `rnd.nextDouble() < 0.15` 写死 | 糖尿病人的空腹血糖与健康人的血小板，异常率都是 15% |
+| 路径检验**恒为正常** | 第 665 行 `lt.setIsAbnormal(0)` | 2 型糖尿病临床路径 day 2 复查空腹血糖，结果永远「正常」——路径数据自相矛盾 |
+
+**外部依据**：多篇综述一致指出该领域「对**时序依赖**与**临床真实性**关注严重不足」
+（见 §9.3），本根因与根因 ② 共同构成该缺口在本项目中的具体体现。
+
 ## 3. 范围
 
 ### 3.1 本设计做什么
@@ -166,6 +180,19 @@
 | `weight` | DECIMAL(6,3) | 该项目被开立的相对权重 |
 
 索引：`idx_ddl_icd(icd_code)`
+
+**本表是修掉根因 ⑤ 的关键**，四条硬性要求：
+
+1. 项目必须**按诊断挂接**，不再存在全局随机抽取的检验池。
+2. `abnormal_direction` 必须支持 `LOW`，且**每个诊断至少有一条 `LOW` 或 `NONE` 的可选项目**，
+   杜绝「只会偏高」——贫血、低血糖、低钾类结果必须可能生成。
+3. `ref_range` 与 `abnormal_direction` 必须自洽：方向为 `HIGH` 时参考范围上界须低于生成值域下界
+   （即异常值确实越界），由 §11 的一致性测试卡住。
+4. **临床路径里的检验同样受本表约束**：`labTestForItem` 必须按该诊断的 `abnormal_direction`/`abnormal_prob`
+   生成结果，**不得再写死 `isAbnormal(0)`**。糖尿病路径复查空腹血糖必须可以是异常。
+
+**规模要求**：项目池扩到 **30~50 项**（覆盖血常规、CRP、肝肾功能、电解质、血糖、尿常规、心肌酶、
+凝血、甲功等常用组套），其中每个诊断挂 2~8 项。
 
 ### 4.4 `drug_dose` 药品剂量规则
 
@@ -426,7 +453,51 @@ MIMIC（需 credentialed 资质）、CMeKG（授权不明）。
   - 皮肤科（湿疹、荨麻疹、痤疮、带状疱疹……）
 - **药品**：150~250 种，扩充 `drug` 字典
 - **慢病**：≥10 个，带 `prevalence`
-- **检验项目**：共享项目池（血常规、CRP、肝肾功能、血糖、尿常规……）按诊断挂接
+- **检验项目**：**30~50 项**，按诊断挂接（要求见 §4.3；现状仅 5 项且与诊断无关）
+
+### 9.3 算法参考的公开实现与文献（含核实状态）
+
+**必须先说清的现状**：在本设计提出之前，`DataGeneratorService` 的生成算法
+**没有参考任何论文或公开实现**。全部参数（`HOME_DEPT_RATIO=0.8`、`VIOLATION_RATE=0.03`、
+每人 5~20 次就诊、住院 3~15 天、化验异常率 15%）均为手拍常数，无出处。
+这是本项目**方法论章节的既有缺口**，本设计通过引入下述参照来补。
+
+#### 算法参照的公开实现
+
+| 项目 | 许可 | 参照的具体内容 | 核实状态 |
+|---|---|---|---|
+| **Synthea**（MITRE） | Apache-2.0 | 疾病模块 = 状态机；`Delay` 状态是唯一耗时原语；每患者事件日历；Encounter 记录；模块内临床逻辑。本设计 §5 的事件日历与慢病终身携带在结构上即此模型 | 架构与许可是**凭已有知识陈述，仓库未打开**。使用前须确认许可条款 |
+
+> **许可注意**：若从 Synthea 的模块文件中**直接提取关系数据**（如某病的用药/检查清单），
+> 须保留其 Apache-2.0 署名。本设计要求**只参照方法、不复制数据**——关系数据一律取自 §9 的公开政府来源，
+> 以规避署名与合规争议。
+
+#### 文献
+
+| 文献 | 用途 | 核实状态 |
+|---|---|---|
+| Walonoski J, Kramer M, Nichols J, et al. Synthea: An approach, method, and software mechanism for generating synthetic patients and the synthetic electronic health care record. *JAMIA*. 2018;25(3):230-238. doi:10.1093/jamia/ocx079. PMID:29025144 | §5 患者级疾病轨迹的方法论出处 | **多源交叉一致**（PubMed / OUP / EuropePMC / OSTI 指向同一 DOI、PMID、卷期页）。仍需打开确认 |
+| Kartoun U. A Methodology to Generate Virtual Patient Repositories. arXiv:1608.00570 | 虚拟患者库的早期方法 | 由 Synthea 勘误条目**反向确认存在**，未打开 |
+| Generating Synthetic Electronic Health Record Data: A Methodological Scoping Review with Benchmarking. arXiv:2411.04281 | 方法分类（规则驱动 6 / GAN 21 / VAE 5 / Transformer 5 / 扩散 8）与领域缺口 | 搜索返回其正文片段，未打开 |
+| Evaluation of synthetic electronic health records: A systematic review and experimental assessment. *Neurocomputing*. doi:10.1016/j.neucom.2024.128253 | 评估指标分类（resemblance / utility / privacy / cost） | 仅标题与 DOI，未打开 |
+| Synthetic data generation methods for longitudinal and time series health data: a systematic review. *BMC Med Inform Decis Mak*. doi:10.1186/s12911-025-03326-8 | 纵向时序数据生成现状（§1.2 的依据） | 仅标题与 DOI，未打开 |
+| A Survey of Generative Adversarial Networks for Synthesizing Structured Electronic Health Records. *ACM Computing Surveys*. doi:10.1145/3636424 | GAN 路线代表综述（§3.2 排除该路线时引用） | 仅标题与 DOI，未打开 |
+
+**两条硬规则**：
+
+1. 上表**任何一条**在打开原文确认之前，**不得**作为参考文献写入论文。
+   「核实状态」列须随引用一起更新，确认一条改一条。
+2. 本设计**不依赖**任何未核实文献的结论。§3.2 排除 ML/RL 的论证是**自洽推理**
+   （无真实数据 → 无奖励信号 → 只能拟合自己的模拟器），
+   即使上表文献全部不成立，该论证依然成立。
+
+**核实方法**：本机 `WebFetch` 被网络策略拦截（实测 `github.com` 与 `synthetichealth.github.io`
+均返回「Unable to verify if domain is safe to fetch」），需由作者在浏览器中逐条打开 DOI / PubMed 链接确认。
+
+**已确证的领域缺口（可直接支撑立论）**：多篇综述一致指出该领域
+**缺乏标准化评估框架**、临床验证依赖主观判断、**对时序依赖与临床真实性关注不足**。
+根因 ② 与根因 ⑤ 正是这一缺口在本项目中的具体体现——这构成本设计的问题陈述与贡献定位。
+（出处：arXiv:2411.04281 与 *BMC Med Inform Decis Mak* 两条，**引用前须打开确认**。）
 
 ## 10. 分期交付
 
@@ -451,7 +522,8 @@ MIMIC（需 credentialed 资质）、CMeKG（授权不明）。
 |---|---|
 | **种子数据一致性** | ① `diagnosis_drug` 的每个诊断一线药组合不违反 `rational_rule.rule_type=1` 的相互作用规则（卡住现行 `I10` 缺陷）；② `drug_dose` 自身满足 `single_dose × 每日次数 ≤ max_daily_dose`；③ `drug_dose.max_daily_dose` 与 `rational_rule.rule_type=2` 对同一 `drug_id` 取值相等；④ 对 `rule_config` 已覆盖的 8 个诊断，`rule_config` 与 `diagnosis_drug` 的药品集合**完全相等**（过渡期约束；种子起草时把这 8 条一并修正，含 `I10` 去掉重复的 CCB） |
 | **本体完整性** | 每个 `dept_diagnosis.department` 在 `doctor` 表里都有医生；每个 `diagnosis_drug.drug_id` 在 `drug` 表里存在；同一 `item_code` 在 `diagnosis_lab` 各行的 `item_name`/`unit`/`ref_range` 一致（`diagnosis_lab` 自身即检验项目池，不另建表）；`month_weights` 长度为 12 且全为正 |
-| **生成器行为** | ① **核心回归测试**：生成数据上本体一致性与合理用药检查全部为 0，且 `unchecked == 0`；② 处方明细的每个 `drugId` 必属于该诊断的 `diagnosis_drug`（这是删除注入后的**等价保证**，直接卡住注入复活）；③ 患者年龄覆盖 <14；④ 儿科就诊的患者年龄 <14；⑤ 男性患者不出现妇科诊断；⑥ `admission` 的诊断全部 `admission_eligible=1`；⑦ 慢病随访间隔中位数落在设计区间 |
+| **化验本体自洽（修根因 ⑤）** | ① 每个诊断至少挂 2 项检验，且**至少有一项 `abnormal_direction` 为 `LOW` 或 `NONE`**（杜绝「只会偏高」）；② `ref_range` 与 `abnormal_direction` 自洽：方向为 `HIGH` 时参考范围上界须低于异常值域下界，为 `LOW` 时反之 |
+| **生成器行为** | ① **核心回归测试**：生成数据上本体一致性与合理用药检查全部为 0，且 `unchecked == 0`；② 处方明细的每个 `drugId` 必属于该诊断的 `diagnosis_drug`（这是删除注入后的**等价保证**，直接卡住注入复活）；③ 患者年龄覆盖 <14；④ 儿科就诊的患者年龄 <14；⑤ 男性患者不出现妇科诊断；⑥ `admission` 的诊断全部 `admission_eligible=1`；⑦ 慢病随访间隔中位数落在设计区间；⑧ **偏低方向的异常确实出现**（`isAbnormal=1` 且结果值低于参考下界的记录数 > 0）；⑨ **临床路径检验不再恒为正常**（路径产生的检验中存在 `isAbnormal=1` 的记录） |
 | **校验器（正例，必须有）** | 对**每一类**检查构造一条**已知违规**记录，断言被正确分类到对应 `byType`。这是「删除注入后校验器仍有效」的唯一代码级证据，**不得省略** |
 | **校验器（负例）** | 生成数据上断言全 0；另构造一条「诊断不在本体中」的处方，断言计入 `unchecked` 而非被静默跳过（卡住 §8.1 的隐患回潮） |
 | **时间一致性** | 沿用二期已有的时间线升序断言；新增环节耗时级联的先后顺序断言 |
@@ -473,6 +545,9 @@ MIMIC（需 credentialed 资质）、CMeKG（授权不明）。
 5. **本体规模统计**：诊断数、药品数、关系边数、慢病数（实测）。
 6. **局限与未来工作**：§1.2 的可达边界表 + §3.2 的 ML/RL 论证，以及若要突破需具备什么条件
    （真实数据访问权 + 合规审查 + 可验证的评估协议）。
+7. **方法论参照章节**（现状完全缺失的一章）：§9.3 的公开实现与文献表。
+   含「本设计提出前的算法无任何出处」的**如实说明**，以及逐条的核实状态。
+   **交付前提**：表内每条须由作者打开原文确认后，方可写入正式参考文献列表。
 
 ## 13. 全局约束（后续计划必须遵守）
 
@@ -499,5 +574,6 @@ MIMIC（需 credentialed 资质）、CMeKG（授权不明）。
 | `rule_config` 与 `diagnosis_drug` 双真相源 | 前端改了一处、生成器读另一处 | 过渡期用一致性测试卡住；后续可让前端编辑 `diagnosis_drug` 并废弃 `rule_config` |
 | **本体覆盖不全** | `unchecked > 0`，「违规率为 0」变成「没检查所以为 0」，论文核心数字失真 | 覆盖率作为一等指标报出（§12.2）；§11 断言 `unchecked == 0`；覆盖率 100% 才对外报数字 |
 | **删除注入后校验器恒返回 0** | 答辩被问「校验器到底有没有用」 | §8.4 三条路径：正例单测（代码级证据）+ `EntryForm` 人工录入活演示 + 平台定位是校验**外部**数据 |
+| **§9.3 文献均未打开原文** | 未核实即引用是学术风险；本机 `WebFetch` 被网络策略拦截，我无法代劳 | 逐条标注核实状态；作者在浏览器打开确认后才写入参考文献；§3.2 的核心论证设计为**不依赖**任何未经核实的文献 |
 | 数据生成耗时因本体查询上升 | 万级患者生成变慢 | 本体表启动时全量加载进内存（与现有加载方式一致）；生成过程零 DB 往返 |
 | 三期工作量超出毕设周期 | 交付不完整 | 分期交付，每期独立可运行；阶段三是纯增量，可裁剪 |
