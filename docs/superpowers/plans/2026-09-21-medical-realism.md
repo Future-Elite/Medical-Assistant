@@ -40,8 +40,26 @@
     故 **Tasks 3–8 的「入库并断言」步骤在执行者这一侧无法完成**。
   - **处理办法（已裁定）**：执行者只做**离线静态校验**——解析自己生成的 `.sql`，与所在任务
     `Expected` 的每个值逐条比对——并在报告里**显式写明这些数字不是查库结果**（Task 3 与 Task 4
-    的报告都如此标注，这是正确做法）。入库与断言合并成**一次阶段一收尾部署批**，
-    由持有凭据的作者按各任务 Step 1~4 的原样命令一次跑完。
+    的报告都如此标注，这是正确做法）。入库与断言合并成**一次阶段一收尾部署批**（下称 **D-4**），
+    由持有凭据的作者一次跑完，命令见下。
+  - **D-4 的唯一命令（2026-09-21 定稿）**：`seed-ontology.sql` **从第 2 节起每节都以
+    `DELETE FROM <本表>;` 开头**，故 **§2~§7 整段是幂等的**：从 §2 那行 `DELETE` 截到文件末尾，
+    一次灌完或重灌都得到同一结果。
+
+    ```bash
+    cd backend
+    grep -n '^DELETE FROM visit_rate;' sql/seed-ontology.sql    # 全文件唯一匹配，§2 的起点
+    sed -n '<该行号>,$p' sql/seed-ontology.sql > /tmp/phase1-tail.sql
+    mysql --default-character-set=utf8mb4 his_demo < /tmp/phase1-tail.sql
+    ```
+
+    这一段覆盖 **§2~§7 共六节**（visit_rate / dept_diagnosis / diagnosis_lab /
+    diagnosis_operation / diagnosis_drug / drug_dose）。然后按 Task 3~8 各自的 Step 4（Task 7 是
+    Step 3）跑断言。
+  - **`drug` 段（§1，id 13~196）是整份文件里唯一不可重跑的部分**：它显式写 id 又**没有** DELETE，
+    重复执行会主键冲突，而 `mysql` 客户端遇错即**中止**——这正是必须从 §2 起截、
+    **绝不能整份 `mysql < seed-ontology.sql`** 的原因。`drug` 只在 Task 3 首次装载时执行一次。
+    **任何任务里的「入库」步骤都指 D-4，不是指整份文件。**
   - **不得把这批离线数字写成实测数字**，也不得因为「反正作者会跑」就省略离线校验。
     真正的数据库实测从阶段二的 Task 18 起（那些任务的全部结论都依赖查库，届时凭据必须可用）。
 - 每个 commit 结尾附 `Co-Authored-By: Claude Code <noreply@anthropic.com>`
@@ -1084,15 +1102,16 @@ SET @SPRING_AUTUMN = '[0.8,0.9,1.3,1.4,1.2,1.0,0.9,1.0,1.2,1.3,1.0,0.8]';
 
 **本节加一条 `DELETE`**（与第 2 节的 `visit_rate` 同款纪律）。
 
-**位置是硬要求：放在三个 `SET @WINTER/@SUMMER/@SPRING_AUTUMN` 行之后、第一条 `INSERT` 之前。**
-不是放在节标题之后——本节的官方抽取锚点是 `SET` 那一行（见本步的抽取命令），
-`DELETE` 若在 `SET` 之前就会被那条命令**静默漏掉**，于是「本节可重复执行」名不副实，
-重跑照样累加成 144/216 行，正是这条纪律要防的事故。放在 `SET` 之后则抽取窗口 =
-3 个 `SET` + 1 个 `DELETE` + 6 条 `INSERT`，自洽。
+**位置：紧邻第一批 `INSERT` 之前。** 当前实现放在三个
+`SET @WINTER/@SUMMER/@SPRING_AUTUMN` 行之后、第一条 `INSERT` 之前，**正确**。
+（2026-09-21 修正：此前这里写的是「必须在 `SET` 之后，因为官方抽取锚点是 `SET` 行」——
+那个理由已经作废：Global Constraints 的 D-4 改为**从 §2 的 `DELETE` 起整段灌**，
+不再依赖 §3 内部任何锚点。位置要求现在只剩可读性理由：`DELETE` 要一眼看出是**这批数据**的护栏，
+放在 `SET` 之前会让人以为它在守护那三条 `SET`。）
 
 ```sql
 -- 本节可重复执行：dept_diagnosis **没有唯一键**（见 schema.sql，只有 idx_dd_dept/idx_dd_icd/idx_dd_chronic
--- 三个普通索引），重跑本段不会报错，而是**静默**累加成 144/216… 行。
+-- 三个普通索引）。**不加下面这行 DELETE 直接重跑**，不会报错，而是**静默**累加成 144/216… 行。
 -- 而 72 这个数正是下游的契约：Task 5 的检验组、Task 7 的用药映射都按本表的
 -- (department, icd_code) 组合逐一对应，Task 11/13 把它当取样池——多一行就静默改变它们。
 -- 本表没有任何外键指向它，DELETE 永远安全。
@@ -1213,16 +1232,12 @@ spec §9.2 只禁止皮肤科挂手术，没有禁止皮肤科收住院。
 
 - [ ] **Step 4: 入库并断言**
 
-**不能整份重跑**：第 1 节的 `drug` id 13~196 已在库里，`mysql` 客户端遇到主键冲突会**中止**，
-本节的语句根本执行不到。把本节**从 `SET @WINTER` 那行起**整段抽到临时文件再灌：
+**入库走 Global Constraints 里的 D-4**（从 §2 的 `DELETE FROM visit_rate;` 那行截到文件末尾，
+一次灌完 §2~§7；六个节全部 DELETE 前置，可重复执行）。D-4 跑完本节必然已入库，直接跑下面的断言。
 
-```bash
-cd backend
-# 从本节起点（SET @WINTER）截到文件末尾；行号以当时文件为准，用 grep -n 定位
-grep -n 'SET @WINTER' sql/seed-ontology.sql
-sed -n '<该行号>,$p' sql/seed-ontology.sql > /tmp/section3.sql
-mysql --default-character-set=utf8mb4 his_demo < /tmp/section3.sql
-```
+> **不要整份 `mysql < sql/seed-ontology.sql`**：§1 的 `drug` id 13~196 已在库里，
+> 主键冲突会让 `mysql` 客户端**中止**，本节语句根本执行不到——而断言会在一个**没被更新**的库上跑完，
+> 全绿却毫无意义。这是 D-4 存在的全部理由。
 
 ```bash
 mysql --default-character-set=utf8mb4 -e "
@@ -1293,6 +1308,9 @@ git commit -m "feat(sql): 科室↔诊断本体 72 条，覆盖 6 科室并纳�
 > 本表没有任何外键指向它，DELETE 永远安全。
 > 若本节的 SQL 由代码/脚本生成，把这条 `DELETE` 写在**生成器的输出模板里**，
 > 不要只写在手工步骤的说明里。
+> **注释措辞有硬要求**：写入文件的那段注释必须带与第 2/3 节同款护栏——明写
+> 「**不加下面这行 DELETE 直接重跑**，会静默累加成 … 行」。不要笼统写「重跑本节会累加」：
+> 那句话在 `DELETE` 就位之后**字面上是假的**（Task 4 复审就抓到过同款措辞，见 `seed-ontology.sql:309`）。
 
 **Interfaces:**
 - Consumes: Task 4 的 `dept_diagnosis`（`(科室, ICD)` 组合必须与 Task 4 逐一对应）
@@ -1526,10 +1544,9 @@ L03.9:  G-CBC(BLD-WBC=0.750), G-INFLAM(CRP=0.650,PCT=0.350), G-GLU
 
 - [ ] **Step 4: 入库并断言（含重复检测）**
 
-```bash
-cd backend
-mysql -uroot -p123456 --default-character-set=utf8mb4 his_demo < sql/seed-ontology.sql
-```
+**入库走 Global Constraints 里的 D-4**（从 §2 的 `DELETE FROM visit_rate;` 那行截到文件末尾，一次灌完 §2~§7）。
+**不要整份 `mysql < sql/seed-ontology.sql`**（§1 的 `drug` 主键冲突会让客户端中止，本节的语句执行不到，
+下面的断言就在一个没被更新的库上「全绿」）。
 
 ```bash
 mysql -uroot -p123456 --default-character-set=utf8mb4 -e "
@@ -1597,6 +1614,9 @@ git commit -m "feat(sql): 检验本体 50 项，外科诊断全部挂术前检�
 > `idx_dop_code` 三个普通索引），重跑本节不报错而是**静默**把 22 行累加成 44/66… 行。
 > 而 `probability` 是「该诊断需手术的概率」——同一诊断出现两行会**静默放大手术量**，
 > 直接污染 Task 23~26 的手术域全部指标。本表无外键指向它，DELETE 永远安全。
+> **注释措辞有硬要求**：写入文件的那段注释必须带与第 2/3 节同款护栏——明写
+> 「**不加下面这行 DELETE 直接重跑**，会静默累加成 44/66… 行」。不要笼统写「重跑本节会累加」：
+> 那句话在 `DELETE` 就位之后**字面上是假的**（Task 4 复审就抓到过同款措辞）。
 
 **Interfaces:**
 - Consumes: Task 4 的 `dept_diagnosis`（`(科室, ICD)` 必须与 Task 4 逐一对应）
@@ -1712,10 +1732,8 @@ spec §9.2 要求「儿科（腹股沟疝）挂手术，且**概率远低于成�
 
 - [ ] **Step 4: 入库并断言**
 
-```bash
-cd backend
-mysql -uroot -p123456 --default-character-set=utf8mb4 his_demo < sql/seed-ontology.sql
-```
+**入库走 Global Constraints 里的 D-4**（从 §2 的 `DELETE FROM visit_rate;` 那行截到文件末尾，一次灌完 §2~§7）。
+**不要整份 `mysql < sql/seed-ontology.sql`**（§1 的 `drug` 主键冲突会让客户端中止，本节的语句执行不到）。
 
 ```bash
 mysql -uroot -p123456 --default-character-set=utf8mb4 -e "
@@ -1784,6 +1802,9 @@ git commit -m "feat(sql): 手术本体 20 术式，按科室区分成人与儿�
 > 而本表是 Task 10 的 `RationalDrugValidator` 的**适应症允许集**、阶段二生成器的**处方药品池**——
 > 同一 `(icd_code, drug_id)` 出现两行会静默把该药权重翻倍，进而扭曲处方分布。
 > 本表无外键指向它，DELETE 永远安全。
+> **注释措辞有硬要求**：写入文件的那段注释必须带与第 2/3 节同款护栏——明写
+> 「**不加下面这行 DELETE 直接重跑**，会静默累加成 720/1080… 行」。不要笼统写「重跑本节会累加」：
+> 那句话在 `DELETE` 就位之后**字面上是假的**（Task 4 复审就抓到过同款措辞）。
 
 **Interfaces:**
 - Consumes: Task 3 的 196 种药（`drug_id` 必须存在）、Task 4 的 `(科室, ICD)` 组合
@@ -2022,10 +2043,8 @@ Task 8 会删掉注入机制，Task 12 会让生成器只读本表。
 
 - [ ] **Step 3: 入库并断言（含禁忌的机器检查）**
 
-```bash
-cd backend
-mysql -uroot -p123456 --default-character-set=utf8mb4 his_demo < sql/seed-ontology.sql
-```
+**入库走 Global Constraints 里的 D-4**（从 §2 的 `DELETE FROM visit_rate;` 那行截到文件末尾，一次灌完 §2~§7）。
+**不要整份 `mysql < sql/seed-ontology.sql`**（§1 的 `drug` 主键冲突会让客户端中止，本节的语句执行不到）。
 
 ```bash
 mysql -uroot -p123456 --default-character-set=utf8mb4 -e "
@@ -2313,6 +2332,10 @@ INSERT INTO drug_dose (drug_id, single_dose, dose_unit, frequency, max_daily_dos
 ```
 
 - [ ] **Step 3: 本表自洽性断言**
+
+**入库走 Global Constraints 里的 D-4**（从 §2 的 `DELETE FROM visit_rate;` 那行截到文件末尾，一次灌完 §2~§7）。
+**不要整份 `mysql < sql/seed-ontology.sql`**（§1 的 `drug` 主键冲突会让客户端中止，本节的语句执行不到）。
+本节还改了 `seed-extension.sql`（Step 1），那一份按 Task 1 的说明单独重灌，与 D-4 无关。
 
 ```bash
 mysql -uroot -p123456 --default-character-set=utf8mb4 his_demo -e "
