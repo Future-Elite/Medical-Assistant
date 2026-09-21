@@ -8282,19 +8282,22 @@ UNION ALL SELECT 'lab_test', COUNT(*)
 SELECT '=== 2.6 住院诊断↔科室↔医生 一致性（应为 0）===' AS section;
 SELECT '入院诊断不在 dept_diagnosis' AS chk, COUNT(*) AS bad
   FROM admission a
-  LEFT JOIN dept_diagnosis dg ON dg.icd_code = a.admission_diagnosis
- WHERE dg.icd_code IS NULL
+ WHERE NOT EXISTS (SELECT 1 FROM dept_diagnosis dg
+                    WHERE dg.diagnosis_name = a.admission_diagnosis)
 UNION ALL SELECT '入院诊断的科室 ≠ 住院科室', COUNT(*)
-  FROM admission a JOIN dept_diagnosis dg ON dg.icd_code = a.admission_diagnosis
- WHERE dg.department <> a.department
+  FROM admission a
+ WHERE NOT EXISTS (SELECT 1 FROM dept_diagnosis dg
+                    WHERE dg.diagnosis_name = a.admission_diagnosis
+                      AND dg.department = a.department)
 UNION ALL SELECT '主管医生不属于该住院科室', COUNT(*)
   FROM admission a LEFT JOIN doctor doc ON doc.name = a.doctor AND doc.department = a.department
  WHERE doc.id IS NULL
 UNION ALL SELECT '出院诊断与入院诊断跨科室', COUNT(*)
   FROM admission a
-  JOIN dept_diagnosis d1 ON d1.icd_code = a.admission_diagnosis
-  JOIN dept_diagnosis d2 ON d2.icd_code = a.discharge_diagnosis
- WHERE d1.department <> d2.department
+ WHERE NOT EXISTS (
+   SELECT 1 FROM dept_diagnosis d1 JOIN dept_diagnosis d2 ON d1.department = d2.department
+    WHERE d1.diagnosis_name = a.admission_diagnosis
+      AND d2.diagnosis_name = a.discharge_diagnosis)
 UNION ALL SELECT '旧列 diagnosis ≠ 新列 admission_diagnosis', COUNT(*)
   FROM admission WHERE diagnosis <> admission_diagnosis;
 
@@ -8309,6 +8312,20 @@ SELECT admission_route, COUNT(*) AS cnt,
        ROUND(100.0 * COUNT(*) / (SELECT COUNT(*) FROM admission), 2) AS pct
 FROM admission GROUP BY admission_route ORDER BY cnt DESC;
 ```
+
+> **2.6 的四条断言必须按「诊断名称」关联，不得按 `icd_code`**：
+> `admission` 存的是诊断**名称**（`上呼吸道感染`），不是编码——Task 17 的
+> `admission_diagnosis_continues_an_admission_eligible_outpatient_diagnosis`
+> 就是拿 `byName.get(a.getAdmissionDiagnosis())` 按名字查的。
+> 若写成 `JOIN dept_diagnosis ON dg.icd_code = a.admission_diagnosis`，
+> 中文病名永远匹配不上任何编码，于是第 1 条把**每一次住院**都算成违规（期望 0），
+> 第 2、4 条则恒为 0（恒真通过）——一个假警报配两个假通过。
+>
+> **且不能用 `JOIN` + `WHERE dg.department <> a.department` 的写法**：
+> 同一个病名在本体里可能对应多个科室（`J06.9 上呼吸道感染` 在 内科 与 儿科 各一行，
+> 见 Task 4 的「部门归属」注），`JOIN` 会扇出成多行，
+> 一个 内科 的 `上呼吸道感染` 住院会因为扇出的 儿科 那一行被判成「科室不符」。
+> 所以四条一律写成 `NOT EXISTS`，第 4 条比较的是「两个病名**共同的**科室集合是否为空」。
 
 > **`JSON_EXTRACT(month_weights, '$[0]')` 的写法对不上就用 `LIKE`**：
 > MySQL 8.0 把 `month_weights` 当 JSON 存时 `JSON_EXTRACT` 可用，
@@ -10926,9 +10943,11 @@ UNION ALL SELECT '3.9 术后时段无医嘱的住院(应 0)', COUNT(*) FROM (
   SELECT o.admission_id, o.end_time FROM operation o) x
   WHERE NOT EXISTS (SELECT 1 FROM medical_order m
     WHERE m.admission_id = x.admission_id AND m.start_time > x.end_time);
-SELECT operation_level, COUNT(*) AS n, MIN(min_postop_days) AS mn, MAX(min_postop_days) AS mx
+-- `operation_level` 必须写 `o.operation_level`：两张表都有这一列，
+-- 不限定表名 MySQL 报 ERROR 1052 (Column 'operation_level' in field list is ambiguous)。
+SELECT o.operation_level, COUNT(*) AS n, MIN(dop.min_postop_days) AS mn, MAX(dop.min_postop_days) AS mx
   FROM operation o JOIN diagnosis_operation dop ON dop.operation_code = o.operation_code
-  GROUP BY operation_level ORDER BY operation_level;
+  GROUP BY o.operation_level ORDER BY o.operation_level;
 ```
 
 > **3.4 / 3.5 的 `JOIN dept_diagnosis ON dd.diagnosis_name = a.admission_diagnosis`**：
