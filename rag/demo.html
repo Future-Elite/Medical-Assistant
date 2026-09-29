@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ChinaLLM · RAG v5 工作台</title>
+  <style>
+    :root {
+      --ink: #17212b; --muted: #66727e; --line: #d9e0e6; --paper: #f5f7f9;
+      --panel: #ffffff; --accent: #126782; --accent-dark: #0e4f65; --teal: #0d8275;
+      --warn: #9a5a12; --danger: #a23a3a; --shadow: 0 12px 30px rgba(20, 36, 49, .08);
+    }
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    body { margin: 0; color: var(--ink); background: var(--paper); font: 14px/1.55 "Segoe UI", "Microsoft YaHei", sans-serif; }
+    button, input, textarea { font: inherit; }
+    button { cursor: pointer; }
+    .shell { min-height: 100vh; }
+    .topbar { background: #122b39; color: white; border-bottom: 3px solid #2d8b99; }
+    .topbar-inner { max-width: 1440px; margin: 0 auto; padding: 18px 28px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+    .brand { display: flex; align-items: center; gap: 13px; }
+    .brand-mark { width: 36px; height: 36px; display: grid; place-items: center; border: 1px solid #76c2c6; color: #bce5e3; font-weight: 700; letter-spacing: 1px; }
+    .brand strong { display: block; font-size: 17px; letter-spacing: .3px; }
+    .brand span, .status { color: #bbd0d7; font-size: 12px; }
+    .status { display: flex; align-items: center; gap: 7px; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #6cdbac; box-shadow: 0 0 0 4px rgba(108,219,172,.14); }
+    main { max-width: 1440px; margin: 0 auto; padding: 24px 28px 42px; }
+    .workspace { display: grid; grid-template-columns: 320px minmax(0, 1fr) 350px; gap: 18px; align-items: start; }
+    .panel { background: var(--panel); border: 1px solid var(--line); box-shadow: var(--shadow); }
+    .panel-head { padding: 17px 18px 13px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+    .panel-head h2 { margin: 0; font-size: 14px; letter-spacing: .2px; }
+    .panel-body { padding: 18px; }
+    label { display: block; color: #46535e; font-size: 12px; font-weight: 650; margin-bottom: 6px; }
+    textarea, input[type="text"], input[type="date"] { width: 100%; border: 1px solid #cbd5dc; background: #fbfcfd; color: var(--ink); padding: 10px 11px; outline: none; border-radius: 3px; }
+    textarea { min-height: 126px; resize: vertical; }
+    textarea:focus, input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(18,103,130,.12); }
+    .field { margin-bottom: 16px; }
+    .hint { color: var(--muted); font-size: 12px; margin-top: 6px; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .check-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; }
+    .check { display: flex; align-items: center; gap: 7px; color: #4e5b65; font-size: 12px; }
+    .check input { accent-color: var(--accent); }
+    .primary { width: 100%; border: 0; border-radius: 3px; padding: 11px 14px; background: var(--accent); color: white; font-weight: 700; }
+    .primary:hover { background: var(--accent-dark); }
+    .primary:disabled { opacity: .55; cursor: wait; }
+    .secondary { border: 1px solid #b9c8cf; color: var(--accent-dark); background: white; border-radius: 3px; padding: 8px 11px; }
+    .secondary:hover { background: #f0f7f8; }
+    .metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 18px; }
+    .metric { background: #fff; border: 1px solid var(--line); padding: 13px 14px; }
+    .metric small { color: var(--muted); display: block; font-size: 11px; }
+    .metric strong { display: block; font-size: 23px; margin-top: 3px; color: var(--accent-dark); }
+    .toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 10px; }
+    .toolbar h1 { margin: 0; font-size: 19px; }
+    .toolbar-note { color: var(--muted); font-size: 12px; }
+    .result-list { display: grid; gap: 9px; }
+    .result { width: 100%; text-align: left; background: white; border: 1px solid var(--line); padding: 14px 15px; transition: border .15s, box-shadow .15s; }
+    .result:hover, .result.active { border-color: #71a9b5; box-shadow: 0 4px 16px rgba(18,103,130,.12); }
+    .result-top { display: flex; justify-content: space-between; gap: 14px; align-items: start; }
+    .result h3 { margin: 0 0 5px; font-size: 14px; line-height: 1.4; }
+    .result p { margin: 0; color: #53616c; font-size: 12px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .badge { display: inline-flex; align-items: center; border: 1px solid #bed2d8; color: var(--accent-dark); background: #eef7f8; padding: 2px 7px; border-radius: 10px; font-size: 11px; white-space: nowrap; }
+    .badge.guideline { color: #176a59; border-color: #b7d9cc; background: #eff9f4; }
+    .badge.drug { color: #82541a; border-color: #e3cc9e; background: #fff8e9; }
+    .result-meta { margin-top: 10px; color: var(--muted); display: flex; gap: 12px; flex-wrap: wrap; font-size: 11px; }
+    .empty { border: 1px dashed #b9c8cf; color: var(--muted); background: rgba(255,255,255,.5); padding: 30px 18px; text-align: center; }
+    .detail { min-height: 260px; }
+    .detail-title { font-size: 17px; line-height: 1.4; margin: 0 0 9px; }
+    .detail-quote { border-left: 3px solid #66a6af; padding: 10px 12px; background: #f4f9fa; color: #34444e; margin: 14px 0; }
+    .key-sentences { margin: 14px 0; display: grid; gap: 8px; }
+    .key-sentence { border: 1px solid #b7d9cc; border-left: 3px solid #0d8275; background: #f2fbf7; padding: 9px 11px; }
+    .key-sentence-text { color: #214a42; }
+    .key-sentence-meta { margin-top: 4px; color: #5e7772; font-size: 11px; }
+    .detail-list { margin: 0; padding: 0; list-style: none; }
+    .detail-list li { display: flex; justify-content: space-between; gap: 15px; padding: 9px 0; border-bottom: 1px solid #edf0f2; font-size: 12px; }
+    .detail-list span:first-child { color: var(--muted); }
+    .detail-list span:last-child { text-align: right; color: #2c3b45; word-break: break-word; }
+    .action { margin-top: 16px; width: 100%; }
+    .plan { margin-top: 18px; background: #eef4f6; border: 1px solid #d1e0e4; padding: 14px 15px; }
+    .plan h3 { margin: 0 0 8px; font-size: 12px; color: #385661; }
+    .plan p { margin: 4px 0; color: #556a73; font-size: 12px; }
+    .plan ul { margin: 7px 0 0; padding-left: 18px; color: #52656e; font-size: 12px; }
+    .warnings { margin: 0 0 15px; padding: 10px 13px; background: #fff8ed; border: 1px solid #efd9b8; color: var(--warn); font-size: 12px; }
+    .trace { margin-top: 18px; color: var(--muted); font-size: 11px; border-top: 1px solid var(--line); padding-top: 12px; }
+    .trace code { color: #43545f; }
+    .audit-summary { margin-top: 15px; padding-top: 12px; border-top: 1px solid var(--line); font-size: 12px; }
+    .audit-summary strong { color: #385661; }
+    .audit-summary ul { margin: 8px 0 0; padding-left: 18px; color: var(--warn); }
+    .audit-input { min-height: 118px; margin-top: 11px; }
+    .audit-actions { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+    .audit-actions .secondary { white-space: nowrap; }
+    .claim-list { margin: 10px 0 0; padding: 0; list-style: none; border-top: 1px solid var(--line); }
+    .claim-list li { padding: 8px 0; border-bottom: 1px solid #edf0f2; color: #4d5d68; font-size: 12px; }
+    .claim-status { display: inline-block; min-width: 128px; color: var(--accent-dark); font-weight: 650; }
+    .loading { color: var(--accent); display: flex; align-items: center; gap: 8px; }
+    .spinner { width: 13px; height: 13px; border: 2px solid #b6d4da; border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @media (max-width: 1120px) { .workspace { grid-template-columns: 280px minmax(0, 1fr); } .detail-panel { grid-column: 1 / -1; } }
+    @media (max-width: 760px) { .topbar-inner, main { padding-left: 16px; padding-right: 16px; } .workspace { grid-template-columns: 1fr; } .metrics { grid-template-columns: repeat(2, 1fr); } .detail-panel { grid-column: auto; } .toolbar { align-items: start; flex-direction: column; } }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div class="topbar-inner">
+        <div class="brand"><div class="brand-mark">V5</div><div><strong>ChinaLLM · 证据检索工作台</strong><span>面向中文医生助手的只读 RAG</span></div></div>
+        <div class="status"><i class="status-dot"></i><span id="serviceStatus">正在检查实时服务状态</span></div>
+      </div>
+    </header>
+    <main>
+      <div class="workspace">
+        <aside class="panel">
+          <div class="panel-head"><h2>检索请求</h2><span class="badge">只读</span></div>
+          <div class="panel-body">
+            <form id="searchForm">
+              <div class="field"><label for="question">临床问题</label><textarea id="question" required>高血压治疗的指南推荐和近期研究证据是什么？</textarea><div class="hint">可输入中文问题；系统只扩展已审核的术语，不自动改写诊断。</div></div>
+              <div class="row">
+                <div class="field"><label for="asOf">证据截止日期</label><input id="asOf" type="date" value="2025-01-01"></div>
+                <div class="field"><label for="topK">返回条数</label><input id="topK" type="text" inputmode="numeric" value="6"></div>
+              </div>
+              <div class="field"><label for="patientTerms">最小化患者/受控检索术语</label><input id="patientTerms" type="text" value="hypertension" placeholder="例如：hypertension, amlodipine"><div class="hint">不要粘贴原始病历；仅传递完成检索所需的术语。</div></div>
+              <div class="field"><label>来源范围</label><div class="check-grid"><label class="check"><input type="checkbox" value="pubmed" checked>实时 PubMed</label><label class="check"><input type="checkbox" value="guideline" disabled>指南（未连接）</label><label class="check"><input type="checkbox" value="drug" disabled>药品资料（未连接）</label><label class="check"><input type="checkbox" value="clinical_trial" disabled>临床试验（未连接）</label></div><div class="hint">当前 GUI 仅调用 PubMed E-utilities；其他来源需注册相应的只读连接器。</div></div>
+              <div class="field"><label class="check"><input id="generateSummary" type="checkbox" checked>调用已配置的 LLM 生成证据限定摘要</label><div class="hint">只发送问题和本次 PubMed 摘要，不发送病历原文。</div></div>
+              <button class="primary" id="submitButton" type="submit">⌕ 开始检索</button>
+            </form>
+            <div class="plan" id="planBox" hidden><h3>查询计划</h3><p id="planQuestion"></p><p id="planVariants"></p><ul id="planRationale"></ul></div>
+          </div>
+        </aside>
+
+        <section>
+          <div class="toolbar"><div><h1>证据结果</h1><div class="toolbar-note" id="resultNote">提交问题后查看跨来源排序结果</div></div><div id="loading" class="loading" hidden><span class="spinner"></span>正在检索</div></div>
+          <div class="metrics"><div class="metric"><small>候选证据</small><strong id="candidateCount">—</strong></div><div class="metric"><small>最终返回</small><strong id="selectedCount">—</strong></div><div class="metric"><small>指南条目</small><strong id="guidelineCount">—</strong></div><div class="metric"><small>来源连接器</small><strong id="sourceCount">—</strong></div></div>
+          <div id="warnings" class="warnings" hidden></div>
+          <section id="summaryPanel" class="panel" hidden style="margin-bottom: 15px;"><div class="panel-head"><h2>LLM 证据限定摘要</h2><span id="summaryStatus" class="badge">未生成</span></div><div id="summaryBody" class="panel-body"></div></section>
+          <section id="auditPanel" class="panel" hidden style="margin-bottom: 15px;"><div class="panel-head"><h2>回答审计</h2><span id="auditStatus" class="badge">待审计</span></div><div class="panel-body"><label for="auditAnswer">待审计回答</label><textarea id="auditAnswer" class="audit-input" placeholder="粘贴 Agent 或 LLM 针对本次检索生成的带 [citation_id] 回答"></textarea><div class="audit-actions"><button class="secondary" id="auditButton" type="button">✓ 审计回答</button><span class="hint" id="auditHint"></span></div><div id="auditOutput"></div></div></section>
+          <div id="resultList" class="result-list"><div class="empty">左侧提交一个问题。系统将实时检索 PubMed 并显示来源、时间状态、PMID/定位和排序依据。</div></div>
+        </section>
+
+        <aside class="panel detail-panel">
+          <div class="panel-head"><h2>引文详情</h2><span id="detailKind" class="badge">未选择</span></div>
+          <div class="panel-body detail" id="detailBody"><div class="empty">选择一条证据查看原文摘录和引用动作。</div></div>
+        </aside>
+      </div>
+    </main>
+  </div>
+  <script>
+    const state = { package: null, selectedIndex: null, audit: null };
+    const $ = (id) => document.getElementById(id);
+    const labels = { guideline: '指南', pubmed: 'PubMed', drug: '药品资料', clinical_trial: '临床试验', local_knowledge: '本地知识' };
+
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/[&<>"']/g, (ch) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+    }
+    function sourceLabel(kind) { return labels[kind] || kind; }
+    function formatDate(value) { return value || '日期未知'; }
+    function setBusy(isBusy) { $('loading').hidden = !isBusy; $('submitButton').disabled = isBusy; }
+    function selectedKinds() { return [...document.querySelectorAll('.check-grid input:checked')].map((input) => input.value); }
+
+    async function requestJson(url, options) {
+      const response = await fetch(url, options);
+      const raw = await response.text();
+      let data = {};
+      try { data = raw ? JSON.parse(raw) : {}; }
+      catch (_) { data = { error: raw || `请求失败（${response.status}）` }; }
+      if (!response.ok) {
+        const parts = [data.error || `请求失败（${response.status}）`];
+        if (data.stage) parts.push(`阶段: ${data.stage}`);
+        if (data.exception_type) parts.push(`异常: ${data.exception_type}`);
+        if (data.http_status) parts.push(`上游 HTTP: ${data.http_status}`);
+        if (data.error_id) parts.push(`错误 ID: ${data.error_id}`);
+        const error = new Error(parts.join(' | '));
+        error.details = data;
+        throw error;
+      }
+      return data;
+    }
+
+    function renderPackage(pkg) {
+      const isSamePackage = state.package?.retrieval_id === pkg.retrieval_id;
+      state.package = pkg;
+      state.selectedIndex = isSamePackage && state.selectedIndex !== null && state.selectedIndex < pkg.citations.length
+        ? state.selectedIndex : (pkg.citations.length ? 0 : null);
+      const trace = pkg.trace || {};
+      $('candidateCount').textContent = trace.candidate_count ?? 0;
+      $('selectedCount').textContent = trace.selected_count ?? 0;
+      $('guidelineCount').textContent = pkg.ranked_documents.filter((item) => item.document.kind === 'guideline').length;
+      $('sourceCount').textContent = (trace.connector_trace || []).filter((item) => item.status === 'ok').length;
+      $('resultNote').textContent = `${pkg.request_id} · ${pkg.retrieval_id}`;
+      const warnings = pkg.warnings || [];
+      $('warnings').hidden = !warnings.length;
+      $('warnings').innerHTML = warnings.map((item) => `⚠ ${escapeHtml(item)}`).join('<br>');
+      $('planBox').hidden = false;
+      $('planQuestion').innerHTML = `<b>原问题：</b>${escapeHtml(pkg.query_plan.original_question)}`;
+      $('planVariants').innerHTML = `<b>查询变体：</b>${pkg.query_plan.variants.map(escapeHtml).join(' · ')}`;
+      $('planRationale').innerHTML = (pkg.query_plan.rationale || []).map((item) => `<li>${escapeHtml(item)}</li>`).join('');
+      state.audit = isSamePackage ? state.audit : (pkg.llm_summary?.audit || null);
+      $('auditPanel').hidden = false;
+      if (pkg.llm_summary?.text) $('auditAnswer').value = pkg.llm_summary.text;
+      else if (!isSamePackage) $('auditAnswer').value = '';
+      const list = $('resultList');
+      if (!pkg.ranked_documents.length) { list.innerHTML = '<div class="empty">没有满足当前时间和状态过滤条件的证据。</div>'; renderDetail(null); return; }
+      list.innerHTML = pkg.ranked_documents.map((item, index) => {
+        const doc = item.document;
+        const citation = pkg.citations[index];
+        return `<button class="result ${index === state.selectedIndex ? 'active' : ''}" data-index="${index}" type="button">
+          <div class="result-top"><div><h3>${escapeHtml(doc.title)}</h3><p>${escapeHtml(doc.text)}</p></div><span class="badge ${escapeHtml(doc.kind)}">${escapeHtml(sourceLabel(doc.kind))}</span></div>
+          <div class="result-meta"><span>排名 ${index + 1}</span><span>得分 ${Number(item.score).toFixed(3)}</span><span>${escapeHtml(item.evidence_status)}</span>${doc.pmid ? `<span>PMID ${escapeHtml(doc.pmid)}</span>` : ''}${citation.locator ? `<span>${escapeHtml(citation.locator)}</span>` : ''}</div>
+        </button>`;
+      }).join('');
+      list.querySelectorAll('.result').forEach((button) => button.addEventListener('click', () => { state.selectedIndex = Number(button.dataset.index); renderPackage(pkg); }));
+      renderDetail(state.selectedIndex);
+      renderSummary(pkg.llm_summary);
+      renderAudit(state.audit);
+    }
+
+    function renderSummary(summary) {
+      const panel = $('summaryPanel');
+      if (!summary) { panel.hidden = true; return; }
+      panel.hidden = false;
+      if (summary.text) {
+        $('summaryStatus').textContent = summary.model || '已生成';
+        $('summaryBody').innerHTML = `<div class="detail-quote">${escapeHtml(summary.text).replace(/\n/g, '<br>')}</div><div class="hint">该摘要的引文与主张审计结果显示在下方“回答审计”区域。</div>`;
+        return;
+      }
+      $('summaryStatus').textContent = summary.status === 'not_configured' ? '未配置' : '生成失败';
+      $('summaryBody').innerHTML = `<div class="warnings">${escapeHtml(summary.message || '未生成模型摘要。')}</div>`;
+    }
+
+    function formatMetric(value) { return typeof value === 'number' ? `${(value * 100).toFixed(1)}%` : '未校验'; }
+
+    function renderAudit(audit) {
+      if (!state.package) return;
+      const output = $('auditOutput');
+      if (!audit) {
+        $('auditStatus').textContent = '待审计';
+        $('auditHint').textContent = '仅接受本次检索中的 citation_id。';
+        output.innerHTML = '';
+        return;
+      }
+      const metrics = audit.alce_like || {};
+      $('auditStatus').textContent = audit.verifier?.available ? '已校验' : '未校验';
+      $('auditHint').textContent = `校验器：${audit.verifier?.name || 'unknown'}`;
+      const claims = (audit.claims || []).map((claim) => `<li><span class="claim-status">${escapeHtml(claim.ragtruth_label)}</span>${escapeHtml(claim.claim)}</li>`).join('');
+      const warnings = (audit.warnings || []).map((item) => `<li>${escapeHtml(item)}</li>`).join('');
+      output.innerHTML = `<div class="audit-summary"><strong>ALCE 风格引用指标</strong><div class="hint">引用覆盖率：${formatMetric(metrics.citation_completeness)} · 引用精确率：${formatMetric(metrics.citation_precision)} · 引用召回率：${formatMetric(metrics.citation_recall)}</div>${warnings ? `<ul>${warnings}</ul>` : ''}${claims ? `<ul class="claim-list">${claims}</ul>` : ''}</div>`;
+    }
+
+    function renderDetail(index) {
+      if (!state.package || index === null || !state.package.ranked_documents[index]) {
+        $('detailKind').textContent = '未选择'; $('detailBody').innerHTML = '<div class="empty">选择一条证据查看原文摘录和引用动作。</div>'; return;
+      }
+      const ranked = state.package.ranked_documents[index];
+      const citation = state.package.citations[index];
+      const doc = ranked.document;
+      $('detailKind').textContent = sourceLabel(doc.kind);
+      const sentenceMarkup = (citation.key_evidence_sentences || []).map((sentence) => `<div class="key-sentence"><div class="key-sentence-text">${escapeHtml(sentence.text)}</div><div class="key-sentence-meta">${escapeHtml(sentence.locator)} · 匹配度 ${Number(sentence.score).toFixed(3)}${sentence.matched_terms?.length ? ` · ${escapeHtml(sentence.matched_terms.join('、'))}` : ''}</div></div>`).join('');
+      const sentenceSection = sentenceMarkup ? `<div class="key-sentences"><strong>关键证据句</strong>${sentenceMarkup}<div class="hint">句子定位用于快速核对原文，不等同于临床结论或独立事实校验。</div></div>` : '<div class="hint">本条文献没有检出与查询词直接匹配的关键证据句，请核对完整原文摘录。</div>';
+      $('detailBody').innerHTML = `<h3 class="detail-title">${escapeHtml(doc.title)}</h3>
+        <div class="detail-quote">“${escapeHtml(citation.quote)}”</div>${sentenceSection}
+        <ul class="detail-list"><li><span>证据状态</span><span>${escapeHtml(ranked.evidence_status)}</span></li><li><span>来源</span><span>${escapeHtml(doc.source_id)}</span></li><li><span>原文定位</span><span>${escapeHtml(citation.locator || '未提供')}</span></li><li><span>标识符</span><span>${escapeHtml(doc.pmid ? `PMID ${doc.pmid}` : (doc.doi || doc.document_id))}</span></li><li><span>排序依据</span><span>${ranked.rank_explanation.map(escapeHtml).join(' · ')}</span></li></ul>
+        <button class="secondary action" type="button" id="openCitation">↗ 打开本次检索的引文</button>
+        <div class="hint" id="citationResult"></div>`;
+      $('openCitation').addEventListener('click', async () => {
+        const button = $('openCitation'); button.disabled = true; button.textContent = '正在打开…';
+        try { const opened = await requestJson('/api/citation', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ retrieval_id: state.package.retrieval_id, citation_id: citation.citation_id }) }); $('citationResult').innerHTML = `<b>引用已锁定：</b>${escapeHtml(opened.citation.title)} · ${escapeHtml(opened.citation.locator || '原文定位已返回')}`; }
+        catch (error) { $('citationResult').textContent = error.message; }
+        finally { button.disabled = false; button.textContent = '↗ 打开本次检索的引文'; }
+      });
+    }
+
+    $('searchForm').addEventListener('submit', async (event) => {
+      event.preventDefault(); setBusy(true);
+      const terms = $('patientTerms').value.split(',').map((item) => item.trim()).filter(Boolean);
+      try {
+        const pkg = await requestJson('/api/retrieve', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ request_id: `gui-${Date.now()}`, question: $('question').value, as_of: $('asOf').value || null, top_k: Number($('topK').value) || 6, patient_terms: terms, source_kinds: selectedKinds(), generate_summary: $('generateSummary').checked }) });
+        renderPackage(pkg);
+      } catch (error) {
+        $('resultList').innerHTML = `<div class="empty"><b>真实错误详情</b><br>${escapeHtml(error.message)}</div>`;
+        $('serviceStatus').textContent = '请求失败，错误详情已显示';
+      }
+      finally { setBusy(false); }
+    });
+    $('auditButton').addEventListener('click', async () => {
+      if (!state.package) return;
+      const answer = $('auditAnswer').value.trim();
+      if (!answer) { $('auditHint').textContent = '请输入待审计回答。'; return; }
+      const button = $('auditButton'); button.disabled = true; button.textContent = '正在审计…';
+      try {
+        state.audit = await requestJson('/api/audit', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ retrieval_id: state.package.retrieval_id, answer }) });
+        renderAudit(state.audit);
+      } catch (error) { $('auditHint').textContent = error.message; }
+      finally { button.disabled = false; button.textContent = '✓ 审计回答'; }
+    });
+      requestJson('/api/health').then((health) => {
+      const llm = health.llm_configured ? 'LLM 已配置' : 'LLM 未配置';
+      const checker = health.minicheck_configured ? 'MiniCheck 已配置' : 'MiniCheck 未配置';
+      $('serviceStatus').textContent = `实时 PubMed · ${llm} · ${checker}`;
+      if (!health.llm_configured && health.llm_message) $('serviceStatus').title = health.llm_message;
+    }).catch(() => { $('serviceStatus').textContent = '实时服务不可用'; });
+  </script>
+</body>
+</html>
