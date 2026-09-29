@@ -15,7 +15,7 @@ def load_pretrained_model(
     load_in_8bit=False,
     load_in_4bit=True,
     device="cuda",
-    cache_dir: str = "/model-weights",
+    cache_dir: str = "/media/hdd2/xiaoying/model-weights",
     low_cpu_mem_usage=True,
     torch_dtype=torch.bfloat16,
 ):

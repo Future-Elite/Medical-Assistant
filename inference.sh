@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-cd /share/home/u16050/apps/XiaoYing/projects/MedicalAgent
-export MEDRAX_AGENT_MODE=pubmed
+cd /media/hdd2/xiaoying/projects/MedicalAgent
+export MEDRAX_AGENT_MODE=medical_evidence
 
-exec /share/home/u16050/.conda/envs/medrax/bin/python main.py
+exec /media/hdd2/xiaoying/conda_envs/medrax/bin/python main.py

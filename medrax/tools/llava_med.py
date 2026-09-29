@@ -56,7 +56,7 @@ class LlavaMedTool(BaseTool):
     def __init__(
         self,
         model_path: str = "microsoft/llava-med-v1.5-mistral-7b",
-        cache_dir: str = "/model-weights",
+        cache_dir: str = "/media/hdd2/xiaoying/model-weights",
         low_cpu_mem_usage: bool = True,
         torch_dtype: torch.dtype = torch.bfloat16,
         device: str = "cuda",

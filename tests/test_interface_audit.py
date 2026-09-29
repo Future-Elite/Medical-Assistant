@@ -3,22 +3,43 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from interface import ChatInterface
+from interface import ChatInterface, create_demo
 
 
 class AuditLogTest(unittest.TestCase):
-    def test_extracts_only_explicit_pmid_citations(self):
-        text = "证据（PMID: 32065842、29453021）和 PMID 27032221，发表于2020年。"
-        self.assertEqual(
-            ChatInterface._extract_pmids(text),
-            {"32065842", "29453021", "27032221"},
-        )
-        self.assertEqual(ChatInterface._extract_pmids("2020年普通回答"), set())
+    def test_demo_builds_with_installed_gradio(self):
+        self.assertIsNotNone(create_demo(object(), {}))
 
-        interface = ChatInterface(object(), {})
-        self.assertEqual(interface._unverified_pmids(text), ["27032221", "29453021", "32065842"])
-        interface.verified_pmids.update({"32065842", "29453021", "27032221"})
-        self.assertEqual(interface._unverified_pmids(text), [])
+    def test_extracts_and_validates_all_supported_citations(self):
+        text = (
+            "PMID: 32065842、29453021；"
+            "FDA_SET_ID:aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee；"
+            "SPL ID:11111111-2222-3333-4444-555555555555；NCT01234567。"
+        )
+        self.assertEqual(
+            ChatInterface._extract_citation_ids(text),
+            {
+                "PMID:32065842",
+                "PMID:29453021",
+                "FDA_SET_ID:aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+                "SPL_ID:11111111-2222-3333-4444-555555555555",
+                "NCT01234567",
+            },
+        )
+        artifact = {
+            "evidence": [{
+                "source_id": "FDA_SET_ID:aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+                "metadata": {"spl_id": "11111111-2222-3333-4444-555555555555"},
+            }]
+        }
+        self.assertEqual(
+            ChatInterface._artifact_citation_ids(artifact),
+            {
+                "FDA_SET_ID:aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+                "SPL_ID:11111111-2222-3333-4444-555555555555",
+            },
+        )
+        self.assertEqual(ChatInterface._extract_citation_ids("2020年普通回答"), set())
 
     def test_jsonl_is_appended_and_reset_changes_thread(self):
         interface = ChatInterface(object(), {})
@@ -37,8 +58,6 @@ class AuditLogTest(unittest.TestCase):
 
             interface.reset_conversation()
             self.assertNotEqual(interface.current_thread_id, old_thread)
-            self.assertEqual(interface.pubmed_call_count, 0)
-            self.assertEqual(interface.verified_pmids, set())
 
 
 if __name__ == "__main__":

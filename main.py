@@ -13,6 +13,8 @@ from interface import create_demo
 # from medrax.agent import *
 # from medrax.tools import *
 # from medrax.utils import *
+from medrax.tools.clinical_trials import ClinicalTrialsTool
+from medrax.tools.openfda import OpenFDADrugLabelTool
 from medrax.tools.pubmed import PubMedEvidenceTool
 from medrax.utils import load_prompts_from_file
 
@@ -44,7 +46,7 @@ def _create_qwen_model(model, temperature, top_p, client_kwargs=None):
 def initialize_agent(
     prompt_file,
     tools_to_use=None,
-    model_dir="/model-weights",
+    model_dir="/media/hdd2/xiaoying/model-weights",
     temp_dir="temp",
     device="cuda",
     model=None,
@@ -68,7 +70,7 @@ def initialize_agent(
     Args:
         prompt_file (str): Path to file containing system prompts
         tools_to_use (List[str], optional): List of tool names to initialize. If None, all tools are initialized.
-        model_dir (str, optional): Directory containing model weights. Defaults to "/model-weights".
+        model_dir (str, optional): Directory containing model weights. Defaults to "/media/hdd2/xiaoying/model-weights".
         temp_dir (str, optional): Directory for temporary files. Defaults to "temp".
         device (str, optional): Device to run models on. Defaults to "cuda".
         model (str, optional): Qwen model name. Defaults to OPENAI_MODEL or qwen3-vl-plus.
@@ -122,35 +124,37 @@ def initialize_agent(
     return agent, tools_dict
 
 
-def initialize_pubmed_agent(
+def initialize_medical_agent(
     prompt_file,
     model=None,
     temperature=0.2,
     top_p=0.95,
     openai_kwargs=None,
 ):
-    """Initialize the PubMed-only agent without changing the legacy imaging agent."""
+    """Initialize the external-evidence agent without changing the imaging agent."""
     prompts = load_prompts_from_file(prompt_file)
-    tool = PubMedEvidenceTool()
+    tools = [PubMedEvidenceTool(), OpenFDADrugLabelTool(), ClinicalTrialsTool()]
     chat_model = _create_qwen_model(model, temperature, top_p, openai_kwargs)
 
-    #Agent is created with a limit on model calls and tool calls to prevent excessive usage.
     agent = create_agent(
         model=chat_model,
-        tools=[tool],
-        system_prompt=prompts["PUBMED_ASSISTANT"],
+        tools=tools,
+        system_prompt=prompts["MEDICAL_EVIDENCE_ASSISTANT"],
         middleware=[
-            ModelCallLimitMiddleware(run_limit=4, exit_behavior="error"),
-            ToolCallLimitMiddleware(
-                tool_name=tool.name,
-                run_limit=2,
-                exit_behavior="error",
-            ),
+            ModelCallLimitMiddleware(run_limit=8, exit_behavior="error"),
+            *[
+                ToolCallLimitMiddleware(
+                    tool_name=tool.name,
+                    run_limit=2,
+                    exit_behavior="error",
+                )
+                for tool in tools
+            ],
         ],
         checkpointer=MemorySaver(),
-        name="pubmed_agent",
+        name="medical_evidence_agent",
     )
-    return agent, {"PubMedEvidenceTool": tool}
+    return agent, {type(tool).__name__: tool for tool in tools}
 
 
 if __name__ == "__main__":
@@ -174,15 +178,15 @@ if __name__ == "__main__":
         # "ChestXRayGeneratorTool",
     ]
 
-    if os.getenv("MEDRAX_AGENT_MODE", "medical").lower() == "pubmed":
-        agent, tools_dict = initialize_pubmed_agent(
+    if os.getenv("MEDRAX_AGENT_MODE", "medical").lower() == "medical_evidence":
+        agent, tools_dict = initialize_medical_agent(
             "medrax/docs/system_prompts.txt",
         )
     else:
         agent, tools_dict = initialize_agent(
             "medrax/docs/system_prompts.txt",
             tools_to_use=selected_tools,
-            model_dir="/model-weights",  # Change this to the path of the model weights
+            model_dir="/media/hdd2/xiaoying/model-weights",
             temp_dir="temp",  # Change this to the path of the temporary directory
             device="cuda",  # Change this to the device you want to use
             temperature=0.7,

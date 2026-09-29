@@ -57,7 +57,11 @@ class ChestXRayReportGeneratorTool(BaseTool):
     impression_processor: ViTImageProcessor = None
     generation_args: Dict[str, Any] = None
 
-    def __init__(self, cache_dir: str = "/model-weights", device: Optional[str] = "cuda"):
+    def __init__(
+        self,
+        cache_dir: str = "/media/hdd2/xiaoying/model-weights",
+        device: Optional[str] = "cuda",
+    ):
         """Initialize the ChestXRayReportGeneratorTool with both findings and impression models."""
         super().__init__()
         self.device = torch.device(device) if device else "cuda"

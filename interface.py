@@ -33,10 +33,8 @@ class ChatInterface:
         self.tools_dict = tools_dict
         self.upload_dir = Path("temp")
         self.upload_dir.mkdir(exist_ok=True)
-        self.audit_path = Path("logs/pubmed_audit.jsonl")
+        self.audit_path = Path("logs/evidence_audit.jsonl")
         self.current_thread_id = self._new_id()
-        self.pubmed_call_count = 0
-        self.verified_pmids = set()
         # Separate storage for original and display paths
         self.original_file_path = None  # For LLM (.dcm or other)
         self.display_file_path = None  # For UI (always viewable format)
@@ -47,22 +45,46 @@ class ChatInterface:
 
     def reset_conversation(self) -> None:
         self.current_thread_id = self._new_id()
-        self.pubmed_call_count = 0
-        self.verified_pmids.clear()
         self.original_file_path = None
         self.display_file_path = None
 
     @staticmethod
-    def _extract_pmids(text: str) -> set[str]:
-        groups = re.findall(
+    def _extract_citation_ids(text: str) -> set[str]:
+        identifiers = set()
+        pmid_groups = re.findall(
             r"\bPMIDs?\s*[:：#]?\s*(\d{6,9}(?:\s*(?:[,，、;/]|和|and)\s*\d{6,9})*)",
             text,
             re.I,
         )
-        return {pmid for group in groups for pmid in re.findall(r"\d{6,9}", group)}
+        identifiers.update(
+            f"PMID:{pmid}"
+            for group in pmid_groups
+            for pmid in re.findall(r"\d{6,9}", group)
+        )
+        identifiers.update(
+            f"{prefix.upper().replace(' ', '_')}:{value.lower()}"
+            for prefix, value in re.findall(
+                r"\b(FDA_SET_ID|SPL_ID|SPL ID)\s*[:：#]?\s*([0-9a-f-]{8,64})",
+                text,
+                re.I,
+            )
+        )
+        identifiers.update(match.upper() for match in re.findall(r"\bNCT\d{8}\b", text, re.I))
+        return identifiers
 
-    def _unverified_pmids(self, text: str) -> list[str]:
-        return sorted(self._extract_pmids(text) - self.verified_pmids)
+    @staticmethod
+    def _artifact_citation_ids(artifact: dict) -> set[str]:
+        identifiers = set()
+        for item in artifact.get("evidence", []):
+            source_id = str(item.get("source_id") or "")
+            if source_id:
+                prefix, separator, value = source_id.partition(":")
+                identifiers.add(
+                    f"{prefix.upper()}:{value.lower()}" if separator else source_id.upper()
+                )
+            if spl_id := item.get("metadata", {}).get("spl_id"):
+                identifiers.add(f"SPL_ID:{str(spl_id).lower()}")
+        return identifiers
 
     def _append_audit(self, event: dict) -> None:
         self.audit_path.parent.mkdir(parents=True, exist_ok=True)
@@ -146,7 +168,8 @@ class ChatInterface:
         chat_history = chat_history or []
 
         turn_id = self._new_id()
-        turn_pubmed_calls = 0
+        turn_tool_calls = {}
+        turn_verified_ids = set()
         messages = []
         image_path = self.original_file_path or display_image
 
@@ -191,20 +214,20 @@ class ChatInterface:
                             continue
                         if content:
                             content = re.sub(r"temp/[^\s]*", "", content)
-                            mentioned_pmids = self._extract_pmids(content)
-                            invalid_pmids = self._unverified_pmids(content)
-                            if invalid_pmids:
+                            mentioned_ids = self._extract_citation_ids(content)
+                            invalid_ids = sorted(mentioned_ids - turn_verified_ids)
+                            if invalid_ids:
                                 self._append_audit({
                                     "event": "citation_validation_failed",
                                     "turn_id": turn_id,
-                                    "pubmed_call_count": turn_pubmed_calls,
-                                    "invalid_pmids": invalid_pmids,
+                                    "tool_call_counts": turn_tool_calls,
+                                    "invalid_source_ids": invalid_ids,
                                 })
                                 chat_history.append(ChatMessage(
                                     role="assistant",
                                     content=(
-                                        "⚠️ 本次回答包含未经 PubMed 工具验证的 PMID，"
-                                        f"已拦截：{', '.join(invalid_pmids)}。请重试。"
+                                        "⚠️ 本次回答包含未经对应工具验证的引用标识，"
+                                        f"已拦截：{', '.join(invalid_ids)}。请重试。"
                                     ),
                                     metadata={"title": "引用校验未通过"},
                                 ))
@@ -212,12 +235,12 @@ class ChatInterface:
                                 continue
 
                             chat_history.append(ChatMessage(role="assistant", content=content))
-                            if turn_pubmed_calls or mentioned_pmids:
+                            if turn_tool_calls or mentioned_ids:
                                 self._append_audit({
                                     "event": "final_response",
                                     "turn_id": turn_id,
-                                    "pubmed_call_count": turn_pubmed_calls,
-                                    "adopted_pmids": sorted(mentioned_pmids),
+                                    "tool_call_counts": turn_tool_calls,
+                                    "adopted_source_ids": sorted(mentioned_ids),
                                 })
                             yield chat_history, self.display_file_path, ""
 
@@ -238,28 +261,39 @@ class ChatInterface:
                                 formatted_result = " ".join(
                                     line.strip() for line in str(message.content).splitlines()
                                 ).strip()
-                                if tool_name == "search_pubmed_evidence" and isinstance(artifact, dict):
-                                    turn_pubmed_calls += 1
-                                    self.pubmed_call_count += 1
+                                if isinstance(artifact, dict) and "evidence" in artifact:
+                                    evidence = artifact.get("evidence", [])
+                                    source_type = (
+                                        evidence[0].get("source_type") if evidence else {
+                                            "search_pubmed_evidence": "pubmed",
+                                            "search_openfda_drug_labels": "openfda",
+                                            "search_clinical_trials": "clinicaltrials",
+                                        }.get(tool_name, "evidence")
+                                    )
+                                    turn_tool_calls[tool_name] = turn_tool_calls.get(tool_name, 0) + 1
                                     query = artifact.get("query", "")
-                                    pmids = [
-                                        str(record["pmid"])
-                                        for record in artifact.get("records", [])
-                                        if record.get("pmid")
-                                    ]
-                                    self.verified_pmids.update(pmids)
+                                    source_ids = sorted(self._artifact_citation_ids(artifact))
+                                    turn_verified_ids.update(source_ids)
                                     metadata = {
-                                        "title": f"🔎 PubMed检索 #{turn_pubmed_calls}",
-                                        "description": f"Query: {query}\nPMIDs: {', '.join(pmids) or '无'}",
+                                        "title": (
+                                            f"🔎 {source_type} 检索 "
+                                            f"#{turn_tool_calls[tool_name]}"
+                                        ),
+                                        "description": (
+                                            f"Query: {query}\n"
+                                            f"Source IDs: {', '.join(source_ids) or '无'}"
+                                        ),
                                     }
                                     self._append_audit({
-                                        "event": "pubmed_search",
+                                        "event": "evidence_search",
                                         "turn_id": turn_id,
                                         "tool_call_id": tool_call_id,
-                                        "call_index": turn_pubmed_calls,
-                                        "thread_call_index": self.pubmed_call_count,
+                                        "tool_name": tool_name,
+                                        "source_type": source_type,
+                                        "call_index": turn_tool_calls[tool_name],
                                         "query": query,
-                                        "returned_pmids": pmids,
+                                        "returned_source_ids": source_ids,
+                                        "error": artifact.get("error"),
                                     })
                                 else:
                                     metadata = {
@@ -309,12 +343,12 @@ def create_demo(agent, tools_dict):
     """
     interface = ChatInterface(agent, tools_dict)
 
-    with gr.Blocks(theme=gr.themes.Soft()) as demo:
+    with gr.Blocks() as demo:
         with gr.Column():
             gr.Markdown(
                 """
             # 🏥 MedRAX
-            Medical Reasoning Agent with imaging and PubMed tools
+            Medical Reasoning Agent with PubMed, openFDA, and ClinicalTrials.gov tools
             """
             )
 
@@ -326,7 +360,6 @@ def create_demo(agent, tools_dict):
                         container=True,
                         show_label=True,
                         elem_classes="chat-box",
-                        type="messages",
                         label="Agent",
                         avatar_images=(
                             None,

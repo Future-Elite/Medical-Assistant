@@ -111,7 +111,7 @@ selected_tools = [
 agent, tools_dict = initialize_agent(
     "medrax/docs/system_prompts.txt",
     tools_to_use=selected_tools,
-    model_dir="/model-weights"
+    model_dir="/media/hdd2/xiaoying/model-weights"
 )
 ```
 

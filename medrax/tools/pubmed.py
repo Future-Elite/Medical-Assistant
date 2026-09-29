@@ -10,6 +10,8 @@ from langchain_core.callbacks import CallbackManagerForToolRun
 from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field, model_validator
 
+from .evidence import EvidenceAggregator
+
 
 class PubMedSearchInput(BaseModel):
     """Input schema for PubMed evidence retrieval."""
@@ -31,10 +33,10 @@ class PubMedEvidenceTool(BaseTool):
 
     name: str = "search_pubmed_evidence"
     description: str = (
-        "Searches PubMed for peer-reviewed biomedical evidence. Returns article titles, "
-        "abstracts, journals, years, PMID, DOI, and PubMed URLs. Use it when an answer "
-        "requires current or verifiable medical literature. Never include patient "
-        "identifiers in the query."
+        "Search peer-reviewed biomedical literature in PubMed. Use for published "
+        "studies, research evidence, treatment efficacy, disease mechanisms, reviews, "
+        "and guidelines. Returns titles, abstracts, PMID, DOI, and PubMed URLs. Never "
+        "include patient identifiers in the query."
     )
     args_schema: Type[BaseModel] = PubMedSearchInput
     response_format: Literal["content_and_artifact"] = "content_and_artifact"
@@ -130,8 +132,21 @@ class PubMedEvidenceTool(BaseTool):
         search_response.raise_for_status()
         pmids = search_response.json().get("esearchresult", {}).get("idlist", [])
         if not pmids:
-            artifact = {"query": search_query, "count": 0, "records": []}
-            return "No PubMed articles were found for this query.", artifact
+            artifact = {
+                "query": search_query,
+                "count": 0,
+                "evidence": [],
+                "search_status": "empty",
+                "retry_recommended": True,
+            }
+            return (
+                "No PubMed articles were found for this query. If this was the first "
+                "PubMed call in the current turn, retry exactly once with a shorter "
+                "query containing only the core disease, intervention, and outcome, "
+                "and omit year_from/year_to. If this was already the retry, do not call "
+                "PubMed again and do not output any PMID.",
+                artifact,
+            )
 
         fetch_response = requests.get(
             f"{self.base_url}/efetch.fcgi",
@@ -140,21 +155,42 @@ class PubMedEvidenceTool(BaseTool):
             timeout=self.timeout,
         )
         fetch_response.raise_for_status()
-        records = self._parse_articles(fetch_response.text)
-        if not records:
-            artifact = {"query": search_query, "count": 0, "records": []}
-            return "PubMed returned identifiers but no readable article records.", artifact
+        articles = self._parse_articles(fetch_response.text)
+        if not articles:
+            artifact = {
+                "query": search_query,
+                "count": 0,
+                "evidence": [],
+                "search_status": "empty",
+                "retry_recommended": True,
+            }
+            return (
+                "PubMed returned identifiers but no readable article records. If this "
+                "was the first PubMed call in the current turn, retry exactly once "
+                "with a shorter query containing only the core disease, intervention, "
+                "and outcome, and omit year_from/year_to. If this was already the "
+                "retry, do not call PubMed again and do not output any PMID.",
+                artifact,
+            )
 
-        evidence = []
-        for index, record in enumerate(records, 1):
-            line = f"[PMID:{record['pmid']}] {record['title']}"
-            source = ", ".join(str(v) for v in (record["journal"], record["year"]) if v)
-            if source:
-                line += f" ({source})"
-            if record["doi"]:
-                line += f" DOI: {record['doi']}"
-            abstract = record["abstract"] or "Abstract unavailable."
-            evidence.append(f"{index}. {line}\nAbstract: {abstract[:2000]}")
-
-        artifact = {"query": search_query, "count": len(records), "records": records}
-        return "\n\n".join(evidence), artifact
+        evidence = EvidenceAggregator.aggregate({
+            "source_type": "pubmed",
+            "source_id": f"PMID:{article['pmid']}",
+            "title": article["title"],
+            "content": (article["abstract"] or "Abstract unavailable.")[:4000],
+            "date": str(article["year"] or ""),
+            "url": article["url"],
+            "metadata": {
+                "journal": article["journal"],
+                "doi": article["doi"],
+                "authors": article["authors"],
+            },
+        } for article in articles)
+        artifact = {
+            "query": search_query,
+            "count": len(evidence),
+            "evidence": evidence,
+            "search_status": "success",
+            "retry_recommended": False,
+        }
+        return EvidenceAggregator.format_for_model(evidence), artifact
