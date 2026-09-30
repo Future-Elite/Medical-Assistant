@@ -26,7 +26,7 @@ class EvidenceSessionStore:
             raise ValueError("unknown retrieval_id; retrieve evidence before opening a citation") from None
 
 
-class V5RAG:
+class EvidenceRAG:
     """JSON tools intended for function-calling agents, not an answer generator."""
 
     def __init__(self, pipeline: EvidenceRetrievalPipeline, sessions: EvidenceSessionStore | None = None,

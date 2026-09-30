@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 import xml.etree.ElementTree as ET
 
-from v5.pubmed import _article_to_document
+from rag.pubmed import _article_to_document
 
 
 class TestPubMedParsing(unittest.TestCase):

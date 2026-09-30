@@ -1,10 +1,10 @@
-"""Contract tests to run after integration; not executed during the v5 handoff."""
+"""Contract tests for the retrieval service."""
 
 from __future__ import annotations
 
 import unittest
 
-from v5.models import RetrievalRequest, SourceDocument
+from rag.models import RetrievalRequest, SourceDocument
 
 
 class TestContracts(unittest.TestCase):
@@ -12,7 +12,12 @@ class TestContracts(unittest.TestCase):
         with self.assertRaises(ValueError):
             RetrievalRequest.from_dict({"question": " "})
 
-    def test_unknown_document_fields_are_preserved_as_metadata(self) -> None:
+    def test_request_id_is_generated_when_omitted(self) -> None:
+        first = RetrievalRequest.from_dict({"question": "问题一"})
+        second = RetrievalRequest.from_dict({"question": "问题二"})
+        self.assertTrue(first.request_id.startswith("request-"))
+        self.assertNotEqual(first.request_id, second.request_id)
+
         document = SourceDocument.from_dict({
             "document_id": "g-1", "kind": "guideline", "title": "指南", "text": "建议。", "issuer": "协会",
         }, source_id="guideline")

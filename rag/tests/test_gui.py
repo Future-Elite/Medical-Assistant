@@ -5,8 +5,8 @@ from __future__ import annotations
 import unittest
 from pathlib import Path
 
-from v5.agent import V5RAG
-from v5.server import V5RequestHandler, create_live_tool
+from rag.agent import EvidenceRAG
+from rag.server import RAGRequestHandler, create_live_tool
 
 
 class TestGuiContracts(unittest.TestCase):
@@ -18,9 +18,9 @@ class TestGuiContracts(unittest.TestCase):
         )
 
     def test_handler_exposes_expected_paths(self) -> None:
-        self.assertTrue(hasattr(V5RequestHandler, "do_GET"))
-        self.assertTrue(hasattr(V5RequestHandler, "do_POST"))
-        self.assertIn("audit_grounded_answer", {item["name"] for item in V5RAG.tool_specifications()})
+        self.assertTrue(hasattr(RAGRequestHandler, "do_GET"))
+        self.assertTrue(hasattr(RAGRequestHandler, "do_POST"))
+        self.assertIn("audit_grounded_answer", {item["name"] for item in EvidenceRAG.tool_specifications()})
 
     def test_audit_controls_are_present_in_the_gui(self) -> None:
         page = (Path(__file__).resolve().parents[1] / "demo.html").read_text(encoding="utf-8")

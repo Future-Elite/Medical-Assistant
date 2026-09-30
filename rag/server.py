@@ -2,12 +2,12 @@
 
 Required for live model summaries (keep credentials outside the repository):
 
-    Edit code\\src\\v5\\config.py: openai_api_key
-    Edit code\\src\\v5\\config.py: openai_model
+    Edit code\\src\\Medical-Assistant\\rag\\config.py: openai_api_key
+    Edit code\\src\\Medical-Assistant\\rag\\config.py: openai_model
 
 Optional for PubMed etiquette:
 
-    Edit code\\src\\v5\\config.py: ncbi_email
+    Edit code\\src\\Medical-Assistant\\rag\\config.py: ncbi_email
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ from urllib.parse import urlparse
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from rag.agent import V5RAG
+from rag.agent import EvidenceRAG
 from rag.config import get_config
 from rag.connectors import ConnectorRegistry
 from rag.llm import LLMConfigurationError, LLMRequestError, OpenAIResponsesLLM
@@ -37,14 +37,14 @@ from rag.pubmed import PubMedConnector
 ROOT = Path(__file__).resolve().parent
 
 
-def create_live_tool() -> V5RAG:
+def create_live_tool() -> EvidenceRAG:
     """Build the only retrieval path used by this GUI: real PubMed E-utilities."""
     registry = ConnectorRegistry()
     registry.register(PubMedConnector())
-    return V5RAG(EvidenceRetrievalPipeline(registry))
+    return EvidenceRAG(EvidenceRetrievalPipeline(registry))
 
 
-class V5RequestHandler(BaseHTTPRequestHandler):
+class RAGRequestHandler(BaseHTTPRequestHandler):
     tool = create_live_tool()
     llm = OpenAIResponsesLLM()
 
@@ -57,7 +57,7 @@ class V5RequestHandler(BaseHTTPRequestHandler):
             verifier = self.tool.auditor.verifier
             minicheck_configured = bool(getattr(verifier, "model_name", None))
             self._send_json({
-                "ok": True, "rag_version": "v5", "retrieval_source": "live_pubmed_eutilities",
+                "ok": True, "retrieval_source": "live_pubmed_eutilities",
                 "llm_configured": self.llm.configured, "llm_message": self.llm.configuration_message(),
                 "llm_config": self.llm.safe_config,
                 "config_file": str(Path(__file__).resolve().with_name("config.py")),
@@ -66,7 +66,7 @@ class V5RequestHandler(BaseHTTPRequestHandler):
             })
             return
         if path == "/api/tools":
-            self._send_json({"tools": V5RAG.tool_specifications()})
+            self._send_json({"tools": EvidenceRAG.tool_specifications()})
             return
         self._send_error_json(HTTPStatus.NOT_FOUND, "未找到该资源")
 
@@ -174,8 +174,8 @@ def serve(host: str | None = None, port: int | None = None) -> None:
     config = get_config()
     host = config.server_host if host is None else host
     port = config.server_port if port is None else port
-    server = ThreadingHTTPServer((host, port), V5RequestHandler)
-    print(f"RAG v5 GUI: http://{host}:{port}/")
+    server = ThreadingHTTPServer((host, port), RAGRequestHandler)
+    print(f"RAG GUI: http://{host}:{port}/")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

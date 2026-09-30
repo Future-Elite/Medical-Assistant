@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from v5.llm import LLMConfigurationError, OpenAIResponsesLLM, _chat_completion_text, _response_text
+from rag.llm import LLMConfigurationError, OpenAIResponsesLLM, _chat_completion_text, _response_text
 
 
 class TestLLMConfiguration(unittest.TestCase):

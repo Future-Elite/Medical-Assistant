@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from v5.evidence import extract_key_evidence_sentences, split_sentence_spans
+from rag.evidence import extract_key_evidence_sentences, split_sentence_spans
 
 
 class TestEvidenceSentences(unittest.TestCase):

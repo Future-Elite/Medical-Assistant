@@ -1,4 +1,4 @@
-"""Local configuration for RAG v5.
+"""Local configuration for RAG.
 
 Edit the values in this file before starting the server. Keep this file local
 and never commit real API keys or other credentials.
@@ -10,11 +10,11 @@ from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
-class V5Config:
+class RAGConfig:
     # OpenAI-compatible Responses API
     openai_api_key: str = ""
     openai_model: str = ""
-    # Enter the provider API root. If the URL has no path, v5 adds /v1.
+    # Enter the provider API root. If the URL has no path, /v1 is added.
     openai_base_url: str = ""
     # auto = Responses API first; set chat_completions for relays that expose only /chat/completions.
     openai_api_mode: str = "auto"
@@ -33,9 +33,9 @@ class V5Config:
     request_timeout_seconds: float = 60.0
 
 
-# Put local values directly above. This is the single configuration source for v5.
-CONFIG = V5Config()
+# Put local values directly above. This is the single configuration source for the service.
+CONFIG = RAGConfig()
 
 
-def get_config() -> V5Config:
+def get_config() -> RAGConfig:
     return CONFIG

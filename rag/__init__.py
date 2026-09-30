@@ -1,19 +1,19 @@
-"""ChinaLLM RAG v5: agent-facing, evidence-only retrieval primitives.
+"""ChinaLLM RAG: agent-facing, evidence-only retrieval primitives.
 
-The package deliberately has no dependency on the frozen ``rag`` package.  It
+The package deliberately has no dependency on another RAG implementation.  It
 can therefore be adopted by an Agent, a PubMed connector, or a guideline
 database independently.
 """
 
-from .agent import EvidenceSessionStore, V5RAG
+from .agent import EvidenceSessionStore, EvidenceRAG
 from .audit import GroundedAnswerAuditor, MiniCheckVerifier
 from .connectors import ConnectorRegistry, InMemoryConnector, KnowledgeConnector
-from .config import V5Config, get_config
+from .config import RAGConfig, get_config
 from .models import EvidencePackage, RetrievalRequest, SourceDocument
 
 __all__ = [
     "ConnectorRegistry",
-    "V5Config",
+    "RAGConfig",
     "EvidencePackage",
     "EvidenceSessionStore",
     "GroundedAnswerAuditor",
@@ -22,7 +22,7 @@ __all__ = [
     "MiniCheckVerifier",
     "RetrievalRequest",
     "SourceDocument",
-    "V5RAG",
+    "EvidenceRAG",
     "get_config",
 ]
 
