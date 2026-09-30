@@ -188,7 +188,7 @@ class OpenAIResponsesLLM:
             if exc.code == 426:
                 message = (
                     f"中转站协议不兼容（HTTP 426，端点 {endpoint} 要求 WebSocket 升级；"
-                    "v5 当前使用标准 HTTP Responses/Chat Completions，请更换支持 OpenAI 兼容 HTTP API 的中转站）"
+                    "标准 HTTP Responses/Chat Completions，请更换支持 OpenAI 兼容 HTTP API 的中转站）"
                 )
                 raise LLMRequestError(message, status_code=exc.code) from exc
             message = f"中转站请求失败（HTTP {exc.code}，端点 {endpoint}）{suffix}"

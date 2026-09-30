@@ -12,6 +12,7 @@ from dataclasses import asdict, dataclass, field, is_dataclass
 from datetime import date
 from enum import Enum
 from typing import Any, Mapping, Sequence
+from uuid import uuid4
 
 
 class SourceKind(str, Enum):
@@ -58,7 +59,7 @@ class RetrievalRequest:
         if not 1 <= top_k <= 50:
             raise ValueError("top_k must be between 1 and 50")
         return cls(
-            request_id=str(raw.get("request_id") or "rag-v5"),
+            request_id=str(raw.get("request_id") or f"request-{uuid4().hex}"),
             question=question,
             task=str(raw.get("task") or "clinical_question"),
             as_of=_optional_string(raw.get("as_of")),

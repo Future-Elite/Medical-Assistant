@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import unittest
 
-from v5.connectors import ConnectorRegistry, InMemoryConnector
-from v5.models import RetrievalRequest, SourceDocument
-from v5.pipeline import EvidenceRetrievalPipeline
+from rag.connectors import ConnectorRegistry, InMemoryConnector
+from rag.models import RetrievalRequest, SourceDocument
+from rag.pipeline import EvidenceRetrievalPipeline
 
 
 def _pipeline() -> EvidenceRetrievalPipeline:

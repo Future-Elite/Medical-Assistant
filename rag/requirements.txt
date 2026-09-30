@@ -1,4 +1,4 @@
-# RAG v5 core uses only Python >= 3.10 standard-library modules.
+# RAG core uses only Python >= 3.10 standard-library modules.
 # This optional dependency enables the real MiniCheck claim-evidence verifier.
 # Its declared transitive dependencies include torch, transformers, datasets,
 # nltk, pandas, numpy, and openai. PyTorch wheel selection is platform-specific.

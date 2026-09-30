@@ -1,4 +1,4 @@
-"""Deterministic key-sentence extraction for RAG v5 citations."""
+"""Deterministic key-sentence extraction for RAG citations."""
 
 from __future__ import annotations
 

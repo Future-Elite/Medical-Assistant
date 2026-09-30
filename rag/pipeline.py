@@ -16,7 +16,7 @@ class EvidenceRetrievalPipeline:
         self.registry = registry
 
     def retrieve(self, request: RetrievalRequest) -> EvidencePackage:
-        retrieval_id = f"v5-{uuid4().hex}"
+        retrieval_id = f"retrieval-{uuid4().hex}"
         known_sources = self.registry.describe()
         plan = build_query_plan(request, known_sources)
         documents = []
@@ -48,7 +48,7 @@ class EvidenceRetrievalPipeline:
             query_plan=plan, ranked_documents=tuple(ranked), citations=citations,
             warnings=tuple(warnings),
             trace={
-                "rag_version": "v5", "connector_trace": connector_trace,
+                "connector_trace": connector_trace,
                 "key_sentence_budget": 3,
                 "candidate_count": len(documents), "selected_count": len(ranked),
                 "generation_performed": False,

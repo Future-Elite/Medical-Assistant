@@ -1,7 +1,7 @@
-"""Read-only PubMed E-utilities connector for RAG v5.
+"""Read-only PubMed E-utilities connector for RAG.
 
 No patient chart is accepted here.  The connector receives only the controlled
-``QueryPlan`` created by v5 and retrieves live PubMed metadata/abstracts from
+``QueryPlan`` created by the retrieval pipeline and retrieves live PubMed metadata/abstracts from
 NCBI E-utilities.
 """
 
@@ -36,7 +36,7 @@ class PubMedConnector:
     source_id: str = "pubmed-live"
     kinds: tuple[str, ...] = ("pubmed",)
     email: str | None = None
-    tool_name: str = "chinallm_rag_v5"
+    tool_name: str = "chinallm_rag"
     timeout_seconds: float = 20.0
 
     def __post_init__(self) -> None:
