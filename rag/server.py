@@ -26,12 +26,12 @@ from urllib.parse import urlparse
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from v5.agent import V5RAG
-from v5.config import get_config
-from v5.connectors import ConnectorRegistry
-from v5.llm import LLMConfigurationError, LLMRequestError, OpenAIResponsesLLM
-from v5.pipeline import EvidenceRetrievalPipeline
-from v5.pubmed import PubMedConnector
+from rag.agent import V5RAG
+from rag.config import get_config
+from rag.connectors import ConnectorRegistry
+from rag.llm import LLMConfigurationError, LLMRequestError, OpenAIResponsesLLM
+from rag.pipeline import EvidenceRetrievalPipeline
+from rag.pubmed import PubMedConnector
 
 
 ROOT = Path(__file__).resolve().parent
