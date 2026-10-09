@@ -1,0 +1,11 @@
+{
+  "request_id": "example-xlingual-001",
+  "question": "该患者高血压的初始降压药物应该如何选择？",
+  "as_of": "2025-12-31",
+  "top_k": 4,
+  "retrieval_method": "bm25,xlingual",
+  "source_mode": "simulated",
+  "english_terms": ["hypertension", "initial antihypertensive therapy"],
+  "mesh_terms": ["Hypertension"],
+  "note": "跨语言检索示例：xlingual（multilingual-e5）直接编码中文问题，与 BM25 一起做 RRF 融合；本地模型不可用时 method_trace 标 not_configured。"
+}

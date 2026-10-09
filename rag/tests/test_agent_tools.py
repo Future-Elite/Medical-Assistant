@@ -5,13 +5,22 @@ from __future__ import annotations
 import unittest
 
 from rag.agent import EvidenceRAG
-from rag.tests.test_pipeline import _pipeline
+from rag.connectors import ConnectorRegistry, InMemoryConnector, VersionedGuidelineConnector
+from rag.fixtures import SYNTHETIC_GUIDELINES, SYNTHETIC_PUBMED
+from rag.pipeline import EvidenceRetrievalPipeline
+
+
+def _pipeline() -> EvidenceRetrievalPipeline:
+    registry = ConnectorRegistry()
+    registry.register(VersionedGuidelineConnector("guideline-fixture", SYNTHETIC_GUIDELINES))
+    registry.register(InMemoryConnector("pubmed-fixture", ("pubmed",), SYNTHETIC_PUBMED))
+    return EvidenceRetrievalPipeline(registry)
 
 
 class TestAgentTools(unittest.TestCase):
     def test_retrieve_then_open_its_own_citation(self) -> None:
         tool = EvidenceRAG(_pipeline())
-        result = tool.retrieve_evidence({"question": "高血压治疗指南推荐什么？", "as_of": "2025-01-01"})
+        result = tool.retrieve_evidence({"question": "高血压治疗指南推荐什么？", "as_of": "2025-12-31", "user_terms": {"高血压": ["hypertension"]}})
         opened = tool.open_citation({"retrieval_id": result["retrieval_id"], "citation_id": result["citations"][0]["citation_id"]})
         self.assertIn("查看原文证据", opened["citation"]["actions"][0]["label"])
         self.assertTrue(opened["citation"]["key_evidence_sentences"])
@@ -19,13 +28,17 @@ class TestAgentTools(unittest.TestCase):
 
     def test_citation_cannot_cross_retrieval_boundaries(self) -> None:
         tool = EvidenceRAG(_pipeline())
-        first = tool.retrieve_evidence({"question": "高血压指南", "as_of": "2025-01-01"})
-        second = tool.retrieve_evidence({"question": "Hypertension", "as_of": "2025-01-01"})
+        first = tool.retrieve_evidence({"question": "高血压指南", "as_of": "2025-12-31", "user_terms": {"高血压": ["hypertension"]}})
+        second = tool.retrieve_evidence({"question": "高血压指南推荐", "as_of": "2025-12-31", "user_terms": {"高血压": ["hypertension"]}})
         with self.assertRaises(ValueError):
             tool.open_citation({"retrieval_id": second["retrieval_id"], "citation_id": first["citations"][0]["citation_id"]})
 
-    def test_tool_schema_has_both_tools(self) -> None:
+    def test_tool_schema_has_all_tools(self) -> None:
         self.assertEqual(
             {item["name"] for item in EvidenceRAG.tool_specifications()},
             {"retrieve_evidence", "open_citation", "audit_grounded_answer"},
         )
+
+
+if __name__ == "__main__":
+    unittest.main()

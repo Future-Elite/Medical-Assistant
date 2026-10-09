@@ -1,0 +1,659 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/chinallm/rag/agent-contract.json",
+  "title": "ChinaLLM RAG Agent/HIS/RAG Contract",
+  "description": "Agent 与只读检索层的对接契约：Agent 先获取带 as_of 的 HIS 快照，再调用 RAG 完成患者事实 + PubMed + 版本化指南的联合检索。中英文字段语义见 language_rules：中文原始问题原样保留，英文相关字段（english_terms/mesh_terms/user_terms/question_english_terms）分别定义。",
+  "contract_metadata": {
+    "contract_id": "chinallm.rag.agent",
+    "contract_version": "6.4.0",
+    "status": "experimental"
+  },
+  "scope_and_safety": {
+    "read_only": true,
+    "writes_to_patient_record": false,
+    "clinical_decision_support": false,
+    "external_connectors_receive_raw_patient_snapshot": false,
+    "synthetic_fixture_is_clinical_evidence": false,
+    "scores_are_evidence_quality": false,
+    "required_human_review": true
+  },
+  "language_rules": {
+    "original_question": "question 是中文临床原始问题，原样保留（不翻译、不改写），既作为精确查询参与词面检索，也用于结果审计。",
+    "question_english_terms": "问题中直接出现的英文词（≥2 字符、含字母、过滤常见功能词与纯数值）由系统自动提取并加入英文检索词；调用方不得手工填写。记录在 EvidencePackage.query_plan.question_english_terms 和 trace.external_terms。",
+    "reviewed_english_terms": "english_terms 与 mesh_terms 是人工审核的英文术语/缩写与 MeSH 主题词，直接参与英文来源检索与实时 PubMed 查询（优先级高于自动提取）。",
+    "reviewed_mapping": "user_terms 是人工审核的中文概念→英文术语映射；仅当键出现在问题/患者术语文本中才生效，展开记录在 query_plan.expansion_trace（source=reviewed_user_terms）。不调用自动翻译或不受控同义词服务。",
+    "cjk_matching": "中文片段以 CJK 二元组分词参与词面匹配，可直接命中中文来源（source 文档语言为中文时无需英文术语）；纯数字 token（年份/序号）不参与匹配。",
+    "live_fallback": "实时 PubMed 在没有任何英文词时，优先退回概念中的 ASCII 词，其次才是中文片段；绝不发送患者快照内容。"
+  },
+  "tools": {
+    "retrieve_evidence": {
+      "operation": "read_and_retrieve",
+      "read_only": true,
+      "input": "#/schemas/RetrievalRequest",
+      "output": "#/schemas/EvidencePackage",
+      "scope": "creates retrieval_id"
+    },
+    "open_citation": {
+      "operation": "open_retrieval_scoped_citation",
+      "read_only": true,
+      "input": {
+        "retrieval_id": "string",
+        "citation_id": "string"
+      },
+      "output": "#/schemas/Citation",
+      "scope": "citation_id must belong to retrieval_id"
+    },
+    "audit_grounded_answer": {
+      "operation": "audit_answer_against_one_retrieval",
+      "read_only": true,
+      "input": {
+        "retrieval_id": "string",
+        "answer": "string"
+      },
+      "output": {
+        "claims": "array",
+        "alce_like": "object"
+      },
+      "scope": "same retrieval_id"
+    }
+  },
+  "schemas": {
+    "RetrievalRequest": {
+      "type": "object",
+      "required": [
+        "question"
+      ],
+      "properties": {
+        "request_id": {
+          "type": "string",
+          "description": "调用方关联 ID，仅用于日志与结果关联，不参与检索。"
+        },
+        "question": {
+          "type": "string",
+          "minLength": 1,
+          "description": "中文临床原始问题（可含英文药名/缩写）。原样保留、不翻译；英文词会被自动提取为 question_english_terms。"
+        },
+        "task": {
+          "type": "string",
+          "default": "clinical_question",
+          "description": "任务类型标记（预留），当前只随请求记录，不改变检索行为。"
+        },
+        "as_of": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date",
+          "description": "证据与患者事实的可见截止日期；未来患者记录、未来文献、撤回文献与被替代指南在此边界外被排除。"
+        },
+        "top_k": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 50,
+          "default": 8,
+          "description": "返回的引用条数上限。"
+        },
+        "patient_terms": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "人工审核的最小化患者相关术语（中英皆可），作为检索概念参与匹配；不得放原始病历、患者标识或自由文本病史。"
+        },
+        "patient_snapshot": {
+          "$ref": "#/schemas/PatientSnapshot",
+          "description": "Agent 从只读 HIS 获取的结构化、按 as_of 截止的患者快照；不得包含真实标识或未授权自由文本。"
+        },
+        "source_kinds": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "pubmed",
+              "guideline",
+              "drug",
+              "clinical_trial",
+              "local_knowledge"
+            ]
+          },
+          "description": "来源种类过滤；空数组表示按默认顺序检索已注册来源。"
+        },
+        "user_terms": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "description": "人工审核的中文概念→英文术语映射，例如 {\"高血压\": [\"hypertension\"]}。仅当键出现在问题/患者术语文本中才展开，过程记录在 query_plan.expansion_trace；不自动翻译。"
+        },
+        "english_terms": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "人工审核的英文医学术语/缩写（如 \"type 2 diabetes\"、\"HbA1c\"、\"metformin\"），直接参与英文来源检索与实时 PubMed 查询。"
+        },
+        "mesh_terms": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "人工审核的 MeSH 主题词（如 \"Diabetes Mellitus, Type 2\"），参与英文检索与实时 PubMed 查询。"
+        },
+        "facets": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "description": "结构化临床问题槽位（population/outcome 等）；取值作为检索概念参与匹配，避免把人群、结局压成不可审计长句。"
+        },
+        "filters": {
+          "type": "object",
+          "description": "结构化过滤项，例如 {\"guideline_version\": \"2024\"} 限定指南版本。"
+        },
+        "query_language": {
+          "type": "string",
+          "default": "zh",
+          "description": "问题语言标记（默认 zh），用于审计展示；系统不据此自动翻译。"
+        },
+        "clinical_intent": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "可选临床意图：guideline_recommendation / evidence_update / drug_safety / clinical_question；缺省时由问题文本自动推断。"
+        },
+        "source_mode": {
+          "enum": [
+            "simulated",
+            "live_pubmed",
+            "live"
+          ],
+          "default": "simulated",
+          "description": "来源模式：simulated 使用离线合成数据；live_pubmed 使用真实 NCBI PubMed + 官方指南元数据；live 需两类实时来源都被本地配置启用。实时失败不自动回退 synthetic。"
+        },
+        "retrieval_method": {
+          "type": [
+            "string",
+            "array"
+          ],
+          "items": {
+            "enum": [
+              "bm25",
+              "ql",
+              "rm3",
+              "dense",
+              "xlingual",
+              "splade",
+              "colbert",
+              "query2doc",
+              "translate"
+            ]
+          },
+          "default": "bm25",
+          "description": "底层检索方法：bm25（默认）/ql（Dirichlet 查询似然）/rm3（伪相关反馈）/dense（MedCPT 双塔，英文域）/xlingual（multilingual-e5 双塔，中文问题直接编码跨语言检索）/translate（zh→en 机器译文作为额外查询变体，原问题保留、数字不一致会告警）/splade/colbert/query2doc；多选（\"bm25,xlingual\" 或数组）对多路排名做 RRF 融合；零分路线不参与 RRF。神经方法不可用时该方法在 trace.method_trace 标 not_configured（附原因），绝不静默降级；未知方法名请求报 400。"
+        },
+        "rerank": {
+          "type": "boolean",
+          "default": false,
+          "description": "true 时在召回后用 MedCPT cross-encoder 重排；未配置时 trace.rerank_trace.status=not_configured。重排分数不是证据质量或推荐强度。"
+        }
+      }
+    },
+    "PatientSnapshot": {
+      "type": "object",
+      "required": [
+        "patient_ref",
+        "as_of",
+        "facts"
+      ],
+      "properties": {
+        "patient_ref": {
+          "type": "string",
+          "description": "合成或授权的患者引用；不得在外部请求中出现姓名/身份证/住院号。"
+        },
+        "as_of": {
+          "type": "string",
+          "format": "date",
+          "description": "快照截止日期；未来事实在快照构建时被抑制（计入 suppressed_future）。"
+        },
+        "source": {
+          "type": "string",
+          "description": "快照来源标记（如 synthetic_chart）。"
+        },
+        "reviewed_external_terms": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "调用方审核的最小化外部检索术语（建议英文）；随问题概念一起参与检索，绝不发送原始字段值。"
+        },
+        "facts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/schemas/PatientFact"
+          }
+        },
+        "suppressed_future": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "被 as_of 抑制的未来事实数量。"
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "PatientFact": {
+      "type": "object",
+      "required": [
+        "collection",
+        "event_type",
+        "record_path",
+        "field_path"
+      ],
+      "properties": {
+        "collection": {
+          "type": "string"
+        },
+        "event_type": {
+          "type": "string"
+        },
+        "record_path": {
+          "type": "string",
+          "description": "稳定 HIS 记录路径，例如 medications[0]。"
+        },
+        "field_path": {
+          "type": "string",
+          "description": "稳定字段路径，例如 medications[0].name。"
+        },
+        "time": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date"
+        },
+        "start": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date"
+        },
+        "end": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date"
+        },
+        "fields": {
+          "type": "object",
+          "description": "结构化字段；自由文本（text/free_text/narrative）不参与外部检索。"
+        }
+      }
+    },
+    "QueryPlan": {
+      "type": "object",
+      "description": "系统生成的检索计划，随 EvidencePackage 返回，供审计：可以检查系统究竟用了哪些词检索、以及扩展是否改变原问题条件。",
+      "properties": {
+        "original_question": {
+          "type": "string",
+          "description": "中文原始问题，原样保留。"
+        },
+        "variants": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "参与词面打分的查询变体：原问题 / 概念 / 概念+英文 / 英文+MeSH。"
+        },
+        "concepts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "从问题、患者术语与 facets 提取的中英文概念（中文为连续片段，匹配时按二元组切分）。"
+        },
+        "source_order": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "本次实际执行的来源顺序（推荐类问题指南来源优先，这只是路由顺序，不是正确性排序）。"
+        },
+        "filters": {
+          "type": "object"
+        },
+        "rationale": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "路由与术语策略说明。"
+        },
+        "query_language": {
+          "type": "string"
+        },
+        "clinical_intent": {
+          "enum": [
+            "clinical_question",
+            "guideline_recommendation",
+            "evidence_update",
+            "drug_safety"
+          ]
+        },
+        "facets": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "english_terms": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "人工审核英文术语（含 user_terms 展开结果）。"
+        },
+        "question_english_terms": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "问题中自动提取的英文词（只读）；直接参与英文检索与实时 PubMed 查询。"
+        },
+        "mesh_terms": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "expansion_trace": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "concept": {
+                "type": "string"
+              },
+              "terms": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "source": {
+                "enum": [
+                  "reviewed_user_terms",
+                  "question_ascii",
+                  "pseudo_relevance_feedback",
+                  "query2doc_pseudo_document"
+                ]
+              }
+            }
+          },
+          "description": "术语展开轨迹：问题英文词提取（question_ascii）、审核映射展开（reviewed_user_terms）、RM3 伪相关反馈（pseudo_relevance_feedback）、Query2doc 伪文档扩展（query2doc_pseudo_document）。"
+        }
+      }
+    },
+    "Citation": {
+      "type": "object",
+      "required": [
+        "citation_id",
+        "source_id",
+        "document_id",
+        "kind"
+      ],
+      "properties": {
+        "citation_id": {
+          "type": "string",
+          "description": "格式 <retrieval_id>:cit-N；只能在同一 retrieval_id 的作用域内通过 open_citation 打开，跨检索使用会被拒绝。"
+        },
+        "source_id": {
+          "type": "string"
+        },
+        "document_id": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "pubmed",
+            "guideline",
+            "drug",
+            "clinical_trial",
+            "local_knowledge"
+          ]
+        },
+        "title": {
+          "type": "string"
+        },
+        "quote": {
+          "type": "string",
+          "description": "原文摘录（截断展示，完整定位用 locator 与 key_evidence_sentences）。"
+        },
+        "locator": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "原文定位（章节/句子/字符偏移），用于回到原文核对。"
+        },
+        "url": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "pmid": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "doi": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "evidence_status": {
+          "enum": [
+            "current",
+            "unknown_date",
+            "future_at_query_time",
+            "withdrawn",
+            "superseded"
+          ],
+          "description": "证据状态；未来/撤回/被替代在排序前被排除，不会作为引用返回。"
+        },
+        "version_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "指南版本（仅指南来源）。"
+        },
+        "recommendation_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "指南推荐编号（仅指南来源）。"
+        },
+        "population": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "指南适用人群原文（仅指南来源）；不是患者适用性结论。"
+        },
+        "key_evidence_sentences": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          },
+          "description": "确定性关键句定位（句子文本 + 字符偏移 + 命中词）；仅帮助人工回原文核对，不是蕴含判断。"
+        },
+        "retrieved_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "index_snapshot": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "检索时的语料快照标记，用于可复现性审计。"
+        }
+      }
+    },
+    "PatientHit": {
+      "type": "object",
+      "required": [
+        "record_path",
+        "field_path",
+        "source_type",
+        "matched_terms",
+        "score",
+        "evidence_text"
+      ],
+      "description": "本地患者事实命中；evidence_text 已排除自由文本字段。"
+    },
+    "ApplicabilityAssessment": {
+      "type": "object",
+      "required": [
+        "document_id",
+        "status",
+        "reason"
+      ],
+      "properties": {
+        "document_id": {
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "not_assessed",
+            "possible_match",
+            "mismatch",
+            "unknown"
+          ]
+        },
+        "reason": {
+          "type": "string"
+        },
+        "matched_patient_fields": {
+          "type": "array"
+        },
+        "missing_patient_fields": {
+          "type": "array"
+        },
+        "patient_record_paths": {
+          "type": "array"
+        }
+      },
+      "description": "结构化适用性提示；不是诊断、治疗建议或指南符合性证明。"
+    },
+    "EvidencePackage": {
+      "type": "object",
+      "required": [
+        "retrieval_id",
+        "query_plan",
+        "citations",
+        "patient_hits",
+        "evidence_groups",
+        "trace"
+      ],
+      "properties": {
+        "retrieval_id": {
+          "type": "string",
+          "description": "单次检索作用域 ID；引用与审计都绑定它。"
+        },
+        "request_id": {
+          "type": "string"
+        },
+        "query_plan": {
+          "$ref": "#/schemas/QueryPlan"
+        },
+        "patient_hits": {
+          "type": "array",
+          "items": {
+            "$ref": "#/schemas/PatientHit"
+          },
+          "description": "本地患者事实命中（含 record_path/field_path）。"
+        },
+        "evidence_groups": {
+          "type": "object",
+          "description": "按来源种类分组的排序结果（pubmed/guideline/...）；请分开使用，不要混成一份无来源区分的列表。"
+        },
+        "applicability": {
+          "type": "array",
+          "items": {
+            "$ref": "#/schemas/ApplicabilityAssessment"
+          }
+        },
+        "source_separation": {
+          "type": "object",
+          "description": "来源分组状态，例如 {\"status\": \"grouped\", \"groups\": [\"guideline\", \"pubmed\"]}。"
+        },
+        "patient_context": {
+          "type": "object",
+          "description": "患者上下文摘要：context_id / visible_fact_count / suppressed_future；不包含快照原文。"
+        },
+        "citations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/schemas/Citation"
+          }
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "连接器失败、时间/版本过滤、相关度门排除、数据限制等提示。"
+        },
+        "trace": {
+          "type": "object",
+          "description": "审计轨迹：rag_version / source_mode / retrieved_at / connector_trace / candidate_count / selected_count / semantic_trace / reranker / generation_performed / clinical_decision_performed / query_plan{language,intent,english_terms,question_english_terms,mesh_terms} / patient_context / external_terms（实际发往外部的术语 = 审核 english_terms + 问题内 question_english_terms）/ retrieval_method（最终生效方法串）/ method_trace（各方法 ok|not_configured|error|fallback）/ rerank_trace / source_separation。"
+        }
+      }
+    }
+  },
+  "correlation_and_scope": {
+    "request_id": "caller correlation",
+    "retrieval_id": "one retrieval scope",
+    "citation_id": "must belong to retrieval_id",
+    "record_path": "stable HIS chart path",
+    "index_snapshot": "retrieval reproducibility"
+  },
+  "errors": [
+    "invalid_request",
+    "unknown_patient_ref",
+    "unknown_retrieval_id",
+    "citation_not_in_retrieval",
+    "connector_error",
+    "payload_too_large"
+  ],
+  "limitations": [
+    "Current server uses synthetic HIS/PubMed/guideline fixtures.",
+    "Applicability is a structured matching hint, not a clinical decision.",
+    "BM25/RRF/semantic scores are not evidence certainty or recommendation strength.",
+    "Candidates with zero lexical and zero semantic relevance are excluded before scoring; authority/freshness never backfill unrelated source entries.",
+    "Chinese concepts are never auto-translated: English expansion comes only from reviewed user_terms/english_terms/mesh_terms or English words written in the question.",
+    "CJK matching uses bigram tokenization; pure-digit tokens (years, ordinal numbers) do not participate in matching."
+  ]
+}

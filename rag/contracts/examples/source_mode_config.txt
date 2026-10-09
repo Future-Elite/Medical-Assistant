@@ -1,0 +1,9 @@
+# live source configuration example
+# Keep real values outside the repository in production.
+source_mode = "simulated"
+allow_live_pubmed = false
+allow_live_guidelines = false
+
+# To enable PubMed locally, set these in the local config/environment:
+# ncbi_email = "approved-contact@example.org"
+# ncbi_api_key = "local-only-secret"

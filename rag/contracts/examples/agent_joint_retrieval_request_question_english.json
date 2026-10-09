@@ -1,0 +1,20 @@
+{
+  "request_id": "agent-case-003",
+  "question": "该患者 metformin 治疗2型糖尿病的近期证据是什么？",
+  "as_of": "2025-12-31",
+  "top_k": 6,
+  "source_kinds": ["pubmed", "guideline"],
+  "patient_snapshot": {
+    "patient_ref": "syn-patient-002",
+    "as_of": "2025-12-31",
+    "source": "synthetic_chart",
+    "reviewed_external_terms": [],
+    "facts": [
+      {"collection": "diagnoses", "event_type": "diagnosis", "record_path": "diagnoses[0]", "field_path": "diagnoses[0].name", "time": "2023-05-10", "fields": {"name": "2型糖尿病"}},
+      {"collection": "medications", "event_type": "medication", "record_path": "medications[0]", "field_path": "medications[0].name", "start": "2023-05-11", "end": null, "fields": {"name": "metformin"}}
+    ]
+  },
+  "user_terms": {"2型糖尿病": ["type 2 diabetes"]},
+  "english_terms": [],
+  "mesh_terms": []
+}

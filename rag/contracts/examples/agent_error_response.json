@@ -1,0 +1,10 @@
+{
+  "tool": "retrieve_evidence",
+  "status": "error",
+  "error": {
+    "code": "unknown_patient_ref",
+    "message": "unknown patient_ref",
+    "stage": "his_snapshot",
+    "retryable": false
+  }
+}

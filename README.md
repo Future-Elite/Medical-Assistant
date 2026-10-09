@@ -89,6 +89,7 @@ RAG 模块负责：
 - 返回带文档 ID、来源、原文摘录和定位信息的证据包；
 - 为证据生成可追溯引用和关键原文句定位；
 - 检查回答主张是否引用了本轮检索得到的证据；
+- 支持患者事实 + PubMed + 版本化指南的联合检索与来源分离输出；
 - 在 MiniCheck 等可选校验器可用时进行句子级主张检查。
 
 当前 RAG 代码位于 [`rag/`](rag/)，详细调用说明见 [`rag/README.md`](rag/README.md)。
@@ -180,7 +181,9 @@ audit = rag.audit_grounded_answer({
 | 引用和原文定位 | 已有 |
 | 关键证据句定位 | 已有，主要用于回溯，不是医学蕴含判断 |
 | 回答主张审计 | 已有 |
-| OpenAI-compatible LLM 摘要接口 | 可选接口，需本地配置 |
+| 联合检索（患者事实 + PubMed + 版本化指南） | 已有，来源分离输出 |
+| 可切换检索方法（bm25/ql/rm3 + 可选神经方法） | 已有，未配置时报 not_configured |
+| 神经检索/重排（dense/xlingual/translate/splade/colbert/query2doc + cross-encoder） | 可选，需 .venv 依赖与 HF 模型缓存 |
 | MiniCheck 主张校验 | 可选，依赖和模型可用时才执行 |
 | 真实 HIS/PACS 接入 | 未实现 |
 | 完整自主 Medical Agent | 未完成 |
@@ -202,7 +205,7 @@ python3 -m unittest discover -s rag/tests -p 'test_*.py'
 python3 -m compileall -q rag
 ```
 
-当前测试使用合成或录制数据，不请求实时 PubMed、不请求 LLM，也不下载 MiniCheck 模型。
+当前测试使用合成或录制数据，不请求实时 PubMed、不请求 LLM，不下载 MiniCheck 或神经检索模型。
 
 如需启用 MiniCheck：
 
@@ -226,9 +229,10 @@ python3 server.py
 | 方法 | 路径 | 作用 |
 |---|---|---|
 | `GET` | `/`、`/index.html` | 浏览器工作台。 |
-| `GET` | `/api/health` | 服务、PubMed、LLM 和 MiniCheck 的脱敏状态。 |
+| `GET` | `/api/health` | 服务、来源模式、检索方法就绪状态（脱敏，不触发检索）。 |
 | `GET` | `/api/tools` | Agent 工具规格。 |
-| `POST` | `/api/retrieve` | 检索证据，可选生成摘要。 |
+| `POST` | `/api/retrieve` | 联合检索证据（支持来源模式/检索方法/重排参数）。 |
+| `POST` | `/api/his/snapshot` | 读取 synthetic HIS 快照（演示用）。 |
 | `POST` | `/api/citation` | 打开本轮检索中的引用。 |
 | `POST` | `/api/audit` | 审计回答主张和引用。 |
 
@@ -240,20 +244,28 @@ HTTP 字段、响应结构、状态码和错误处理见 [`rag/README.md`](rag/R
 Medical-Assistant/
 ├── README.md
 └── rag/
+    ├── __init__.py        # 包声明与 __version__（当前 6.4.0）
     ├── README.md          # RAG 直接调用和接口指南
-    ├── agent.py           # Medical Agent 的证据工具接口
+    ├── agent.py           # EvidenceRAG：检索、引用、审计三个只读工具
     ├── audit.py           # 回答审计和 MiniCheck 适配器
-    ├── config.py          # 本地配置
-    ├── connectors.py      # 知识源连接器和注册表
+    ├── bm25.py            # 字段化 BM25（中文 CJK 二元组）
+    ├── lexical.py         # QL / RM3 词面方法
+    ├── neural_adapters.py # 可选神经方法（MedCPT/e5/splade/colbert/opus-mt/query2doc）
+    ├── config.py          # 本地配置（来源模式/端口）
+    ├── connectors.py      # 连接器契约与注册表
+    ├── contracts/         # Agent/HIS/RAG 契约（JSON + 说明 + 示例）
     ├── evidence.py        # 关键证据句定位
-    ├── llm.py             # 可选 LLM 摘要适配器
+    ├── fixtures.py        # synthetic 离线样例（仅测试）
+    ├── guidelines.py      # 版本化指南元数据/许可快照连接器
+    ├── his.py             # 只读 HIS 快照契约
     ├── models.py          # 请求、文档和证据包契约
-    ├── pipeline.py        # 检索和证据包生成
+    ├── patient_retrieval.py # 本地患者事实检索
+    ├── pipeline.py        # 联合检索和证据包生成
     ├── pubmed.py          # 实时 PubMed 连接器
     ├── query.py           # 查询计划和受控术语扩展
-    ├── ranking.py         # 去重、排序和多样化
-    ├── server.py          # HTTP 服务
-    ├── demo.html          # 本地浏览器工作台
-    ├── requirements.txt   # 可选依赖
+    ├── ranking.py         # 去重、状态过滤、RRF、MMR
+    ├── server.py          # HTTP 服务（只读工作台）
+    ├── evidence_retrieval_workbench.html # 浏览器工作台
+    ├── requirements.txt   # 可选依赖（MiniCheck）
     └── tests/             # 离线测试
 ```

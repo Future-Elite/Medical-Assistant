@@ -1,5 +1,4 @@
-"""Connector contracts and adapters for PubMed, guidelines, and future sources."""
-
+"""Read-only source connector contracts for PubMed and versioned guidelines."""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -9,13 +8,11 @@ from .models import QueryPlan, SearchResult, SourceDocument
 
 
 class KnowledgeConnector(Protocol):
-    """Minimal integration contract; network transport belongs to the adapter."""
-
     source_id: str
     kinds: tuple[str, ...]
 
     def search(self, plan: QueryPlan, *, limit: int) -> SearchResult:
-        """Return only source-owned documents; never fabricate a source ID."""
+        """Return source-owned documents; connectors never fabricate provenance."""
 
 
 @dataclass
@@ -44,16 +41,11 @@ class ConnectorRegistry:
         return ordered
 
     def describe(self) -> list[dict[str, object]]:
-        return [
-            {"source_id": key, "kinds": list(value.kinds)}
-            for key, value in sorted(self._connectors.items())
-        ]
+        return [{"source_id": key, "kinds": list(value.kinds)} for key, value in sorted(self._connectors.items())]
 
 
 @dataclass
 class InMemoryConnector:
-    """Deterministic connector for demos and offline test fixtures only."""
-
     source_id: str
     kinds: tuple[str, ...]
     documents: tuple[SourceDocument, ...]
@@ -69,8 +61,6 @@ class InMemoryConnector:
 
 @dataclass
 class CallableConnector:
-    """Adapts an existing PubMed/guideline client without imposing its SDK."""
-
     source_id: str
     kinds: tuple[str, ...]
     fetch: Callable[[QueryPlan, int], Sequence[Mapping[str, object] | SourceDocument]]
@@ -83,3 +73,34 @@ class CallableConnector:
                 raise ValueError(f"connector {self.source_id} returned document owned by {doc.source_id}")
             docs.append(doc)
         return SearchResult(source_id=self.source_id, documents=tuple(docs))
+
+
+@dataclass
+class VersionedGuidelineConnector:
+    """Offline or authorized read-only guideline source with explicit metadata checks."""
+    source_id: str
+    documents: tuple[SourceDocument, ...]
+    kinds: tuple[str, ...] = ("guideline",)
+
+    def __post_init__(self) -> None:
+        if "guideline" not in self.kinds:
+            self.kinds = tuple((*self.kinds, "guideline"))
+        for document in self.documents:
+            if document.kind != "guideline":
+                raise ValueError(f"guideline connector received non-guideline document: {document.document_id}")
+
+    def search(self, plan: QueryPlan, *, limit: int) -> SearchResult:
+        allowed = set(plan.filters.get("source_kinds") or ())
+        if allowed and not (allowed & set(self.kinds)):
+            return SearchResult(source_id=self.source_id, documents=())
+        warnings: list[str] = []
+        selected = list(self.documents)
+        requested_version = plan.filters.get("guideline_version")
+        if requested_version:
+            selected = [doc for doc in selected if doc.version_id == str(requested_version)]
+            if not selected:
+                warnings.append(f"未找到请求的指南版本：{requested_version}。")
+        missing = [doc.document_id for doc in selected if not doc.version_id or not doc.locator]
+        if missing:
+            warnings.append(f"指南条目缺少 version_id 或 locator，需人工核验：{', '.join(missing[:5])}。")
+        return SearchResult(source_id=self.source_id, documents=tuple(selected[:limit]), warnings=tuple(warnings))

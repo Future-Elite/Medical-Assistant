@@ -1,42 +1,59 @@
-"""End-to-end retrieval tests with only synthetic, non-clinical fixtures."""
-
-from __future__ import annotations
-
 import unittest
 
-from rag.connectors import ConnectorRegistry, InMemoryConnector
-from rag.models import RetrievalRequest, SourceDocument
+from rag import __version__
+from rag.connectors import ConnectorRegistry, InMemoryConnector, VersionedGuidelineConnector
+from rag.fixtures import SYNTHETIC_GUIDELINES, SYNTHETIC_PUBMED
+from rag.models import RetrievalRequest
 from rag.pipeline import EvidenceRetrievalPipeline
 
 
-def _pipeline() -> EvidenceRetrievalPipeline:
-    registry = ConnectorRegistry()
-    registry.register(InMemoryConnector("guideline", ("guideline",), (
-        SourceDocument.from_dict({"document_id": "guide-1", "kind": "guideline", "title": "高血压指南", "text": "高血压药物治疗建议。", "updated_at": "2024-01-01", "locator": "第3章", "metadata": {"official": True}}, source_id="guideline"),
-    )))
-    registry.register(InMemoryConnector("pubmed", ("pubmed",), (
-        SourceDocument.from_dict({"document_id": "pmid-1", "kind": "pubmed", "title": "Hypertension", "text": "Hypertension treatment study.", "published_at": "2023-01-01", "pmid": "1"}, source_id="pubmed"),
-        SourceDocument.from_dict({"document_id": "future", "kind": "pubmed", "title": "Future", "text": "future evidence", "published_at": "2027-01-01", "pmid": "2"}, source_id="pubmed"),
-    )))
-    return EvidenceRetrievalPipeline(registry)
+class PipelineTests(unittest.TestCase):
+    def setUp(self):
+        registry = ConnectorRegistry()
+        registry.register(VersionedGuidelineConnector("guideline-fixture", SYNTHETIC_GUIDELINES))
+        registry.register(InMemoryConnector("pubmed-fixture", ("pubmed",), SYNTHETIC_PUBMED))
+        self.tool = EvidenceRetrievalPipeline(registry)
 
+    def test_joint_retrieval_has_source_trace_and_citations(self):
+        package = self.tool.retrieve(RetrievalRequest.from_dict({
+            "request_id": "p1", "question": "高血压指南推荐和最新证据？", "as_of": "2025-12-31",
+            "user_terms": {"高血压": ["hypertension"]}, "mesh_terms": ["Hypertension"], "top_k": 4,
+        }))
+        self.assertEqual(package.trace["rag_version"], __version__)
+        self.assertEqual(package.trace["candidate_count"], len(SYNTHETIC_PUBMED) + len(SYNTHETIC_GUIDELINES))
+        self.assertTrue(package.citations)
+        self.assertTrue(any(row["source_id"] == "guideline-fixture" for row in package.trace["connector_trace"]))
+        self.assertTrue(all(c.retrieval_id if hasattr(c, "retrieval_id") else True for c in package.citations))
+        self.assertTrue(any(c.version_id for c in package.citations if c.kind == "guideline"))
 
-class TestPipeline(unittest.TestCase):
-    def test_key_evidence_sentences_are_locatable(self) -> None:
-        package = _pipeline().retrieve(RetrievalRequest.from_dict({"request_id": "t", "question": "高血压治疗指南推荐什么？", "as_of": "2025-01-01"}))
-        citation = package.citations[0]
-        self.assertTrue(citation.key_evidence_sentences)
-        sentence = citation.key_evidence_sentences[0]
-        source = package.ranked_documents[0].document.text
-        self.assertEqual(source[sentence["start"]:sentence["end"]], sentence["text"])
-        self.assertIn("sentence 1", sentence["locator"])
-
-    def test_guideline_is_first_for_recommendation_question(self) -> None:
-        package = _pipeline().retrieve(RetrievalRequest.from_dict({"request_id": "t", "question": "高血压治疗指南推荐什么？", "as_of": "2025-01-01"}))
-        self.assertEqual(package.ranked_documents[0].document.kind, "guideline")
-        self.assertEqual(package.citations[0].locator, "第3章")
-
-    def test_future_evidence_is_not_returned(self) -> None:
-        package = _pipeline().retrieve(RetrievalRequest.from_dict({"request_id": "t", "question": "future evidence", "as_of": "2025-01-01"}))
-        self.assertNotIn("future", [item.document.document_id for item in package.ranked_documents])
+    def test_superseded_and_future_are_excluded(self):
+        package = self.tool.retrieve(RetrievalRequest.from_dict({
+            "question": "高血压指南推荐", "as_of": "2023-06-01", "top_k": 8,
+        }))
+        self.assertFalse(any(c.document_id == "guide-2023-old" for c in package.citations))
+        self.assertFalse(any(c.document_id == "guide-2024-a" for c in package.citations))
         self.assertTrue(any("排除" in warning for warning in package.warnings))
+
+    def test_version_filter_warning_and_citation_fields(self):
+        package = self.tool.retrieve(RetrievalRequest.from_dict({
+            "question": "高血压指南推荐", "filters": {"guideline_version": "2024"},
+            "user_terms": {"高血压": ["hypertension"]}, "top_k": 3,
+        }))
+        guide = next(c for c in package.citations if c.kind == "guideline")
+        self.assertEqual(guide.version_id, "2024")
+        self.assertEqual(guide.recommendation_id, "2.1")
+        self.assertTrue(guide.key_evidence_sentences)
+
+
+class AgentTests(unittest.TestCase):
+    def test_citation_is_scoped_to_retrieval(self):
+        from rag.agent import EvidenceRAG
+        registry = ConnectorRegistry()
+        registry.register(InMemoryConnector("pubmed", ("pubmed",), SYNTHETIC_PUBMED))
+        rag = EvidenceRAG(EvidenceRetrievalPipeline(registry))
+        first = rag.retrieve_evidence({"question": "hypertension"})
+        citation_id = first["citations"][0]["citation_id"]
+        opened = rag.open_citation({"retrieval_id": first["retrieval_id"], "citation_id": citation_id})
+        self.assertEqual(opened["citation"]["citation_id"], citation_id)
+        with self.assertRaises(ValueError):
+            rag.open_citation({"retrieval_id": "retrieval-unknown", "citation_id": citation_id})

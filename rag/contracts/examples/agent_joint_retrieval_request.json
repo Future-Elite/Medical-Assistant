@@ -1,0 +1,19 @@
+{
+  "request_id": "agent-case-001",
+  "question": "该患者当前高血压相关指南推荐和近期研究证据是什么？",
+  "as_of": "2025-12-31",
+  "top_k": 6,
+  "source_kinds": ["pubmed", "guideline"],
+  "patient_snapshot": {
+    "patient_ref": "syn-patient-001",
+    "as_of": "2025-12-31",
+    "source": "synthetic_chart",
+    "reviewed_external_terms": ["hypertension"],
+    "facts": [
+      {"collection": "diagnoses", "event_type": "diagnosis", "record_path": "diagnoses[0]", "field_path": "diagnoses[0].name", "time": "2024-02-01", "fields": {"name": "高血压"}},
+      {"collection": "medications", "event_type": "medication", "record_path": "medications[0]", "field_path": "medications[0].name", "start": "2024-02-02", "end": null, "fields": {"name": "amlodipine"}}
+    ]
+  },
+  "english_terms": ["hypertension"],
+  "mesh_terms": ["Hypertension"]
+}
