@@ -10,6 +10,33 @@ from .models import QueryPlan, RetrievalRequest
 
 DEFAULT_SOURCE_ORDER = ("guideline", "pubmed", "drug", "clinical_trial", "local_knowledge")
 _RECOMMENDATION_MARKERS = ("指南", "推荐", "应当", "适应证", "禁忌", "剂量", "治疗", "诊疗")
+_QUESTION_EN_STOPWORDS = frozenset(
+    """a an and are as at be been being both but by can could did do does doing down during each few for from
+    further had has have having he her here hers him his how i if in into is it its just may me might more most
+    my no nor not of off on once only or other our out over own same she should so some such than that the
+    their them then there these they this those through to too under until up very was we were what when where
+    which while who whom why will with would you your""".split()
+)
+_QUERY_TASK_TERMS = frozenset(
+    "recent latest current new study studies evidence evidences research researches literature article articles "
+    "paper papers publication publications find search show summarize summary review reviews".split()
+)
+_RELATION_TERMS = frozenset(("associated", "related", "regarding", "concerning"))
+_MEDICAL_PHRASES = tuple(
+    tuple(phrase.split())
+    for phrase in (
+        "non small cell lung cancer",
+        "interstitial lung disease",
+        "type 1 diabetes",
+        "type 2 diabetes",
+        "adverse drug reactions",
+        "adverse effects",
+        "side effects",
+        "drug interactions",
+        "risk factors",
+        "clinical trials",
+    )
+)
 
 
 def build_query_plan(request: RetrievalRequest, known_sources: list[dict[str, object]]) -> QueryPlan:
@@ -21,8 +48,10 @@ def build_query_plan(request: RetrievalRequest, known_sources: list[dict[str, ob
     """
     concepts = _unique((*_extract_terms(request.question), *request.patient_terms))
     expansion: list[str] = []
-    for concept in concepts:
-        expansion.extend(request.user_terms.get(concept, ()))
+    request_text = " ".join((request.question, *request.patient_terms)).lower()
+    for concept, mapped_terms in request.user_terms.items():
+        if str(concept).strip() and str(concept).lower() in request_text:
+            expansion.extend(mapped_terms)
     variants = _unique((request.question, " ".join(concepts), " ".join((*concepts, *expansion))))
     variants = tuple(item for item in variants if item.strip())
 
@@ -53,13 +82,62 @@ def build_query_plan(request: RetrievalRequest, known_sources: list[dict[str, ob
         rationale.append("患者相关词仅作为最小化术语，不传递原始病历。")
     filters = dict(request.filters)
     filters["source_kinds"] = list(request.source_kinds)
+    filters["pubmed_terms"] = list(_pubmed_terms(request.question, expansion))
+    if filters["pubmed_terms"]:
+        rationale.append("PubMed 查询已清理任务词、规范化连字符并保留常见医学短语。")
     return QueryPlan(request.question, variants, concepts, tuple(source_order_list), filters, tuple(rationale))
 
 
 def _extract_terms(text: str) -> tuple[str, ...]:
-    ascii_terms = re.findall(r"[A-Za-z][A-Za-z0-9+./-]{1,}", text)
+    ascii_terms = _pubmed_terms(text)
     cjk_terms = re.findall(r"[\u4e00-\u9fff]{2,}", text)
     return _unique((*ascii_terms, *cjk_terms))
+
+
+def _pubmed_terms(text: str, reviewed_terms=()) -> tuple[str, ...]:
+    """Return ordered PubMed concepts without using an LLM.
+
+    Common request words are discarded, letter-to-letter hyphens become word
+    boundaries, and a small auditable list keeps frequent medical phrases
+    intact. Explicitly reviewed terms are retained as phrases.
+    """
+    normalized = re.sub(r"(?<=[A-Za-z])[-‐‑–—](?=[A-Za-z])", " ", str(text).lower())
+    words = re.findall(r"[a-z][a-z0-9+./]*", normalized)
+    tokens: list[str] = []
+    for word in words:
+        if word in _QUESTION_EN_STOPWORDS or word in _QUERY_TASK_TERMS:
+            continue
+        tokens.append("|" if word in _RELATION_TERMS else word)
+
+    matches: dict[int, tuple[int, str]] = {}
+    occupied: set[int] = set()
+    for phrase in _MEDICAL_PHRASES:
+        size = len(phrase)
+        for start in range(len(tokens) - size + 1):
+            indexes = set(range(start, start + size))
+            if indexes & occupied or tuple(tokens[start:start + size]) != phrase:
+                continue
+            matches[start] = (size, " ".join(phrase))
+            occupied.update(indexes)
+
+    terms: list[str] = []
+    index = 0
+    while index < len(tokens):
+        if index in matches:
+            size, phrase = matches[index]
+            terms.append(phrase)
+            index += size
+        elif index not in occupied and tokens[index] != "|":
+            terms.append(tokens[index])
+            index += 1
+        else:
+            index += 1
+
+    for term in reviewed_terms:
+        cleaned = re.sub(r"\s+", " ", re.sub(r"(?<=[A-Za-z])[-‐‑–—](?=[A-Za-z])", " ", str(term))).strip()
+        if cleaned:
+            terms.append(cleaned)
+    return _unique(terms)
 
 
 def _unique(items) -> tuple[str, ...]:

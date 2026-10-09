@@ -46,13 +46,21 @@ class PubMedConnector:
         if self.timeout_seconds == 20.0:
             self.timeout_seconds = config.request_timeout_seconds
     def search(self, plan: QueryPlan, *, limit: int) -> SearchResult:
-        query = _pubmed_query(plan)
-        identifiers = self._search_ids(query, limit)
         warnings: list[str] = []
         if not self.email:
             warnings.append("PubMed 请求未在 config.py 设置 ncbi_email；建议配置有效邮箱以符合 NCBI 使用规范。")
+        queries = _pubmed_queries(plan)
+        identifiers: list[str] = []
+        query = queries[0]
+        for attempt, candidate in enumerate(queries):
+            query = candidate
+            identifiers = self._search_ids(query, limit)
+            if identifiers:
+                if attempt:
+                    warnings.append(f"PubMed 首轮精确查询无结果，已在第 {attempt + 1} 轮放宽查询。")
+                break
         if not identifiers:
-            warnings.append("实时 PubMed 未返回匹配记录。可补充英文受控术语后重试。")
+            warnings.append(f"实时 PubMed 在 {len(queries)} 轮规范化查询后仍未返回匹配记录。")
             return SearchResult(source_id=self.source_id, documents=(), warnings=tuple(warnings))
         documents = self._fetch_articles(identifiers, query)
         if len(documents) < len(identifiers):
@@ -110,11 +118,31 @@ class PubMedConnector:
             ) from exc
 
 
-def _pubmed_query(plan: QueryPlan) -> str:
-    variants = [value.replace('"', " ").strip() for value in plan.variants if value.strip()]
-    if not variants:
+def _pubmed_queries(plan: QueryPlan) -> tuple[str, ...]:
+    configured = plan.filters.get("pubmed_terms", ())
+    terms = [str(value).strip() for value in configured if str(value).strip()]
+    if not terms:
+        terms = [value.strip() for value in plan.concepts if value.strip() and value.isascii()]
+    terms = list(dict.fromkeys(terms))[:8]
+    if not terms:
         raise PubMedError("查询计划没有可用于 PubMed 的关键词")
-    return " OR ".join(f"({value})" for value in variants[:3])
+    precise = " AND ".join(_format_term(value) for value in terms)
+    queries = [precise]
+    if len(terms) > 2:
+        relaxed = " AND ".join(_format_term(value) for value in terms[:2])
+        if relaxed != precise:
+            queries.append(relaxed)
+    return tuple(queries)
+
+
+def _pubmed_query(plan: QueryPlan) -> str:
+    """Backward-compatible access to the first, most specific query."""
+    return _pubmed_queries(plan)[0]
+
+
+def _format_term(value: str) -> str:
+    cleaned = " ".join(value.replace('"', " ").split())
+    return f'"{cleaned}"' if " " in cleaned else cleaned
 
 
 def _article_to_document(article: ET.Element, source_id: str, query: str) -> SourceDocument | None:
