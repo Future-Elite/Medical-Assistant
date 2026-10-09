@@ -13,9 +13,7 @@ from interface import create_demo
 # from medrax.agent import *
 # from medrax.tools import *
 # from medrax.utils import *
-from medrax.tools.clinical_trials import ClinicalTrialsTool
-from medrax.tools.openfda import OpenFDADrugLabelTool
-from medrax.tools.pubmed import PubMedEvidenceTool
+from medrax.tools.rag_tool import MedicalEvidenceRAGTool
 from medrax.utils import load_prompts_from_file
 
 
@@ -133,7 +131,7 @@ def initialize_medical_agent(
 ):
     """Initialize the external-evidence agent without changing the imaging agent."""
     prompts = load_prompts_from_file(prompt_file)
-    tools = [PubMedEvidenceTool(), OpenFDADrugLabelTool(), ClinicalTrialsTool()]
+    tools = [MedicalEvidenceRAGTool()]
     chat_model = _create_qwen_model(model, temperature, top_p, openai_kwargs)
 
     agent = create_agent(

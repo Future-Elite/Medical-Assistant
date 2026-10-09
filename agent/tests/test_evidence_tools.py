@@ -9,7 +9,7 @@ from medrax.tools.openfda import OpenFDADrugLabelTool
 
 
 class EvidenceToolsTest(unittest.TestCase):
-    def test_aggregator_deduplicates_and_sorts(self):
+    def test_aggregator_deduplicates_without_changing_rag_order(self):
         base = {
             "source_type": "pubmed",
             "title": "Title",
@@ -18,11 +18,12 @@ class EvidenceToolsTest(unittest.TestCase):
             "metadata": {},
         }
         result = EvidenceAggregator.aggregate([
-            {**base, "source_id": "PMID:1", "date": "2020"},
+            {**base, "source_id": "PMID:1", "date": "2020", "title": "First"},
             {**base, "source_id": "PMID:2", "date": "2025"},
-            {**base, "source_id": "PMID:1", "date": "2020"},
+            {**base, "source_id": "PMID:1", "date": "2026", "title": "Duplicate"},
         ])
-        self.assertEqual([item["source_id"] for item in result], ["PMID:2", "PMID:1"])
+        self.assertEqual([item["source_id"] for item in result], ["PMID:1", "PMID:2"])
+        self.assertEqual(result[0]["title"], "First")
 
     @patch("medrax.tools.openfda.requests.get")
     def test_openfda_returns_standard_evidence(self, get):

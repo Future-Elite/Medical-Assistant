@@ -5,7 +5,7 @@ from typing import Any, Dict, Iterable, List
 
 
 class EvidenceAggregator:
-    """Normalize, deduplicate, sort, and format evidence before it reaches the LLM."""
+    """Normalize, deduplicate, and format evidence without changing RAG rank order."""
 
     REQUIRED_FIELDS = (
         "source_type",
@@ -27,12 +27,8 @@ class EvidenceAggregator:
             if not source_id:
                 continue
             normalized["source_id"] = source_id
-            unique[source_id.upper()] = normalized
-        return sorted(
-            unique.values(),
-            key=lambda item: (str(item["date"] or ""), item["source_id"]),
-            reverse=True,
-        )
+            unique.setdefault(source_id.upper(), normalized)
+        return list(unique.values())
 
     @staticmethod
     def format_for_model(evidence: List[Dict[str, Any]]) -> str:

@@ -9,7 +9,5 @@
 # from .generation import *
 # from .dicom import *
 # from .utils import *
-from .clinical_trials import *
 from .evidence import *
-from .openfda import *
-from .pubmed import *
+from .rag_tool import *
