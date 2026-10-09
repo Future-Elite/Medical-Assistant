@@ -35,6 +35,7 @@ class ChatInterface:
         self.upload_dir.mkdir(exist_ok=True)
         self.audit_path = Path("logs/evidence_audit.jsonl")
         self.current_thread_id = self._new_id()
+        self.thread_verified_ids = {}
         # Separate storage for original and display paths
         self.original_file_path = None  # For LLM (.dcm or other)
         self.display_file_path = None  # For UI (always viewable format)
@@ -43,10 +44,14 @@ class ChatInterface:
     def _new_id() -> str:
         return uuid4().hex
 
-    def reset_conversation(self) -> None:
-        self.current_thread_id = self._new_id()
+    def reset_conversation(self, thread_id: Optional[str] = None) -> str:
+        old_thread_id = thread_id or self.current_thread_id
+        self.thread_verified_ids.pop(old_thread_id, None)
+        new_thread_id = self._new_id()
+        self.current_thread_id = new_thread_id
         self.original_file_path = None
         self.display_file_path = None
+        return new_thread_id
 
     @staticmethod
     def _extract_citation_ids(text: str) -> set[str]:
@@ -101,11 +106,11 @@ class ChatInterface:
             return {}
         return json.loads(json.dumps(args, ensure_ascii=False, default=str))
 
-    def _append_audit(self, event: dict) -> None:
+    def _append_audit(self, event: dict, thread_id: Optional[str] = None) -> None:
         self.audit_path.parent.mkdir(parents=True, exist_ok=True)
         record = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
-            "thread_id": self.current_thread_id,
+            "thread_id": thread_id or self.current_thread_id,
             **event,
         }
         with self.audit_path.open("a", encoding="utf-8") as handle:
@@ -167,7 +172,11 @@ class ChatInterface:
         return history, gr.Textbox(value=message, interactive=False)
 
     async def process_message(
-        self, message: str, display_image: Optional[str], chat_history: List[ChatMessage]
+        self,
+        message: str,
+        display_image: Optional[str],
+        chat_history: List[ChatMessage],
+        thread_id: Optional[str] = None,
     ) -> AsyncGenerator[Tuple[List[ChatMessage], Optional[str], str], None]:
         """
         Process a message and generate responses.
@@ -181,11 +190,12 @@ class ChatInterface:
             Tuple[List[ChatMessage], Optional[str], str]: Updated chat history, display path, and empty string
         """
         chat_history = chat_history or []
+        thread_id = thread_id or self.current_thread_id
 
         turn_id = self._new_id()
         turn_tool_calls = {}
         turn_tool_args = {}
-        turn_verified_ids = set()
+        verified_ids = self.thread_verified_ids.setdefault(thread_id, set())
         messages = []
         image_path = self.original_file_path or display_image
 
@@ -215,7 +225,7 @@ class ChatInterface:
         try:
             for event in self.workflow.stream(
                 {"messages": messages},
-                {"configurable": {"thread_id": self.current_thread_id}},
+                {"configurable": {"thread_id": thread_id}},
                 stream_mode="updates",
             ):
                 if isinstance(event, dict):
@@ -237,14 +247,14 @@ class ChatInterface:
                         if content:
                             content = re.sub(r"temp/[^\s]*", "", content)
                             mentioned_ids = self._extract_citation_ids(content)
-                            invalid_ids = sorted(mentioned_ids - turn_verified_ids)
+                            invalid_ids = sorted(mentioned_ids - verified_ids)
                             if invalid_ids:
                                 self._append_audit({
                                     "event": "citation_validation_failed",
                                     "turn_id": turn_id,
                                     "tool_call_counts": turn_tool_calls,
                                     "invalid_source_ids": invalid_ids,
-                                })
+                                }, thread_id)
                                 chat_history.append(ChatMessage(
                                     role="assistant",
                                     content=(
@@ -263,12 +273,17 @@ class ChatInterface:
                                     "turn_id": turn_id,
                                     "tool_call_counts": turn_tool_calls,
                                     "adopted_source_ids": sorted(mentioned_ids),
-                                })
+                                }, thread_id)
                             yield chat_history, self.display_file_path, ""
 
                     elif tool_node in event:
                         for message in event[tool_node]["messages"]:
                             tool_name = message.name
+                            registered_tool_names = {
+                                getattr(tool, "name", "") for tool in self.tools_dict.values()
+                            }
+                            if registered_tool_names and tool_name not in registered_tool_names:
+                                continue
                             artifact = getattr(message, "artifact", None)
                             tool_call_id = getattr(message, "tool_call_id", None)
                             tool_result = None
@@ -304,7 +319,8 @@ class ChatInterface:
                                     )
                                     trace = artifact.get("trace") or {}
                                     source_ids = sorted(self._artifact_citation_ids(artifact))
-                                    turn_verified_ids.update(source_ids)
+                                    if not artifact.get("error"):
+                                        verified_ids.update(source_ids)
                                     metadata = {
                                         "title": (
                                             f"🔎 {source_type} 检索 "
@@ -332,7 +348,7 @@ class ChatInterface:
                                         "returned_source_ids": source_ids,
                                         "warnings": artifact.get("warnings", []),
                                         "error": artifact.get("error"),
-                                    })
+                                    }, thread_id)
                                 else:
                                     metadata = {
                                         "title": f"🔧 Result from tool: {tool_name}",
@@ -429,14 +445,16 @@ def create_demo(agent, tools_dict):
                         clear_btn = gr.Button("Clear Chat")
                         new_thread_btn = gr.Button("New Thread")
 
-        # Event handlers
-        def clear_chat():
-            interface.reset_conversation()
-            return [], None
+        thread_state = gr.State(value=interface._new_id())
 
-        def new_thread():
-            interface.reset_conversation()
-            return [], None
+        # Event handlers
+        def clear_chat(thread_id):
+            new_thread_id = interface.reset_conversation(thread_id)
+            return [], None, new_thread_id
+
+        def new_thread(thread_id):
+            new_thread_id = interface.reset_conversation(thread_id)
+            return [], None, new_thread_id
 
         def handle_file_upload(file):
             return interface.handle_upload(file.name)
@@ -446,7 +464,7 @@ def create_demo(agent, tools_dict):
         )
         bot_msg = chat_msg.then(
             interface.process_message,
-            inputs=[txt, image_display, chatbot],
+            inputs=[txt, image_display, chatbot, thread_state],
             outputs=[chatbot, image_display, txt],
         )
         bot_msg.then(lambda: gr.Textbox(interactive=True), None, [txt])
@@ -455,7 +473,15 @@ def create_demo(agent, tools_dict):
 
         dicom_upload.upload(handle_file_upload, inputs=dicom_upload, outputs=image_display)
 
-        clear_btn.click(clear_chat, outputs=[chatbot, image_display])
-        new_thread_btn.click(new_thread, outputs=[chatbot, image_display])
+        clear_btn.click(
+            clear_chat,
+            inputs=[thread_state],
+            outputs=[chatbot, image_display, thread_state],
+        )
+        new_thread_btn.click(
+            new_thread,
+            inputs=[thread_state],
+            outputs=[chatbot, image_display, thread_state],
+        )
 
     return demo
