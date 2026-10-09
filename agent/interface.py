@@ -70,6 +70,14 @@ class ChatInterface:
             )
         )
         identifiers.update(match.upper() for match in re.findall(r"\bNCT\d{8}\b", text, re.I))
+        identifiers.update(
+            f"RAG_CITATION:{value.lower()}"
+            for value in re.findall(
+                r"\bRAG_CITATION\s*[:：#]\s*([A-Za-z0-9._:/-]{1,160})",
+                text,
+                re.I,
+            )
+        )
         return identifiers
 
     @staticmethod
@@ -85,6 +93,13 @@ class ChatInterface:
             if spl_id := item.get("metadata", {}).get("spl_id"):
                 identifiers.add(f"SPL_ID:{str(spl_id).lower()}")
         return identifiers
+
+    @staticmethod
+    def _tool_call_arguments(tool_call: dict) -> dict:
+        args = tool_call.get("args", {}) if isinstance(tool_call, dict) else {}
+        if not isinstance(args, dict):
+            return {}
+        return json.loads(json.dumps(args, ensure_ascii=False, default=str))
 
     def _append_audit(self, event: dict) -> None:
         self.audit_path.parent.mkdir(parents=True, exist_ok=True)
@@ -169,6 +184,7 @@ class ChatInterface:
 
         turn_id = self._new_id()
         turn_tool_calls = {}
+        turn_tool_args = {}
         turn_verified_ids = set()
         messages = []
         image_path = self.original_file_path or display_image
@@ -211,6 +227,12 @@ class ChatInterface:
                         content = model_message.content
                         # Tool-call messages are internal plans, not user-facing answers.
                         if getattr(model_message, "tool_calls", None):
+                            for tool_call in model_message.tool_calls:
+                                tool_call_id = str(tool_call.get("id") or "")
+                                if tool_call_id:
+                                    turn_tool_args[tool_call_id] = self._tool_call_arguments(
+                                        tool_call
+                                    )
                             continue
                         if content:
                             content = re.sub(r"temp/[^\s]*", "", content)
@@ -264,7 +286,9 @@ class ChatInterface:
                                 if isinstance(artifact, dict) and "evidence" in artifact:
                                     evidence = artifact.get("evidence", [])
                                     source_type = (
-                                        evidence[0].get("source_type") if evidence else {
+                                        "medical evidence RAG"
+                                        if tool_name == "retrieve_medical_evidence"
+                                        else evidence[0].get("source_type") if evidence else {
                                             "search_pubmed_evidence": "pubmed",
                                             "search_openfda_drug_labels": "openfda",
                                             "search_clinical_trials": "clinicaltrials",
@@ -272,6 +296,13 @@ class ChatInterface:
                                     )
                                     turn_tool_calls[tool_name] = turn_tool_calls.get(tool_name, 0) + 1
                                     query = artifact.get("query", "")
+                                    model_tool_args = turn_tool_args.get(
+                                        str(tool_call_id), {}
+                                    )
+                                    effective_tool_args = artifact.get(
+                                        "tool_args", model_tool_args
+                                    )
+                                    trace = artifact.get("trace") or {}
                                     source_ids = sorted(self._artifact_citation_ids(artifact))
                                     turn_verified_ids.update(source_ids)
                                     metadata = {
@@ -292,7 +323,14 @@ class ChatInterface:
                                         "source_type": source_type,
                                         "call_index": turn_tool_calls[tool_name],
                                         "query": query,
+                                        "model_tool_args": model_tool_args,
+                                        "tool_args": effective_tool_args,
+                                        "retrieval_id": artifact.get("retrieval_id"),
+                                        "candidate_count": trace.get("candidate_count"),
+                                        "selected_count": trace.get("selected_count"),
+                                        "connector_trace": trace.get("connector_trace", []),
                                         "returned_source_ids": source_ids,
+                                        "warnings": artifact.get("warnings", []),
                                         "error": artifact.get("error"),
                                     })
                                 else:
@@ -348,7 +386,7 @@ def create_demo(agent, tools_dict):
             gr.Markdown(
                 """
             # 🏥 MedRAX
-            Medical Reasoning Agent with PubMed, openFDA, and ClinicalTrials.gov tools
+            Medical Reasoning Agent with unified medical evidence RAG
             """
             )
 

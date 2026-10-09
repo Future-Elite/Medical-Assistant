@@ -28,20 +28,16 @@ if __package__ in {None, ""}:
 
 from rag.agent import EvidenceRAG
 from rag.config import get_config
-from rag.connectors import ConnectorRegistry
 from rag.llm import LLMConfigurationError, LLMRequestError, OpenAIResponsesLLM
-from rag.pipeline import EvidenceRetrievalPipeline
-from rag.pubmed import PubMedConnector
+from rag.runtime import create_evidence_rag
 
 
 ROOT = Path(__file__).resolve().parent
 
 
 def create_live_tool() -> EvidenceRAG:
-    """Build the only retrieval path used by this GUI: real PubMed E-utilities."""
-    registry = ConnectorRegistry()
-    registry.register(PubMedConnector())
-    return EvidenceRAG(EvidenceRetrievalPipeline(registry))
+    """Build the same registered evidence sources used by Agent callers."""
+    return create_evidence_rag()
 
 
 class RAGRequestHandler(BaseHTTPRequestHandler):
