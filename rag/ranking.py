@@ -57,7 +57,12 @@ def rank_documents(
     if excluded:
         warnings.append(f"已排除 {excluded} 条在查询时间之后或已撤回的证据。")
     if not selected:
-        warnings.append("没有满足当前时间和状态过滤条件的外部证据。")
+        if not status_docs:
+            warnings.append("外部数据源未返回候选证据，未进入时间和状态过滤。")
+        elif not eligible:
+            warnings.append("外部候选证据均因查询时间或撤回状态被排除。")
+        else:
+            warnings.append("候选证据已进入排序，但没有可返回的结果。")
     return selected, warnings
 
 

@@ -5,8 +5,9 @@ from __future__ import annotations
 import unittest
 
 from rag.connectors import ConnectorRegistry, InMemoryConnector
-from rag.models import RetrievalRequest, SourceDocument
+from rag.models import QueryPlan, RetrievalRequest, SourceDocument
 from rag.pipeline import EvidenceRetrievalPipeline
+from rag.ranking import rank_documents
 
 
 def _pipeline() -> EvidenceRetrievalPipeline:
@@ -40,3 +41,10 @@ class TestPipeline(unittest.TestCase):
         package = _pipeline().retrieve(RetrievalRequest.from_dict({"request_id": "t", "question": "future evidence", "as_of": "2025-01-01"}))
         self.assertNotIn("future", [item.document.document_id for item in package.ranked_documents])
         self.assertTrue(any("排除" in warning for warning in package.warnings))
+
+    def test_empty_source_warning_is_not_reported_as_date_filtering(self) -> None:
+        plan = QueryPlan("question", ("question",), ("question",), ("pubmed",), {}, ())
+        selected, warnings = rank_documents(plan, (), as_of="2025-01-01", top_k=3)
+        self.assertEqual(selected, [])
+        self.assertTrue(any("未返回候选证据" in warning for warning in warnings))
+        self.assertFalse(any("满足当前时间和状态" in warning for warning in warnings))
