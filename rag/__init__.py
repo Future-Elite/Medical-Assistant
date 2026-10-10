@@ -9,7 +9,7 @@ identifiers (trace ``rag_version``, ``/api/health``) read it instead of
 hard-coding any version string.
 """
 
-__version__ = "6.4.0"
+__version__ = "6.4.1"
 
 from .agent import EvidenceSessionStore, EvidenceRAG
 from .audit import GroundedAnswerAuditor, MiniCheckVerifier
@@ -21,6 +21,14 @@ from .connectors import (
     VersionedGuidelineConnector,
 )
 from .config import RAGConfig, get_config
+from .custom_sources import (
+    CustomSource,
+    CustomSourceConnector,
+    CustomSourceLibrary,
+    SOURCE_MODES,
+    custom_source_from_dict,
+    load_custom_library,
+)
 from .his import HISAdapter, InMemoryHISAdapter, PatientFact, PatientSnapshot, snapshot_from_dict
 from .models import (
     ApplicabilityAssessment,
@@ -39,6 +47,12 @@ from .retrieval_adapters import (
 
 __all__ = [
     "ApplicabilityAssessment",
+    "CustomSource",
+    "CustomSourceConnector",
+    "CustomSourceLibrary",
+    "SOURCE_MODES",
+    "custom_source_from_dict",
+    "load_custom_library",
     "CallableConnector",
     "ConnectorRegistry",
     "DeterministicSemanticStub",

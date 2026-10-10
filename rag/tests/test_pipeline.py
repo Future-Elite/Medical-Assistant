@@ -2,7 +2,7 @@ import unittest
 
 from rag import __version__
 from rag.connectors import ConnectorRegistry, InMemoryConnector, VersionedGuidelineConnector
-from rag.fixtures import SYNTHETIC_GUIDELINES, SYNTHETIC_PUBMED
+from rag.tests.fixtures import SYNTHETIC_GUIDELINES, SYNTHETIC_PUBMED
 from rag.models import RetrievalRequest
 from rag.pipeline import EvidenceRetrievalPipeline
 

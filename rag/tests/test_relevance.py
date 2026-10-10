@@ -5,7 +5,7 @@ it exists in a registered source. Guards against cross-disease leakage such as
 import unittest
 
 from rag.connectors import ConnectorRegistry, InMemoryConnector, VersionedGuidelineConnector
-from rag.fixtures import SYNTHETIC_GUIDELINES, SYNTHETIC_PUBMED
+from rag.tests.fixtures import SYNTHETIC_GUIDELINES, SYNTHETIC_PUBMED
 from rag.guidelines import GuidelineMetadataConnector, who_hypertension_metadata
 from rag.models import RetrievalRequest
 from rag.pipeline import EvidenceRetrievalPipeline
@@ -116,7 +116,7 @@ DRUG_SAFETY_REQUEST = {
 
 class InfantAndDrugSafetyPresetTests(unittest.TestCase):
     def test_jaundice_query_returns_jaundice_evidence_and_patient_lab(self):
-        from rag.fixtures import SYNTHETIC_HIS_SNAPSHOTS
+        from rag.tests.fixtures import SYNTHETIC_HIS_SNAPSHOTS
         from rag.his import InMemoryHISAdapter
 
         snapshot = InMemoryHISAdapter(SYNTHETIC_HIS_SNAPSHOTS).get_snapshot("syn-patient-003", "2025-12-31")
@@ -158,7 +158,7 @@ class ChineseQuestionParticipationTests(unittest.TestCase):
     """中文问题直接参与检索：CJK 二元组匹配中文来源，无需英文术语。"""
 
     def test_chinese_question_matches_chinese_guideline_and_patient_fact(self):
-        from rag.fixtures import SYNTHETIC_HIS_SNAPSHOTS
+        from rag.tests.fixtures import SYNTHETIC_HIS_SNAPSHOTS
         from rag.his import InMemoryHISAdapter
 
         snapshot = InMemoryHISAdapter(SYNTHETIC_HIS_SNAPSHOTS).get_snapshot("syn-patient-007", "2025-12-31")

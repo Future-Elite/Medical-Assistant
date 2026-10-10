@@ -670,6 +670,119 @@ class MultilingualE5Retriever:
         return f"model={self.model_name}"
 
 
+@dataclass
+class BgeM3Retriever:
+    """BGE-M3 multilingual bi-encoder dense retriever (BAAI/bge-m3).
+
+    A multilingual bi-encoder supporting 100+ working languages, encoding the
+    Chinese question and the English documents into one shared space without
+    query/passage prefixes. The official sentence-transformers config for this
+    checkpoint uses **CLS pooling** (``pooling_mode_cls_token: true``), so the
+    first token's hidden state is L2-normalized; scoring is cosine similarity.
+    Exists alongside ``xlingual`` because MMed-Bench-IR (arXiv:2606.24200) and
+    MMTEB report strong multilingual retrieval for BGE-M3, and because the
+    multilingual capability — not the biomedical-only training — is what
+    cross-lingual retrieval needs. This adapter does **not** use the model's
+    sparse/multi-vector heads; it is a dense retriever like every other
+    ``SemanticRetriever`` adapter here.
+    """
+
+    model_name: str = "BAAI/bge-m3"
+    retriever_id: str = "bge-m3"
+    cache_dir: str | None = None
+    max_length: int = 512
+    batch_size: int = 8
+    _model: Any = field(default=None, repr=False)
+    _tokenizer: Any = field(default=None, repr=False)
+    _torch: Any = field(default=None, repr=False)
+    _load_error: str | None = field(default=None, repr=False)
+    _vector_cache: dict[str, tuple[str, Any]] = field(default_factory=dict, repr=False)
+    _vector_cache_limit: int = 8192
+
+    @property
+    def available(self) -> bool:
+        return self._ensure_loaded()
+
+    @property
+    def unavailable_reason(self) -> str:
+        if self._load_error:
+            return self._load_error
+        deps = neural_dependencies_state()
+        if not (deps["torch"] and deps["transformers"]):
+            return str(deps.get("detail") or "torch/transformers 未安装。")
+        return "bge-m3 模型未加载。"
+
+    def _ensure_loaded(self) -> bool:
+        if self._model is not None:
+            return True
+        if self._load_error:
+            return False
+        deps = neural_dependencies_state()
+        if not (deps["torch"] and deps["transformers"]):
+            self._load_error = str(deps.get("detail") or "torch/transformers 未安装。")
+            return False
+        try:
+            import torch
+            from transformers import AutoModel, AutoTokenizer
+
+            self._tokenizer = _prefer_local_load(AutoTokenizer, self.model_name, cache_dir=self.cache_dir)
+            self._model = _prefer_local_load(AutoModel, self.model_name, cache_dir=self.cache_dir).eval()
+            self._torch = torch
+            return True
+        except Exception as exc:  # pragma: no cover - environment dependent
+            self._load_error = f"bge-m3 加载失败：{type(exc).__name__}。"
+            return False
+
+    def _encode(self, texts: Sequence[str]) -> Any:
+        torch = self._torch
+        encoded = self._tokenizer(
+            list(texts), padding=True, truncation=True,
+            max_length=self.max_length, return_tensors="pt",
+        )
+        with torch.no_grad():
+            output = self._model(**encoded)
+        # BGE-M3 官方配置为 CLS 池化（1_Pooling/config.json: pooling_mode_cls_token=true）。
+        cls = output.last_hidden_state[:, 0]
+        return torch.nn.functional.normalize(cls, dim=-1)
+
+    def search(self, plan: QueryPlan, documents: Sequence[SourceDocument], *, limit: int) -> SemanticSearchResult:
+        if not self._ensure_loaded():
+            raise RuntimeError(self.unavailable_reason)
+        torch = self._torch
+        query = _multilingual_query_text(plan)
+        if not query:
+            return SemanticSearchResult({}, self.retriever_id, self.retriever_version, None)
+        with torch.no_grad():
+            query_vector = self._encode([query])[0]
+            scores: dict[str, float] = {}
+            pending: list[SourceDocument] = []
+            vectors_by_key: dict[str, Any] = {}
+            for doc in documents:
+                cached = _vector_cache_get(self._vector_cache, doc, self._vector_cache_limit)
+                if cached is not None:
+                    vectors_by_key[doc.identity_key()] = cached
+                else:
+                    pending.append(doc)
+            for start in range(0, len(pending), self.batch_size):
+                batch = pending[start:start + self.batch_size]
+                vectors = self._encode([_document_text(doc) for doc in batch])
+                for doc, vector in zip(batch, vectors):
+                    _vector_cache_put(self._vector_cache, doc, vector, self._vector_cache_limit)
+                    vectors_by_key[doc.identity_key()] = vector
+            for doc in documents:
+                vector = vectors_by_key.get(doc.identity_key())
+                if vector is None:
+                    continue
+                sim = torch.nn.functional.cosine_similarity(vector.unsqueeze(0), query_vector.unsqueeze(0), dim=1)
+                # cosine [-1,1] -> [0,1], matching the SemanticRetriever contract.
+                scores[doc.identity_key()] = max(0.0, min(1.0, (float(sim[0]) + 1.0) / 2.0))
+        return SemanticSearchResult(scores, self.retriever_id, self.retriever_version, None)
+
+    @property
+    def retriever_version(self) -> str:
+        return f"model={self.model_name}"
+
+
 def _multilingual_query_text(plan: QueryPlan) -> str:
     """Query text for the multilingual encoder: original question + reviewed English.
 
@@ -836,14 +949,15 @@ class LocalQuery2DocExpander:
 def build_neural_registry(
     *,
     cache_dir: str | None = None,
-    enable: Sequence[str] = ("dense", "xlingual", "splade", "colbert", "query2doc", "translate", "cross_encoder"),
+    enable: Sequence[str] = ("dense", "xlingual", "m3", "splade", "colbert", "query2doc", "translate", "cross_encoder"),
 ) -> dict[str, Any]:
     """Construct neural adapters (without loading models).
 
     Returns a mapping used by the server/pipeline:
     ``{"dense": MedCPTDenseRetriever, "xlingual": MultilingualE5Retriever,
-       "splade": ..., "colbert": ..., "cross_encoder": MedCPTReranker,
-       "query2doc": LocalQuery2DocExpander, "translate": LocalZhEnTranslator}``
+       "m3": BgeM3Retriever, "splade": ..., "colbert": ...,
+       "cross_encoder": MedCPTReranker, "query2doc": LocalQuery2DocExpander,
+       "translate": LocalZhEnTranslator}``
     filtered by ``enable``. Construction is cheap; models load lazily on first
     use. Availability must be probed separately (``available``) and reported in
     the trace; nothing loads at import time.
@@ -853,6 +967,8 @@ def build_neural_registry(
         registry["dense"] = MedCPTDenseRetriever(cache_dir=cache_dir)
     if "xlingual" in enable:
         registry["xlingual"] = MultilingualE5Retriever(cache_dir=cache_dir)
+    if "m3" in enable:
+        registry["m3"] = BgeM3Retriever(cache_dir=cache_dir)
     if "splade" in enable:
         registry["splade"] = SpladeRetriever(cache_dir=cache_dir)
     if "colbert" in enable:

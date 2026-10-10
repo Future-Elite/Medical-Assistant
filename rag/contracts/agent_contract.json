@@ -2,10 +2,10 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://example.invalid/chinallm/rag/agent-contract.json",
   "title": "ChinaLLM RAG Agent/HIS/RAG Contract",
-  "description": "Agent 与只读检索层的对接契约：Agent 先获取带 as_of 的 HIS 快照，再调用 RAG 完成患者事实 + PubMed + 版本化指南的联合检索。中英文字段语义见 language_rules：中文原始问题原样保留，英文相关字段（english_terms/mesh_terms/user_terms/question_english_terms）分别定义。",
+  "description": "Agent 与只读检索层的对接契约：Agent 先获取带 as_of 的 HIS 快照，再调用 RAG 完成患者事实 + PubMed + 版本化指南的联合检索。检索分三层执行：按来源收集 → 分源独立排序（各自词表内 IDF/RRF/相关度门，跨来源分数不比较）→ 联合选择（来源可见性保证 + 意图配额 + 来源内排名轮转补齐 + 按来源内排名交错）。中英文字段语义见 language_rules：中文原始问题原样保留，英文相关字段（english_terms/mesh_terms/user_terms/question_english_terms）分别定义。",
   "contract_metadata": {
     "contract_id": "chinallm.rag.agent",
-    "contract_version": "6.4.0",
+    "contract_version": "6.4.1",
     "status": "experimental"
   },
   "scope_and_safety": {
@@ -15,7 +15,8 @@
     "external_connectors_receive_raw_patient_snapshot": false,
     "synthetic_fixture_is_clinical_evidence": false,
     "scores_are_evidence_quality": false,
-    "required_human_review": true
+    "required_human_review": true,
+    "server_has_builtin_corpus": false
   },
   "language_rules": {
     "original_question": "question 是中文临床原始问题，原样保留（不翻译、不改写），既作为精确查询参与词面检索，也用于结果审计。",
@@ -55,6 +56,17 @@
         "alce_like": "object"
       },
       "scope": "same retrieval_id"
+    },
+    "register_custom_source": {
+      "operation": "register_caller_provided_library",
+      "read_only": true,
+      "input": "#/schemas/CustomSourcePayload",
+      "output": {
+        "status": "string",
+        "event": "object",
+        "registered": "array"
+      },
+      "scope": "in-memory only; replaced by restarts; clear via POST /api/sources/custom/clear"
     }
   },
   "schemas": {
@@ -169,12 +181,11 @@
         },
         "source_mode": {
           "enum": [
-            "simulated",
-            "live_pubmed",
-            "live"
+            "live",
+            "custom"
           ],
-          "default": "simulated",
-          "description": "来源模式：simulated 使用离线合成数据；live_pubmed 使用真实 NCBI PubMed + 官方指南元数据；live 需两类实时来源都被本地配置启用。实时失败不自动回退 synthetic。"
+          "default": "live",
+          "description": "来源模式，仅两种：live=实时 PubMed + 官方指南元数据（默认；实时失败不自动回退）；custom=调用方通过 CustomSourceLibrary / POST /api/sources/custom 注册的自有知识库。服务不内置任何本地语料，也没有 offline/simulated 模式；custom 库为空时检索显式报错。"
         },
         "retrieval_method": {
           "type": [
@@ -188,6 +199,7 @@
               "rm3",
               "dense",
               "xlingual",
+              "m3",
               "splade",
               "colbert",
               "query2doc",
@@ -195,7 +207,7 @@
             ]
           },
           "default": "bm25",
-          "description": "底层检索方法：bm25（默认）/ql（Dirichlet 查询似然）/rm3（伪相关反馈）/dense（MedCPT 双塔，英文域）/xlingual（multilingual-e5 双塔，中文问题直接编码跨语言检索）/translate（zh→en 机器译文作为额外查询变体，原问题保留、数字不一致会告警）/splade/colbert/query2doc；多选（\"bm25,xlingual\" 或数组）对多路排名做 RRF 融合；零分路线不参与 RRF。神经方法不可用时该方法在 trace.method_trace 标 not_configured（附原因），绝不静默降级；未知方法名请求报 400。"
+          "description": "底层检索方法：bm25（默认）/ql（Dirichlet 查询似然）/rm3（伪相关反馈）/dense（MedCPT 双塔，英文域）/xlingual（multilingual-e5 双塔，中文问题直接编码跨语言检索）/m3（BGE-M3 多语言双塔，CLS 池化，跨语言；本包只使用其 dense 功能）/translate（zh→en 机器译文作为额外查询变体，原问题保留、数字不一致会告警）/splade/colbert/query2doc；多选（\"bm25,xlingual\" 或数组）对多路排名做 RRF 融合；零分路线不参与 RRF。神经方法不可用时该方法在 trace.method_trace 标 not_configured（附原因），绝不静默降级；未知方法名请求报 400。"
         },
         "rerank": {
           "type": "boolean",
@@ -419,7 +431,7 @@
       "properties": {
         "citation_id": {
           "type": "string",
-          "description": "格式 <retrieval_id>:cit-N；只能在同一 retrieval_id 的作用域内通过 open_citation 打开，跨检索使用会被拒绝。"
+          "description": "格式 <retrieval_id>:cit-N。与 ranked_documents[].citation_id / evidence_groups[*][].citation_id 同值（稳定外键）；只能在同一 retrieval_id 内通过 open_citation 打开，跨检索使用会被拒绝。"
         },
         "source_id": {
           "type": "string"
@@ -575,7 +587,8 @@
         "citations",
         "patient_hits",
         "evidence_groups",
-        "trace"
+        "trace",
+        "ranked_documents"
       ],
       "properties": {
         "retrieval_id": {
@@ -597,7 +610,7 @@
         },
         "evidence_groups": {
           "type": "object",
-          "description": "按来源种类分组的排序结果（pubmed/guideline/...）；请分开使用，不要混成一份无来源区分的列表。"
+          "description": "按来源种类分组的同一批 RankedDocument 视图（pubmed/guideline/...），每项同样携带 citation_id 外键；请分开使用，不要混成一份无来源区分的列表。"
         },
         "applicability": {
           "type": "array",
@@ -628,7 +641,264 @@
         },
         "trace": {
           "type": "object",
-          "description": "审计轨迹：rag_version / source_mode / retrieved_at / connector_trace / candidate_count / selected_count / semantic_trace / reranker / generation_performed / clinical_decision_performed / query_plan{language,intent,english_terms,question_english_terms,mesh_terms} / patient_context / external_terms（实际发往外部的术语 = 审核 english_terms + 问题内 question_english_terms）/ retrieval_method（最终生效方法串）/ method_trace（各方法 ok|not_configured|error|fallback）/ rerank_trace / source_separation。"
+          "description": "审计轨迹：rag_version / source_mode / retrieved_at / connector_trace / candidate_count / deduplicated_count / selected_count / retrieval_method（最终生效方法串）/ method_trace（各方法 ok|not_configured|error|fallback）/ query_review（PRESS 风格检索式自检：英文覆盖、数值保留、否定条件、术语重叠；不修改检索计划）/ joint_selection（分源联合选择轨迹：guaranteed_minimums / selected_per_source / merit_filled_per_source（按来源内排名轮转补齐） / rationale）/ semantic_trace / reranker / generation_performed / clinical_decision_performed / query_plan{language,intent,english_terms,question_english_terms,mesh_terms} / patient_context / external_terms（实际发往外部的术语 = 审核 english_terms + 问题内 question_english_terms）/ source_separation。"
+        },
+        "ranked_documents": {
+          "type": "array",
+          "items": {
+            "$ref": "#/schemas/RankedDocument"
+          },
+          "description": "联合选择后的最终排序（按来源内排名交错）。每项带 citation_id 外键；evidence_groups 是同一批条目的按 kind 视图，外键一致。"
+        }
+      }
+    },
+    "CustomSourcePayload": {
+      "type": "object",
+      "required": [
+        "source_id",
+        "documents"
+      ],
+      "description": "调用方传入的知识库来源（custom 模式的注册单元）。POST /api/sources/custom 每次注册一个；同 source_id 覆盖（事件记录在 /api/sources 的 recent_events）。",
+      "properties": {
+        "source_id": {
+          "type": "string",
+          "description": "来源唯一标识，例如 hospital-guideline-library；文档归属固定为它。"
+        },
+        "kinds": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "pubmed",
+              "guideline",
+              "drug",
+              "clinical_trial",
+              "local_knowledge"
+            ]
+          },
+          "description": "来源包含的文档种类；省略时按 documents[].kind 推断。声明值必须覆盖全部文档 kind。"
+        },
+        "description": {
+          "type": "string",
+          "description": "可选，用于审计展示。"
+        },
+        "version": {
+          "type": "string",
+          "description": "可选，调用方库快照标签；缺失时每次检索都会带出审计警告。"
+        },
+        "documents": {
+          "type": "array",
+          "items": {
+            "$ref": "#/schemas/SourceDocument"
+          },
+          "description": "非空文档数组。document_id / kind / title / text 必填；其余字段（pmid/doi/version_id/recommendation_id/locator/status/…）原样保留，未知字段进入 metadata。"
+        }
+      }
+    },
+    "SourceDocument": {
+      "type": "object",
+      "required": [
+        "document_id",
+        "kind",
+        "title",
+        "text"
+      ],
+      "description": "检索的最小文档单元（PubMed/指南/药品/试验同构）。",
+      "properties": {
+        "document_id": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "pubmed",
+            "guideline",
+            "drug",
+            "clinical_trial",
+            "local_knowledge"
+          ]
+        },
+        "title": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string",
+          "description": "可检索正文（不含未授权内容；调用方负责许可与合规）。"
+        },
+        "url": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "published_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date"
+        },
+        "updated_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date"
+        },
+        "locator": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "原文定位（章节/推荐号/句子），用于回原文核对。"
+        },
+        "pmid": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "doi": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "authority": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "version_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "指南版本；缺失会触发人工核验警告。"
+        },
+        "recommendation_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "population": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "status": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "current / withdrawn / retracted / superseded / replaced / retired；未知日期条目按 unknown_date 处理。"
+        },
+        "superseded_by": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "index_snapshot": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "metadata": {
+          "type": "object",
+          "description": "未知字段与附加字段（mesh_terms/keywords/full_text_allowed 等）保留在这里。"
+        }
+      }
+    },
+    "RankedDocument": {
+      "type": "object",
+      "required": [
+        "document",
+        "score",
+        "evidence_status",
+        "citation_id"
+      ],
+      "description": "排序后的一条证据。citation_id 是与 EvidencePackage.citations 的稳定外键：按它关联引用，不要依赖两个列表的下标同序。score 是来源内分数，只在同一来源内可比。",
+      "properties": {
+        "document": {
+          "$ref": "#/schemas/SourceDocument"
+        },
+        "citation_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "稳定外键，格式 <retrieval_id>:cit-N，与 citations[] 中同 ID 的条目对应；可直接用于 open_citation 与审计回答的标注。"
+        },
+        "score": {
+          "type": "number",
+          "description": "来源内排序分（不是跨来源可比分数，也不是证据质量）。"
+        },
+        "lexical_score": {
+          "type": "number"
+        },
+        "fusion_score": {
+          "type": "number"
+        },
+        "authority_score": {
+          "type": "number",
+          "description": "来源权威性先验，不是推荐强度。"
+        },
+        "freshness_score": {
+          "type": "number"
+        },
+        "evidence_status": {
+          "enum": [
+            "current",
+            "unknown_date",
+            "future_at_query_time",
+            "withdrawn",
+            "superseded"
+          ]
+        },
+        "matched_queries": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "rank_explanation": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "fusion_method": {
+          "type": "string",
+          "description": "生效方法串，多路时以 _rrf 结尾。"
+        },
+        "fusion_rank": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "description": "联合选择后的总排名（1 起）。"
+        },
+        "semantic_score": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "语义方法分；未配置为 null。"
+        },
+        "reranker_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "reranker_score": {
+          "type": [
+            "number",
+            "null"
+          ]
         }
       }
     }
@@ -636,7 +906,7 @@
   "correlation_and_scope": {
     "request_id": "caller correlation",
     "retrieval_id": "one retrieval scope",
-    "citation_id": "must belong to retrieval_id",
+    "citation_id": "stable foreign key linking ranked_documents/evidence_groups to citations; must belong to retrieval_id",
     "record_path": "stable HIS chart path",
     "index_snapshot": "retrieval reproducibility"
   },
@@ -649,7 +919,10 @@
     "payload_too_large"
   ],
   "limitations": [
-    "Current server uses synthetic HIS/PubMed/guideline fixtures.",
+    "ranked_documents 与 citations 通过 citation_id 外键关联（管线内置一致性校验，错配会显式报错）；不要在调用方按数组下标自行配对。",
+    "跨来源原始检索分数不可直接比较；联合选择只使用来源内排名（轮转补齐），并保证每个有相关候选的来源至少获得一个名额（top_k 足够时）。",
+    "检索式自检（query_review）只报告需人工复核的点，不修改检索计划，也不构成检索质量或临床结论。",
+    "The server holds no built-in corpus: source_mode is either live (real-time PubMed + official guideline metadata) or custom (caller-registered libraries). Synthetic test data exists only inside the test package and is never served.",
     "Applicability is a structured matching hint, not a clinical decision.",
     "BM25/RRF/semantic scores are not evidence certainty or recommendation strength.",
     "Candidates with zero lexical and zero semantic relevance are excluded before scoring; authority/freshness never backfill unrelated source entries.",

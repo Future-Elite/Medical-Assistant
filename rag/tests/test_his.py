@@ -1,6 +1,6 @@
 import unittest
 
-from rag.fixtures import SYNTHETIC_HIS_SNAPSHOTS
+from rag.tests.fixtures import SYNTHETIC_HIS_SNAPSHOTS
 from rag.his import InMemoryHISAdapter, PatientSnapshot, filter_snapshot, minimize_patient_snapshot, snapshot_from_dict
 from rag.patient_retrieval import retrieve_patient_facts
 

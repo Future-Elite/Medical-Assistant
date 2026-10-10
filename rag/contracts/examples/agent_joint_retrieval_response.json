@@ -1,11 +1,77 @@
 {
   "retrieval_id": "retrieval-example",
   "patient_hits": [
-    {"record_path": "diagnoses[0]", "field_path": "diagnoses[0].name", "collection": "diagnoses", "event_type": "diagnosis", "time": "2024-02-01", "matched_terms": ["高血压"], "score": 1.0, "evidence_text": "diagnoses diagnosis name=高血压", "source_type": "patient_record"}
+    {
+      "record_path": "diagnoses[0]",
+      "field_path": "diagnoses[0].name",
+      "collection": "diagnoses",
+      "event_type": "diagnosis",
+      "time": "2024-02-01",
+      "matched_terms": [
+        "高血压"
+      ],
+      "score": 1.0,
+      "evidence_text": "diagnoses diagnosis name=高血压",
+      "source_type": "patient_record"
+    }
   ],
-  "evidence_groups": {"pubmed": [{"document_id": "pmid-1001", "kind": "pubmed"}], "guideline": [{"document_id": "guide-2024-a", "kind": "guideline", "version_id": "2024", "recommendation_id": "2.1"}]},
-  "applicability": [{"document_id": "guide-2024-a", "status": "not_assessed", "reason": "指南未提供结构化适用人群条件；仅展示原文人群字段。"}],
-  "source_separation": {"status": "grouped", "groups": ["guideline", "pubmed"]},
-  "warnings": ["当前数据为 synthetic fixture，仅用于机制测试。"],
-  "trace": {"rag_version": "6.4.0", "query_plan": {"language": "zh", "intent": "guideline_recommendation", "english_terms": ["hypertension"], "question_english_terms": [], "mesh_terms": ["Hypertension"], "original_question": "该患者当前高血压相关指南推荐和近期研究证据是什么？"}, "patient_context": {"received": true, "visible_fact_count": 2, "patient_hit_count": 1, "suppressed_future": 1}, "external_terms": ["hypertension"], "generation_performed": false, "clinical_decision_performed": false}
+  "evidence_groups": {
+    "pubmed": [
+      {
+        "document_id": "pmid-1001",
+        "kind": "pubmed"
+      }
+    ],
+    "guideline": [
+      {
+        "document_id": "guide-2024-a",
+        "kind": "guideline",
+        "version_id": "2024",
+        "recommendation_id": "2.1"
+      }
+    ]
+  },
+  "applicability": [
+    {
+      "document_id": "guide-2024-a",
+      "status": "not_assessed",
+      "reason": "指南未提供结构化适用人群条件；仅展示原文人群字段。"
+    }
+  ],
+  "source_separation": {
+    "status": "grouped",
+    "groups": [
+      "guideline",
+      "pubmed"
+    ]
+  },
+  "warnings": [
+    "当前数据为 synthetic fixture，仅用于机制测试。"
+  ],
+  "trace": {
+    "rag_version": "6.4.1",
+    "query_plan": {
+      "language": "zh",
+      "intent": "guideline_recommendation",
+      "english_terms": [
+        "hypertension"
+      ],
+      "question_english_terms": [],
+      "mesh_terms": [
+        "Hypertension"
+      ],
+      "original_question": "该患者当前高血压相关指南推荐和近期研究证据是什么？"
+    },
+    "patient_context": {
+      "received": true,
+      "visible_fact_count": 2,
+      "patient_hit_count": 1,
+      "suppressed_future": 1
+    },
+    "external_terms": [
+      "hypertension"
+    ],
+    "generation_performed": false,
+    "clinical_decision_performed": false
+  }
 }

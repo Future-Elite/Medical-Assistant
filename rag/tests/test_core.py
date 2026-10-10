@@ -3,7 +3,7 @@ import unittest
 from rag import __version__
 from rag.bm25 import score_documents
 from rag.connectors import ConnectorRegistry, InMemoryConnector, VersionedGuidelineConnector
-from rag.fixtures import SYNTHETIC_GUIDELINES, SYNTHETIC_PUBMED
+from rag.tests.fixtures import SYNTHETIC_GUIDELINES, SYNTHETIC_PUBMED
 from rag.models import RetrievalRequest
 from rag.query import build_query_plan
 
@@ -64,10 +64,11 @@ class AgentInterfaceContractTests(unittest.TestCase):
     def test_example_requests_are_runnable_and_match_documented_behavior(self):
         import json, pathlib
 
-        from rag.server import create_tool
+        from rag.tests.helpers import fixture_tool
 
         examples = pathlib.Path(__file__).resolve().parents[1] / "contracts" / "examples"
-        tool = create_tool("simulated")
+        # 示例经 custom 来源路径执行：测试 fixtures 按调用方库的方式注册（产品无内置语料）。
+        tool = fixture_tool()
         diabetes = json.loads((examples / "agent_joint_retrieval_request_diabetes.json").read_text(encoding="utf-8"))
         result = tool.retrieve_evidence(diabetes)
         self.assertIn("2型糖尿病", diabetes["user_terms"])
@@ -113,7 +114,7 @@ class BM25Tests(unittest.TestCase):
         self.assertTrue(all(item.score >= 0 for item in scores.values()))
 
     def test_cjk_bigram_matching(self):
-        from rag.fixtures import SYNTHETIC_GUIDELINES
+        from rag.tests.fixtures import SYNTHETIC_GUIDELINES
 
         cn_doc = next(doc for doc in SYNTHETIC_GUIDELINES if doc.document_id == "guide-cn-asthma-2025")
         hit = score_documents(request_plan(RetrievalRequest.from_dict({"question": "哮喘长期管理"})), (cn_doc,))

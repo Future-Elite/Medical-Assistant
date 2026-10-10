@@ -1,10 +1,10 @@
-"""Offline synthetic sources for RAG tests and demonstrations only.
+"""Offline synthetic sources for this package's tests only.
 
-These records are not clinical evidence and are not a replacement for an
-authorized guideline corpus or a frozen PubMed snapshot.
+These records are produced inside the test package and are never registered by
+the server or any product code path; they are not clinical evidence.
 """
-from .models import SourceDocument
-from .his import PatientSnapshot, PatientFact
+from rag.models import SourceDocument
+from rag.his import PatientSnapshot, PatientFact
 
 
 SYNTHETIC_HIS_SNAPSHOTS = {

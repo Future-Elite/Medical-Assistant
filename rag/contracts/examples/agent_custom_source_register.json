@@ -1,0 +1,44 @@
+{
+  "source_id": "hospital-guideline-library",
+  "kinds": ["guideline", "pubmed"],
+  "description": "示例：调用方自有指南库 + 自备文献库（演示 JSON 结构，非真实医学证据）",
+  "version": "2025-12",
+  "documents": [
+    {
+      "document_id": "local-guide-htn-2025",
+      "kind": "guideline",
+      "title": "本地高血压用药指南（示例）",
+      "text": "对高血压成人患者，示例推荐说明初始降压药物的选择与监测条件。",
+      "version_id": "2025",
+      "recommendation_id": "2.1",
+      "population": "高血压成人",
+      "locator": "第2章 推荐2.1",
+      "published_at": "2025-06-01",
+      "updated_at": "2025-06-01",
+      "status": "current",
+      "url": "https://example.invalid/local/htn-2025",
+      "metadata": {
+        "publisher": "示例医院药事委员会",
+        "license": "caller-provided-fixture",
+        "official": true,
+        "mesh_terms": "Hypertension",
+        "keywords": "hypertension initial therapy"
+      }
+    },
+    {
+      "document_id": "local-paper-001",
+      "kind": "pubmed",
+      "title": "本地文献库条目（示例）",
+      "text": "该示例条目演示调用方自备文献的字段：标题、摘要文本、PMID/DOI、发表时间与语料快照。",
+      "pmid": "90000001",
+      "doi": "10.0000/example.2025.001",
+      "published_at": "2025-03-15",
+      "locator": "Abstract",
+      "metadata": {
+        "journal": "Example Journal",
+        "content_mode": "caller_provided",
+        "snapshot": "caller-library-2025-12"
+      }
+    }
+  ]
+}

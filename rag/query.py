@@ -9,7 +9,7 @@ from .his import PatientSnapshot, minimize_patient_snapshot
 from .models import QueryPlan, RetrievalRequest
 
 DEFAULT_SOURCE_ORDER = ("guideline", "pubmed", "drug", "clinical_trial", "local_knowledge")
-_RECOMMENDATION_MARKERS = ("指南", "推荐", "应当", "适应证", "禁忌", "剂量", "治疗", "guideline", "recommend")
+_RECOMMENDATION_MARKERS = ("指南", "推荐", "建议", "应当", "适应证", "禁忌", "剂量", "治疗", "guideline", "recommend")
 _UPDATE_MARKERS = ("更新", "最新", "update", "recent", "new evidence")
 # 问题内英文词会先过滤常见功能词（what/is/the/...）与不含字母的纯数值；
 # 调用方显式提供的 english_terms 不做任何过滤（那是已审核术语）。
@@ -100,13 +100,113 @@ def build_query_plan(request: RetrievalRequest, known_sources: list[dict[str, ob
 
 def _infer_intent(question: str) -> str:
     lower = question.lower()
-    if any(marker in lower for marker in _UPDATE_MARKERS):
-        return "evidence_update"
-    if any(marker in lower for marker in _RECOMMENDATION_MARKERS):
+    recommendation = any(marker in lower for marker in _RECOMMENDATION_MARKERS)
+    update = any(marker in lower for marker in _UPDATE_MARKERS)
+    safety = any(marker in lower for marker in ("安全", "不良反应", "禁忌", "adverse", "safety"))
+    # 同时出现"推荐/指南"与"最新/更新"线索时（如“指南推荐和最新证据是什么？”），
+    # 以指南推荐为主动作、PubMed 新证据为辅助：联合检索时指南来源保留主名额。
+    if recommendation and update:
         return "guideline_recommendation"
-    if any(marker in lower for marker in ("安全", "不良反应", "禁忌", "adverse", "safety")):
+    if update:
+        return "evidence_update"
+    if recommendation:
+        return "guideline_recommendation"
+    if safety:
         return "drug_safety"
     return "clinical_question"
+
+
+# ---------------------------------------------------------------------------
+# PRESS-style query review (检索式自检)
+# ---------------------------------------------------------------------------
+# 依据 PRESS（McGowan et al. 2016, DOI 10.1016/j.jclinepi.2016.01.021）与
+# Bramer et al. (JMLA 2018) 的检索式检查要点：把问题概念、主题词、自由词、
+# 条件与数值逐项对照检索计划。"检索式无报错"不等于"检索正确"，因此以下检查
+# 只报告发现，不修改检索计划；结果写入 trace.query_review 供人工核对。
+_NEGATION_MARKERS = ("未记录", "没有", "无", "否认", "阴性", "排除", "not recorded", "no evidence", "denies", "negative")
+_NUMERIC_RE = re.compile(r"\d+(?:\.\d+)?")
+
+
+def review_query_plan(plan: QueryPlan, *, english_source_present: bool) -> dict[str, Any]:
+    """PRESS 风格检索式自检：逐项检查概念映射、数值、否定与英文覆盖。
+
+    返回 ``{"status": "ok"|"review_needed", "checks": [...], "findings": [...]}``。
+    自检不改变检索计划，只把人工应复核的点显式列出（这不是检索质量评分）。
+    """
+    findings: list[str] = []
+    checks: list[dict[str, Any]] = []
+    question = plan.original_question
+
+    # 1) 问题概念→英文覆盖：完全无英文术语时，英文来源只能靠 CJK 二元组（通常零命中）。
+    has_english = bool(plan.english_terms or plan.question_english_terms)
+    checks.append({
+        "item": "english_coverage",
+        "status": "ok" if has_english or not english_source_present else "review_needed",
+        "detail": (
+            f"英文检索词 {len(plan.english_terms)} 个（审核）+ {len(plan.question_english_terms)} 个（问题内提取）"
+            if has_english else "无任何英文检索词。"
+        ),
+    })
+    if english_source_present and not has_english:
+        findings.append(
+            "检索式没有任何英文词：英文来源（PubMed）只可能得到零命中或不可靠结果；"
+            "请补充 english_terms/user_terms 审核映射，或改用 xlingual/m3 等跨语言方法。"
+        )
+
+    # 2) 审核映射：记录实际生效的展开来源（问题内英文词 / 审核映射 / RM3 / query2doc）。
+    mapped_sources = sorted({str(entry.get("source")) for entry in plan.expansion_trace})
+    checks.append({
+        "item": "expansion_sources",
+        "status": "ok",
+        "detail": "；".join(mapped_sources) or "未发生术语展开。",
+    })
+    if english_source_present and not plan.english_terms and not plan.question_english_terms and "reviewed_user_terms" not in mapped_sources:
+        findings.append(
+            "审核映射未展开：user_terms 的键必须与问题/患者术语原文一致（含大小写）才会生效；"
+            "请核对键的写法，或直接提供 english_terms。"
+        )
+
+    # 3) 数值一致性：问题中的数值必须有英文表述承载（否则年龄/剂量/阈值会丢失）。
+    numbers = _NUMERIC_RE.findall(question)
+    if numbers:
+        numbers_in_english = {token for term in (*plan.english_terms, *plan.mesh_terms) for token in _NUMERIC_RE.findall(term)}
+        combined = " ".join((*plan.english_terms, *plan.mesh_terms, *plan.concepts))
+        missing = [value for value in sorted(set(numbers)) if value not in combined and value not in numbers_in_english]
+        checks.append({
+            "item": "numeric_preservation",
+            "status": "review_needed" if missing else "ok",
+            "detail": f"问题数值：{', '.join(sorted(set(numbers)))}",
+        })
+        if missing:
+            findings.append(f"问题中的数值 {', '.join(missing)} 未出现在任何英文/概念检索词中；英文侧检索可能丢失该条件。")
+
+    # 4) 否定/时间条件：中文否定标记存在时，确认检索词未把它改写成肯定命题。
+    negation = [marker for marker in _NEGATION_MARKERS if marker in question.lower()]
+    checks.append({
+        "item": "negation_and_conditions",
+        "status": "ok" if not negation else "review_needed",
+        "detail": f"检测到否定/缺失类表述：{', '.join(dict.fromkeys(negation))}" if negation else "未检测到否定类表述。",
+    })
+    if negation:
+        findings.append(
+            "问题包含否定/缺失类表述（如“未记录”“没有证据”）：系统只按词面检索，不能把“缺记录”当作阴性事实；"
+            "请在解读结果时保留这一条件。"
+        )
+
+    # 5) 重复/冲突术语：同一术语既作为英文词又作为 MeSH 出现（无害但应显式）。
+    overlap = sorted({term.lower() for term in plan.english_terms} & {term.lower() for term in plan.mesh_terms})
+    checks.append({
+        "item": "term_overlap",
+        "status": "ok",
+        "detail": f"英文术语与 MeSH 重叠：{', '.join(overlap)}" if overlap else "英文术语与 MeSH 无重叠。",
+    })
+
+    return {
+        "status": "review_needed" if findings else "ok",
+        "checks": checks,
+        "findings": findings,
+        "note": "检索式自检只报告需人工复核的点，不修改检索计划，也不表示检索质量结论。",
+    }
 
 
 def _facet_values(facets: Mapping[str, Any]) -> tuple[str, ...]:

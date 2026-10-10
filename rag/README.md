@@ -16,13 +16,13 @@
 
 HTTP 服务和浏览器工作台只是这个核心调用层之上的附加封装，见第 13 节。不需要启动 `server.py` 就可以直接使用 RAG。
 
-当前版本在包 `__init__.py` 中以 `__version__` 声明（当前 `6.4.0`）；运行时 trace 的 `rag_version` 与 `/api/health` 均读取该值，代码中不硬编码版本字符串。
+当前版本在包 `__init__.py` 中以 `__version__` 声明（当前 `6.4.1`）；运行时 trace 的 `rag_version` 与 `/api/health` 均读取该值，代码中不硬编码版本字符串。
 
 模块不会读取原始病历、写回 HIS/PACS、生成诊断或治疗决定。`patient_terms` 只能传入人工审核的最小化术语，不得传入患者姓名、住院号、身份证号、自由文本病史或原始病历。RAG 不自行读取真实 HIS：`patient_snapshot` 由 Agent 读取并授权传入。
 
 ## 1. 直接调用的最短示例
 
-从 `code/src/Medical-Assistant` 目录运行下面的代码。这个示例使用内存中的合成文档，不联网，适合先验证调用流程：
+在仓库根目录运行下面的代码（包从仓库根导入）。这个示例使用内存中的文档，不联网，适合先验证调用流程：
 
 ```python
 from rag.agent import EvidenceRAG
@@ -77,14 +77,13 @@ print(audit["claims"])
 运行方式：
 
 ```bash
-cd code/src/Medical-Assistant
 python3 path/to/your_script.py
 ```
 
-也可以只设置导入路径：
+也可以只设置导入路径（在仓库根执行）：
 
 ```bash
-PYTHONPATH=code/src/Medical-Assistant python3 path/to/your_script.py
+PYTHONPATH=. python3 path/to/your_script.py
 ```
 
 ## 2. 环境和依赖
@@ -98,11 +97,10 @@ python3 --version
 如果只使用 `InMemoryConnector`、`CallableConnector`、`VersionedGuidelineConnector`、词面检索方法（bm25/ql/rm3）、本地排序和审计，不需要安装额外依赖。以下能力是可选依赖：
 
 - MiniCheck 真实主张校验（`requirements.txt`）；
-- 神经检索方法 `dense`/`xlingual`/`translate`/`splade`/`colbert`/`query2doc` 与 cross-encoder 重排（`torch`/`transformers` 与本地模型缓存；本工作区经 `HF_ENDPOINT=https://hf-mirror.com` 预下载）。
+- 神经检索方法 `dense`/`xlingual`/`translate`/`splade`/`colbert`/`query2doc` 与 cross-encoder 重排（`torch`/`transformers` 与本地模型缓存；在国内网络可经 `HF_ENDPOINT=https://hf-mirror.com` 预下载）。
 
 ```bash
-cd code/src/Medical-Assistant/rag
-python3 -m pip install -r requirements.txt
+python3 -m pip install -r rag/requirements.txt
 ```
 
 没有安装或配置 MiniCheck 时，审计仍可运行，但主张标签会明确标记为 `not_checked`，不会用词面规则冒充模型校验。神经方法不可用时在 `trace.method_trace` 中标记 `not_configured`（附原因），绝不静默降级。
@@ -240,7 +238,7 @@ package = pipeline.retrieve(request)
 | `english_terms` | `tuple[str, ...]` | `()` | 否 | 人工审核的英文医学术语/缩写，直接参与英文检索与实时 PubMed 查询。 |
 | `mesh_terms` | `tuple[str, ...]` | `()` | 否 | 人工审核的 MeSH 主题词，参与英文检索与实时 PubMed 查询。 |
 | `patient_snapshot` | `Any \| None` | `None` | 否 | Agent 从只读 HIS 获取的结构化快照对象（解码在管线内完成）。 |
-| `source_mode` | `str` | `"simulated"` | 否 | `simulated` / `live_pubmed` / `live`；实时失败不自动回退。 |
+| `source_mode` | `str` | `"live"` | 否 | 仅两种：`live`（实时 PubMed + 官方指南元数据）与 `custom`（调用方注册的自有知识库）。服务不内置本地语料；实时失败不自动回退，custom 库为空时显式报错。 |
 | `retrieval_method` | `str \| tuple[str, ...] \| None` | `None`（等价 bm25） | 否 | 检索方法，见第 12 节。 |
 | `rerank` | `bool` | `False` | 否 | `true` 时在排序后追加 cross-encoder 重排。 |
 
@@ -305,8 +303,8 @@ result = rag.retrieve_evidence({
 | `retrieval_id` | `str` | 本轮检索唯一 ID（`retrieval-<hex>`）。引用和审计必须使用同一个值。 |
 | `request_id` | `str` | 输入请求 ID 或自动生成值。 |
 | `query_plan` | `dict` | 实际查询计划。 |
-| `ranked_documents` | `list[dict]` | 排序后的文档和分数。 |
-| `citations` | `list[dict]` | 可追溯引用。 |
+| `ranked_documents` | `list[dict]` | 联合选择后的最终排序；每项含 `citation_id`（见 5.3）。 |
+| `citations` | `list[dict]` | 可追溯引用；`citation_id` 与 `ranked_documents`/`evidence_groups` 中同名字段是同一稳定外键。 |
 | `warnings` | `list[str]` | 连接器、方法、过滤、去重或无结果警告。 |
 | `trace` | `dict` | 检索过程信息。 |
 | `patient_hits` | `list[dict]` | 本地患者事实命中（无快照时为空）。 |
@@ -323,8 +321,9 @@ result = rag.retrieve_evidence({
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
+| `citation_id` | `str \| None` | **稳定外键**（`<retrieval_id>:cit-N`），与本条 `citations[].citation_id` 同值；用它关联引用，不要依赖两个列表的下标同序。 |
 | `document` | `dict` | 原始 `SourceDocument`。 |
-| `score` | `float` | 综合排序分数，不是证据质量或推荐等级。 |
+| `score` | `float` | 来源内排序分数；跨来源不可比，也不是证据质量或推荐等级。 |
 | `lexical_score` | `float` | 词面相关度。 |
 | `fusion_score` | `float` | RRF 融合分数。 |
 | `authority_score` | `float` | 来源权威性先验。 |
@@ -333,6 +332,8 @@ result = rag.retrieve_evidence({
 | `matched_queries` | `list[str]` | 命中的查询变体。 |
 | `rank_explanation` | `list[str]` | 排序解释。 |
 | `retriever_id` / `semantic_score` / `fusion_method` / `reranker_id` 等 | 可选 | 多方法检索与重排的逐路记录。 |
+
+**引用关联（稳定外键）**：`ranked_documents[].citation_id`、`evidence_groups[*][].citation_id` 与 `citations[].citation_id` 是同一值，调用方按外键关联；管线内置 `_assert_citation_linkage()`，错配直接抛错而不是静默返回。
 
 ### 5.4 `SourceDocument` 字段
 
@@ -381,11 +382,13 @@ result = rag.retrieve_evidence({
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
-| `rag_version` | `str` | 包 `__version__`（当前 `6.4.0`）。 |
+| `rag_version` | `str` | 包 `__version__`（当前 `6.4.1`）。 |
 | `source_mode` | `str` | 本轮来源模式。 |
 | `retrieved_at` | `str` | UTC 时间戳。 |
 | `connector_trace` | `list[dict]` | 每个连接器的执行状态。成功含 `source_id`、`status`、`returned`、`kind`；失败含错误类型和阶段。 |
-| `candidate_count` / `selected_count` | `int` | 候选与最终选中数量。 |
+| `candidate_count` / `deduplicated_count` / `selected_count` | `int` | 候选数、跨来源去重后数量与最终选中数量。 |
+| `joint_selection` | `dict` | 分源联合选择轨迹：`strategy`、`guaranteed_minimums`、`selected_per_source`、`merit_filled_per_source`、`rationale` 等（见第 5.7 节）。 |
+| `query_review` | `dict` | PRESS 风格检索式自检（见第 5.7 节）。 |
 | `retrieval_method` | `str \| None` | 最终生效方法串（如 `"bm25+dense"`）。 |
 | `method_trace` | `list[dict]` | 逐方法状态（`ok`/`not_configured`/`error`/`fallback`/`unknown`），含原因与返回数。 |
 | `semantic_trace` | `dict` | 语义检索状态汇总。 |
@@ -395,6 +398,19 @@ result = rag.retrieve_evidence({
 | `patient_context` | `dict` | 快照接收状态、可见事实数、命中数、未来抑制数。 |
 | `source_separation` | `dict` | 分源分组状态。 |
 | `generation_performed` / `clinical_decision_performed` | `bool` | 固定为 `false`。 |
+
+### 5.7 分源联合检索与检索式自检
+
+**分源联合检索（三级）**：每个来源在自己的词表内独立排序（IDF/QL/RRF/相关度门/MMR），再由联合选择合并：
+
+1. **来源可见性保证**：每个有相关候选的来源至少保留 1 个名额（`top_k` 不足时给出警告）；
+2. **意图配额**：`guideline_recommendation` → 指南至少 `ceil(top_k/2)`；`evidence_update`/`drug_safety` → PubMed 同额；
+3. **来源内排名轮转补齐**：其余名额按来源轮转（**不比较跨来源分数**）；
+4. **交错输出**：最终列表按来源内排名交错，避免单一来源占满 `top_k`。
+
+`ranked_documents[].score` 是**来源内**分数，跨来源不可比；跨来源顺序由联合选择规则决定，解释见 `trace.joint_selection.rationale`。
+
+**检索式自检（`trace.query_review`）**：以 PRESS 风格逐项检查 `english_coverage`（英文来源却无英文词）、`expansion_sources`、`numeric_preservation`（问题数值未进英文/概念词）、`negation_and_conditions`、`term_overlap`。**只报告需人工复核的点，不修改检索计划**，不是检索质量评分。
 
 ## 6. 打开引用：`EvidenceRAG.open_citation`
 
@@ -438,6 +454,8 @@ audit = rag.audit_grounded_answer({
 |---|---|---:|---|
 | `retrieval_id` | `str` | 是 | 要使用的单轮检索 ID。 |
 | `answer` | `str` | 是 | 待审计回答，不能为空。建议每条可验证主张后写 `[citation_id]`。 |
+
+`citation_id` 的获取：`ranked_documents[].citation_id`（或 `evidence_groups[*][].citation_id`）与 `citations[].citation_id` 是**同一稳定外键**，用外键关联；不要按下标在 `ranked_documents` 与 `citations` 之间配对。审计只接受本次 `retrieval_id` 作用域内的 ID，跨检索引用会被判 `invalid_citation`。
 
 返回字段：
 
@@ -588,6 +606,7 @@ registry.register(CallableConnector(source_id="local-guideline", kinds=("guideli
 | `rm3` | 词面 | 标准库 | — | 伪相关反馈（top-5 反馈文档 / top-10 扩展词）。 |
 | `dense` | 神经 | torch + transformers | MedCPT 双塔 | 英文域编码器；中文问题需经审核英文术语。 |
 | `xlingual` | 神经 | torch + transformers | `intfloat/multilingual-e5-base` | 中文原问题 + 审核英文术语直接编码，跨语言检索英文语料。 |
+| `m3` | 神经 | torch + transformers | `BAAI/bge-m3` | BGE-M3 多语言双塔（官方 **CLS 池化**，`last_hidden_state[:,0]` + L2 归一化）；中文问题直接编码、跨语言检索英文语料；本包只使用其 dense 功能，不用 sparse/multi-vector 头。依据 MMed-Bench-IR（多语言稠密检索器优于英文域生物医学编码器与词面方法）。 |
 | `translate` | 神经 | torch + transformers | `Helsinki-NLP/opus-mt-zh-en` | 中文问题机器译为英文，**只作为额外查询变体**；原问题保留；数字不一致写入警告与 `method_trace.numeric_mismatches`。 |
 | `splade` | 神经 | torch + transformers | `naver/splade-cocondenser-ensembledistil` | 稀疏学习权重。 |
 | `colbert` | 神经 | torch + transformers | `colbert-ir/colbertv2.0` | MaxSim 后期交互。 |
@@ -600,7 +619,8 @@ registry.register(CallableConnector(source_id="local-guideline", kinds=("guideli
 - 神经方法不可用（缺依赖/模型/加载失败）时在 `trace.method_trace` 标 `not_configured`（附原因）；全部所选方法都不可用且无神经信号时回退 `bm25` 并记 `fallback`；**绝不拿词面分数冒充 dense/SPLADE/ColBERT**。
 - 查询相关度门：词面与语义分数都为零的候选在打分前剔除，权威性/新鲜度/RRF 不会为“仅存在于来源中”的文档回填分数。
 - 分数只表示检索相关性，不表示证据质量、推荐强度或患者适用性。
-- 神经依赖只装仓库 `.venv`；模型经 `HF_ENDPOINT` 镜像下载到 HF 缓存，离线用 `HF_HUB_OFFLINE=1`（适配器导入时自动开启离线模式并通过 `RAG_ALLOW_MODEL_DOWNLOAD=1` 显式放开下载）。
+- **语义召回的实体风险显式化**：稠密方法对全部候选给正分，可能带回"语义相近但病种不同"的条目（实测：高血压问题带上中文哮喘指南）。系统不做静默过滤，而是把"入选候选中仅由语义方法召回（词面零分）"的条目逐条写入 `warnings`，要求核对实体一致性。
+- 神经依赖（torch/transformers）需单独安装；模型经 `HF_ENDPOINT` 镜像下载到 HF 缓存，离线用 `HF_HUB_OFFLINE=1`（适配器导入时自动开启离线模式，并通过 `RAG_ALLOW_MODEL_DOWNLOAD=1` 显式放开下载）。
 
 ## 13. 配置、服务与浏览器工作台
 
@@ -616,23 +636,53 @@ registry.register(CallableConnector(source_id="local-guideline", kinds=("guideli
 | `minicheck_model` / `minicheck_cache_dir` | `str` | `""` | MiniCheck 模型与缓存目录。 |
 | `request_timeout_seconds` | `float` | `60.0` | PubMed 请求超时。 |
 | `server_host` / `server_port` | `str` / `int` | `127.0.0.1` / `8788` | 本地 HTTP 服务地址。 |
-| `source_mode` | `str` | `"simulated"` | 默认来源模式。 |
-| `allow_live_pubmed` / `allow_live_guidelines` | `bool` | `True` / `True` | 实时来源开关；关闭后相应模式不可用。 |
+| `source_mode` | `str` | `"live"` | 默认来源模式（仅 `live`/`custom`）。 |
+| `allow_live_pubmed` / `allow_live_guidelines` | `bool` | `True` / `True` | 实时来源开关；关闭后 `live` 模式不可用。 |
+| `custom_sources_path` | `str` | `""` | 可选：启动时预载的自定义来源库文件（`{"sources":[...]}`）。 |
 
 密钥只保存在本地配置，不要写入脚本、日志、README 或提交记录。修改 `config.py` 后需重启服务。
 
-### 13.2 来源模式
+### 13.2 来源模式（仅两种）
 
-- `simulated`（默认）：全部使用 synthetic HIS/PubMed/指南 fixture，离线可跑；
-- `live_pubmed`：实时 PubMed（E-utilities）+ WHO 官方指南元数据/链接记录；
-- `live`：只有实时 PubMed 和实时指南配置都启用时才允许。
+服务**不内置任何本地语料**；`source_mode` 只有两个合法值：
 
-实时失败显式报错，**不静默回退** synthetic。启动后通过 `GET /api/health` 检查 `active_mode`、`available_modes` 和 connector 状态。
+- `live`（默认）：实时 PubMed（E-utilities）+ WHO 官方指南元数据/链接记录；需要 `allow_live_pubmed` 与 `allow_live_guidelines` 同时为 `True`；
+- `custom`：调用方注册的自有知识库（如医院指南库、自备文献快照）。库为空时检索**显式报错**，不返回空结果冒充"没有证据"。
+
+实时失败显式报错，**不静默回退**到任何其它数据。
+
+**custom 注册接口**（三种方式，同一 payload schema）：
+
+```text
+HTTP   POST /api/sources/custom        注册/覆盖一个来源（同 source_id 覆盖，事件可审计）
+HTTP   POST /api/sources/custom/clear  清空已注册来源
+HTTP   GET  /api/sources               查看可用模式、已注册来源与最近事件
+Python CustomSourceLibrary.register_payload() -> build_registry()
+配置   config.custom_sources_path      启动预载库文件
+```
+
+payload 最小形态（完整 schema 见 `contracts/agent_contract.json` 的 `CustomSourcePayload`；示例见 `contracts/examples/agent_custom_source_register.json`）：
+
+```json
+{
+  "source_id": "hospital-guideline-library",
+  "kinds": ["guideline", "pubmed"],
+  "version": "2025-12",
+  "documents": [
+    {"document_id": "g-1", "kind": "guideline", "title": "…", "text": "…",
+     "version_id": "2025", "recommendation_id": "2.1", "locator": "第2章·推荐2.1"}
+  ]
+}
+```
+
+规则：`source_id`/`documents` 必填且 `documents` 非空；每篇必填 `document_id`/`kind`/`title`/`text`；文档归属固定为来源 `source_id`（显式写不同值报错）；`kinds` 省略按文档推断且必须覆盖全部 kind；未知字段进 `metadata`；`version` 缺省会产生审计警告。**库只在内存**，重启清空；调用方负责内容许可与合规。
+
+启动后通过 `GET /api/health` 检查 `active_mode`、`available_modes` 和 connector 状态。
 
 ### 13.3 HTTP 服务
 
 ```bash
-cd code/src/Medical-Assistant/rag
+cd rag
 python3 server.py
 ```
 
@@ -661,11 +711,11 @@ HTTP 状态码：
 
 ### 13.4 浏览器工作台
 
-工作台 = 单文件 HTML + 标准库 `http.server`，无前端框架、无 CDN、无构建步骤。功能：中文问题、证据截止日期、`top_k`、HIS 患者引用读取、最小化患者/受控术语、审核英文术语、MeSH、临床意图、指南版本、来源模式、检索方法与重排开关、问题槽位；结果区分患者事实、PubMed 和指南来源，展示查询计划、警告、引文详情（版本/推荐/适用人群/关键证据句）和回答审计面板。演示预设 8 例（高血压/2型糖尿病/时间过滤/新生儿黄疸/婴儿发热/婴儿疫苗/药品安全/中文直接匹配）使用 synthetic fixtures。界面不含 LLM 摘要面板；核心检索不生成回答。GUI 默认显示 6 条结果，而核心 API 默认 `top_k=8`。
+工作台 = 单文件 HTML + 标准库 `http.server`，无前端框架、无 CDN、无构建步骤。功能：中文问题、证据截止日期、`top_k`、HIS 患者引用读取、最小化患者/受控术语、审核英文术语、MeSH、临床意图、指南版本、来源模式、检索方法与重排开关、问题槽位；结果区分患者事实、PubMed 和指南来源，展示查询计划、警告、引文详情（版本/推荐/适用人群/关键证据句）和回答审计面板。演示预设 8 例（高血压/2型糖尿病/时间过滤/新生儿黄疸/婴儿发热/婴儿疫苗/药品安全/中文直接匹配）自带 synthetic 测试快照与术语，**仅演示交互**；live 模式下检索的是实时来源。页面"来源模式"只提供 `live`/`custom`，选 custom 时展开"自定义来源库"面板（已注册来源、内联接口示例、一键清空）。HIS 快照由"载入快照"按钮按调用方数据结构组装后经 `/api/his/snapshot` 过滤回显——**服务不持有患者数据**。界面不含 LLM 摘要面板；核心检索不生成回答。GUI 默认显示 6 条结果，而核心 API 默认 `top_k=8`。
 
 ### 13.5 契约文档
 
-- `contracts/agent_contract.json`：机器可读的 Agent/HIS/RAG 契约（`contract_version` 与包 `__version__` 同步，当前 `6.4.0`），含 `language_rules` 与字段语义；
+- `contracts/agent_contract.json`：机器可读的 Agent/HIS/RAG 契约（`contract_version` 与包 `__version__` 同步，当前 `6.4.1`），含 `language_rules` 与字段语义；
 - `contracts/README.md`：调用顺序、接口字段定义、隐私与错误边界；
 - `contracts/examples/`：请求/响应/错误示例；
 - 运行时的同一份语义可从 `GET /api/tools` 获取（`agent.py` 的 `tool_specifications()`）。
@@ -701,10 +751,9 @@ HTTP 状态码：
 
 ## 15. 测试
 
-从 `code/src/Medical-Assistant` 目录运行：
+在仓库根目录运行：
 
 ```bash
-cd code/src/Medical-Assistant
 python3 -m unittest discover -s rag/tests -p 'test_*.py'
 python3 -m compileall -q rag
 ```
@@ -713,7 +762,7 @@ python3 -m compileall -q rag
 
 ## 16. 使用边界
 
-- 当前 HTTP 服务默认 `simulated` 模式使用 synthetic fixtures；`live_pubmed`/`live` 只接入实时 PubMed 和 WHO 指南元数据，不代表已接入正式指南库、药品数据库、临床试验库或真实 HIS/PACS。
+- 服务**不内置任何语料**：`live` 模式只接入实时 PubMed 和 WHO 指南元数据，不代表已接入正式指南库、药品数据库、临床试验库或真实 HIS/PACS；`custom` 模式的内容由调用方负责许可与合规。测试用合成数据只存在于 `rag/tests/`（`tests/fixtures.py`），产品代码与服务器不引用。
 - 实时 PubMed 受网络、NCBI 状态、摘要完整性和排序变化影响，不是冻结实验数据集。
 - 缺失日期不等于证据无效；缺失病历记录也不等于患者没有某种疾病。
 - 排序分数、关键词匹配、关键证据句和引用存在性不等于临床正确性或指南符合性。

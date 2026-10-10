@@ -42,19 +42,21 @@ class RetrievalRequest:
     english_terms: tuple[str, ...] = ()
     mesh_terms: tuple[str, ...] = ()
     patient_snapshot: Any | None = None
-    source_mode: str = "simulated"
-    # 检索方法：bm25（默认）/ ql / rm3 / dense / xlingual / splade / colbert /
-    # query2doc / translate，或 "bm25+dense" 这类多路组合（RRF 融合）。
+    # 来源模式仅两种：live（实时 PubMed + 官方指南）与 custom（调用方注册的数据库）。
+    source_mode: str = "live"
+    # 检索方法：bm25（默认）/ ql / rm3 / dense / xlingual / m3 / splade / colbert /
+    # query2doc / translate，或 "bm25+xlingual" 这类多路组合（RRF 融合）。
     # None 表示未指定：默认 bm25；
     # 若管线上注册了 legacy semantic_retriever，则自动并入 dense（向后兼容）。
     # 神经方法需本地模型可用；不可用时报告 not_configured，不静默降级。
     # dense=MedCPT（英文域）；xlingual=multilingual-e5（中文问题直接编码，跨语言）；
+    # m3=BGE-M3（多语言，CLS 池化；MMed-Bench-IR 的强多语言基线）；
     # translate=zh→en 机器翻译后的英文查询变体（只增加检索分支，不替换原问题）。
     retrieval_method: str | tuple[str, ...] | None = None
     # 可选：应用 cross-encoder 重排（在召回之后、引用生成之前）。
     rerank: bool = False
 
-    METHOD_TOKENS = ("bm25", "ql", "rm3", "dense", "xlingual", "splade", "colbert", "query2doc", "translate")
+    METHOD_TOKENS = ("bm25", "ql", "rm3", "dense", "xlingual", "m3", "splade", "colbert", "query2doc", "translate")
 
     @staticmethod
     def parse_methods(value: Any) -> tuple[str, ...]:
@@ -119,7 +121,7 @@ class RetrievalRequest:
             english_terms=tuple(_strings(raw.get("english_terms"))),
             mesh_terms=tuple(_strings(raw.get("mesh_terms"))),
             patient_snapshot=patient_snapshot,
-            source_mode=str(raw.get("source_mode") or "simulated"),
+            source_mode=_source_mode(raw.get("source_mode")),
             retrieval_method=methods,
             rerank=_boolean(raw.get("rerank", False)),
         )
@@ -242,6 +244,10 @@ class RankedDocument:
     fusion_rank: int | None = None
     reranker_id: str | None = None
     reranker_score: float | None = None
+    # 与 EvidencePackage.citations 的稳定外键：本条 RankedDocument 对应的 citation_id
+    # （格式 <retrieval_id>:cit-N）。调用方按它关联引用，不要依赖两份列表的下标同序。
+    # 少数路径（例如只做排序、不生成引用的内部调用）可能为 None。
+    citation_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -308,6 +314,16 @@ class EvidencePackage:
 
     def to_dict(self) -> dict[str, Any]:
         return _jsonable(self)
+
+
+SOURCE_MODES = ("live", "custom")
+
+
+def _source_mode(value: Any) -> str:
+    mode = str(value or "live").strip().lower()
+    if mode not in SOURCE_MODES:
+        raise ValueError("source_mode must be one of: " + ", ".join(SOURCE_MODES))
+    return mode
 
 
 def parse_iso_date(value: str | None) -> date | None:

@@ -1,9 +1,15 @@
-# live source configuration example
+# Source configuration example (two modes only: live / custom)
 # Keep real values outside the repository in production.
-source_mode = "simulated"
-allow_live_pubmed = false
-allow_live_guidelines = false
+source_mode = "live"
+allow_live_pubmed = true          # required for live: real-time NCBI PubMed
+allow_live_guidelines = true      # required for live: official guideline metadata
 
-# To enable PubMed locally, set these in the local config/environment:
+# To enable PubMed politely, set these in the local config/environment:
 # ncbi_email = "approved-contact@example.org"
-# ncbi_api_key = "local-only-secret"
+# ncbi_api_key = "local-only-secret"   # never commit a real key
+
+# Optional: preload caller-provided libraries at startup.
+# custom_sources_path = "/abs/path/to/custom_library.json"
+# Library file schema: {"sources": [ <custom source payload>, ... ]}
+# Single-source payload schema: contracts/examples/agent_custom_source_register.json
+# Runtime registration (no restart): POST /api/sources/custom

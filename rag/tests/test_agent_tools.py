@@ -6,7 +6,7 @@ import unittest
 
 from rag.agent import EvidenceRAG
 from rag.connectors import ConnectorRegistry, InMemoryConnector, VersionedGuidelineConnector
-from rag.fixtures import SYNTHETIC_GUIDELINES, SYNTHETIC_PUBMED
+from rag.tests.fixtures import SYNTHETIC_GUIDELINES, SYNTHETIC_PUBMED
 from rag.pipeline import EvidenceRetrievalPipeline
 
 

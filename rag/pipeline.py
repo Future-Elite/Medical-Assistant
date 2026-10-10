@@ -1,6 +1,27 @@
-"""Evidence retrieval pipeline with source/version-aware trace."""
+"""Evidence retrieval pipeline with per-source ranking and auditable joint selection.
+
+Retrieval is organized in three stages:
+
+1. **Collect** — every selected connector returns its own candidates (one
+   ``SearchResult`` per source, with its own trace entry). Duplicates are then
+   removed globally (DOI > PMID > title|kind); a shared key across *different*
+   sources is reported as a conflict and never silently merged into one claim.
+2. **Rank per source** — each source kind (guideline / pubmed / …) is ranked
+   independently with the selected retrieval methods, RRF fusion, the
+   relevance gate and MMR. Term statistics (IDF/QL) are therefore computed in
+   the source's own vocabulary, and the raw scores of different sources are
+   never compared.
+3. **Joint selection** — per-source lists are merged with a visibility
+   guarantee (every source with relevant candidates keeps at least one slot),
+   an intent-based share for the preferred source and merit fill by
+   within-source normalized score. The merge is traced in
+   ``trace.joint_selection`` and the merged list is interleaved by within-source
+   rank so no single source consumes all of ``top_k``.
+"""
 from __future__ import annotations
 
+from collections import defaultdict
+from dataclasses import replace
 from datetime import datetime, timezone
 from uuid import uuid4
 
@@ -10,17 +31,19 @@ from .evidence import extract_key_evidence_sentences
 from .his import PatientSnapshot
 from .models import ApplicabilityAssessment, Citation, EvidencePackage, RetrievalRequest
 from .patient_retrieval import retrieve_patient_facts
-from .query import build_query_plan
-from .ranking import rank_documents
+from .query import build_query_plan, review_query_plan
+from .ranking import deduplicate_documents, merge_joint_selection, rank_documents
+
+NEURAL_METHOD_SET = ("dense", "xlingual", "m3", "splade", "colbert")
 
 
 class EvidenceRetrievalPipeline:
     def __init__(self, registry: ConnectorRegistry, *, semantic_retriever=None, reranker=None, evidence_budget: int = 3,
                  neural_retrievers: dict | None = None):
         """``neural_retrievers`` maps method name -> SemanticRetriever-style adapter
-        for dense/splade/colbert/query2doc. ``semantic_retriever`` stays supported
-        as the legacy single-dense slot; it is registered under "dense" when no
-        explicit dense adapter is present."""
+        for dense/xlingual/m3/splade/colbert/query2doc/translate. ``semantic_retriever``
+        stays supported as the legacy single-dense slot; it is registered under
+        "dense" when no explicit dense adapter is present."""
         self.registry = registry
         self.semantic_retriever = semantic_retriever
         self.reranker = reranker
@@ -38,11 +61,20 @@ class EvidenceRetrievalPipeline:
         snapshot = request.patient_snapshot if isinstance(request.patient_snapshot, PatientSnapshot) else None
         patient_hits, patient_trace = retrieve_patient_facts(snapshot, (request.question, *request.patient_terms, *request.english_terms, *request.mesh_terms), top_k=max(request.top_k * 2, 20)) if snapshot else ((), {"patient_context_id": None, "visible_fact_count": 0, "patient_hit_count": 0, "suppressed_future": 0, "warnings": []})
         plan = build_query_plan(request, known_sources)
+        selected_connectors = self.registry.selected(plan.source_order)
+        english_source_present = any("pubmed" in set(connector.kinds) for connector in selected_connectors)
+        query_review = review_query_plan(plan, english_source_present=english_source_present)
         documents = []
         warnings: list[str] = list(patient_trace.get("warnings", []))
+        warnings.extend(getattr(self.registry, "warnings", ()))
+        warnings.extend(f"检索式自检：{finding}" for finding in query_review["findings"])
         connector_trace: list[dict[str, object]] = []
         method_trace: list[dict[str, object]] = []
-        for connector in self.registry.selected(plan.source_order):
+        kind_order: list[str] = []
+        for connector in selected_connectors:
+            for kind in connector.kinds:
+                if kind not in kind_order:
+                    kind_order.append(kind)
             try:
                 result = connector.search(plan, limit=max(request.top_k * 5, 50))
             except Exception as exc:
@@ -53,6 +85,14 @@ class EvidenceRetrievalPipeline:
             documents.extend(result.documents)
             warnings.extend(result.warnings)
             connector_trace.append({"source_id": result.source_id, "status": "ok", "returned": len(result.documents), "kind": list(connector.kinds)})
+
+        # --- Global dedup across sources (cross-source conflicts are reported, not merged) ---
+        deduped, duplicate_count, conflicts = deduplicate_documents(documents)
+        if duplicate_count:
+            warnings.append(f"已按 DOI/PMID/标题跨来源去重 {duplicate_count} 条候选。")
+        if conflicts:
+            warnings.append("检测到跨来源共享 DOI/PMID/标题的候选；已保留权威来源，但不能据此消除指南与文献的语义冲突。")
+
         explicit_method = request.retrieval_method is not None
         if isinstance(request.retrieval_method, (tuple, list)):
             methods = tuple(str(method) for method in request.retrieval_method if method)
@@ -118,7 +158,7 @@ class EvidenceRetrievalPipeline:
                 if "bm25" not in effective_methods:
                     effective_methods.append("bm25")
                     method_trace.append({"method": "bm25", "status": "ok", "kind": "lexical", "note": "translate 英文变体的最终打分器"})
-            elif method in ("dense", "xlingual", "splade", "colbert"):
+            elif method in NEURAL_METHOD_SET:
                 method_trace.append({"method": method, "status": "pending"})
             else:
                 warnings.append(f"未知检索方法 {method}；已忽略。")
@@ -126,11 +166,11 @@ class EvidenceRetrievalPipeline:
         neural_scores: dict[str, dict[str, float]] = {}
         neural_trace: list[dict[str, object]] = []
         for method in methods:
-            if method not in ("dense", "xlingual", "splade", "colbert"):
+            if method not in NEURAL_METHOD_SET:
                 continue
             adapter = self.neural_retrievers.get(method)
             entry = next(item for item in method_trace if item.get("method") == method)
-            if adapter is None or not documents:
+            if adapter is None or not deduped:
                 warnings.append(f"检索方法 {method} 未配置（not_configured）；该路子分数缺失，不静默降级。")
                 entry.update({"status": "not_configured", "retriever_id": getattr(adapter, "retriever_id", None)})
                 neural_trace.append(entry)
@@ -143,7 +183,7 @@ class EvidenceRetrievalPipeline:
                 neural_trace.append(entry)
                 continue
             try:
-                result = adapter.search(plan, tuple(documents), limit=max(request.top_k * 5, 50))
+                result = adapter.search(plan, tuple(deduped), limit=max(request.top_k * 5, 50))
                 scores = {str(key): float(value) for key, value in result.scores.items()}
                 neural_scores[method] = scores
                 if method not in effective_methods:
@@ -166,10 +206,40 @@ class EvidenceRetrievalPipeline:
             effective_methods = ["bm25"]
             if not any(item.get("method") == "bm25" for item in method_trace):
                 method_trace.append({"method": "bm25", "status": "fallback"})
-        ranked, rank_warnings = rank_documents(plan, documents, as_of=request.as_of, top_k=request.top_k,
-                                               methods=tuple(effective_methods) or ("bm25",),
-                                               neural_scores=neural_scores)
-        warnings.extend(rank_warnings)
+
+        # --- Stage 2: rank each source pool independently ---------------------------
+        by_kind: dict[str, list] = defaultdict(list)
+        for document in deduped:
+            by_kind[document.kind].append(document)
+        for kind in sorted(by_kind):
+            if kind not in kind_order:
+                kind_order.append(kind)
+        methods_tuple = tuple(effective_methods) or ("bm25",)
+        per_source_ranked: dict[str, list] = {}
+        for kind in kind_order:
+            pool = by_kind.get(kind) or []
+            if not pool:
+                continue
+            pool_keys = {document.identity_key() for document in pool}
+            subset_scores = {
+                method: {key: value for key, value in scores.items() if key in pool_keys}
+                for method, scores in neural_scores.items()
+            }
+            ranked_kind, kind_warnings = rank_documents(
+                plan, pool, as_of=request.as_of, top_k=request.top_k,
+                methods=methods_tuple, neural_scores=subset_scores, source_label=_kind_label(kind),
+            )
+            per_source_ranked[kind] = ranked_kind
+            warnings.extend(kind_warnings)
+
+        # --- Stage 3: joint selection (visibility guarantee + intent share + merit) --
+        ranked, joint_trace, joint_warnings = merge_joint_selection(
+            per_source_ranked, top_k=request.top_k, intent=plan.clinical_intent, source_order=kind_order,
+        )
+        warnings.extend(joint_warnings)
+        joint_trace["candidates_per_source"] = {kind: len(by_kind.get(kind) or []) for kind in kind_order}
+        joint_trace["relevant_per_source"] = {kind: len(per_source_ranked.get(kind) or []) for kind in kind_order}
+
         dense_entry = next((item for item in neural_trace if item.get("method") == "dense"), None)
         if dense_entry is not None and dense_entry.get("status") == "ok":
             semantic_trace = {
@@ -184,10 +254,6 @@ class EvidenceRetrievalPipeline:
             semantic_trace = {"status": "not_configured", "retriever_id": None, "methods": neural_trace}
         else:
             semantic_trace = {"status": "not_configured", "retriever_id": None}
-        evidence_groups: dict[str, tuple] = {}
-        for kind in {item.document.kind for item in ranked}:
-            evidence_groups[kind] = tuple(item for item in ranked if item.document.kind == kind)
-        applicability = tuple(_assess_applicability(item.document, snapshot, patient_hits) for item in ranked if item.document.kind == "guideline")
         rerank_trace: dict[str, object] = {"requested": bool(request.rerank), "status": "not_requested"}
         if request.rerank and ranked:
             if self.reranker is None:
@@ -200,10 +266,20 @@ class EvidenceRetrievalPipeline:
                 except Exception as exc:
                     warnings.append(f"reranker 未完成：{type(exc).__name__}。")
                     rerank_trace = {"requested": True, "status": "error", "reranker_id": getattr(self.reranker, "reranker_id", None), "error_type": type(exc).__name__}
+        # 先在每条 ranked 上写 citation_id（稳定外键），再构造 citations：
+        # 调用方按 citation_id 关联引用；下标同序只是巧合，不作为接口。
+        ranked = [replace(item, citation_id=f"{retrieval_id}:cit-{index + 1}") for index, item in enumerate(ranked)]
         citations = tuple(_citation(retrieval_id, index + 1, item, plan.variants, retrieved_at, self.evidence_budget) for index, item in enumerate(ranked))
+        _assert_citation_linkage(ranked, citations)
+        # 所有视图（evidence_groups / applicability）都在最终 ranked 上生成，
+        # 与 citations 同源；此前 evidence_groups 在 rerank 之前计算，重排后会与 citations 不一致。
+        evidence_groups: dict[str, tuple] = {}
+        for kind in {item.document.kind for item in ranked}:
+            evidence_groups[kind] = tuple(item for item in ranked if item.document.kind == kind)
+        applicability = tuple(_assess_applicability(item.document, snapshot, patient_hits) for item in ranked if item.document.kind == "guideline")
         return EvidencePackage(
             retrieval_id=retrieval_id, request_id=request.request_id, query_plan=plan,
-            ranked_documents=tuple(ranked), citations=citations, warnings=tuple(warnings),
+            ranked_documents=tuple(ranked), citations=citations, warnings=tuple(dict.fromkeys(warnings)),
             patient_hits=tuple(_patient_hit_model(hit) for hit in patient_hits),
             evidence_groups=evidence_groups,
             applicability=applicability,
@@ -214,9 +290,13 @@ class EvidenceRetrievalPipeline:
                 "source_mode": request.source_mode,
                 "retrieved_at": retrieved_at,
                 "connector_trace": connector_trace,
-                "candidate_count": len(documents), "selected_count": len(ranked),
+                "candidate_count": len(documents),
+                "deduplicated_count": len(deduped),
+                "selected_count": len(ranked),
                 "retrieval_method": "+".join(effective_methods) if effective_methods else None,
                 "method_trace": method_trace,
+                "query_review": query_review,
+                "joint_selection": joint_trace,
                 "semantic_trace": semantic_trace, "reranker": getattr(self.reranker, "reranker_id", None) if self.reranker else None,
                 "rerank_trace": rerank_trace,
                 "generation_performed": False, "clinical_decision_performed": False,
@@ -232,6 +312,28 @@ class EvidenceRetrievalPipeline:
                 "source_separation": {"status": "grouped", "groups": sorted(evidence_groups)},
             },
         )
+
+
+def _assert_citation_linkage(ranked, citations) -> None:
+    """ranked_documents 与 citations 必须逐条一一对应（稳定外键契约）。
+
+    两者都由管线在同一位置生成；此处用断言把"错配"变成显式错误而不是静默返回，
+    防止后续维护在任一列表上插入/过滤元素后破坏关联。
+    """
+    if len(ranked) != len(citations):
+        raise ValueError(
+            f"citation linkage broken: {len(ranked)} ranked documents vs {len(citations)} citations"
+        )
+    for index, (item, citation) in enumerate(zip(ranked, citations)):
+        if item.citation_id != citation.citation_id:
+            raise ValueError(
+                f"citation linkage broken at index {index}: ranked.citation_id={item.citation_id!r} "
+                f"vs citation.citation_id={citation.citation_id!r}"
+            )
+
+
+def _kind_label(kind: str) -> str:
+    return {"guideline": "指南", "pubmed": "PubMed", "drug": "药品", "clinical_trial": "临床试验", "local_knowledge": "本地知识"}.get(kind, kind)
 
 
 def _with_pseudo_documents(plan, pseudo_docs: tuple[str, ...]):

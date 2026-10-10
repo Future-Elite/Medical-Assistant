@@ -9,6 +9,29 @@ from pathlib import Path
 
 from rag import __version__
 from rag.server import RAGRequestHandler, ThreadingHTTPServer
+from rag.tests.helpers import SYNTHETIC_HIS_SNAPSHOTS
+
+
+def _document_dict(document):
+    """SourceDocument -> custom-source payload record（保留全部审计字段）。"""
+    payload = {
+        "document_id": document.document_id, "kind": document.kind,
+        "title": document.title, "text": document.text,
+    }
+    for field_name in ("url", "published_at", "updated_at", "locator", "pmid", "doi",
+                       "authority", "version_id", "recommendation_id", "population",
+                       "status", "superseded_by", "index_snapshot"):
+        value = getattr(document, field_name, None)
+        if value is not None:
+            payload[field_name] = value
+    if document.metadata:
+        payload["metadata"] = dict(document.metadata)
+    return payload
+
+
+def _snapshot_dict(snapshot):
+    from dataclasses import asdict
+    return asdict(snapshot)
 
 
 class GuiContractTests(unittest.TestCase):
@@ -27,30 +50,71 @@ class GuiContractTests(unittest.TestCase):
             "id=\"planQEnglish\"", "question_english_terms", "支气管哮喘", "cnquestion",
             "id=\"retrievalMethod\"", "id=\"rerankToggle\"", "methodHint", "retrieval_methods", "fusion_method",
             "id=\"auditPanel\"", "id=\"auditAnswer\"", "真实错误详情", "error_id", "exception_type",
+            # 联合选择轨迹、检索式自检与 HIS 患者面板
+            "joint_selection", "jointBox", "selected_per_source", "guaranteed_minimums", "merit_filled_per_source",
+            "query_review", "queryReviewBox", "检索式自检", "来源可见性",
+            "renderPatientPanel", "his-card", "his-head", "患者快照（只读 HIS）", "已抑制未来记录",
+            "来源内 #", "来源内分数", "BGE-M3", "value=\"m3\"",
+            # 来源只有两种：live / custom（服务不内置语料）
+            "value=\"live\"", "value=\"custom\"", "/api/sources", "customSourcePanel",
+            "自定义来源库", "调用方传入数据库", "服务不内置任何本地语料",
+            # 审计输入入口：citation_id 必须暴露给用户（审计回答要用它）
+            "copyCitationId", "auditTemplate", "引用 ID", "插入引用模板",
         ):
             self.assertIn(text, page)
         self.assertNotIn("generateSummary", page)
         self.assertNotIn("llm_summary", page)
+        # 来源模式不得再出现模拟/离线选项与旧模式值
+        for legacy in ("value=\"simulated\"", "value=\"live_pubmed\"", "模拟来源"):
+            self.assertNotIn(legacy, page)
 
     def test_handler_exposes_expected_routes(self):
         self.assertTrue(hasattr(RAGRequestHandler, "do_GET"))
         self.assertTrue(hasattr(RAGRequestHandler, "do_POST"))
-        self.assertEqual(RAGRequestHandler.tool.pipeline.registry.describe()[0]["source_id"], "guideline-fixture")
+        # 服务不内置语料：默认 live；custom 需先注册来源库。
+        self.assertIn(RAGRequestHandler.source_mode, {"live", "custom"})
+        from rag.server import CUSTOM_LIBRARY, create_tool
+        self.assertFalse(CUSTOM_LIBRARY.describe())
 
 
 class HttpContractTests(unittest.TestCase):
+    """HTTP 契约：服务本身不内置语料；测试通过 /api/sources/custom 注册 fixtures。"""
+
     @classmethod
     def setUpClass(cls):
+        from rag.server import CUSTOM_LIBRARY
+        from rag.tests.helpers import SYNTHETIC_GUIDELINES, SYNTHETIC_PUBMED
+
         cls.server = ThreadingHTTPServer(("127.0.0.1", 0), RAGRequestHandler)
         cls.thread = threading.Thread(target=cls.server.serve_forever, daemon=True)
         cls.thread.start()
         cls.host, cls.port = cls.server.server_address
+        RAGRequestHandler.source_mode = "custom"
+        CUSTOM_LIBRARY.clear()
+        register = lambda payload: cls._post_json(cls, "/api/sources/custom", payload)  # noqa: E731
+        register({"source_id": "test-guideline-library", "kinds": ["guideline"],
+                  "version": "test-2026-10-09", "documents": [_document_dict(doc) for doc in SYNTHETIC_GUIDELINES]})
+        register({"source_id": "test-pubmed-library", "kinds": ["pubmed"],
+                  "version": "test-2026-10-09", "documents": [_document_dict(doc) for doc in SYNTHETIC_PUBMED]})
 
     @classmethod
     def tearDownClass(cls):
+        from rag.server import CUSTOM_LIBRARY
+        CUSTOM_LIBRARY.clear()
+        RAGRequestHandler.source_mode = "live"
+        RAGRequestHandler.tools.pop("custom", None)
         cls.server.shutdown()
         cls.server.server_close()
         cls.thread.join(timeout=2)
+
+    def _post_json(self, path, payload):
+        conn = HTTPConnection(self.host, self.port, timeout=5)
+        body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        conn.request("POST", path, body=body, headers={"Content-Type": "application/json", "Content-Length": str(len(body))})
+        response = conn.getresponse()
+        data = json.loads(response.read().decode("utf-8"))
+        conn.close()
+        return response.status, data
 
     def request(self, method, path, payload=None):
         conn = HTTPConnection(self.host, self.port, timeout=5)
@@ -70,22 +134,31 @@ class HttpContractTests(unittest.TestCase):
         status, health = self.request("GET", "/api/health")
         self.assertEqual(status, 200)
         self.assertEqual(health["rag_version"], __version__)
-        self.assertEqual(health["retrieval_mode"], "offline_synthetic_fixture")
+        self.assertEqual(health["retrieval_mode"], "custom")
+        self.assertIn("custom", health["available_modes"])
         status, tools = self.request("GET", "/api/tools")
         self.assertEqual(status, 200)
         self.assertEqual({item["name"] for item in tools["tools"]}, {"retrieve_evidence", "open_citation", "audit_grounded_answer"})
 
     def test_his_snapshot_endpoint(self):
-        status, response = self.request("POST", "/api/his/snapshot", {"patient_ref": "syn-patient-001", "as_of": "2025-12-31"})
+        # HIS 快照由调用方随请求传入（服务不持有内置患者数据）：过去事实保留、未来事实被抑制。
+        from rag.tests.helpers import SYNTHETIC_HIS_SNAPSHOTS
+        payload = {"patient_snapshot": _snapshot_dict(SYNTHETIC_HIS_SNAPSHOTS["syn-patient-001"])}
+        status, response = self.request("POST", "/api/his/snapshot", payload)
         self.assertEqual(status, 200)
         self.assertEqual(response["status"], "ok")
         self.assertEqual(response["data"]["patient_ref"], "syn-patient-001")
         self.assertGreaterEqual(response["data"]["suppressed_future"], 1)
+        # 缺少 patient_ref/as_of 的载荷必须显式报错，而不是静默返回空快照。
+        status_bad, bad = self.request("POST", "/api/his/snapshot", {"payload": "missing fields"})
+        self.assertEqual(status_bad, 400)
 
         status, package = self.request("POST", "/api/retrieve", {
             "request_id": "http-test", "question": "高血压指南推荐和最新证据？", "as_of": "2025-12-31",
             "source_kinds": ["pubmed", "guideline"], "patient_terms": ["高血压"],
             "english_terms": ["hypertension"], "mesh_terms": ["Hypertension"], "top_k": 4,
+            "source_mode": "custom",
+            "patient_snapshot": _snapshot_dict(SYNTHETIC_HIS_SNAPSHOTS["syn-patient-001"]),
         })
         self.assertEqual(status, 200)
         self.assertEqual(package["trace"]["rag_version"], __version__)
@@ -110,8 +183,8 @@ class HttpContractTests(unittest.TestCase):
         self.assertIn("error", body)
 
     def test_cross_retrieval_citation_is_rejected(self):
-        _, first = self.request("POST", "/api/retrieve", {"question": "hypertension", "top_k": 1})
-        _, second = self.request("POST", "/api/retrieve", {"question": "guideline", "top_k": 1})
+        _, first = self.request("POST", "/api/retrieve", {"question": "hypertension", "top_k": 1, "source_mode": "custom"})
+        _, second = self.request("POST", "/api/retrieve", {"question": "guideline", "top_k": 1, "source_mode": "custom"})
         status, body = self.request("POST", "/api/citation", {"retrieval_id": second["retrieval_id"], "citation_id": first["citations"][0]["citation_id"]})
         self.assertEqual(status, 400)
         self.assertIn("does not belong", body["error"])

@@ -6,7 +6,7 @@
 import unittest
 
 from rag.connectors import ConnectorRegistry, InMemoryConnector, VersionedGuidelineConnector
-from rag.fixtures import SYNTHETIC_GUIDELINES, SYNTHETIC_PUBMED
+from rag.tests.fixtures import SYNTHETIC_GUIDELINES, SYNTHETIC_PUBMED
 from rag.lexical import score_documents_ql, score_documents_rm3
 from rag.models import RetrievalRequest
 from rag.pipeline import EvidenceRetrievalPipeline
@@ -107,9 +107,11 @@ class MethodDispatchTests(unittest.TestCase):
         self.assertEqual(package.trace["retrieval_method"], "bm25+dense")
         states = {item["method"]: item["status"] for item in package.trace["method_trace"]}
         self.assertEqual(states, {"bm25": "ok", "dense": "ok"})
-        first = package.ranked_documents[0]
-        self.assertEqual(first.fusion_method, "bm25+dense_rrf")
-        self.assertTrue(any("RRF" in line for line in first.rank_explanation))
+        # 联合选择按来源交错：指南来源保底一条，随后是 PubMed 的 RRF 融合结果。
+        fused = [item for item in package.ranked_documents if item.document.kind == "pubmed"]
+        self.assertTrue(fused, "PubMed 候选应进入联合选择结果")
+        self.assertEqual(fused[0].fusion_method, "bm25+dense_rrf")
+        self.assertTrue(any("RRF" in line for line in fused[0].rank_explanation))
 
     def test_unknown_method_rejected_before_pipeline(self):
         with self.assertRaises(ValueError):

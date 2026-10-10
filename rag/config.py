@@ -16,10 +16,16 @@ class RAGConfig:
     minicheck_cache_dir: str = ""
     request_timeout_seconds: float = 60.0
     server_host: str = "127.0.0.1"
-    server_port: int = 8788
-    source_mode: str = "simulated"
+    server_port: int = 8796
+    # 来源模式仅两种：live（实时 PubMed + 官方指南元数据）与 custom（调用方注册的数据库）。
+    # 服务不内置任何本地语料，也没有 offline/simulated 模式。
+    source_mode: str = "live"
     allow_live_pubmed: bool = True
     allow_live_guidelines: bool = True
+    # 可选：启动时预载自定义来源库文件（{"sources": [...]} 或 JSON 数组；
+    # 单个来源的 schema 见 custom_sources.py 与 contracts/README.md）。
+    # 留空表示不预载，调用方在运行时用 POST /api/sources/custom 注册。
+    custom_sources_path: str = ""
 
 
 CONFIG = RAGConfig()

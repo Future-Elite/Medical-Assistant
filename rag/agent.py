@@ -60,6 +60,7 @@ class EvidenceRAG:
                 "name": "retrieve_evidence",
                 "description": (
                     "先由 Agent 从只读 HIS 获取患者快照，再检索患者事实、PubMed 与版本化指南；不生成诊疗结论。"
+                    "引用关联：ranked_documents[].citation_id 与 citations[].citation_id 是同一稳定外键（evidence_groups 中同值），用外键关联引用，不要按下标配对；审计回答用 [<citation_id>] 标注。"
                     "中英文规则：question 为中文原始问题，原样保留不翻译；问题中直接出现的英文词由系统自动提取进 question_english_terms 并参与英文检索（调用方不要手工填该字段）；"
                     "english_terms/mesh_terms 是人工审核的英文术语与 MeSH 词，优先参与英文检索与实时 PubMed 查询；user_terms 是人工审核的中文概念→英文映射，只对问题/患者术语中出现的键展开，不自动翻译；"
                     "中文片段以 CJK 二元组参与匹配，可直接命中中文来源。返回 EvidencePackage，其中 query_plan 可审计实际使用的全部术语。"
@@ -81,8 +82,8 @@ class EvidenceRAG:
                         "facets": {"type": "object", "additionalProperties": {"type": "array", "items": {"type": "string"}}, "description": "结构化临床问题槽位（population/outcome 等），取值作为检索概念参与匹配。"},
                         "filters": {"type": "object", "description": "结构化过滤项，如 {\"guideline_version\": \"2024\"} 限定指南版本。"},
                         "clinical_intent": {"type": "string", "description": "可选：guideline_recommendation / evidence_update / drug_safety / clinical_question；缺省时由问题文本推断。"},
-                        "source_mode": {"type": "string", "enum": ["simulated", "live_pubmed", "live"], "description": "来源模式；默认 simulated（离线合成数据）。实时失败不自动回退。"},
-                        "retrieval_method": {"type": "string", "description": "底层检索方法：bm25（默认）/ql（Dirichlet 查询似然）/rm3（伪相关反馈）/dense（MedCPT 双塔，英文域）/xlingual（multilingual-e5 双塔，中文问题直接编码、跨语言检索英文语料）/translate（zh→en 机器译文作为额外查询变体，原问题保留、数字不一致会告警）/splade/colbert/query2doc；多选用逗号或数组（如 \"bm25,xlingual\"）做多路 RRF 融合；零分路线不参与 RRF。神经方法需本地模型，不可用时该方法标 not_configured（trace/warnings），不静默降级。"},
+                        "source_mode": {"type": "string", "enum": ["live", "custom"], "description": "来源模式，仅两种：live=实时 PubMed + 官方指南元数据（默认）；custom=调用方注册的自有知识库（经 /api/sources/custom 传入，schema 见 contracts/README.md）。服务不内置本地语料；实时失败不自动回退。"},
+                        "retrieval_method": {"type": "string", "description": "底层检索方法：bm25（默认）/ql（Dirichlet 查询似然）/rm3（伪相关反馈）/dense（MedCPT 双塔，英文域）/xlingual（multilingual-e5 双塔，中文问题直接编码、跨语言检索英文语料）/m3（BGE-M3 多语言双塔，CLS 池化，跨语言）/translate（zh→en 机器译文作为额外查询变体，原问题保留、数字不一致会告警）/splade/colbert/query2doc；多选用逗号或数组（如 \"bm25,xlingual\"）做多路 RRF 融合；零分路线不参与 RRF。神经方法需本地模型，不可用时该方法标 not_configured（trace/warnings），不静默降级。"},
                         "rerank": {"type": "boolean", "description": "true 时在召回后用 MedCPT cross-encoder 重排；未配置时 rerank_trace.status=not_configured。"},
                     },
                 },

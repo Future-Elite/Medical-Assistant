@@ -19,8 +19,11 @@ class KnowledgeConnector(Protocol):
 class ConnectorRegistry:
     _connectors: dict[str, KnowledgeConnector]
 
-    def __init__(self) -> None:
+    def __init__(self, warnings: Sequence[str] = ()) -> None:
         self._connectors = {}
+        # 构建期警告（例如自定义来源缺少版本快照标签）：随每次检索的 warnings 返回，
+        # 而不是只写到进程日志——审计要求"警告属于结果的一部分"。
+        self.warnings: tuple[str, ...] = tuple(str(item) for item in warnings if str(item).strip())
 
     def register(self, connector: KnowledgeConnector) -> None:
         source_id = str(connector.source_id).strip()

@@ -30,16 +30,28 @@ RAG 不应该拥有一个可以自行读取真实 HIS 的隐式连接器。Agent
 
 ### 第一步：Agent 读取 HIS
 
-HTTP 工作台示例：
+HIS 快照由**调用方**提供（服务不持有内置患者数据）：Agent 从自己的只读 HIS 取出结构化快照，
+随请求传入。工作台的 `/api/his/snapshot` 端点只做契约演示——把它按 `as_of` 过滤后原样回显：
 
 ```http
 POST /api/his/snapshot
 Content-Type: application/json
 
-{"patient_ref":"syn-patient-001","as_of":"2025-12-31"}
+{
+  "patient_snapshot": {
+    "patient_ref": "syn-patient-001",
+    "as_of": "2025-12-31",
+    "source": "caller_his",
+    "reviewed_external_terms": ["hypertension"],
+    "facts": [
+      {"collection": "diagnoses", "event_type": "diagnosis", "record_path": "diagnoses[0]",
+       "field_path": "diagnoses[0].name", "time": "2024-02-01", "fields": {"name": "高血压"}}
+    ]
+  }
+}
 ```
 
-返回的是 `PatientSnapshot`。快照中的记录必须保留：
+缺少 `patient_ref`/`as_of` 会显式报 400。返回的是过滤后的 `PatientSnapshot`。快照中的记录必须保留：
 
 - `record_path`，例如 `medications[0]`；
 - `field_path`，例如 `medications[0].name`；
@@ -59,7 +71,7 @@ Content-Type: application/json
   "patient_snapshot": {
     "patient_ref": "syn-patient-001",
     "as_of": "2025-12-31",
-    "source": "synthetic_chart",
+    "source": "caller_his",
     "reviewed_external_terms": ["hypertension"],
     "facts": [
       {
@@ -89,7 +101,14 @@ Content-Type: application/json
 - `warnings`：连接器失败、时间过滤、版本替代和数据限制；
 - `trace.patient_context`：是否收到患者快照、可见事实数和未来事实抑制数；
 - `trace.external_terms`：发往外部检索的最小审核术语；
-- `trace.source_separation`：来源分组状态。
+- `trace.source_separation`：来源分组状态；
+- `trace.joint_selection`：分源联合选择轨迹（名额分配，见第 9 节）；
+- `trace.query_review`：检索式自检结果（见第 9.2 节）。
+
+**引用关联规则（稳定外键）**：`ranked_documents[].citation_id`、`evidence_groups[*][].citation_id`
+与 `citations[].citation_id` 是**同一个值**，用它关联引用；**不要**按数组下标在两份列表之间自行配对
+（下标同序只是实现巧合，不是接口）。管线内置一致性校验：外键错配会直接抛错，而不是静默返回。
+`citation_id` 还是审计回答的标注依据（`[<retrieval_id>:cit-N]`）与 `open_citation` 的入参。
 
 ## 3. 外部数据最小化规则
 
@@ -192,23 +211,103 @@ Content-Type: application/json
 - **中文→中文**：中文片段以 CJK 二元组（“新生儿黄疸” → 新生/生儿/儿黄/黄疸）参与词面匹配，可直接命中中文来源；纯数字 token（年份、序号）不参与匹配。
 - **英文字段→英文来源**：`english_terms` / `mesh_terms` / `user_terms` 展开 / 问题内英文词，按上述规则进入英文检索；四者都可追溯。
 - **不自动翻译**：中文概念绝不会被自动翻译成英文；英文查询词只能来自上面的显式来源。
-- **实时模式**：没有任何英文词时，实时 PubMed 优先退回概念中的 ASCII 词，其次才是中文片段；实时失败不自动回退 synthetic 数据。
+- **实时模式**：没有任何英文词时，实时 PubMed 优先退回概念中的 ASCII 词，其次才是中文片段；实时失败显式报错，不回退到任何其它数据（服务无内置语料）。
 
 
-## 8. 实时来源模式
+## 8. 来源模式：live 与 custom（仅这两种）
 
-请求可增加 `source_mode`：
+`source_mode` 只有两个合法值；**服务不内置任何本地语料，也没有 offline/simulated 模式**：
 
-- `simulated`：默认 synthetic fixture；
-- `live_pubmed`：真实 NCBI PubMed + 官方指南元数据/链接；
-- `live`：需要 PubMed 和指南 live adapter 都被本地配置启用（当前本地配置 `allow_live_pubmed`/`allow_live_guidelines` 默认均为 `True`；把对应开关改为 `False` 即可禁用该模式）。
+- `live`（默认）：实时 NCBI PubMed + 官方指南元数据/链接。需要 `config.allow_live_pubmed` 与 `allow_live_guidelines` 同时为 `True`（本机默认如此）；实时失败显式报错，**不自动回退**到任何其它数据。实时 PubMed 连接器只接收审核后的 `english_terms`/`mesh_terms` 与问题内英文词，绝不发送患者快照。WHO 指南首期是 `metadata_only`，未确认全文许可时只返回官方 URL、稳定 ID、许可声明和定位。
+- `custom`：调用方传入的自有知识库（例如医院指南库、自备文献快照）。库为空时检索**显式报错**，不返回空结果冒充"没有证据"。
 
-实时 PubMed 连接器只接收审核后的 `english_terms`/`mesh_terms` 和必要的非敏感问题内容。WHO 指南首期是 `metadata_only`，未确认全文许可时只返回官方 URL、稳定 ID、许可声明和定位，不把全文送入检索。实时失败不会自动 fallback 到 synthetic。
+### 8.1 custom 来源接口（定义）
 
+**HTTP 注册**（每次一个来源；同 `source_id` 覆盖，覆盖前一条数记入事件）：
 
-当前 HTTP 服务使用 `synthetic_chart`、`pubmed-fixture` 和 `guideline-fixture`，只证明接口和机制可运行。真实 HIS/PACS、实时 PubMed、正式授权指南库、中文人工标注和临床有效性验证尚未完成。
+```http
+POST /api/sources/custom
+Content-Type: application/json
 
-## 9. 查询相关度门与演示示例
+{
+  "source_id": "hospital-guideline-library",
+  "kinds": ["guideline", "pubmed"],
+  "description": "可选说明",
+  "version": "2025-12",
+  "documents": [
+    {
+      "document_id": "local-guide-htn-2025",
+      "kind": "guideline",
+      "title": "本地高血压用药指南",
+      "text": "对高血压成人患者，…",
+      "version_id": "2025",
+      "recommendation_id": "2.1",
+      "population": "高血压成人",
+      "locator": "第2章 推荐2.1",
+      "published_at": "2025-06-01",
+      "status": "current"
+    }
+  ]
+}
+```
+
+- `source_id` / `documents` 必填，`documents` 非空；`document_id` / `kind` / `title` / `text` 每篇必填。
+- 文档归属固定为来源的 `source_id`：显式写了不同值会报错（避免悄悄改写归属）；省略则继承。
+- `kinds` 省略时按 `documents[].kind` 推断；显式声明必须覆盖全部文档 kind。
+- 未知字段进入 `metadata` 保留，不丢弃（与内置文档同规则）。
+- `version` 是调用方库快照标签；**缺失时每次检索都会带出审计警告**（结果不标记 caller 库版本）。
+
+**其它端点**：
+- `POST /api/sources/custom/clear`：清空已注册来源（返回移除数量）；
+- `GET /api/sources`：当前两种模式的可用性、已注册来源清单与最近注册事件（审计用）。
+
+**Python 接口**：
+
+```python
+from rag import CustomSource, CustomSourceLibrary, custom_source_from_dict
+
+library = CustomSourceLibrary()
+library.register_payload({"source_id": "lib-1", "documents": [...]})  # 校验并注册
+registry, warnings = library.build_registry()                        # 转成检索用连接器
+```
+
+**启动预载**：在 `config.py` 设置 `custom_sources_path = "/abs/path/libs.json"`，文件为 `{"sources": [<上文的单来源 payload>, ...]}`（或 JSON 数组）。
+
+**存储边界**：自定义库只在内存中，进程重启即清空；服务不把它写入磁盘、不缓存全文。调用方负责其内容的许可与合规。
+
+## 9. 分源联合检索与检索式自检
+
+### 9.1 分源联合检索（三级流程）
+
+```text
+第 1 级 收集      各 connector 返回自己的候选；全局去重（DOI > PMID > 标题|kind）；
+                  跨来源共享键报 conflicts，不静默合并
+第 2 级 分源排序  每个 kind 在自己的池内独立执行：
+                  IDF/QL 统计 → 方法打分 → RRF 融合 → 相关度门 → MMR
+第 3 级 联合选择  ① 来源可见性保证：每个有相关候选的来源至少 1 个名额
+                  ② 意图配额：guideline_recommendation → 指南 ceil(top_k/2)；
+                     evidence_update / drug_safety → PubMed 同额
+                  ③ 来源内排名轮转补齐（不比较跨来源分数）
+                  ④ 按来源内排名交错输出
+```
+
+调用方应读 `trace.joint_selection` 审计名额分配：`strategy`、`participating_sources`、`intent_preference`、`guaranteed_minimums`、`selected_per_source`、`merit_filled_per_source`、`candidates_per_source`、`relevant_per_source`、`rationale`。
+
+**为什么补齐用排名轮转**：不同来源的原始检索分数不可比（各自词表的 IDF 尺度不同）。RRF 只融合排名，补齐同样只用来源内排名。`top_k` 不足以覆盖全部有候选来源时，会写入可见性警告，不静默丢弃。
+
+**跨来源分数不可比**：`RankedDocument.score` 是**来源内**分数，只在同一来源内可比。`evidence_groups` 是最终联合选择结果按 kind 的分组视图。
+
+### 9.2 检索式自检（PRESS 风格）
+
+每次检索输出 `trace.query_review`：`english_coverage`（英文来源却无英文词）、`expansion_sources`（实际生效的展开来源）、`numeric_preservation`（问题数值未进入英文/概念词）、`negation_and_conditions`（否定/缺失类表述）、`term_overlap`（英文词与 MeSH 重叠）。
+
+**自检只报告需人工复核的点，不修改检索计划**，不是检索质量评分或临床结论；`status=ok` 仅表示上述启发式检查未触发。
+
+### 9.3 语义召回的实体风险
+
+稠密方法（`dense`/`xlingual`/`m3`/`splade`/`colbert`）会对全部候选给正分，可能带回"语义相近但病种不同"的条目。系统**不做静默过滤**，而是把入选候选中"仅由语义方法召回（词面零分）"的条目逐条写入 warnings，提示核对实体一致性。调用方不应把语义分数解释为同实体证据。
+
+## 10. 查询相关度门与演示示例
 
 检索结果中的每条候选必须至少被一个检索信号命中（词面 BM25 分数 > 0 或语义分数 > 0），否则不会仅因"来源里有该条目"而获得 RRF/权威性/新鲜度分数。无关候选被排除时会写入 warnings（“已排除 N 条与查询无检索相关度……”）。
 

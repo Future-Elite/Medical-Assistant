@@ -2,7 +2,7 @@ import unittest
 
 from rag import DeterministicSemanticStub
 from rag.connectors import ConnectorRegistry, InMemoryConnector
-from rag.fixtures import SYNTHETIC_PUBMED
+from rag.tests.fixtures import SYNTHETIC_PUBMED
 from rag.models import RetrievalRequest
 from rag.pipeline import EvidenceRetrievalPipeline
 
