@@ -9,7 +9,7 @@ identifiers (trace ``rag_version``, ``/api/health``) read it instead of
 hard-coding any version string.
 """
 
-__version__ = "6.6.1"
+__version__ = "6.6.2"
 
 from .agent import EvidenceSessionStore, EvidenceRAG
 from .audit import GroundedAnswerAuditor, MiniCheckVerifier

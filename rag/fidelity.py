@@ -178,6 +178,44 @@ class FidelityLexicon:
 _CJK_RUN_RE = re.compile(r"[\u4e00-\u9fff]+")
 _NUM_RE = re.compile(r"(\d+(?:\.\d+)?)\s*(月龄|个月|周龄|小时|分钟|天|日|岁|年|mg/kg|mg|μg|g|kg|ml|mL|L|℃|°C|%|mmHg|IU|次/分)?")
 
+# Unit families: a number that carries a unit must keep the same *family* across
+# the conversion ("2月龄" -> "2 months" / "2-month-old" is preserved, "38.9℃" ->
+# "38.9 mg" is not). The vocabulary is deliberately small and conservative: an
+# absent or unknown unit on either side never triggers a finding, so the check
+# trades recall for precision -- its limits are measured against annotation.
+_UNIT_FAMILIES = {
+    "月龄": "month", "个月": "month", "月": "month", "month": "month", "months": "month",
+    "周龄": "week", "周": "week", "week": "week", "weeks": "week",
+    "岁": "year", "年": "year", "year": "year", "years": "year",
+    "天": "day", "日": "day", "day": "day", "days": "day",
+    "小时": "hour", "hour": "hour", "hours": "hour", "hr": "hour", "hrs": "hour",
+    "分钟": "minute", "minute": "minute", "minutes": "minute", "min": "minute", "mins": "minute",
+    "℃": "celsius", "°c": "celsius", "度": "celsius", "celsius": "celsius", "degrees celsius": "celsius",
+    "mg/kg": "dose_per_kg",
+    "mg": "milligram", "milligram": "milligram", "milligrams": "milligram",
+    "μg": "microgram", "ug": "microgram", "microgram": "microgram", "micrograms": "microgram",
+    "kg": "kilogram", "kilogram": "kilogram", "kilograms": "kilogram",
+    "g": "gram", "gram": "gram", "grams": "gram",
+    "ml": "millilitre", "millilitre": "millilitre", "milliliter": "millilitre",
+    "milliliters": "millilitre", "millilitres": "millilitre",
+    "l": "litre", "litre": "litre", "liter": "litre", "liters": "litre", "litres": "litre",
+    "%": "percent", "percent": "percent",
+    "mmhg": "mmhg",
+    "iu": "iu",
+    "次/分": "per_minute", "bpm": "per_minute", "/min": "per_minute",
+}
+# English surfaces: ``2-month-old``, ``38.9 °C``, ``6 months``, ``5 mg/kg`` …
+_EN_NUMERIC_RE = re.compile(
+    r"(?<![\w.])(?P<value>\d+(?:\.\d+)?)\s*-?\s*(?P<unit>"
+    r"mg/kg|"
+    r"months?|month|weeks?|week|years?|year|days?|day|hours?|hour|hrs?|minutes?|minute|mins?|min|"
+    r"milligrams?|mg|micrograms?|(?:u|µ|μ)g|kilograms?|kg|grams?|g|"
+    r"millilit(?:re|er)s?|ml|lit(?:re|er)s?|l|"
+    r"degrees?\s+celsius|celsius|°c|℃|percent|%|mmhg|iu|bpm"
+    r")(?![\w])",
+    re.I,
+)
+
 _DISEASE_SUFFIXES = (
     "综合征", "心律失常", "冠心病", "高血压", "糖尿病", "白血病", "骨质疏松",
     "红斑狼疮", "阿尔茨海默", "帕金森", "银屑病", "青光眼", "白内障", "中耳炎",
@@ -259,11 +297,21 @@ _TEMPORAL_MARKERS = (
     "既往", "曾经", "最近", "近期", "目前", "现在", "当前", "入院时",
     "出院后", "术后", "术前", "长期", "短期",
 )
-_EN_NEGATION_RE = re.compile(r"\b(not|no|without|denies|denied|negative|absent|none|unrecorded|never)\b", re.I)
-_EN_TEMPORAL_TERMS = (
-    "prior", "previous", "previously", "recent", "recently", "current",
-    "currently", "history", "initial", "at admission", "admission",
-    "postoperative", "preoperative", "ongoing", "now",
+# English-side equivalents of the Chinese markers above, matched on word
+# boundaries: substring matching used to accept "known" for "now" and
+# "priority" for "prior", i.e. it silently suppressed real temporal losses.
+_EN_NEGATION_RE = re.compile(
+    r"\b(?:not|no|non|without|denies|denied|deny|negative|absent|absence|none|never|"
+    r"unrecorded|undocumented|unremarkable|excludes?|excluded|"
+    r"ruled\s+out|free\s+of|no\s+evidence|no\s+document|not\s+documented|not\s+recorded)\b",
+    re.I,
+)
+_EN_TEMPORAL_RE = re.compile(
+    r"\b(?:prior|previous|previously|past|pre[- ]?existing|antecedent|former|formerly|earlier|before|"
+    r"baseline|recent|recently|current|currently|history|historical|initial|"
+    r"at\s+admission|admission|postoperative|preoperative|post[- ]?op|pre[- ]?op|"
+    r"ongoing|longstanding|long[- ]?standing|long[- ]?term|chronic|now)\b",
+    re.I,
 )
 
 
@@ -296,6 +344,26 @@ def _number_key(value: str) -> str:
 
 def _numbers_in(text: str) -> set[str]:
     return {_number_key(value) for value in re.findall(r"\d+(?:\.\d+)?", text)}
+
+
+def _unit_families(text: str) -> dict[str, set[str]]:
+    """value key -> unit families observed for the English-side text."""
+    found: dict[str, set[str]] = {}
+    for match in _EN_NUMERIC_RE.finditer(text):
+        family = _UNIT_FAMILIES.get(match.group("unit").lower())
+        if family:
+            found.setdefault(_number_key(match.group("value")), set()).add(family)
+    return found
+
+
+def _source_unit_families(surface: str) -> dict[str, set[str]]:
+    """value key -> unit families observed for a Chinese numeric slot surface."""
+    found: dict[str, set[str]] = {}
+    for match in _NUM_RE.finditer(surface):
+        family = _UNIT_FAMILIES.get((match.group(2) or "").strip())
+        if family:
+            found.setdefault(_number_key(match.group(1)), set()).add(family)
+    return found
 
 
 def extract_slots(
@@ -501,13 +569,27 @@ def _coverage_findings(slots: Sequence[FidelitySlot], products_text: str, route:
 
 def _numeric_findings(slots: Sequence[FidelitySlot], products_text: str, route: str, *, check_added: bool) -> list[FidelityFinding]:
     findings: list[FidelityFinding] = []
-    source_numbers = {key: slot.surface for slot in slots if slot.slot_type == "numeric" for key in _numbers_in(slot.surface)}
+    numeric_slots = [slot for slot in slots if slot.slot_type == "numeric"]
+    source_numbers = {key: slot.surface for slot in numeric_slots for key in _numbers_in(slot.surface)}
     product_numbers = _numbers_in(products_text)
+    product_units = _unit_families(products_text)
+    source_units: dict[str, set[str]] = {}
+    for slot in numeric_slots:
+        for key, families in _source_unit_families(slot.surface).items():
+            source_units.setdefault(key, set()).update(families)
     for key, surface in sorted(source_numbers.items()):
         if key not in product_numbers:
             findings.append(FidelityFinding(
                 route=route, verdict=VERDICT_NUMERIC_LOSS, level="L2",
                 evidence=f"问题数值 '{surface}' 未出现在转换产物中。", slot_type="numeric", surface=surface,
+            ))
+            continue
+        expected, observed = source_units.get(key), product_units.get(key)
+        if expected and observed and not (expected & observed):
+            findings.append(FidelityFinding(
+                route=route, verdict=VERDICT_NUMERIC_LOSS, level="L2",
+                evidence=(f"问题数值 '{surface}' 的单位族未保留：原文 {sorted(expected)}，产物 {sorted(observed)}。"),
+                slot_type="numeric", surface=surface,
             ))
     if check_added:
         for key in sorted(product_numbers - set(source_numbers)):
@@ -549,7 +631,6 @@ def audit_reviewed_mapping(slots: Sequence[FidelitySlot], products: Sequence[str
 
 def audit_translation(slots: Sequence[FidelitySlot], translations: Sequence[str], lexicon: FidelityLexicon | None) -> RouteAudit:
     text = " ".join(translations)
-    lowered = text.lower()
     findings, unverifiable = _coverage_findings(slots, text, "translate")
     for slot in slots:
         if slot.slot_type == "negation" and not _EN_NEGATION_RE.search(text):
@@ -558,7 +639,7 @@ def audit_translation(slots: Sequence[FidelitySlot], translations: Sequence[str]
                 evidence=f"问题含否定/缺失表述 '{slot.surface}'，译文中未检出任何英文否定表达。",
                 slot_id=slot.slot_id, slot_type="negation", surface=slot.surface,
             ))
-        elif slot.slot_type == "temporal" and not any(term in lowered for term in _EN_TEMPORAL_TERMS):
+        elif slot.slot_type == "temporal" and not _EN_TEMPORAL_RE.search(text):
             findings.append(FidelityFinding(
                 route="translate", verdict=VERDICT_TEMPORAL_LOSS, level="L2",
                 evidence=f"问题含时间表述 '{slot.surface}'，译文中未检出英文时间表达。",

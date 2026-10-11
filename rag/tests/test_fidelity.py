@@ -164,6 +164,68 @@ class TranslationAuditTests(unittest.TestCase):
         self.assertEqual(audit.status, "ok")
 
 
+class RuleCoverageTests(unittest.TestCase):
+    """Rule hardening recorded in the paper's method doc (revision R6).
+
+    The gaps below were named in ``深度分析与论文构建_2026-10-11.md`` §2.5:
+    unit-localised numbers, English negation equivalents and uneven temporal
+    coverage used to slip through the audit.
+    """
+
+    def test_unit_localisation_is_tolerated(self):
+        slots = extract_slots("2月龄婴儿发热如何处理", lexicon=_lexicon())
+        audit = audit_translation(slots, ("Fever in a 2-month-old infant: management.",), _lexicon())
+        self.assertNotIn("numeric_loss", {item.verdict for item in audit.findings})
+        audit = audit_translation(slots, ("Fever in an infant aged 2 months.",), _lexicon())
+        self.assertNotIn("numeric_loss", {item.verdict for item in audit.findings})
+
+    def test_unit_family_conflict_is_flagged(self):
+        slots = extract_slots("2月龄婴儿发热如何处理", lexicon=_lexicon())
+        audit = audit_translation(slots, ("Fever in an infant given 2 mg of paracetamol.",), _lexicon())
+        numeric = [item for item in audit.findings if item.verdict == "numeric_loss"]
+        self.assertTrue(numeric)
+        self.assertIn("单位族", numeric[0].evidence)
+
+    def test_temperature_unit_localisation_is_tolerated(self):
+        slots = extract_slots("体温38.9℃如何处理", lexicon=_lexicon())
+        for translation in ("Temperature 38.9°C in an infant.", "Temperature 38.9 degrees Celsius."):
+            audit = audit_translation(slots, (translation,), _lexicon())
+            self.assertNotIn("numeric_loss", {item.verdict for item in audit.findings}, translation)
+
+    def test_temperature_conflict_is_flagged(self):
+        slots = extract_slots("体温38.9℃如何处理", lexicon=_lexicon())
+        audit = audit_translation(slots, ("Temperature 38.9 mg in an infant.",), _lexicon())
+        self.assertIn("numeric_loss", {item.verdict for item in audit.findings})
+
+    def test_extended_negation_equivalents_are_recognised(self):
+        slots = extract_slots("未记录药物过敏史", lexicon=_lexicon())
+        for translation in ("No documentation of drug allergy.", "Drug allergy not documented.", "No evidence of drug allergy."):
+            audit = audit_translation(slots, (translation,), _lexicon())
+            self.assertNotIn("suspected_negation_loss", {item.verdict for item in audit.findings}, translation)
+        audit = audit_translation(slots, ("The patient has a documented drug allergy.",), _lexicon())
+        self.assertIn("suspected_negation_loss", {item.verdict for item in audit.findings})
+
+    def test_temporal_terms_are_matched_on_word_boundaries(self):
+        slots = extract_slots("既往高血压病史如何处理", lexicon=_lexicon())
+        # "known" contains "now": substring matching used to mask the loss
+        audit = audit_translation(slots, ("The patient is known to have hypertension.",), _lexicon())
+        self.assertIn("suspected_temporal_loss", {item.verdict for item in audit.findings})
+        audit = audit_translation(slots, ("Past history of hypertension: management.",), _lexicon())
+        self.assertNotIn("suspected_temporal_loss", {item.verdict for item in audit.findings})
+
+    def test_negation_markers_stay_aligned_with_query_review(self):
+        """审计器的否定标记必须覆盖 query.py 检索式自检所用的全部标记。"""
+        from rag import query
+        from rag import fidelity
+
+        chinese = [marker for marker in query._NEGATION_MARKERS if not marker.isascii()]
+        for marker in chinese:
+            self.assertIn(marker, fidelity._NEGATION_MARKERS, marker)
+        english = [marker for marker in query._NEGATION_MARKERS if marker.isascii()]
+        for marker in english:
+            self.assertTrue(fidelity._EN_NEGATION_RE.search(marker), marker)
+
+
 class AuditorRouteStatusTests(unittest.TestCase):
     def test_route_status_matrix(self):
         auditor = QueryFidelityAuditor(lexicon=_lexicon())

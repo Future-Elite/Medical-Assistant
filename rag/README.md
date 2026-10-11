@@ -16,7 +16,7 @@
 
 HTTP 服务和浏览器工作台只是这个核心调用层之上的附加封装，见第 13 节。不需要启动 `server.py` 就可以直接使用 RAG。
 
-当前版本在包 `__init__.py` 中以 `__version__` 声明（当前 `6.6.1`）；运行时 trace 的 `rag_version` 与 `/api/health` 均读取该值，代码中不硬编码版本字符串。
+当前版本在包 `__init__.py` 中以 `__version__` 声明（当前 `6.6.2`）；运行时 trace 的 `rag_version` 与 `/api/health` 均读取该值，代码中不硬编码版本字符串。
 
 模块不会读取原始病历、写回 HIS/PACS、生成诊断或治疗决定。`patient_terms` 只能传入人工审核的最小化术语，不得传入患者姓名、住院号、身份证号、自由文本病史或原始病历。RAG 不自行读取真实 HIS：`patient_snapshot` 由 Agent 读取并授权传入。
 
@@ -384,7 +384,7 @@ result = rag.retrieve_evidence({
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
-| `rag_version` | `str` | 包 `__version__`（当前 `6.6.1`）。 |
+| `rag_version` | `str` | 包 `__version__`（当前 `6.6.2`）。 |
 | `source_mode` | `str` | 本轮来源模式。 |
 | `retrieved_at` | `str` | UTC 时间戳。 |
 | `connector_trace` | `list[dict]` | 每个连接器的执行状态。成功含 `source_id`、`status`、`returned`、`kind`；失败含错误类型和阶段。 |
@@ -433,6 +433,7 @@ result = rag.retrieve_evidence({
 - **审核映射是质量上界分支**：`downweight`/`reject` 对它降级为警告（放弃调用方已审核的术语在 v0 中不可辩护），决策 `reason` 中写明。
 - **不会把不相关变成相关**：降权/拒绝只作用于 `translate` 的词面变体分量与 `xlingual`/`m3` 的语义分数，RRF 融合与相关度门规则不变。
 - **审计器是确定性词面基线**：后缀/标记规则 + 调用方可选词表；不是医学 NER、不是蕴含判断，判定名是**假设**，其质量需由人工标注实验测量。包内不内置词表（内容许可由调用方负责），未提供词表时实体串换检测标"不可检测"。
+- **规则强化（v6.6.2）**：数值检查比对**单位族**（"2月龄"→"2-month-old"/"2 months" 视为保留；"38.9℃"→"38.9 mg" 报 `numeric_loss`，单位缺失或未知则不报）；英文否定/时间词改为**词边界匹配**并补齐等价表达（`not documented`/`no evidence`/`absence of`…、`past`/`pre-existing`/`long-term`…），同时与检索式自检 `query.py` 的否定标记保持覆盖对齐（有测试守护）。
 - **与检索式自检分工**：第 5.7 节 `query_review` 只报告供人复核；门控是**会改变信号的机制**，两者独立、互不联动。
 
 ## 6. 打开引用：`EvidenceRAG.open_citation`
@@ -773,7 +774,7 @@ HTTP 状态码：
 
 ### 13.5 契约文档
 
-- `contracts/agent_contract.json`：机器可读的 Agent/HIS/RAG 契约（`contract_version` 与包 `__version__` 同步，当前 `6.6.1`），含 `language_rules` 与字段语义；
+- `contracts/agent_contract.json`：机器可读的 Agent/HIS/RAG 契约（`contract_version` 与包 `__version__` 同步，当前 `6.6.2`），含 `language_rules` 与字段语义；
 - `contracts/README.md`：调用顺序、接口字段定义、隐私与错误边界（含查询保真门控字段，见其第 9.4 节）；
 - `contracts/examples/`：请求/响应/错误示例（含 `agent_fidelity_gate_request.json`、`fidelity_lexicon_example.json`）；
 - 运行时的同一份语义可从 `GET /api/tools` 获取（`agent.py` 的 `tool_specifications()`）。
