@@ -713,7 +713,7 @@ cd rag
 python3 server.py
 ```
 
-默认地址 <http://127.0.0.1:8788/>（可用 `RAG_SERVER_PORT` 覆盖）。启动时若目标端口被旧的 RAG 服务实例占用，会在严格校验进程身份（`/proc/<pid>/cmdline` 匹配 `-m rag.server` 或 `.../rag/server.py`）后自动清退；**无关进程绝不触碰**，被其他程序占用时明确报错并给出持有者 PID。
+默认地址 <http://127.0.0.1:8797/>（可用 `RAG_SERVER_PORT` 覆盖）。启动时若目标端口被旧的 RAG 服务实例占用，会在严格校验进程身份（`/proc/<pid>/cmdline` 匹配 `-m rag.server` 或 `.../rag/server.py`）后自动清退；**无关进程绝不触碰**，被其他程序占用时明确报错并给出持有者 PID。
 
 | 方法 | 路径 | 作用 |
 |---|---|---|
