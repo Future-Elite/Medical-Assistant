@@ -1,7 +1,7 @@
 # 参与开发：分支、提交与版本规范
 
-> 本仓库是"医生助手"原型的多组件仓库（`rag/` + `his/` + `integration/`）。本文件规定分支模型、提交信息、版本号与发布流程，所有协作者提交前请遵循。
-> 跨系统集成的接口约定见 [`integration/README.md`](integration/README.md)；RAG 包本身的调用方式见 [`rag/README.md`](rag/README.md)。
+> 本仓库是"医生助手"原型的多组件仓库（`rag/` + `his/` + `agent/`，跨组件契约与测试在顶层 `contracts/`、`tests/`）。本文件规定分支模型、提交信息、版本号与发布流程，所有协作者提交前请遵循。
+> 跨组件契约见 [`contracts/README.md`](contracts/README.md)、跨组件测试见 [`tests/README.md`](tests/README.md)；RAG 包本身的调用方式见 [`rag/README.md`](rag/README.md)。
 
 ## 1. 组件与分支
 
@@ -9,16 +9,18 @@
 |---|---|---|---|
 | `rag/` | RAG 证据检索（Python 包 `rag`） | 分支 `rag` | 正式发布线；版本在 `rag/__init__.py` 的 `__version__` |
 | `his/` | HIS 演示系统（Spring Boot + Vue，合成数据） | 分支 `his` | 由 HIS 维护者负责；本仓库用 subtree 挂载，只做同步 |
-| `integration/` | 跨系统集成层（契约、样例、端到端测试） | `main` | 只描述接口，不放任何一方的内部实现 |
-| `agent/` | Medical Agent | 分支 `agent` | 由 Agent 维护者负责，不在本项目维护范围内 |
+| `agent/` | Medical Agent | 分支 `agent` | 由 Agent 维护者负责（Agent 最终调用 `rag/` 与 `his/`） |
+| `contracts/` | 跨组件契约（有版本号） | `main` | 只描述组件之间的接口；组件**内部**契约留在组件目录（如 `rag/contracts/`） |
+| `tests/` | 跨组件测试 | `main` | 离线优先（stub/录制数据，不依赖 MySQL 与网络）；模块内单测留在模块自己的 `tests/` |
 
 分支规则：
 
-- **`main`：集成/发布线。** 永远代表"各组件能一起跑通"的组合，只接受合并与集成层改动；**不直接在 `main` 上修改 `rag/`**。
+- **`main`：集成/发布线。** 永远代表"各组件能一起跑通"的组合，只接受合并与顶层集成区（`contracts/`、`tests/`、根 `README.md`）的改动；**不直接在 `main` 上修改 `rag/`**。
 - **`rag`：RAG 组件线。** `rag/` 内的所有改动先落这条线，再合并进 `main`。
 - **`his`：HIS 组件线（他人维护）。** **不要直接修改 `his/` 下的文件**——它们会随 subtree 同步被覆盖或产生冲突；需要 HIS 侧改动时先与 HIS 维护者沟通，走 `his` 分支。
+- **`agent`：Agent 组件线（他人维护）。** 同理：不直接改 `agent/` 下的文件，改动走 `agent` 分支；`main` 只做整合。
 - **集成工作用短分支。** 从 `main` 开 `feat/…`、`fix/…`，完成并测试后合并回 `main`。
-- `agent` 线不在本项目范围内：不合并、不评论、不改动。
+- **`contracts/` 与 `tests/` 用"新增文件"扩展。** 不要重写别人已有的文件（如各线自带的 README）——这样各条线合并到 `main` 时不会产生冲突；需要改动别人文件时先在两个维护者之间对齐。
 
 ## 2. 提交信息（Conventional Commits）
 
@@ -37,8 +39,8 @@
 
 ```text
 feat(rag): 升级到 v6.6.0 —— HIS 只读快照适配器 his_http.py
-feat(integration): HIS×RAG 快照契约 0.1.0 与合成样例
-test(integration): 快照映射端到端（离线 stub，不依赖 MySQL）
+docs(contracts): HIS×RAG 只读快照契约 0.1.0（接口、映射规则、变更纪律）
+test(contracts): 快照映射跨组件测试（离线 stub，不依赖 MySQL）
 chore(his): 同步 his 线至 <short-sha>
 docs: 更新项目结构与组件版本表
 ```
@@ -55,7 +57,7 @@ docs: 更新项目结构与组件版本表
 |---|---|---|---|
 | RAG 包 | `rag/__init__.py` 的 `__version__` | RAG 线 | 语义化版本；包契约字段变化时同步更新 `rag/contracts/agent_contract.json` 的 `contract_version` |
 | HIS | `his/backend/pom.xml` 的 `<version>` | HIS 维护者 | 同步时原样保留，本仓库不改 |
-| HIS × RAG 接口契约 | `integration/his_rag_contract.md` 的 `contract_version` | 集成层 | 字段增删或语义变化必须 +1，并在提交信息里写明 |
+| HIS × RAG 接口契约 | `contracts/his_rag.md` 的 `contract_version` | 集成区（`main`） | 字段增删或语义变化必须 +1，并在提交信息里写明 |
 | **组合版本** | **git tag `medassist-<x.y.z>`** | `main` | 打在"各组件能一起跑通"的 main 提交上 |
 
 组合 tag 的说明里写清三件套，便于复现：

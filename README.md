@@ -278,7 +278,8 @@ Medical-Assistant/
 ├── his/                     # HIS 演示系统（Spring Boot + Vue，合成数据；subtree 挂载）
 │   ├── backend/             # Maven 多模块：his-common / his-generator / his-server（:8080）
 │   └── frontend/            # Vue 3 + Vite 工作台
-└── integration/             # 跨系统集成层（HIS × RAG 契约、样例、端到端测试）
+├── contracts/               # 跨组件契约（有版本号；现含 HIS × RAG 只读快照契约）
+└── tests/                   # 跨组件测试（离线优先；模块内单测留在各模块的 tests/）
 ```
 
 `his/` 由 `git subtree` 从 `origin/his` 挂载，内容由 HIS 维护者负责，**本仓库不直接修改其文件**；同步方式见 [CONTRIBUTING.md](CONTRIBUTING.md)。
@@ -291,7 +292,7 @@ Medical-Assistant/
 |---|---|---|
 | RAG 包 | `rag/__init__.py` 的 `__version__` | `6.5.0` |
 | HIS | `his/backend/pom.xml` 的 `<version>` | `1.0.0`（随 subtree 同步） |
-| HIS × RAG 接口契约 | `integration/his_rag_contract.md` 的 `contract_version` | 待定（契约文档尚未编写） |
+| HIS × RAG 接口契约 | `contracts/his_rag.md` 的 `contract_version` | `0.1.0`（draft，映射细目待补） |
 | 组合版本（release） | git tag `medassist-<x.y.z>` | 暂无（首个联调跑通后打 `medassist-0.1.0`） |
 
 版本号规则、分支模型与提交信息规范见 [CONTRIBUTING.md](CONTRIBUTING.md)。
@@ -299,5 +300,6 @@ Medical-Assistant/
 ## 参与开发
 
 - 分支、提交信息、版本与发布流程：[CONTRIBUTING.md](CONTRIBUTING.md)
-- 跨系统集成的接口约定：[integration/README.md](integration/README.md)
+- 跨组件契约（有版本，放顶层 `contracts/`）：[contracts/README.md](contracts/README.md)、[contracts/his_rag.md](contracts/his_rag.md)
+- 跨组件测试（放顶层 `tests/`）：[tests/README.md](tests/README.md)
 - RAG 包的调用与接口细节：[rag/README.md](rag/README.md)
