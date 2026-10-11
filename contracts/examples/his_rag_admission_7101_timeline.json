@@ -1,0 +1,60 @@
+{
+  "_comment": "合成样例：HIS 只读接口 GET /api/admissions/7101/timeline 的响应（TimelineVO）。住院级事件只在住院时间线里出现（患者时间线不含 ORDER/VITAL_SIGN/住院检验）：ORDER（未停医嘱，stopTime 为 null）、VITAL_SIGN、LAB_TEST（admissionId 非空）。合成数据，非真实患者。",
+  "code": 0,
+  "message": "success",
+  "data": {
+    "patientId": 2001,
+    "events": [
+      {
+        "type": "ORDER",
+        "time": "2025-03-01T11:00:00",
+        "data": {
+          "id": 6101,
+          "patientId": 2001,
+          "admissionId": 7101,
+          "orderType": 1,
+          "itemName": "硝苯地平控释片",
+          "dosage": "30mg",
+          "frequency": "qd",
+          "startTime": "2025-03-01T11:00:00",
+          "stopTime": null,
+          "status": 1,
+          "doctor": "演示医生甲"
+        }
+      },
+      {
+        "type": "VITAL_SIGN",
+        "time": "2025-03-02T06:30:00",
+        "data": {
+          "id": 7102,
+          "patientId": 2001,
+          "admissionId": 7101,
+          "temperature": 36.6,
+          "pulse": 78,
+          "respiration": 18,
+          "systolicBp": 158,
+          "diastolicBp": 96,
+          "recordedAt": "2025-03-02T06:30:00",
+          "nurse": "演示护士乙"
+        }
+      },
+      {
+        "type": "LAB_TEST",
+        "time": "2025-03-03T07:10:00",
+        "data": {
+          "id": 5103,
+          "patientId": 2001,
+          "visitId": null,
+          "admissionId": 7101,
+          "itemCode": "K",
+          "itemName": "血钾",
+          "resultValue": "3.9",
+          "unit": "mmol/L",
+          "referenceRange": "3.5-5.5",
+          "isAbnormal": 0,
+          "testedAt": "2025-03-03T07:10:00"
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "_comment": "合成样例：HIS 只读接口 GET /api/patients/2001 的响应（Result 包裹）。数据为演示用合成数据，非真实患者；name/idCard/phone/address 等直接标识刻意保留在响应里，用于验证适配器会把它们剔除。契约见 contracts/his_rag.md。",
+  "code": 0,
+  "message": "success",
+  "data": {
+    "id": 2001,
+    "name": "演示患者A",
+    "gender": 1,
+    "birthDate": "1958-04-12",
+    "idCard": "110101195804120011",
+    "phone": "13800000000",
+    "address": "合成地址（非真实）",
+    "createdAt": "2024-01-05T09:00:00"
+  }
+}

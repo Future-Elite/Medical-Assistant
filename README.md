@@ -186,7 +186,7 @@ audit = rag.audit_grounded_answer({
 | 神经检索/重排（dense/xlingual/m3/translate/splade/colbert/query2doc + cross-encoder） | 可选，需自行安装 torch/transformers 并准备本地模型缓存 |
 | MiniCheck 主张校验 | 可选，依赖和模型可用时才执行 |
 | HIS 演示系统（Spring Boot + Vue，合成数据） | 已有，由 HIS 维护者负责，subtree 同步到 `his/` |
-| HIS × RAG 只读快照联调 | 未实现（集成层目录与规范已就位） |
+| HIS × RAG 只读快照打通 | 已有：`rag/his_http.py` 适配器 + 契约 0.1.0；离线测试通过，真实 HIS 联调需本地起 MySQL 与 his-server |
 | 真实 HIS/PACS 接入 | 未实现 |
 | 完整自主 Medical Agent | 未完成 |
 | 生产部署和临床验证 | 未实现 |
@@ -248,7 +248,7 @@ Medical-Assistant/
 ├── README.md
 ├── CONTRIBUTING.md          # 分支、提交、版本与发布规范
 ├── rag/                     # RAG 组件（Python 包 `rag`，正式发布线）
-│   ├── __init__.py          # 包声明与 __version__（当前 6.5.0）
+│   ├── __init__.py          # 包声明与 __version__（当前 6.6.0）
 │   ├── README.md            # RAG 直接调用和接口指南
 │   ├── agent.py             # EvidenceRAG：检索、引用、审计三个只读工具
 │   ├── audit.py             # 回答审计和 MiniCheck 适配器
@@ -264,6 +264,7 @@ Medical-Assistant/
 │   ├── gate.py              # 查询保真分级门控（off/audit/warn/downweight/reject）
 │   ├── guidelines.py        # 版本化指南元数据/许可快照连接器
 │   ├── his.py               # 只读 HIS 快照契约（HISAdapter / PatientSnapshot）
+│   ├── his_http.py          # HIS 只读 HTTP 适配器（HisHttpAdapter → PatientSnapshot）
 │   ├── models.py            # 请求、文档和证据包契约
 │   ├── patient_retrieval.py # 本地患者事实检索
 │   ├── pipeline.py          # 分源联合检索、联合选择与证据包生成
@@ -290,9 +291,9 @@ Medical-Assistant/
 
 | 层 | 位置 | 当前值 |
 |---|---|---|
-| RAG 包 | `rag/__init__.py` 的 `__version__` | `6.5.0` |
+| RAG 包 | `rag/__init__.py` 的 `__version__` | `6.6.0` |
 | HIS | `his/backend/pom.xml` 的 `<version>` | `1.0.0`（随 subtree 同步） |
-| HIS × RAG 接口契约 | `contracts/his_rag.md` 的 `contract_version` | `0.1.0`（draft，映射细目待补） |
+| HIS × RAG 接口契约 | `contracts/his_rag.md` 的 `contract_version` | `0.1.0`（已实现并测试） |
 | 组合版本（release） | git tag `medassist-<x.y.z>` | 暂无（首个联调跑通后打 `medassist-0.1.0`） |
 
 版本号规则、分支模型与提交信息规范见 [CONTRIBUTING.md](CONTRIBUTING.md)。

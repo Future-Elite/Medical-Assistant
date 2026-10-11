@@ -1,0 +1,168 @@
+{
+  "_comment": "合成样例：HIS 只读接口 GET /api/patients/2001/timeline 的响应（TimelineVO）。覆盖患者级事件：VISIT / DIAGNOSIS / PRESCRIPTION（含 items 嵌套）/ LAB_TEST（门诊，admissionId 为 null）/ ADMISSION / DISCHARGE（同一入院对象）/ CHARGE / DISPENSE，以及一条 2026 年的未来记录（用于验证 as_of 过滤）。合成数据，非真实患者。",
+  "code": 0,
+  "message": "success",
+  "data": {
+    "patientId": 2001,
+    "events": [
+      {
+        "type": "VISIT",
+        "time": "2025-03-01T08:30:00",
+        "data": {
+          "id": 3101,
+          "patientId": 2001,
+          "visitNo": "V20250301",
+          "department": "心内科",
+          "doctor": "演示医生甲",
+          "visitTime": "2025-03-01T08:30:00",
+          "status": 1,
+          "remark": "血压控制不佳"
+        }
+      },
+      {
+        "type": "DIAGNOSIS",
+        "time": "2025-03-01T09:10:00",
+        "data": {
+          "id": 4101,
+          "patientId": 2001,
+          "visitId": 3101,
+          "icdCode": "I10",
+          "diagnosisName": "原发性高血压",
+          "doctor": "演示医生甲",
+          "diagnosedAt": "2025-03-01T09:10:00"
+        }
+      },
+      {
+        "type": "ADMISSION",
+        "time": "2025-03-01T10:00:00",
+        "data": {
+          "id": 7101,
+          "patientId": 2001,
+          "admissionNo": "A20250301",
+          "department": "心内科",
+          "doctor": "演示医生甲",
+          "bedNo": "08-12",
+          "diagnosis": "原发性高血压",
+          "admissionRoute": "门诊",
+          "dischargeDisposition": "医嘱离院",
+          "admissionDiagnosis": "原发性高血压",
+          "dischargeDiagnosis": "原发性高血压 3级 高危",
+          "admissionTime": "2025-03-01T10:00:00",
+          "dischargeTime": "2025-03-08T09:30:00",
+          "deposit": 3000.00,
+          "totalCost": 4860.50,
+          "status": 2
+        }
+      },
+      {
+        "type": "PRESCRIPTION",
+        "time": "2025-03-01T11:05:00",
+        "data": {
+          "id": 9101,
+          "patientId": 2001,
+          "visitId": 3101,
+          "doctor": "演示医生甲",
+          "prescribedAt": "2025-03-01T11:05:00",
+          "totalAmount": 86.40,
+          "items": [
+            {
+              "id": 9201,
+              "prescriptionId": 9101,
+              "drugId": 301,
+              "drugName": "硝苯地平控释片",
+              "dosage": "30mg",
+              "frequency": "qd",
+              "days": 30,
+              "quantity": 1,
+              "unit": "盒"
+            }
+          ]
+        }
+      },
+      {
+        "type": "DISPENSE",
+        "time": "2025-03-01T11:30:00",
+        "data": {
+          "id": 8201,
+          "patientId": 2001,
+          "visitId": 3101,
+          "prescriptionId": 9101,
+          "drugName": "硝苯地平控释片",
+          "quantity": 1,
+          "dispensedAt": "2025-03-01T11:30:00",
+          "pharmacist": "演示药师丙"
+        }
+      },
+      {
+        "type": "LAB_TEST",
+        "time": "2025-03-02T07:15:00",
+        "data": {
+          "id": 5101,
+          "patientId": 2001,
+          "visitId": 3101,
+          "admissionId": null,
+          "itemCode": "K",
+          "itemName": "血钾",
+          "resultValue": "3.4",
+          "unit": "mmol/L",
+          "referenceRange": "3.5-5.5",
+          "isAbnormal": 1,
+          "testedAt": "2025-03-02T07:15:00"
+        }
+      },
+      {
+        "type": "DISCHARGE",
+        "time": "2025-03-08T09:30:00",
+        "data": {
+          "id": 7101,
+          "patientId": 2001,
+          "admissionNo": "A20250301",
+          "department": "心内科",
+          "doctor": "演示医生甲",
+          "bedNo": "08-12",
+          "diagnosis": "原发性高血压",
+          "admissionRoute": "门诊",
+          "dischargeDisposition": "医嘱离院",
+          "admissionDiagnosis": "原发性高血压",
+          "dischargeDiagnosis": "原发性高血压 3级 高危",
+          "admissionTime": "2025-03-01T10:00:00",
+          "dischargeTime": "2025-03-08T09:30:00",
+          "deposit": 3000.00,
+          "totalCost": 4860.50,
+          "status": 2
+        }
+      },
+      {
+        "type": "CHARGE",
+        "time": "2025-03-08T10:00:00",
+        "data": {
+          "id": 8101,
+          "patientId": 2001,
+          "visitId": 3101,
+          "chargeNo": "C20250308001",
+          "itemType": 1,
+          "itemName": "床位费",
+          "amount": 280.00,
+          "chargedAt": "2025-03-08T10:00:00"
+        }
+      },
+      {
+        "type": "LAB_TEST",
+        "time": "2026-01-20T07:15:00",
+        "data": {
+          "id": 5102,
+          "patientId": 2001,
+          "visitId": null,
+          "admissionId": null,
+          "itemCode": "Cr",
+          "itemName": "肌酐",
+          "resultValue": "88",
+          "unit": "μmol/L",
+          "referenceRange": "57-97",
+          "isAbnormal": 0,
+          "testedAt": "2026-01-20T07:15:00"
+        }
+      }
+    ]
+  }
+}

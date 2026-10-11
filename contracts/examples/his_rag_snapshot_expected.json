@@ -1,0 +1,257 @@
+{
+  "_comment": "黄金样例：上面三份合成响应经 rag/his_http.py 映射、as_of=2025-12-31 过滤后的快照投影（跨组件测试 tests/test_his_rag_snapshot.py 逐字比对）。映射规则变更时必须同步更新本文件并提升 contracts/his_rag.md 的 contract_version。",
+  "patient_ref": "2001",
+  "as_of": "2025-12-31",
+  "source": "his_demo",
+  "suppressed_future": 1,
+  "facts": [
+    {
+      "collection": "patient",
+      "event_type": "PATIENT",
+      "record_path": "his:patient",
+      "field_path": "his:patient",
+      "time": "2024-01-05T09:00:00",
+      "start": null,
+      "end": null,
+      "fields": {
+        "gender": 1,
+        "birthDate": "1958-04-12"
+      }
+    },
+    {
+      "collection": "visit",
+      "event_type": "VISIT",
+      "record_path": "his:timeline:VISIT:1",
+      "field_path": "his:timeline:VISIT:1",
+      "time": "2025-03-01T08:30:00",
+      "start": null,
+      "end": null,
+      "fields": {
+        "id": 3101,
+        "visitNo": "V20250301",
+        "department": "心内科",
+        "doctor": "演示医生甲",
+        "visitTime": "2025-03-01T08:30:00",
+        "status": 1,
+        "remark": "血压控制不佳"
+      }
+    },
+    {
+      "collection": "diagnosis",
+      "event_type": "DIAGNOSIS",
+      "record_path": "his:timeline:DIAGNOSIS:1",
+      "field_path": "his:timeline:DIAGNOSIS:1",
+      "time": "2025-03-01T09:10:00",
+      "start": null,
+      "end": null,
+      "fields": {
+        "id": 4101,
+        "visitId": 3101,
+        "icdCode": "I10",
+        "diagnosisName": "原发性高血压",
+        "doctor": "演示医生甲",
+        "diagnosedAt": "2025-03-01T09:10:00"
+      }
+    },
+    {
+      "collection": "admission",
+      "event_type": "ADMISSION",
+      "record_path": "his:timeline:ADMISSION:1",
+      "field_path": "his:timeline:ADMISSION:1",
+      "time": "2025-03-01T10:00:00",
+      "start": "2025-03-01T10:00:00",
+      "end": "2025-03-08T09:30:00",
+      "fields": {
+        "id": 7101,
+        "admissionNo": "A20250301",
+        "department": "心内科",
+        "doctor": "演示医生甲",
+        "bedNo": "08-12",
+        "diagnosis": "原发性高血压",
+        "admissionRoute": "门诊",
+        "dischargeDisposition": "医嘱离院",
+        "admissionDiagnosis": "原发性高血压",
+        "dischargeDiagnosis": "原发性高血压 3级 高危",
+        "admissionTime": "2025-03-01T10:00:00",
+        "dischargeTime": "2025-03-08T09:30:00",
+        "deposit": 3000.0,
+        "totalCost": 4860.5,
+        "status": 2
+      }
+    },
+    {
+      "collection": "order",
+      "event_type": "ORDER",
+      "record_path": "his:timeline:ORDER:1",
+      "field_path": "his:timeline:ORDER:1",
+      "time": "2025-03-01T11:00:00",
+      "start": "2025-03-01T11:00:00",
+      "end": null,
+      "fields": {
+        "id": 6101,
+        "admissionId": 7101,
+        "orderType": 1,
+        "itemName": "硝苯地平控释片",
+        "dosage": "30mg",
+        "frequency": "qd",
+        "startTime": "2025-03-01T11:00:00",
+        "stopTime": null,
+        "status": 1,
+        "doctor": "演示医生甲"
+      }
+    },
+    {
+      "collection": "prescription",
+      "event_type": "PRESCRIPTION",
+      "record_path": "his:timeline:PRESCRIPTION:1",
+      "field_path": "his:timeline:PRESCRIPTION:1",
+      "time": "2025-03-01T11:05:00",
+      "start": null,
+      "end": null,
+      "fields": {
+        "id": 9101,
+        "visitId": 3101,
+        "doctor": "演示医生甲",
+        "prescribedAt": "2025-03-01T11:05:00",
+        "totalAmount": 86.4,
+        "items": [
+          {
+            "id": 9201,
+            "prescriptionId": 9101,
+            "drugId": 301,
+            "drugName": "硝苯地平控释片",
+            "dosage": "30mg",
+            "frequency": "qd",
+            "days": 30,
+            "quantity": 1,
+            "unit": "盒"
+          }
+        ]
+      }
+    },
+    {
+      "collection": "dispense",
+      "event_type": "DISPENSE",
+      "record_path": "his:timeline:DISPENSE:1",
+      "field_path": "his:timeline:DISPENSE:1",
+      "time": "2025-03-01T11:30:00",
+      "start": null,
+      "end": null,
+      "fields": {
+        "id": 8201,
+        "visitId": 3101,
+        "prescriptionId": 9101,
+        "drugName": "硝苯地平控释片",
+        "quantity": 1,
+        "dispensedAt": "2025-03-01T11:30:00",
+        "pharmacist": "演示药师丙"
+      }
+    },
+    {
+      "collection": "vital_sign",
+      "event_type": "VITAL_SIGN",
+      "record_path": "his:timeline:VITAL_SIGN:1",
+      "field_path": "his:timeline:VITAL_SIGN:1",
+      "time": "2025-03-02T06:30:00",
+      "start": null,
+      "end": null,
+      "fields": {
+        "id": 7102,
+        "admissionId": 7101,
+        "temperature": 36.6,
+        "pulse": 78,
+        "respiration": 18,
+        "systolicBp": 158,
+        "diastolicBp": 96,
+        "recordedAt": "2025-03-02T06:30:00",
+        "nurse": "演示护士乙"
+      }
+    },
+    {
+      "collection": "lab_test",
+      "event_type": "LAB_TEST",
+      "record_path": "his:timeline:LAB_TEST:1",
+      "field_path": "his:timeline:LAB_TEST:1",
+      "time": "2025-03-02T07:15:00",
+      "start": null,
+      "end": null,
+      "fields": {
+        "id": 5101,
+        "visitId": 3101,
+        "admissionId": null,
+        "itemCode": "K",
+        "itemName": "血钾",
+        "resultValue": "3.4",
+        "unit": "mmol/L",
+        "referenceRange": "3.5-5.5",
+        "isAbnormal": 1,
+        "testedAt": "2025-03-02T07:15:00"
+      }
+    },
+    {
+      "collection": "lab_test",
+      "event_type": "LAB_TEST",
+      "record_path": "his:timeline:LAB_TEST:2",
+      "field_path": "his:timeline:LAB_TEST:2",
+      "time": "2025-03-03T07:10:00",
+      "start": null,
+      "end": null,
+      "fields": {
+        "id": 5103,
+        "visitId": null,
+        "admissionId": 7101,
+        "itemCode": "K",
+        "itemName": "血钾",
+        "resultValue": "3.9",
+        "unit": "mmol/L",
+        "referenceRange": "3.5-5.5",
+        "isAbnormal": 0,
+        "testedAt": "2025-03-03T07:10:00"
+      }
+    },
+    {
+      "collection": "discharge",
+      "event_type": "DISCHARGE",
+      "record_path": "his:timeline:DISCHARGE:1",
+      "field_path": "his:timeline:DISCHARGE:1",
+      "time": "2025-03-08T09:30:00",
+      "start": null,
+      "end": null,
+      "fields": {
+        "id": 7101,
+        "admissionNo": "A20250301",
+        "department": "心内科",
+        "doctor": "演示医生甲",
+        "bedNo": "08-12",
+        "diagnosis": "原发性高血压",
+        "admissionRoute": "门诊",
+        "dischargeDisposition": "医嘱离院",
+        "admissionDiagnosis": "原发性高血压",
+        "dischargeDiagnosis": "原发性高血压 3级 高危",
+        "admissionTime": "2025-03-01T10:00:00",
+        "dischargeTime": "2025-03-08T09:30:00",
+        "deposit": 3000.0,
+        "totalCost": 4860.5,
+        "status": 2
+      }
+    },
+    {
+      "collection": "charge",
+      "event_type": "CHARGE",
+      "record_path": "his:timeline:CHARGE:1",
+      "field_path": "his:timeline:CHARGE:1",
+      "time": "2025-03-08T10:00:00",
+      "start": null,
+      "end": null,
+      "fields": {
+        "id": 8101,
+        "visitId": 3101,
+        "chargeNo": "C20250308001",
+        "itemType": 1,
+        "itemName": "床位费",
+        "amount": 280.0,
+        "chargedAt": "2025-03-08T10:00:00"
+      }
+    }
+  ]
+}
