@@ -186,7 +186,7 @@ audit = rag.audit_grounded_answer({
 | 神经检索/重排（dense/xlingual/m3/translate/splade/colbert/query2doc + cross-encoder） | 可选，需自行安装 torch/transformers 并准备本地模型缓存 |
 | MiniCheck 主张校验 | 可选，依赖和模型可用时才执行 |
 | HIS 演示系统（Spring Boot + Vue，合成数据） | 已有，由 HIS 维护者负责，subtree 同步到 `his/` |
-| HIS × RAG 只读快照打通 | 已有：`rag/his_http.py` 适配器 + 契约 0.1.0；离线测试通过，真实 HIS 联调需本地起 MySQL 与 his-server |
+| HIS → Agent → RAG 只读快照打通 | 已有：Agent 侧参考实现读 HIS 并传入 `patient_snapshot`（契约 0.2.0，RAG 不连 HIS）；离线测试通过，真实 HIS 联调需本地起 MySQL 与 his-server |
 | 真实 HIS/PACS 接入 | 未实现 |
 | 完整自主 Medical Agent | 未完成 |
 | 生产部署和临床验证 | 未实现 |
@@ -264,7 +264,6 @@ Medical-Assistant/
 │   ├── gate.py              # 查询保真分级门控（off/audit/warn/downweight/reject）
 │   ├── guidelines.py        # 版本化指南元数据/许可快照连接器
 │   ├── his.py               # 只读 HIS 快照契约（HISAdapter / PatientSnapshot）
-│   ├── his_http.py          # HIS 只读 HTTP 适配器（HisHttpAdapter → PatientSnapshot）
 │   ├── models.py            # 请求、文档和证据包契约
 │   ├── patient_retrieval.py # 本地患者事实检索
 │   ├── pipeline.py          # 分源联合检索、联合选择与证据包生成
@@ -279,7 +278,9 @@ Medical-Assistant/
 ├── his/                     # HIS 演示系统（Spring Boot + Vue，合成数据；subtree 挂载）
 │   ├── backend/             # Maven 多模块：his-common / his-generator / his-server（:8080）
 │   └── frontend/            # Vue 3 + Vite 工作台
-├── contracts/               # 跨组件契约（有版本号；现含 HIS × RAG 只读快照契约）
+├── contracts/               # 跨组件契约（有版本号；HIS × RAG 只读快照契约）
+│   ├── agent_his_adapter.py # Agent 侧参考实现：读 HIS → patient_snapshot 载荷（不属于 rag 包）
+│   └── examples/            # 合成响应与载荷黄金样例（跨组件测试用）
 └── tests/                   # 跨组件测试（离线优先；模块内单测留在各模块的 tests/）
 ```
 
@@ -291,9 +292,9 @@ Medical-Assistant/
 
 | 层 | 位置 | 当前值 |
 |---|---|---|
-| RAG 包 | `rag/__init__.py` 的 `__version__` | `6.6.0` |
+| RAG 包 | `rag/__init__.py` 的 `__version__` | `6.6.1` |
 | HIS | `his/backend/pom.xml` 的 `<version>` | `1.0.0`（随 subtree 同步） |
-| HIS × RAG 接口契约 | `contracts/his_rag.md` 的 `contract_version` | `0.1.0`（已实现并测试） |
+| HIS × RAG 接口契约 | `contracts/his_rag.md` 的 `contract_version` | `0.2.0`（HIS → Agent → RAG 分层，已实现并测试） |
 | 组合版本（release） | git tag `medassist-<x.y.z>` | 暂无（首个联调跑通后打 `medassist-0.1.0`） |
 
 版本号规则、分支模型与提交信息规范见 [CONTRIBUTING.md](CONTRIBUTING.md)。

@@ -38,9 +38,10 @@
 示例：
 
 ```text
-feat(rag): 升级到 v6.6.0 —— HIS 只读快照适配器 his_http.py
-docs(contracts): HIS×RAG 只读快照契约 0.1.0（接口、映射规则、变更纪律）
-test(contracts): 快照映射跨组件测试（离线 stub，不依赖 MySQL）
+feat(rag): 升级到 v6.7.0 —— <新检索能力>
+fix(rag): 移除越层的 HIS 客户端（RAG 不直连 HIS）
+docs(contracts): HIS→Agent→RAG 分层契约 0.2.0
+test(contracts): Agent 传入快照的跨组件测试（离线）
 chore(his): 同步 his 线至 <short-sha>
 docs: 更新项目结构与组件版本表
 ```
@@ -85,7 +86,8 @@ git subtree add --prefix=his origin/his -m "chore(his): 以 subtree 挂载 HIS �
 
 ## 5. 发布纪律（不可协商）
 
-- **只读**：集成只允许调用 HIS 的只读接口（`GET`）；任何写 HIS 的代码（落病历、医嘱、处方）不得进入本仓库。
+- **分层**：HIS → Agent → RAG。**RAG 包不连接 HIS**（不得出现 HIS 客户端、HIS 地址或 `/api/patients` 等端点）；HIS 由 Agent 读取后以 `patient_snapshot` 载荷传入（规则与参考实现见 `contracts/his_rag.md`）。
+- **只读**：与 HIS 的交互只允许只读接口（`GET`）；任何写 HIS 的代码（落病历、医嘱、处方）不得进入本仓库。
 - **数据**：示例、测试与演示一律使用合成数据并明确标注；不写入真实患者数据或受限文献内容。
 - **凭据**：不把凭据写进任何文件（含示例、测试、文档与提交信息）。`his/` 内的本地 demo 配置值（数据库口令等）不要复制到集成层、示例或测试里。
 - **构建产物**：不提交 `target/`、`node_modules/`、`dist/`、`__pycache__/` 等产物。
