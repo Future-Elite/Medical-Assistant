@@ -1,98 +1,75 @@
-# Medical Assistant
+# Medical Assistant（医生助手原型）
 
-Medical Assistant 是面向医疗工作流研究的“中国版医疗智能助手”原型，目标是探索如何将大语言模型（LLM）、医院信息系统（HIS）、医学影像系统（PACS）和外部医学知识源（PubMed、指南、药品资料等）连接起来，为医生提供可核对、可追溯、受安全约束的辅助信息。
+面向医疗工作流研究的**只读**原型：把医院信息系统（HIS）里的患者数据与外部医学证据（PubMed、指南等）在同一个可审计的工作流里连起来，为医生提供**可核对、可追溯、带引用**的辅助信息。
 
+> **状态**：研究原型，非生产系统。只用**合成数据**；不接生产 HIS/PACS、不写回病历/医嘱/处方；输出不是诊断、治疗建议或临床决策。
+> **组件**：[`rag/`](rag/) 证据检索（Python）· [`his/`](his/) HIS 演示系统（Spring Boot + Vue，合成数据）· `agent/` Medical Agent（独立维护）· [`contracts/`](contracts/) 跨组件契约
 
-## 项目背景
+---
 
-当前医疗智能助手的发展方向，不只是让模型回答医学问题，还包括：
+## 1. 这是什么
 
-- 读取经过授权的患者信息和病历上下文；
-- 结合检查结果、用药变化和疾病时间线理解当前问题；
-- 根据任务需要检索 PubMed、指南、药品说明书和临床试验等外部医学资料；
-- 给回答提供可打开、可定位的证据引用；
-- 对回答中的主张进行证据支持检查；
-- 在证据不足、来源冲突或超出系统能力时明确提示不确定性或拒答；
-- 对不同模型和不同工作流进行统一的安全性、引用质量和任务效果评测。
+医生助手类产品的工作方式并不只是"让模型回答问题"，而是：读取经授权的患者上下文 → 按需检索外部医学资料 → 返回可打开、可定位的引用 → 检查回答中的主张是否有证据支持 → 证据不足时明确不确定性或拒答。
 
-本项目借鉴这类医疗产品的总体工作方式，但不复刻任何商业产品，也不声称具备商业医疗产品的完整能力或等价效果。
+本项目借鉴这套工作方式做**可运行、可审计的原型**，用于研究与评测，不复刻任何商业产品，也不声称具备其完整能力或等价效果。
 
-## 总体架构
+明确不做：
+
+- 不训练自有基础大模型（LLM 是可替换部件）；
+- 不接生产 HIS/PACS、不读真实病历、不写回任何临床数据；
+- 不输出诊断、处方或治疗建议；所有输出都必须能回到来源核对。
+
+## 2. 架构与数据流
 
 ```text
-                         LLM
-                          |
-          +---------------+---------------+
-          |               |               |
-         HIS             PACS           PubMed
-          |               |               |
-          +---------------+---------------+
-                          |
-                    Medical Agent
-                          |
-          +---------------+---------------+
-          |               |               |
-         RAG             Tool            Safety
-          |               |               |
-          +---------------+---------------+
-                          |
-                 中国版医疗智能助手
+                         医生提问
+                            │
+                    ┌───────▼────────┐
+                    │  Agent（编排）  │  ← 独立维护线
+                    └───┬────────┬───┘
+        只读读取患者数据  │        │  调用检索工具
+                    ┌───▼───┐ ┌──▼────────────┐
+                    │  HIS  │ │      RAG      │  ← 本仓库 rag/
+                    │(合成) │ │ 证据检索+审计  │
+                    └───────┘ └──┬────────────┘
+                                 │ 只发送审核后的检索词
+                        ┌────────▼─────────┐
+                        │ PubMed / 指南等  │
+                        └──────────────────┘
 ```
 
-项目希望形成的完整工作流是：
+**分层是硬约束（`contracts/his_rag.md`）**：
+
+- **HIS → Agent → RAG**：HIS 由 Agent 只读读取，整理成结构化 **`patient_snapshot` 载荷**后传给 RAG；**RAG 不连接 HIS**（包内没有 HIS 客户端或端点，有结构性测试守护）；
+- 与 HIS 的交互只允许 `GET`；患者标识（姓名/身份证/电话/地址）在载荷生成时剔除，绝不进入证据包；
+- 送往外部知识源的只有**人工审核后的检索词**，不发送患者数据；
+- RAG 只接收快照，负责时间边界（`as_of`）、引用与回答审计。
+
+完整工作流：
 
 ```text
 医生提出问题
-    -> 读取相关患者事实和检查/用药时间线
-    -> 判断是否需要外部医学依据
-    -> 检索 PubMed、指南或其他授权来源
-    -> 返回带来源定位的证据包
-    -> 由 Agent/LLM 在证据范围内组织回答
-    -> 检查主张、引用和安全条件
-    -> 输出可核对的信息、不确定性或拒答原因
+  → Agent 读取相关患者事实与检查/用药时间线（只读）
+  → 判断是否需要外部医学依据
+  → RAG 检索 PubMed、指南或其他授权来源（分源联合检索）
+  → 返回带来源定位与引用的证据包
+  → 由 Agent/LLM 在证据范围内组织回答
+  → 检查主张、引用与安全条件
+  → 输出可核对的信息、不确定性或拒答原因
 ```
 
+## 3. 快速开始
 
-## 项目模块
+要求 **Python 3.10+**；核心 RAG 只用标准库（`rag/requirements.txt` 仅含可选校验依赖）。在仓库根目录执行：
 
-项目按照初步分析报告规划为以下模块：
+```bash
+# 测试（离线：不联网、不加载模型、只用合成数据）
+python3 -m unittest discover -s rag/tests -p 'test_*.py'   # 包内测试
+python3 -m unittest discover -s tests -t . -p 'test_*.py'  # 跨组件契约测试（HIS→Agent→RAG）
+python3 -m compileall -q rag contracts
+```
 
-### 模块一：基础模型选型与评测基线（LLM）
-
-目标：
-
-- 选择 3 到 4 个国内外可用的大语言模型或兼容 API；
-- 建立统一的模型调用接口；
-- 使用覆盖医学知识、推理、引用和安全的测试题集进行基线评测；
-- 记录模型能力、成本、延迟和安全表现，为后续系统选择基础模型。
-
-当前仓库不训练自有基础模型。LLM 在系统中是可替换部件，模型接口和调用结果不能直接解释为临床有效性。
-
-### 模块二：双源数据库建设（HIS、PACS、PubMed）
-
-目标是将患者侧数据与外部医学知识分开管理，并为 Agent 提供统一的只读查询接口：
-
-- **HIS**：构造带时间线的患者数据，包括诊断、用药、检验和就诊记录；
-- **PACS**：后续接入影像数据或影像结构化描述；
-- **PubMed 与其他外部来源**：检索医学文献、指南、药品资料和临床试验信息；
-- **统一查询接口**：让上层 Agent 通过受控工具获取数据，而不是直接绕过权限访问底层数据。
-
-当前仓库使用合成或录制数据进行原型测试，不接入真实 HIS/PACS。当前实时外部来源主要是 PubMed E-utilities；正式指南库、药品数据库和临床试验库尚未接入。
-
-### 模块三：RAG 检索增强与证据校验
-
-RAG 模块负责：
-
-- 根据问题和受控术语构建查询计划；
-- 从已注册的知识源检索候选资料；
-- 进行时间过滤、去重、相关度和来源排序；
-- 返回带文档 ID、来源、原文摘录和定位信息的证据包；
-- 为证据生成可追溯引用和关键原文句定位；
-- 检查回答主张是否引用了本轮检索得到的证据；
-- 支持患者事实 + PubMed + 版本化指南的联合检索与来源分离输出；
-- 在 MiniCheck 等可选校验器可用时进行句子级主张检查。
-
-当前 RAG 代码位于 [`rag/`](rag/)，详细调用说明见 [`rag/README.md`](rag/README.md)。
+直接调用 RAG（最短示例；完整 API 见 [`rag/README.md`](rag/README.md)）：
 
 ```python
 from rag.agent import EvidenceRAG
@@ -105,203 +82,128 @@ registry.register(InMemoryConnector(
     source_id="demo-source",
     kinds=("guideline",),
     documents=(SourceDocument.from_dict({
-        "document_id": "guide-1",
-        "kind": "guideline",
-        "title": "示例指南",
-        "text": "示例证据文本。",
-        "updated_at": "2024-01-01",
-        "locator": "第 1 章",
+        "document_id": "guide-1", "kind": "guideline", "title": "示例指南",
+        "text": "示例证据文本。", "updated_at": "2024-01-01", "locator": "第 1 章",
     }, source_id="demo-source"),),
 ))
-
 rag = EvidenceRAG(EvidenceRetrievalPipeline(registry))
-result = rag.retrieve_evidence({
-    "request_id": "demo-001",
-    "question": "示例指南的证据是什么？",
-    "source_kinds": ["guideline"],
-    "top_k": 5,
-})
 
+result = rag.retrieve_evidence({
+    "request_id": "demo-001", "question": "示例指南的证据是什么？",
+    "source_kinds": ["guideline"], "top_k": 5,
+})
 citation = rag.open_citation({
     "retrieval_id": result["retrieval_id"],
     "citation_id": result["citations"][0]["citation_id"],
 })
-
 audit = rag.audit_grounded_answer({
     "retrieval_id": result["retrieval_id"],
     "answer": f"示例证据支持该陈述[{citation['citation']['citation_id']}]。",
 })
 ```
 
-### 模块四：Medical Agent 工具调用
-
-目标是把医疗任务拆分为可审计的独立工具，例如：
-
-- 查询患者信息；
-- 查询检验结果和变化趋势；
-- 查询药物变更及相关记录；
-- 查询医学文献、指南或药品资料；
-- 打开证据原文和定位；
-- 对回答进行引用与安全审计。
-
-后续 Agent 应能够根据问题决定是否调用工具、调用哪些工具以及是否需要继续检索，并保留完整的思考和行动日志供复核。当前 `rag/agent.py` 已提供检索、打开引用和回答审计的工具接口，但“由 Agent 自主决定是否检索、检索几轮和何时停止”的完整闭环尚未完成。
-
-### 模块五：多模型终测与安全压力测试
-
-目标是将不同候选模型接入相同的 RAG、Tool 和 Safety 组件，进行统一对比：
-
-- 医学知识和工作流任务表现；
-- 引用完整性、引用支持性和来源归属；
-- 时间边界和患者事实使用；
-- 证据不足时的拒答和不确定性表达；
-- 错误剂量、禁忌用药、急症和高风险场景的安全表现；
-- 延迟、成本和工具调用稳定性。
-
-当前实验和测试主要验证接口、机制和原型行为。自动判定器、词面支持率和引用存在性不等于人工金标准或临床安全率。
-
-### 模块六：影像接入预研与真实医院数据验证
-
-后续规划包括：
-
-- 接入公开的医学影像数据集，提取或生成结构化影像描述；
-- 将影像文本作为 Agent 的新增只读工具；
-- 探索病历、医学文献和影像描述的联合分析；
-- 在获得明确授权、隐私保护和伦理条件后，评估真实医院数据上的系统流程。
-
-该模块目前属于预研和规划，不代表仓库已经支持真实 PACS、DICOM 或医院部署。
-
-## 当前已实现内容
-
-| 能力 | 当前状态 |
-|---|---|
-| 合成数据和录制数据上的原型测试 | 已有 |
-| Python RAG 直接调用 | 已有 |
-| 可插拔只读连接器 | 已有 |
-| 实时 PubMed 检索 | 已有 |
-| 引用和原文定位 | 已有 |
-| 关键证据句定位 | 已有，主要用于回溯，不是医学蕴含判断 |
-| 回答主张审计 | 已有 |
-| 联合检索（患者事实 + PubMed + 版本化指南） | 已有，来源分离输出 |
-| 可切换检索方法（bm25/ql/rm3 + 可选神经方法） | 已有，未配置时报 not_configured |
-| 神经检索/重排（dense/xlingual/m3/translate/splade/colbert/query2doc + cross-encoder） | 可选，需自行安装 torch/transformers 并准备本地模型缓存 |
-| MiniCheck 主张校验 | 可选，依赖和模型可用时才执行 |
-| HIS 演示系统（Spring Boot + Vue，合成数据） | 已有，由 HIS 维护者负责，subtree 同步到 `his/` |
-| HIS → Agent → RAG 只读快照打通 | 已有：Agent 侧参考实现读 HIS 并传入 `patient_snapshot`（契约 0.2.0，RAG 不连 HIS）；离线测试通过，真实 HIS 联调需本地起 MySQL 与 his-server |
-| 真实 HIS/PACS 接入 | 未实现 |
-| 完整自主 Medical Agent | 未完成 |
-| 生产部署和临床验证 | 未实现 |
-
-## 安装和运行
-
-要求 Python 3.10 或更高版本。核心 RAG 代码只使用 Python 标准库：
-
-在仓库根目录执行（下同）：
+可选：本地 HTTP 服务与浏览器工作台（默认 <http://127.0.0.1:8797/>，可用 `RAG_SERVER_PORT` 覆盖）：
 
 ```bash
-python3 --version
+python3 -m rag.server          # 或 cd rag && python3 server.py
 ```
-
-运行离线测试和编译检查：
-
-```bash
-python3 -m unittest discover -s rag/tests -p 'test_*.py'
-python3 -m compileall -q rag
-```
-
-当前测试使用合成或录制数据，不请求实时 PubMed、不请求 LLM，不下载 MiniCheck 或神经检索模型。
-
-如需启用 MiniCheck：
-
-```bash
-python3 -m pip install -r rag/requirements.txt
-```
-
-## 本地工作台与 HTTP 接口
-
-Python 直接调用是推荐入口。需要本地 HTTP 服务或浏览器工作台时，可以启动：
-
-```bash
-cd rag
-python3 server.py
-```
-
-默认地址为 <http://127.0.0.1:8797/>。
-
-当前 HTTP 服务提供：
 
 | 方法 | 路径 | 作用 |
 |---|---|---|
-| `GET` | `/`、`/index.html` | 浏览器工作台。 |
-| `GET` | `/api/health` | 服务、来源模式、检索方法就绪状态（脱敏，不触发检索）。 |
-| `GET` | `/api/tools` | Agent 工具规格。 |
-| `POST` | `/api/retrieve` | 联合检索证据（支持来源模式/检索方法/重排参数）。 |
-| `POST` | `/api/his/snapshot` | 读取 synthetic HIS 快照（演示用）。 |
-| `POST` | `/api/citation` | 打开本轮检索中的引用。 |
-| `POST` | `/api/audit` | 审计回答主张和引用。 |
+| `GET` | `/`、`/index.html` | 浏览器工作台（单文件 HTML，无前端框架） |
+| `GET` | `/api/health` | 服务与来源模式就绪状态（脱敏） |
+| `GET` | `/api/tools` | Agent 工具规格（`tool_specifications()`） |
+| `POST` | `/api/retrieve` | 联合检索证据（来源模式/检索方法/重排/查询保真门控参数） |
+| `POST` | `/api/his/snapshot` | 回显调用方传入的 `patient_snapshot` 并按 `as_of` 过滤（服务不持有患者数据） |
+| `POST` | `/api/citation` | 打开本轮检索中的引用 |
+| `POST` | `/api/audit` | 审计回答主张与引用 |
 
-HTTP 字段、响应结构、状态码和错误处理见 [`rag/README.md`](rag/README.md)。
-
-## 目录结构
+## 4. 目录结构
 
 ```text
 Medical-Assistant/
 ├── README.md
-├── CONTRIBUTING.md          # 分支、提交、版本与发布规范
+├── CONTRIBUTING.md          # 分支、提交、版本与发布规范（本仓库权威）
 ├── rag/                     # RAG 组件（Python 包 `rag`，正式发布线）
-│   ├── __init__.py          # 包声明与 __version__（当前 6.6.0）
-│   ├── README.md            # RAG 直接调用和接口指南
-│   ├── agent.py             # EvidenceRAG：检索、引用、审计三个只读工具
-│   ├── audit.py             # 回答审计和 MiniCheck 适配器
-│   ├── bm25.py              # 字段化 BM25（中文 CJK 二元组）
-│   ├── lexical.py           # QL / RM3 词面方法
-│   ├── neural_adapters.py   # 可选神经方法（MedCPT/e5/BGE-M3/splade/colbert/opus-mt/query2doc）
-│   ├── config.py            # 本地配置（来源模式/端口/自定义库预载/查询保真）
-│   ├── connectors.py        # 连接器契约与注册表
-│   ├── custom_sources.py    # 调用方传入数据库的接口（custom 模式）
-│   ├── contracts/           # Agent/HIS/RAG 契约（JSON + 说明 + 示例）
-│   ├── evidence.py          # 关键证据句定位
-│   ├── fidelity.py          # 查询保真审计（研究特性，默认关闭）
-│   ├── gate.py              # 查询保真分级门控（off/audit/warn/downweight/reject）
-│   ├── guidelines.py        # 版本化指南元数据/许可快照连接器
-│   ├── his.py               # 只读 HIS 快照契约（HISAdapter / PatientSnapshot）
-│   ├── models.py            # 请求、文档和证据包契约
-│   ├── patient_retrieval.py # 本地患者事实检索
+│   ├── README.md            # 直接调用与接口指南
+│   ├── agent.py             # EvidenceRAG：检索 / 打开引用 / 回答审计
 │   ├── pipeline.py          # 分源联合检索、联合选择与证据包生成
-│   ├── pubmed.py            # 实时 PubMed 连接器
-│   ├── query.py             # 查询计划、受控术语扩展与检索式自检
 │   ├── ranking.py           # 分源排序、RRF、相关度门、MMR、联合选择
-│   ├── server.py            # HTTP 服务（只读工作台 + 来源注册接口）
-│   ├── evidence_retrieval_workbench.html # 浏览器工作台
-│   ├── eval/                # 离线实验指标骨架（实验前模式，不执行检索）
-│   ├── requirements.txt     # 可选依赖（MiniCheck）
-│   └── tests/               # 离线测试（合成数据仅存在于此处）
-├── his/                     # HIS 演示系统（Spring Boot + Vue，合成数据；subtree 挂载）
-│   ├── backend/             # Maven 多模块：his-common / his-generator / his-server（:8080）
-│   └── frontend/            # Vue 3 + Vite 工作台
-├── contracts/               # 跨组件契约（有版本号；HIS × RAG 只读快照契约）
-│   ├── agent_his_adapter.py # Agent 侧参考实现：读 HIS → patient_snapshot 载荷（不属于 rag 包）
-│   └── examples/            # 合成响应与载荷黄金样例（跨组件测试用）
-└── tests/                   # 跨组件测试（离线优先；模块内单测留在各模块的 tests/）
+│   ├── query.py             # 查询计划、受控术语扩展、检索式自检
+│   ├── fidelity.py / gate.py # 查询保真审计与分级门控（研究特性，默认关闭）
+│   ├── his.py               # 只读 HIS 快照契约（PatientSnapshot 接收端）
+│   ├── connectors.py / pubmed.py / guidelines.py / custom_sources.py
+│   ├── server.py            # HTTP 服务与浏览器工作台（只读）
+│   ├── contracts/           # RAG 包自身契约（JSON + 说明 + 示例，随包发布）
+│   ├── eval/                # 离线实验指标骨架（实验前模式）
+│   └── tests/               # 包内离线测试（合成数据仅存在于 tests/）
+├── his/                     # HIS 演示系统（Spring Boot + Vue，合成数据；subtree 挂载，他人维护）
+├── contracts/               # 跨组件契约（有版本号；HIS→Agent→RAG 分层与载荷）
+└── tests/                   # 跨组件契约测试（离线；Python 3.10+，标准库即可）
 ```
 
-`his/` 由 `git subtree` 从 `origin/his` 挂载，内容由 HIS 维护者负责，**本仓库不直接修改其文件**；同步方式见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+## 5. 组件与接口版本
 
-## 组件与接口版本
-
-三层版本各自独立演进，"能一起跑通"的组合用 git tag 表示：
+三层版本各自独立演进；"能一起跑通"的组合用 git tag 表示（发布规范见 [CONTRIBUTING.md](CONTRIBUTING.md)）。
 
 | 层 | 位置 | 当前值 |
 |---|---|---|
-| RAG 包 | `rag/__init__.py` 的 `__version__` | `6.6.1` |
+| RAG 包 | `rag/__init__.py` 的 `__version__` | `6.6.2` |
 | HIS | `his/backend/pom.xml` 的 `<version>` | `1.0.0`（随 subtree 同步） |
-| HIS × RAG 接口契约 | `contracts/his_rag.md` 的 `contract_version` | `0.2.0`（HIS → Agent → RAG 分层，已实现并测试） |
-| 组合版本（release） | git tag `medassist-<x.y.z>` | 暂无（首个联调跑通后打 `medassist-0.1.0`） |
+| HIS × RAG 接口契约 | `contracts/his_rag.md` 的 `contract_version` | `0.2.0` |
+| 组合版本（release） | git tag `medassist-<x.y.z>` | 暂无（真实 HIS 联调通过后打 `medassist-0.1.0`） |
 
-版本号规则、分支模型与提交信息规范见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+## 6. 能力状态
 
-## 参与开发
+| 能力 | 状态 |
+|---|---|
+| Python RAG 直接调用（检索 / 引用 / 审计） | 已有 |
+| 可插拔只读连接器；实时 PubMed 检索 | 已有 |
+| 分源联合检索（患者事实 + PubMed + 版本化指南）与来源分离输出 | 已有 |
+| 引用打开、关键证据句定位、回答主张审计 | 已有（定位/审计是辅助口径，不是临床正确性） |
+| 可切换检索方法（bm25/ql/rm3 + 可选神经方法、RRF 融合） | 已有；神经方法未配置时显式 `not_configured` |
+| 查询保真审计与分级门控（研究特性，默认 `off`） | 已有（确定性词面基线；见 §8 边界） |
+| HIS 演示系统（Spring Boot + Vue，合成数据） | 已有，HIS 维护者负责，subtree 同步 |
+| HIS → Agent → RAG 只读快照打通 | 已有：Agent 侧参考实现 + 载荷契约 + 跨组件测试；真实 HIS 联调待本地执行 |
+| Medical Agent 自主编排闭环 | 未完成（独立维护线） |
+| PACS / 影像接入、真实医院数据验证 | 未实现（预研） |
+| 生产部署与临床验证 | 未实现 |
 
-- 分支、提交信息、版本与发布流程：[CONTRIBUTING.md](CONTRIBUTING.md)
-- 跨组件契约（有版本，放顶层 `contracts/`）：[contracts/README.md](contracts/README.md)、[contracts/his_rag.md](contracts/his_rag.md)
-- 跨组件测试（放顶层 `tests/`）：[tests/README.md](tests/README.md)
-- RAG 包的调用与接口细节：[rag/README.md](rag/README.md)
+## 7. 契约
+
+跨组件契约与包内契约分开维护：
+
+| 契约 | 位置 | 说明 |
+|---|---|---|
+| HIS × RAG 只读快照（分层、端点、映射、载荷） | [`contracts/his_rag.md`](contracts/his_rag.md)（`contract_version: 0.2.0`） | HIS → Agent → RAG；样例与载荷黄金样例在 [`contracts/examples/`](contracts/examples/) |
+| Agent 侧参考实现（读 HIS → 载荷） | [`contracts/agent_his_adapter.py`](contracts/agent_his_adapter.py) | 不属于 `rag` 包；演示只读读取、标识剔除与映射 |
+| RAG 包接口契约（工具规格、快照 schema、来源模式与示例） | [`rag/contracts/agent_contract.json`](rag/contracts/agent_contract.json) | `contract_version` 与包 `__version__` 同步，随包发布 |
+| 契约索引与纪律 | [`contracts/README.md`](contracts/README.md) | 变更必须版本 +1，样例同步更新 |
+
+## 8. 安全与使用边界
+
+- **只读**：所有工具与连接器只读；不写 HIS/PACS，不落病历、医嘱、处方。
+- **数据**：仓库内测试、示例、演示一律使用**合成数据**并标注；不写入真实患者数据；`patient_terms` 只能传入人工审核的最小化术语。
+- **最小信息**：送往外部连接器的只有完成检索所需的最小信息（审核英文词、MeSH、问题与 `as_of`）；患者标识、自由文本病史、凭据一律不发。
+- **判定口径**：关键词匹配、排序分数、关键证据句、引用存在性、查询保真判定与 MiniCheck/ALCE 风格指标都**不是**临床正确性、指南符合性或医生审核结论；未测量不写成零错误率。
+- **公开集结果**（PubMedQA/BioASQ 等）只支持对应数据与任务下的结论，不代表中国患者或 HIS 场景评测。
+- **查询保真层是研究特性**：默认 `off`；审计器是确定性词面基线（单位族/否定/时间启发式），判定名（`suspected_*`/`unverifiable`）是对人工标注量的假设，质量需由实验测量。
+- **发布纪律**：[CONTRIBUTING.md](CONTRIBUTING.md) 规定不得提交凭据、真实患者数据、构建产物；不 force-push `main`/`rag`。
+
+## 9. 规划中的模块（研究路线）
+
+1. **基础模型选型与评测基线（LLM）**——统一模型接口 + 基线评测（不训练自有模型）；
+2. **双源数据库建设（HIS / PACS / PubMed）**——患者侧与外部知识分开管理，经受控只读工具访问；
+3. **RAG 检索增强与证据校验**——当前主力，见 `rag/`；
+4. **Medical Agent 工具调用**——自主决定检索时机/轮数的完整闭环（独立维护线）；
+5. **多模型终测与安全压力测试**——同一 RAG/Tool/Safety 下横向对比；
+6. **影像接入与真实数据验证**——公开影像数据集预研；真实医院数据需另行授权与伦理条件。
+
+## 10. 参与开发
+
+- 分支、提交信息、版本与发布流程：[CONTRIBUTING.md](CONTRIBUTING.md)（本仓库权威规范）
+- 跨组件契约：[contracts/README.md](contracts/README.md)
+- RAG 包调用与接口：[rag/README.md](rag/README.md)
+- HIS 组件：[`his/`](his/)（由 HIS 维护者负责；本仓库不直接修改其文件）
+
+**许可**：本仓库尚未附许可协议（待定）。
