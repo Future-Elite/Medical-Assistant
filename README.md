@@ -185,6 +185,8 @@ audit = rag.audit_grounded_answer({
 | 可切换检索方法（bm25/ql/rm3 + 可选神经方法） | 已有，未配置时报 not_configured |
 | 神经检索/重排（dense/xlingual/m3/translate/splade/colbert/query2doc + cross-encoder） | 可选，需自行安装 torch/transformers 并准备本地模型缓存 |
 | MiniCheck 主张校验 | 可选，依赖和模型可用时才执行 |
+| HIS 演示系统（Spring Boot + Vue，合成数据） | 已有，由 HIS 维护者负责，subtree 同步到 `his/` |
+| HIS × RAG 只读快照联调 | 未实现（集成层目录与规范已就位） |
 | 真实 HIS/PACS 接入 | 未实现 |
 | 完整自主 Medical Agent | 未完成 |
 | 生产部署和临床验证 | 未实现 |
@@ -223,7 +225,7 @@ cd rag
 python3 server.py
 ```
 
-默认地址为 <http://127.0.0.1:8788/>。
+默认地址为 <http://127.0.0.1:8797/>。
 
 当前 HTTP 服务提供：
 
@@ -244,29 +246,58 @@ HTTP 字段、响应结构、状态码和错误处理见 [`rag/README.md`](rag/R
 ```text
 Medical-Assistant/
 ├── README.md
-└── rag/
-    ├── __init__.py        # 包声明与 __version__（当前 6.4.1）
-    ├── README.md          # RAG 直接调用和接口指南
-    ├── agent.py           # EvidenceRAG：检索、引用、审计三个只读工具
-    ├── audit.py           # 回答审计和 MiniCheck 适配器
-    ├── bm25.py            # 字段化 BM25（中文 CJK 二元组）
-    ├── lexical.py         # QL / RM3 词面方法
-    ├── neural_adapters.py # 可选神经方法（MedCPT/e5/BGE-M3/splade/colbert/opus-mt/query2doc）
-    ├── config.py          # 本地配置（来源模式/端口/自定义库预载）
-    ├── connectors.py      # 连接器契约与注册表
-    ├── custom_sources.py  # 调用方传入数据库的接口（custom 模式）
-    ├── contracts/         # Agent/HIS/RAG 契约（JSON + 说明 + 示例）
-    ├── evidence.py        # 关键证据句定位
-    ├── guidelines.py      # 版本化指南元数据/许可快照连接器
-    ├── his.py             # 只读 HIS 快照契约
-    ├── models.py          # 请求、文档和证据包契约
-    ├── patient_retrieval.py # 本地患者事实检索
-    ├── pipeline.py        # 分源联合检索、联合选择与证据包生成
-    ├── pubmed.py          # 实时 PubMed 连接器
-    ├── query.py           # 查询计划、受控术语扩展与检索式自检
-    ├── ranking.py         # 分源排序、RRF、相关度门、MMR、联合选择
-    ├── server.py          # HTTP 服务（只读工作台 + 来源注册接口）
-    ├── evidence_retrieval_workbench.html # 浏览器工作台
-    ├── requirements.txt   # 可选依赖（MiniCheck）
-    └── tests/             # 离线测试（合成数据仅存在于此处）
+├── CONTRIBUTING.md          # 分支、提交、版本与发布规范
+├── rag/                     # RAG 组件（Python 包 `rag`，正式发布线）
+│   ├── __init__.py          # 包声明与 __version__（当前 6.5.0）
+│   ├── README.md            # RAG 直接调用和接口指南
+│   ├── agent.py             # EvidenceRAG：检索、引用、审计三个只读工具
+│   ├── audit.py             # 回答审计和 MiniCheck 适配器
+│   ├── bm25.py              # 字段化 BM25（中文 CJK 二元组）
+│   ├── lexical.py           # QL / RM3 词面方法
+│   ├── neural_adapters.py   # 可选神经方法（MedCPT/e5/BGE-M3/splade/colbert/opus-mt/query2doc）
+│   ├── config.py            # 本地配置（来源模式/端口/自定义库预载/查询保真）
+│   ├── connectors.py        # 连接器契约与注册表
+│   ├── custom_sources.py    # 调用方传入数据库的接口（custom 模式）
+│   ├── contracts/           # Agent/HIS/RAG 契约（JSON + 说明 + 示例）
+│   ├── evidence.py          # 关键证据句定位
+│   ├── fidelity.py          # 查询保真审计（研究特性，默认关闭）
+│   ├── gate.py              # 查询保真分级门控（off/audit/warn/downweight/reject）
+│   ├── guidelines.py        # 版本化指南元数据/许可快照连接器
+│   ├── his.py               # 只读 HIS 快照契约（HISAdapter / PatientSnapshot）
+│   ├── models.py            # 请求、文档和证据包契约
+│   ├── patient_retrieval.py # 本地患者事实检索
+│   ├── pipeline.py          # 分源联合检索、联合选择与证据包生成
+│   ├── pubmed.py            # 实时 PubMed 连接器
+│   ├── query.py             # 查询计划、受控术语扩展与检索式自检
+│   ├── ranking.py           # 分源排序、RRF、相关度门、MMR、联合选择
+│   ├── server.py            # HTTP 服务（只读工作台 + 来源注册接口）
+│   ├── evidence_retrieval_workbench.html # 浏览器工作台
+│   ├── eval/                # 离线实验指标骨架（实验前模式，不执行检索）
+│   ├── requirements.txt     # 可选依赖（MiniCheck）
+│   └── tests/               # 离线测试（合成数据仅存在于此处）
+├── his/                     # HIS 演示系统（Spring Boot + Vue，合成数据；subtree 挂载）
+│   ├── backend/             # Maven 多模块：his-common / his-generator / his-server（:8080）
+│   └── frontend/            # Vue 3 + Vite 工作台
+└── integration/             # 跨系统集成层（HIS × RAG 契约、样例、端到端测试）
 ```
+
+`his/` 由 `git subtree` 从 `origin/his` 挂载，内容由 HIS 维护者负责，**本仓库不直接修改其文件**；同步方式见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+
+## 组件与接口版本
+
+三层版本各自独立演进，"能一起跑通"的组合用 git tag 表示：
+
+| 层 | 位置 | 当前值 |
+|---|---|---|
+| RAG 包 | `rag/__init__.py` 的 `__version__` | `6.5.0` |
+| HIS | `his/backend/pom.xml` 的 `<version>` | `1.0.0`（随 subtree 同步） |
+| HIS × RAG 接口契约 | `integration/his_rag_contract.md` 的 `contract_version` | 待定（契约文档尚未编写） |
+| 组合版本（release） | git tag `medassist-<x.y.z>` | 暂无（首个联调跑通后打 `medassist-0.1.0`） |
+
+版本号规则、分支模型与提交信息规范见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+
+## 参与开发
+
+- 分支、提交信息、版本与发布流程：[CONTRIBUTING.md](CONTRIBUTING.md)
+- 跨系统集成的接口约定：[integration/README.md](integration/README.md)
+- RAG 包的调用与接口细节：[rag/README.md](rag/README.md)
