@@ -55,8 +55,15 @@ class RetrievalRequest:
     retrieval_method: str | tuple[str, ...] | None = None
     # 可选：应用 cross-encoder 重排（在召回之后、引用生成之前）。
     rerank: bool = False
+    # 查询保真门控（研究层）：off 时不审计也不改变信号（与冻结基线一致）；
+    # audit=审计并记录、不改信号；warn=审计+显式警告；downweight=按错误级别对
+    # 受影响路线降权；reject=按错误级别将受影响路线退出检索融合。审计与处置
+    # 全过程写入 trace.query_fidelity；不静默改写查询计划。
+    # 依据与语义见论文方法章节。
+    fidelity_gate: str = "off"
 
     METHOD_TOKENS = ("bm25", "ql", "rm3", "dense", "xlingual", "m3", "splade", "colbert", "query2doc", "translate")
+    FIDELITY_GATE_POLICIES = ("off", "audit", "warn", "downweight", "reject")
 
     @staticmethod
     def parse_methods(value: Any) -> tuple[str, ...]:
@@ -124,6 +131,7 @@ class RetrievalRequest:
             source_mode=_source_mode(raw.get("source_mode")),
             retrieval_method=methods,
             rerank=_boolean(raw.get("rerank", False)),
+            fidelity_gate=_fidelity_gate(raw.get("fidelity_gate")),
         )
 
 
@@ -317,6 +325,13 @@ class EvidencePackage:
 
 
 SOURCE_MODES = ("live", "custom")
+
+
+def _fidelity_gate(value: Any) -> str:
+    policy = str(value or "off").strip().lower()
+    if policy not in RetrievalRequest.FIDELITY_GATE_POLICIES:
+        raise ValueError("fidelity_gate must be one of: " + ", ".join(RetrievalRequest.FIDELITY_GATE_POLICIES))
+    return policy
 
 
 def _source_mode(value: Any) -> str:

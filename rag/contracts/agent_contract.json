@@ -5,7 +5,7 @@
   "description": "Agent 与只读检索层的对接契约：Agent 先获取带 as_of 的 HIS 快照，再调用 RAG 完成患者事实 + PubMed + 版本化指南的联合检索。检索分三层执行：按来源收集 → 分源独立排序（各自词表内 IDF/RRF/相关度门，跨来源分数不比较）→ 联合选择（来源可见性保证 + 意图配额 + 来源内排名轮转补齐 + 按来源内排名交错）。中英文字段语义见 language_rules：中文原始问题原样保留，英文相关字段（english_terms/mesh_terms/user_terms/question_english_terms）分别定义。",
   "contract_metadata": {
     "contract_id": "chinallm.rag.agent",
-    "contract_version": "6.4.1",
+    "contract_version": "6.5.0",
     "status": "experimental"
   },
   "scope_and_safety": {
@@ -16,7 +16,8 @@
     "synthetic_fixture_is_clinical_evidence": false,
     "scores_are_evidence_quality": false,
     "required_human_review": true,
-    "server_has_builtin_corpus": false
+    "server_has_builtin_corpus": false,
+    "fidelity_gate": "门控只改变被判定路线的检索信号（降权/退出融合），不修改查询计划本身；每次处置写入 trace.query_fidelity 与 warnings；未配置词表时不做静默推断。"
   },
   "language_rules": {
     "original_question": "question 是中文临床原始问题，原样保留（不翻译、不改写），既作为精确查询参与词面检索，也用于结果审计。",
@@ -24,7 +25,8 @@
     "reviewed_english_terms": "english_terms 与 mesh_terms 是人工审核的英文术语/缩写与 MeSH 主题词，直接参与英文来源检索与实时 PubMed 查询（优先级高于自动提取）。",
     "reviewed_mapping": "user_terms 是人工审核的中文概念→英文术语映射；仅当键出现在问题/患者术语文本中才生效，展开记录在 query_plan.expansion_trace（source=reviewed_user_terms）。不调用自动翻译或不受控同义词服务。",
     "cjk_matching": "中文片段以 CJK 二元组分词参与词面匹配，可直接命中中文来源（source 文档语言为中文时无需英文术语）；纯数字 token（年份/序号）不参与匹配。",
-    "live_fallback": "实时 PubMed 在没有任何英文词时，优先退回概念中的 ASCII 词，其次才是中文片段；绝不发送患者快照内容。"
+    "live_fallback": "实时 PubMed 在没有任何英文词时，优先退回概念中的 ASCII 词，其次才是中文片段；绝不发送患者快照内容。",
+    "fidelity_gate": "查询保真门控审计对象是'中文问题→英文检索计划'的转换产物（审核术语映射/机器译文/多语言编码显式输入）。v0 为确定性词面基线：实体覆盖（期望英文是否出现）、数值保留、否定/时间表达、词表实体串换检测。自动判定使用 suspected_*/unverifiable 等名称，与人工标注标签刻意区分；无词表时串换检测记为不可检测。"
   },
   "tools": {
     "retrieve_evidence": {
@@ -213,6 +215,18 @@
           "type": "boolean",
           "default": false,
           "description": "true 时在召回后用 MedCPT cross-encoder 重排；未配置时 trace.rerank_trace.status=not_configured。重排分数不是证据质量或推荐强度。"
+        },
+        "fidelity_gate": {
+          "type": "string",
+          "enum": [
+            "off",
+            "audit",
+            "warn",
+            "downweight",
+            "reject"
+          ],
+          "default": "off",
+          "description": "查询保真门控（ 研究层，默认 off=基线版 语义）。audit=审计并记录、不改信号；warn=审计+显式警告；downweight=按错误级别对受影响转换路线降权（penalty 默认 0.5）后参与融合；reject=按错误级别将受影响路线退出检索融合。审计与处置全过程写入 trace.query_fidelity；查询计划不被静默改写（被拒绝的译文变体只从打分输入移除，事实显式记录）。"
         }
       }
     },

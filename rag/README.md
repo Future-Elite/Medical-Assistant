@@ -1,6 +1,6 @@
 # RAG 直接调用使用指南
 
-本目录是可被 Python Agent 直接调用的只读 RAG 组件：在通用证据检索之上提供受控中英文/MeSH 查询规划、字段化 BM25 与可选语义/RRF 融合、患者事实 + PubMed + 版本化指南的分源联合检索、引用打开和回答审计。
+本目录是可被 Python Agent 直接调用的只读 RAG 组件：在通用证据检索之上提供受控中英文/MeSH 查询规划、字段化 BM25 与可选语义/RRF 融合、患者事实 + PubMed + 版本化指南的分源联合检索、引用打开和回答审计。另含可选的**查询保真审计与门控**研究特性（`fidelity_gate`，默认 `off`，见第 5.8 节），用于审计中文问题→英文检索计划的转换产物。
 
 推荐的主调用路径是：
 
@@ -16,7 +16,7 @@
 
 HTTP 服务和浏览器工作台只是这个核心调用层之上的附加封装，见第 13 节。不需要启动 `server.py` 就可以直接使用 RAG。
 
-当前版本在包 `__init__.py` 中以 `__version__` 声明（当前 `6.4.1`）；运行时 trace 的 `rag_version` 与 `/api/health` 均读取该值，代码中不硬编码版本字符串。
+当前版本在包 `__init__.py` 中以 `__version__` 声明（当前 `6.5.0`）；运行时 trace 的 `rag_version` 与 `/api/health` 均读取该值，代码中不硬编码版本字符串。
 
 模块不会读取原始病历、写回 HIS/PACS、生成诊断或治疗决定。`patient_terms` 只能传入人工审核的最小化术语，不得传入患者姓名、住院号、身份证号、自由文本病史或原始病历。RAG 不自行读取真实 HIS：`patient_snapshot` 由 Agent 读取并授权传入。
 
@@ -241,12 +241,14 @@ package = pipeline.retrieve(request)
 | `source_mode` | `str` | `"live"` | 否 | 仅两种：`live`（实时 PubMed + 官方指南元数据）与 `custom`（调用方注册的自有知识库）。服务不内置本地语料；实时失败不自动回退，custom 库为空时显式报错。 |
 | `retrieval_method` | `str \| tuple[str, ...] \| None` | `None`（等价 bm25） | 否 | 检索方法，见第 12 节。 |
 | `rerank` | `bool` | `False` | 否 | `true` 时在排序后追加 cross-encoder 重排。 |
+| `fidelity_gate` | `str` | `"off"` | 否 | 查询保真门控（研究特性）：`off`/`audit`/`warn`/`downweight`/`reject`，见第 5.8 节。 |
 
 校验和转换规则：
 
 - `question` 为空或只有空白时抛出 `ValueError("question must be a non-empty string")`。
 - `top_k` 先执行 `int()` 转换；不能转换或不在 1 到 50 时抛出 `ValueError("top_k must be between 1 and 50")`。
 - 未知检索方法名抛出 `ValueError("unknown retrieval_method: ...")`。
+- `fidelity_gate` 不在 `off`/`audit`/`warn`/`downweight`/`reject` 之内时抛出 `ValueError("fidelity_gate must be one of: ...")`。
 - 字符串形式的 `patient_terms`、`source_kinds` 会被转换为单元素序列；空字符串会被丢弃。
 - `patient_snapshot` 可以是 `PatientSnapshot` 对象或字典（经 `snapshot_from_dict()` 解析）。
 - `as_of` 本身不在 `from_dict()` 中强制校验日期；无效日期在排序阶段会按无法解析处理。调用方应在进入 RAG 前自行校验。
@@ -382,13 +384,14 @@ result = rag.retrieve_evidence({
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
-| `rag_version` | `str` | 包 `__version__`（当前 `6.4.1`）。 |
+| `rag_version` | `str` | 包 `__version__`（当前 `6.5.0`）。 |
 | `source_mode` | `str` | 本轮来源模式。 |
 | `retrieved_at` | `str` | UTC 时间戳。 |
 | `connector_trace` | `list[dict]` | 每个连接器的执行状态。成功含 `source_id`、`status`、`returned`、`kind`；失败含错误类型和阶段。 |
 | `candidate_count` / `deduplicated_count` / `selected_count` | `int` | 候选数、跨来源去重后数量与最终选中数量。 |
 | `joint_selection` | `dict` | 分源联合选择轨迹：`strategy`、`guaranteed_minimums`、`selected_per_source`、`merit_filled_per_source`、`rationale` 等（见第 5.7 节）。 |
 | `query_review` | `dict` | PRESS 风格检索式自检（见第 5.7 节）。 |
+| `query_fidelity` | `dict` | 查询保真审计与门控轨迹：`policy`、`applied`、`decisions`、`signal_adjustments`、`report`（见第 5.8 节）。策略为 `off` 时 `applied=false`、`report` 为 `null`。 |
 | `retrieval_method` | `str \| None` | 最终生效方法串（如 `"bm25+dense"`）。 |
 | `method_trace` | `list[dict]` | 逐方法状态（`ok`/`not_configured`/`error`/`fallback`/`unknown`），含原因与返回数。 |
 | `semantic_trace` | `dict` | 语义检索状态汇总。 |
@@ -411,6 +414,26 @@ result = rag.retrieve_evidence({
 `ranked_documents[].score` 是**来源内**分数，跨来源不可比；跨来源顺序由联合选择规则决定，解释见 `trace.joint_selection.rationale`。
 
 **检索式自检（`trace.query_review`）**：以 PRESS 风格逐项检查 `english_coverage`（英文来源却无英文词）、`expansion_sources`、`numeric_preservation`（问题数值未进英文/概念词）、`negation_and_conditions`、`term_overlap`。**只报告需人工复核的点，不修改检索计划**，不是检索质量评分。
+
+### 5.8 查询保真审计与门控（研究特性，默认关闭）
+
+`fidelity_gate` 审计的是**中文问题→英文检索计划的转换产物**——审核术语映射（`reviewed_mapping`）、机器译文变体（`translate`）、多语言编码输入（`multilingual_encoding`）——逐槽位检查实体覆盖、数值保留、否定/时间表达与词表实体串换，判定级别 `L0`–`L3` 与判定名（`preserved`、`suspected_drop`、`unexpected_entity`、`numeric_loss`、`numeric_added`、`suspected_negation_loss`、`suspected_temporal_loss`、`unverifiable`、`no_explicit_conversion`）写入 `trace.query_fidelity.report`。
+
+| 策略 | 行为 |
+|---|---|
+| `off`（默认） | 不审计、不改信号，与既有基线一致。 |
+| `audit` | 审计并记录；不改信号，不产生警告。 |
+| `warn` | 审计 + 显式警告；不改信号。 |
+| `downweight` | `L1`→警告；`L2`→该路信号按 `fidelity_penalty`（默认 0.5）降权后参与融合；`L3`→该路退出检索融合。 |
+| `reject` | `L1`→警告；`L2`/`L3`→该路退出检索融合。 |
+
+边界与不确定性：
+
+- **按路线处置，不静默改写**：只有产出问题的路线受影响；查询计划与计划术语永不修改。被拒绝的译文只从检索打分输入移除，`query_plan.expansion_trace` 与 `method_trace` 保留记录并标 `fidelity_gate: rejected`；原信号值保留在 `trace.query_fidelity`。
+- **审核映射是质量上界分支**：`downweight`/`reject` 对它降级为警告（放弃调用方已审核的术语在 v0 中不可辩护），决策 `reason` 中写明。
+- **不会把不相关变成相关**：降权/拒绝只作用于 `translate` 的词面变体分量与 `xlingual`/`m3` 的语义分数，RRF 融合与相关度门规则不变。
+- **审计器是确定性词面基线**：后缀/标记规则 + 调用方可选词表；不是医学 NER、不是蕴含判断，判定名是**假设**，其质量需由人工标注实验测量。包内不内置词表（内容许可由调用方负责），未提供词表时实体串换检测标"不可检测"。
+- **与检索式自检分工**：第 5.7 节 `query_review` 只报告供人复核；门控是**会改变信号的机制**，两者独立、互不联动。
 
 ## 6. 打开引用：`EvidenceRAG.open_citation`
 
@@ -621,6 +644,7 @@ registry.register(CallableConnector(source_id="local-guideline", kinds=("guideli
 - 分数只表示检索相关性，不表示证据质量、推荐强度或患者适用性。
 - **语义召回的实体风险显式化**：稠密方法对全部候选给正分，可能带回"语义相近但病种不同"的条目（实测：高血压问题带上中文哮喘指南）。系统不做静默过滤，而是把"入选候选中仅由语义方法召回（词面零分）"的条目逐条写入 `warnings`，要求核对实体一致性。
 - 神经依赖（torch/transformers）需单独安装；模型经 `HF_ENDPOINT` 镜像下载到 HF 缓存，离线用 `HF_HUB_OFFLINE=1`（适配器导入时自动开启离线模式，并通过 `RAG_ALLOW_MODEL_DOWNLOAD=1` 显式放开下载）。
+- **查询保真门控（可选，见第 5.8 节）**：`downweight`/`reject` 按判定级别对 `translate`（译文变体）与 `multilingual_encoding`（`xlingual`/`m3` 语义分数）路线降权或退出融合，`reviewed_mapping` 路线只警示；融合规则与相关度门不变。
 
 ## 13. 配置、服务与浏览器工作台
 
@@ -635,10 +659,13 @@ registry.register(CallableConnector(source_id="local-guideline", kinds=("guideli
 | `ncbi_api_key` | `str` | `""` | 可选 NCBI key。 |
 | `minicheck_model` / `minicheck_cache_dir` | `str` | `""` | MiniCheck 模型与缓存目录。 |
 | `request_timeout_seconds` | `float` | `60.0` | PubMed 请求超时。 |
-| `server_host` / `server_port` | `str` / `int` | `127.0.0.1` / `8788` | 本地 HTTP 服务地址。 |
+| `server_host` / `server_port` | `str` / `int` | `127.0.0.1` / `8797` | 本地 HTTP 服务地址。 |
 | `source_mode` | `str` | `"live"` | 默认来源模式（仅 `live`/`custom`）。 |
 | `allow_live_pubmed` / `allow_live_guidelines` | `bool` | `True` / `True` | 实时来源开关；关闭后 `live` 模式不可用。 |
 | `custom_sources_path` | `str` | `""` | 可选：启动时预载的自定义来源库文件（`{"sources":[...]}`）。 |
+| `fidelity_lexicon_path` | `str` | `""` | 可选：`FidelityLexicon` JSON 路径（结构见 `contracts/examples/fidelity_lexicon_example.json`）；环境变量 `RAG_FIDELITY_LEXICON` 可覆盖；留空时实体串换检测标"不可检测"。 |
+| `fidelity_default_policy` | `str` | `"off"` | 默认查询保真策略（第 5.8 节）；单次请求可用 `fidelity_gate` 覆盖，环境变量 `RAG_FIDELITY_POLICY` 可覆盖。 |
+| `fidelity_penalty` | `float` | `0.5` | `downweight` 的乘性系数，取值须在 `[0, 1]`。 |
 
 密钥只保存在本地配置，不要写入脚本、日志、README 或提交记录。修改 `config.py` 后需重启服务。
 
@@ -711,13 +738,13 @@ HTTP 状态码：
 
 ### 13.4 浏览器工作台
 
-工作台 = 单文件 HTML + 标准库 `http.server`，无前端框架、无 CDN、无构建步骤。功能：中文问题、证据截止日期、`top_k`、HIS 患者引用读取、最小化患者/受控术语、审核英文术语、MeSH、临床意图、指南版本、来源模式、检索方法与重排开关、问题槽位；结果区分患者事实、PubMed 和指南来源，展示查询计划、警告、引文详情（版本/推荐/适用人群/关键证据句）和回答审计面板。演示预设 8 例（高血压/2型糖尿病/时间过滤/新生儿黄疸/婴儿发热/婴儿疫苗/药品安全/中文直接匹配）自带 synthetic 测试快照与术语，**仅演示交互**；live 模式下检索的是实时来源。页面"来源模式"只提供 `live`/`custom`，选 custom 时展开"自定义来源库"面板（已注册来源、内联接口示例、一键清空）。HIS 快照由"载入快照"按钮按调用方数据结构组装后经 `/api/his/snapshot` 过滤回显——**服务不持有患者数据**。界面不含 LLM 摘要面板；核心检索不生成回答。GUI 默认显示 6 条结果，而核心 API 默认 `top_k=8`。
+工作台 = 单文件 HTML + 标准库 `http.server`，无前端框架、无 CDN、无构建步骤。功能：中文问题、证据截止日期、`top_k`、HIS 患者引用读取、最小化患者/受控术语、审核英文术语、MeSH、临床意图、指南版本、来源模式、检索方法与重排开关、查询保真门控（研究特性）、问题槽位；结果区分患者事实、PubMed 和指南来源，展示查询计划、警告、查询保真审计面板（`fidelity_gate` 非 `off` 时显示逐路线判定与信号调整）、引文详情（版本/推荐/适用人群/关键证据句）和回答审计面板。演示预设 8 例（高血压/2型糖尿病/时间过滤/新生儿黄疸/婴儿发热/婴儿疫苗/药品安全/中文直接匹配）自带 synthetic 测试快照与术语，**仅演示交互**；live 模式下检索的是实时来源。页面"来源模式"只提供 `live`/`custom`，选 custom 时展开"自定义来源库"面板（已注册来源、内联接口示例、一键清空）。HIS 快照由"载入快照"按钮按调用方数据结构组装后经 `/api/his/snapshot` 过滤回显——**服务不持有患者数据**。界面不含 LLM 摘要面板；核心检索不生成回答。GUI 默认显示 6 条结果，而核心 API 默认 `top_k=8`。
 
 ### 13.5 契约文档
 
-- `contracts/agent_contract.json`：机器可读的 Agent/HIS/RAG 契约（`contract_version` 与包 `__version__` 同步，当前 `6.4.1`），含 `language_rules` 与字段语义；
-- `contracts/README.md`：调用顺序、接口字段定义、隐私与错误边界；
-- `contracts/examples/`：请求/响应/错误示例；
+- `contracts/agent_contract.json`：机器可读的 Agent/HIS/RAG 契约（`contract_version` 与包 `__version__` 同步，当前 `6.5.0`），含 `language_rules` 与字段语义；
+- `contracts/README.md`：调用顺序、接口字段定义、隐私与错误边界（含查询保真门控字段，见其第 9.4 节）；
+- `contracts/examples/`：请求/响应/错误示例（含 `agent_fidelity_gate_request.json`、`fidelity_lexicon_example.json`）；
 - 运行时的同一份语义可从 `GET /api/tools` 获取（`agent.py` 的 `tool_specifications()`）。
 
 改契约时三处（JSON / README / `tool_specifications`）必须同步；测试会校验契约版本与 `__version__` 一致。
@@ -760,6 +787,8 @@ python3 -m compileall -q rag
 
 测试使用合成或录制数据，不请求实时 PubMed、不请求 LLM、不下载模型、不加载神经模型。
 
+测试覆盖含查询保真审计与门控（`tests/test_fidelity.py`、`tests/test_gate.py`）及离线实验骨架的指标层（`tests/test_fidelity_metrics.py`）。`rag/eval/run_fidelity_experiments.py --plan` 只打印实验臂矩阵与数据需求、不执行检索（实验前模式）。
+
 ## 16. 使用边界
 
 - 服务**不内置任何语料**：`live` 模式只接入实时 PubMed 和 WHO 指南元数据，不代表已接入正式指南库、药品数据库、临床试验库或真实 HIS/PACS；`custom` 模式的内容由调用方负责许可与合规。测试用合成数据只存在于 `rag/tests/`（`tests/fixtures.py`），产品代码与服务器不引用。
@@ -768,4 +797,5 @@ python3 -m compileall -q rag
 - 排序分数、关键词匹配、关键证据句和引用存在性不等于临床正确性或指南符合性。
 - MiniCheck 与 ALCE/RAGTruth 风格指标都不是诊断、处方、治疗建议或临床有效性证明。
 - 神经检索/重排不可用时报告 `not_configured`；未测量不写成零错误率。
+- 查询保真审计/门控是**研究特性**（默认 `off`）：审计器是确定性词面基线，判定名（`suspected_*`/`unverifiable`）是对人工标注量的假设，不是诊断或证据质量结论；`downweight`/`reject` 只改变包内检索信号；词表不内置，内容许可由调用方负责。
 - 使用者必须核对完整原文、来源定位、适用人群、时间范围和撤回状态；证据不足时保留不确定性或拒答。

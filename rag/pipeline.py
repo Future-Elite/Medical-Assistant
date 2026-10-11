@@ -17,6 +17,16 @@ Retrieval is organized in three stages:
    within-source normalized score. The merge is traced in
    ``trace.joint_selection`` and the merged list is interleaved by within-source
    rank so no single source consumes all of ``top_k``.
+
+query fidelity research layer (see the paper's method section): when a request selects a
+non-``off`` fidelity gate policy, a :class:`~rag.fidelity.QueryFidelityAuditor`
+audits the *query-conversion products* (reviewed mapping terms, machine
+translation variants, explicit multilingual terms) before fusion, and a
+:class:`~rag.gate.FidelityGate` optionally down-weights or rejects the
+affected route's signal. The audit and every decision are traced in
+``trace.query_fidelity``; the query plan itself is never silently rewritten
+(rejected translation variants are dropped from retrieval input only, and the
+fact is explicit in the trace and warnings).
 """
 from __future__ import annotations
 
@@ -28,6 +38,8 @@ from uuid import uuid4
 from . import __version__
 from .connectors import ConnectorRegistry
 from .evidence import extract_key_evidence_sentences
+from .fidelity import FidelityLexicon, QueryFidelityAuditor, ROUTE_LABELS
+from .gate import FidelityGate
 from .his import PatientSnapshot
 from .models import ApplicabilityAssessment, Citation, EvidencePackage, RetrievalRequest
 from .patient_retrieval import retrieve_patient_facts
@@ -35,15 +47,25 @@ from .query import build_query_plan, review_query_plan
 from .ranking import deduplicate_documents, merge_joint_selection, rank_documents
 
 NEURAL_METHOD_SET = ("dense", "xlingual", "m3", "splade", "colbert")
+MULTILINGUAL_METHOD_SET = ("xlingual", "m3")
 
 
 class EvidenceRetrievalPipeline:
     def __init__(self, registry: ConnectorRegistry, *, semantic_retriever=None, reranker=None, evidence_budget: int = 3,
-                 neural_retrievers: dict | None = None):
+                 neural_retrievers: dict | None = None,
+                 fidelity_lexicon: FidelityLexicon | None = None,
+                 fidelity_default_policy: str = "off",
+                 fidelity_penalty: float = 0.5):
         """``neural_retrievers`` maps method name -> SemanticRetriever-style adapter
         for dense/xlingual/m3/splade/colbert/query2doc/translate. ``semantic_retriever``
         stays supported as the legacy single-dense slot; it is registered under
-        "dense" when no explicit dense adapter is present."""
+        "dense" when no explicit dense adapter is present.
+
+        ``fidelity_*`` configures the query-fidelity research layer. The default
+        policy is ``off`` (frozen baseline semantics); a request can select
+        ``audit`` / ``warn`` / ``downweight`` / ``reject`` per call via
+        ``RetrievalRequest.fidelity_gate``. No lexicon is built in: callers pass
+        their own :class:`FidelityLexicon` (content licensing is the caller's)."""
         self.registry = registry
         self.semantic_retriever = semantic_retriever
         self.reranker = reranker
@@ -53,6 +75,12 @@ class EvidenceRetrievalPipeline:
             self.neural_retrievers["dense"] = semantic_retriever
         self.query2doc_expander = self.neural_retrievers.pop("query2doc", None)
         self.translator = self.neural_retrievers.pop("translate", None)
+        self.fidelity_lexicon = fidelity_lexicon
+        self.fidelity_default_policy = str(fidelity_default_policy or "off").lower()
+        if self.fidelity_default_policy not in ("off", "audit", "warn", "downweight", "reject"):
+            raise ValueError("unknown fidelity_default_policy: " + self.fidelity_default_policy)
+        self.fidelity_penalty = float(fidelity_penalty)
+        self.fidelity_auditor = QueryFidelityAuditor(lexicon=fidelity_lexicon)
 
     def retrieve(self, request: RetrievalRequest) -> EvidencePackage:
         retrieval_id = f"retrieval-{uuid4().hex}"
@@ -106,6 +134,7 @@ class EvidenceRetrievalPipeline:
         if not explicit_method and "dense" in self.neural_retrievers and "dense" not in methods:
             methods = (*methods, "dense")
         effective_methods: list[str] = []
+        translations_produced: tuple[str, ...] = ()
         for method in methods:
             if method in ("bm25", "ql", "rm3"):
                 effective_methods.append(method)
@@ -148,6 +177,7 @@ class EvidenceRetrievalPipeline:
                     warnings.append("检索方法 translate 未产生译文（not_configured）；未执行翻译扩展。")
                     method_trace.append({"method": "translate", "status": "not_configured"})
                     continue
+                translations_produced = tuple(translations)
                 plan = _with_translations(plan, translations)
                 entry = {"method": "translate", "status": "ok", "generated": len(translations), "translations": [text[:300] for text in translations]}
                 mismatches = _numeric_mismatches(plan.original_question, translations)
@@ -207,6 +237,67 @@ class EvidenceRetrievalPipeline:
             if not any(item.get("method") == "bm25" for item in method_trace):
                 method_trace.append({"method": "bm25", "status": "fallback"})
 
+        # --- query fidelity research layer: query-side fidelity audit + gate ---------------
+        # 在分源排序之前运行：审计对象是查询转换产物（审核映射/译文/多语言编码显式词），
+        # 处置只影响被判定不合格的路线信号；查询计划不被静默改写（被拒绝的译文变体
+        # 只从检索输入中移除，且逐条写入 trace 与 warnings）。
+        fidelity_policy = str(request.fidelity_gate or self.fidelity_default_policy or "off").lower()
+        fidelity_report_dict: dict[str, object] | None = None
+        fidelity_trace: dict[str, object] = {"policy": fidelity_policy, "applied": False}
+        fidelity_variant_weights: dict[str, float] = {}
+        fidelity_translate_rejected = False
+        if fidelity_policy != "off":
+            translate_requested = "translate" in methods
+            translate_configured = self.translator is not None
+            report = self.fidelity_auditor.audit(
+                plan,
+                translations=tuple(translations_produced),
+                translate_requested=translate_requested,
+                translate_configured=translate_configured,
+                multilingual_methods=tuple(method for method in methods if method in MULTILINGUAL_METHOD_SET),
+            )
+            gate = FidelityGate(policy=fidelity_policy, penalty=self.fidelity_penalty)
+            decisions = gate.decide(report)
+            fidelity_report_dict = report.to_dict()
+            fidelity_trace.update({
+                "applied": True,
+                "decisions": [decision.to_dict() for decision in decisions],
+            })
+            # Apply to neural scores (xlingual/m3 route).
+            neural_scores, adjustments = FidelityGate.apply_to_neural_scores(neural_scores, decisions)
+            # Apply to translation variants (translate route): reject drops the
+            # variants from the scoring input; downweight scales the lexical
+            # contribution of documents whose best-matching variant is a
+            # translation (per-variant weights in rank_documents).
+            translate_weight = FidelityGate.variant_weight(decisions, "translate")
+            if translate_weight is not None and translations_produced:
+                if translate_weight != 1.0:
+                    for text in translations_produced:
+                        fidelity_variant_weights[text] = translate_weight
+            elif translate_weight is None and translations_produced:
+                fidelity_translate_rejected = True
+                plan = _without_translations(plan, translations_produced)
+                # translate 路线本身不占 effective_methods 名额（其词面信号记在 bm25）；
+                # 标记 method_trace 供审计。
+                for item in method_trace:
+                    if item.get("method") == "translate":
+                        item["fidelity_gate"] = "rejected"
+            if adjustments or translate_weight is not None or fidelity_translate_rejected:
+                fidelity_trace["signal_adjustments"] = [
+                    *adjustments,
+                    *([{
+                        "route": "translate", "action": "reject" if fidelity_translate_rejected else "downweight",
+                        "variants_affected": len(translations_produced),
+                        "reason": next((decision.reason for decision in decisions if decision.route == "translate"), ""),
+                    }] if translations_produced and translate_weight != 1.0 else []),
+                ]
+            # Surface gate actions in warnings (auditable; L0/L1 不产生信号变化).
+            for decision in decisions:
+                if decision.action in ("downweight", "reject"):
+                    warnings.append(f"查询保真门控：{ROUTE_LABELS.get(decision.route, decision.route)} 路线 {decision.action}（{decision.level}）——{decision.reason}")
+                elif decision.action == "warn":
+                    warnings.append(f"查询保真门控（警示）：{ROUTE_LABELS.get(decision.route, decision.route)} 路线发现查询保真风险——{decision.reason}")
+
         # --- Stage 2: rank each source pool independently ---------------------------
         by_kind: dict[str, list] = defaultdict(list)
         for document in deduped:
@@ -228,6 +319,7 @@ class EvidenceRetrievalPipeline:
             ranked_kind, kind_warnings = rank_documents(
                 plan, pool, as_of=request.as_of, top_k=request.top_k,
                 methods=methods_tuple, neural_scores=subset_scores, source_label=_kind_label(kind),
+                variant_weights=fidelity_variant_weights or None,
             )
             per_source_ranked[kind] = ranked_kind
             warnings.extend(kind_warnings)
@@ -296,6 +388,10 @@ class EvidenceRetrievalPipeline:
                 "retrieval_method": "+".join(effective_methods) if effective_methods else None,
                 "method_trace": method_trace,
                 "query_review": query_review,
+                "query_fidelity": {
+                    **fidelity_trace,
+                    "report": fidelity_report_dict,
+                },
                 "joint_selection": joint_trace,
                 "semantic_trace": semantic_trace, "reranker": getattr(self.reranker, "reranker_id", None) if self.reranker else None,
                 "rerank_trace": rerank_trace,
@@ -386,6 +482,42 @@ def _with_translations(plan, translations: tuple[str, ...]):
 
 
 _NUMBER_RE = __import__("re").compile(r"\d+(?:\.\d+)?")
+
+
+def _without_translations(plan, translations: tuple[str, ...]):
+    """Fidelity gate（翻译路线被拒绝）：从**打分输入**中移除机器译文变体。
+
+    语义说明（防误解）：这不是对查询计划的静默改写——
+    - `original_question`、审核术语与 `expansion_trace`（含曾发生的翻译记录）全部保留；
+      翻译记录条目上加 `fidelity_gate: rejected` 标记；
+    - 只有 `variants`（词面打分实际使用的查询变体集合）移除译文，
+      使拒绝动作作用于检索打分；该事实同时写入 `trace.query_fidelity`
+      与 warnings，调用方可完整审计"翻译曾被尝试、后被门控拒绝"。
+    """
+    translated = {text for text in translations if str(text).strip()}
+    if not translated:
+        return plan
+    remaining_variants = tuple(variant for variant in plan.variants if variant not in translated) or (plan.original_question,)
+    marked_entries = tuple(
+        ({**entry, "fidelity_gate": "rejected"}
+         if isinstance(entry, dict) and entry.get("source") == "machine_translation_zh_en" else entry)
+        for entry in plan.expansion_trace
+    )
+    return plan.__class__(
+        original_question=plan.original_question,
+        variants=remaining_variants,
+        concepts=plan.concepts,
+        source_order=plan.source_order,
+        filters=plan.filters,
+        rationale=(*plan.rationale, "查询保真门控：translate 路线的机器译文已从检索打分输入中移除（审计记录保留在 expansion_trace）。"),
+        query_language=plan.query_language,
+        clinical_intent=plan.clinical_intent,
+        facets=plan.facets,
+        english_terms=plan.english_terms,
+        mesh_terms=plan.mesh_terms,
+        expansion_trace=marked_entries,
+        question_english_terms=plan.question_english_terms,
+    )
 
 
 def _numeric_mismatches(original: str, translations: tuple[str, ...]) -> list[str]:

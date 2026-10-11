@@ -1,0 +1,10 @@
+{
+  "note": "示例仅演示 FidelityLexicon 的 JSON 结构（from_json_file / from_dict 接受同一结构）。产品不内置词表：调用方自行提供并负责许可。",
+  "entries": [
+    {"zh": "高血压", "en": ["hypertension", "high blood pressure"], "kind": "disease"},
+    {"zh": "2型糖尿病", "en": ["type 2 diabetes", "diabetes mellitus, type 2"], "kind": "disease"},
+    {"zh": "二甲双胍", "en": ["metformin"], "kind": "drug"},
+    {"zh": "新生儿黄疸", "en": ["neonatal jaundice"], "kind": "disease"},
+    {"zh": "氨氯地平", "en": ["amlodipine"], "kind": "drug"}
+  ]
+}

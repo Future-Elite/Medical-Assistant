@@ -218,7 +218,7 @@ Content-Type: application/json
 
 `source_mode` 只有两个合法值；**服务不内置任何本地语料，也没有 offline/simulated 模式**：
 
-- `live`（默认）：实时 NCBI PubMed + 官方指南元数据/链接。需要 `config.allow_live_pubmed` 与 `allow_live_guidelines` 同时为 `True`（本机默认如此）；实时失败显式报错，**不自动回退**到任何其它数据。实时 PubMed 连接器只接收审核后的 `english_terms`/`mesh_terms` 与问题内英文词，绝不发送患者快照。WHO 指南首期是 `metadata_only`，未确认全文许可时只返回官方 URL、稳定 ID、许可声明和定位。
+- `live`（默认）：实时 NCBI PubMed + 官方指南元数据/链接。需要 `config.allow_live_pubmed` 与 `allow_live_guidelines` 同时为 `True`（默认如此）；实时失败显式报错，**不自动回退**到任何其它数据。实时 PubMed 连接器只接收审核后的 `english_terms`/`mesh_terms` 与问题内英文词，绝不发送患者快照。WHO 指南首期是 `metadata_only`，未确认全文许可时只返回官方 URL、稳定 ID、许可声明和定位。
 - `custom`：调用方传入的自有知识库（例如医院指南库、自备文献快照）。库为空时检索**显式报错**，不返回空结果冒充"没有证据"。
 
 ### 8.1 custom 来源接口（定义）
@@ -306,6 +306,25 @@ registry, warnings = library.build_registry()                        # 转成检
 ### 9.3 语义召回的实体风险
 
 稠密方法（`dense`/`xlingual`/`m3`/`splade`/`colbert`）会对全部候选给正分，可能带回"语义相近但病种不同"的条目。系统**不做静默过滤**，而是把入选候选中"仅由语义方法召回（词面零分）"的条目逐条写入 warnings，提示核对实体一致性。调用方不应把语义分数解释为同实体证据。
+
+## 9.4 查询保真门控（研究层）
+
+`fidelity_gate` 字段（默认 `off`，保持基线语义）可选：`off/audit/warn/downweight/reject`。
+
+- **审计对象**：中文问题→英文检索计划的转换产物——审核术语映射（`english_terms`/`mesh_terms`）、
+  机器译文变体（`translate`）、多语言编码的显式输入词。逐槽位检查：实体覆盖、数值保留、
+  否定/时间表达、词表实体串换（`unexpected_entity`）。
+- **判定名**：`suspected_drop` / `unexpected_entity` / `numeric_loss` / `numeric_added` /
+  `suspected_negation_loss` / `suspected_temporal_loss` / `unverifiable` /
+  `no_explicit_conversion`——是确定性词面基线的**假设**，与人工标注量表不同。
+- **处置**：`downweight` 对 L2 降权（penalty 默认 0.5）、L3 退出融合；`reject` 对 L2/L3 都退出融合；
+  审核映射路线为质量上界分支，v0 对降权/拒绝**降级为警示**（决策 reason 中写明）。
+- **审计轨迹**：`trace.query_fidelity` = `policy` / `applied` / `decisions` / `report`（slots + 逐路线
+  findings）/ `signal_adjustments`。
+- **不静默改写**：被拒绝的译文只从打分输入移除；`query_plan.expansion_trace` 保留翻译记录并标
+  `fidelity_gate: rejected`；计划术语（english_terms 等）永不修改。
+- **词表**：不内置；调用方提供 `FidelityLexicon`（JSON 结构示例见
+  `examples/fidelity_lexicon_example.json`）；未提供词表时串换检测标"不可检测"。
 
 ## 10. 查询相关度门与演示示例
 

@@ -37,6 +37,7 @@ from rag.connectors import ConnectorRegistry
 from rag.custom_sources import CustomSourceLibrary, SOURCE_MODES, load_custom_library
 from rag.guidelines import GuidelineMetadataConnector, who_guideline_metadata_registry
 from rag.his import PatientSnapshot
+from rag.models import RetrievalRequest
 from rag.neural_adapters import MedCPTReranker, build_neural_registry, cache_dir_hint, neural_dependencies_state
 from rag.pipeline import EvidenceRetrievalPipeline
 from rag.pubmed import PubMedConnector
@@ -80,7 +81,29 @@ def create_tool(source_mode: str = "live", *, custom_library: CustomSourceLibrar
         registry, library_warnings = library.build_registry()
         # 构建期警告随每次检索结果返回（见 ConnectorRegistry.warnings），此处不重复打印。
     neural, reranker = _neural_parts()
-    return EvidenceRAG(EvidenceRetrievalPipeline(registry, neural_retrievers=neural, reranker=reranker))
+    lexicon, policy, penalty = _fidelity_parts()
+    return EvidenceRAG(EvidenceRetrievalPipeline(
+        registry, neural_retrievers=neural, reranker=reranker,
+        fidelity_lexicon=lexicon, fidelity_default_policy=policy, fidelity_penalty=penalty,
+    ))
+
+
+def _fidelity_parts():
+    """查询保真层配置：词表路径缺失/为空时 lexicon=None（串换检测标不可检测），
+    路径存在但加载失败时显式抛错（不静默忽略配置）。
+
+    用绝对导入：本模块支持 `python -m rag.server` 与直接跑脚本两种启动方式，
+    脚本方式下 `__package__` 为空，相对导入会在首次检索时抛 ImportError。
+    """
+    import os
+    from rag.fidelity import FidelityLexicon
+    config = get_config()
+    path = str(os.environ.get("RAG_FIDELITY_LEXICON") or config.fidelity_lexicon_path or "").strip()
+    lexicon = FidelityLexicon.from_json_file(path) if path else None
+    policy = str(os.environ.get("RAG_FIDELITY_POLICY") or config.fidelity_default_policy or "off").strip().lower()
+    if policy not in RetrievalRequest.FIDELITY_GATE_POLICIES:
+        raise ValueError("unknown fidelity policy in config: " + policy)
+    return lexicon, policy, float(config.fidelity_penalty)
 
 
 

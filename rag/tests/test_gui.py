@@ -60,6 +60,9 @@ class GuiContractTests(unittest.TestCase):
             "自定义来源库", "调用方传入数据库", "服务不内置任何本地语料",
             # 审计输入入口：citation_id 必须暴露给用户（审计回答要用它）
             "copyCitationId", "auditTemplate", "引用 ID", "插入引用模板",
+            # 查询保真门控（研究特性）：选项与面板必须在页面契约中
+            "id=\"fidelityGate\"", "id=\"fidelityBox\"", "查询保真门控", "query_fidelity",
+            "value=\"downweight\"", "value=\"reject\"", "suspected",
         ):
             self.assertIn(text, page)
         self.assertNotIn("generateSummary", page)
@@ -188,6 +191,83 @@ class HttpContractTests(unittest.TestCase):
         status, body = self.request("POST", "/api/citation", {"retrieval_id": second["retrieval_id"], "citation_id": first["citations"][0]["citation_id"]})
         self.assertEqual(status, 400)
         self.assertIn("does not belong", body["error"])
+
+
+class ScriptLaunchTests(unittest.TestCase):
+    """README §7 方式二：直接跑脚本（python3 rag/server.py）也必须可用。
+
+    脚本方式下 ``__package__`` 为空，包内相对导入会 ImportError；该错误在
+    首次检索构建工具（create_tool -> _fidelity_parts）时才会触发，因此必须
+    用真实 HTTP 检索请求端到端验证，而不是只检查服务能启动。
+    """
+
+    def test_script_launch_serves_retrieval(self):
+        import socket
+        import subprocess
+        import sys
+        import time
+
+        src_root = Path(__file__).resolve().parents[2]
+        server_script = Path(__file__).resolve().parents[1] / "server.py"
+        with socket.socket() as sock:
+            sock.bind(("127.0.0.1", 0))
+            port = sock.getsockname()[1]
+        env = dict(os.environ)
+        env.pop("PYTHONPATH", None)  # 脚本方式不依赖 PYTHONPATH 条目
+        env["RAG_SERVER_PORT"] = str(port)
+        proc = subprocess.Popen(
+            [sys.executable, str(server_script)],
+            cwd=src_root, env=env,
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        )
+        try:
+            deadline = time.time() + 8
+            while time.time() < deadline:
+                try:
+                    conn = HTTPConnection("127.0.0.1", port, timeout=2)
+                    conn.request("GET", "/api/health")
+                    response = conn.getresponse()
+                    response.read()
+                    conn.close()
+                    if response.status == 200:
+                        break
+                except OSError:
+                    pass
+                time.sleep(0.1)
+            else:
+                self.fail("脚本方式启动的 RAG 实例未在预期时间内就绪")
+
+            # custom 模式：注册调用方来源后真实检索（触发 create_tool -> _fidelity_parts）
+            from rag.tests.helpers import SYNTHETIC_PUBMED
+            conn = HTTPConnection("127.0.0.1", port, timeout=10)
+            body = json.dumps({"source_id": "test-pubmed-library", "kinds": ["pubmed"],
+                               "version": "test-2026-10-09",
+                               "documents": [_document_dict(doc) for doc in SYNTHETIC_PUBMED]},
+                              ensure_ascii=False).encode("utf-8")
+            conn.request("POST", "/api/sources/custom", body=body,
+                         headers={"Content-Type": "application/json", "Content-Length": str(len(body))})
+            response = conn.getresponse()
+            self.assertEqual(response.status, 200)
+            response.read()
+            conn.close()
+
+            conn = HTTPConnection("127.0.0.1", port, timeout=10)
+            body = json.dumps({"question": "hypertension therapy", "top_k": 2, "source_mode": "custom"},
+                              ensure_ascii=False).encode("utf-8")
+            conn.request("POST", "/api/retrieve", body=body,
+                         headers={"Content-Type": "application/json", "Content-Length": str(len(body))})
+            response = conn.getresponse()
+            payload = json.loads(response.read().decode("utf-8"))
+            conn.close()
+            self.assertEqual(
+                response.status, 200,
+                f"脚本方式下检索失败（相对导入回归）：{payload.get('error')} {payload.get('exception_type')}",
+            )
+            self.assertIn("trace", payload)
+        finally:
+            if proc.poll() is None:
+                proc.kill()
+            proc.wait(timeout=5)
 
 
 class StaleServerCleanupTests(unittest.TestCase):

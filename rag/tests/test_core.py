@@ -45,6 +45,12 @@ class AgentInterfaceContractTests(unittest.TestCase):
         plan_props = contract["schemas"]["QueryPlan"]["properties"]
         self.assertIn("question_english_terms", plan_props)
         self.assertIn("expansion_trace", plan_props)
+        #  研究层字段：契约 JSON 与枚举
+        self.assertIn("fidelity_gate", request_props)
+        self.assertEqual(
+            request_props["fidelity_gate"]["enum"],
+            ["off", "audit", "warn", "downweight", "reject"],
+        )
 
     def test_tool_specifications_explain_bilingual_fields(self):
         from rag.agent import EvidenceRAG
@@ -60,6 +66,8 @@ class AgentInterfaceContractTests(unittest.TestCase):
         self.assertIn("question_english_terms", retrieve["description"])
         self.assertIn("not_configured", props["retrieval_method"]["description"])
         self.assertIn("cross-encoder", props["rerank"]["description"])
+        self.assertIn("查询保真门控", props["fidelity_gate"]["description"])
+        self.assertIn("trace.query_fidelity", props["fidelity_gate"]["description"])
 
     def test_example_requests_are_runnable_and_match_documented_behavior(self):
         import json, pathlib
@@ -77,6 +85,23 @@ class AgentInterfaceContractTests(unittest.TestCase):
         result2 = tool.retrieve_evidence(question_english)
         self.assertEqual(result2["trace"]["query_plan"]["question_english_terms"], ["metformin"])
         self.assertEqual(set(result2["trace"]["external_terms"]), {"type 2 diabetes", "metformin"})
+
+    def test_fidelity_example_is_runnable(self):
+        import json, pathlib
+
+        from rag.tests.helpers import fixture_tool
+
+        examples = pathlib.Path(__file__).resolve().parents[1] / "contracts" / "examples"
+        payload = json.loads((examples / "agent_fidelity_gate_request.json").read_text(encoding="utf-8"))
+        tool = fixture_tool()  # custom-source path: no built-in corpus
+        result = tool.retrieve_evidence(payload)
+        fidelity = result["trace"]["query_fidelity"]
+        self.assertTrue(fidelity["applied"])
+        self.assertEqual(fidelity["policy"], "downweight")
+        self.assertIsNotNone(fidelity["report"])
+        # 审计覆盖三条路线（即使有的路线未启用）
+        routes = {route["route"] for route in fidelity["report"]["routes"]}
+        self.assertEqual(routes, {"reviewed_mapping", "translate", "multilingual_encoding"})
 
 
 class QueryTests(unittest.TestCase):

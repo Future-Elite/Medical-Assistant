@@ -39,7 +39,8 @@ def rank_documents(plan: QueryPlan, documents: Iterable[SourceDocument], *, as_o
                    semantic_scores: Mapping[str, float] | None = None,
                    neural_scores: Mapping[str, Mapping[str, float]] | None = None,
                    field_weights: Mapping[str, float] | None = None,
-                   source_label: str = "") -> tuple[list[RankedDocument], list[str]]:
+                   source_label: str = "",
+                   variant_weights: Mapping[str, float] | None = None) -> tuple[list[RankedDocument], list[str]]:
     """Rank one source pool with one or more retrieval signals + RRF fusion.
 
     ``methods`` selects lexical scorers (bm25/ql/rm3; computed here) and neural
@@ -49,6 +50,13 @@ def rank_documents(plan: QueryPlan, documents: Iterable[SourceDocument], *, as_o
     active signals the per-signal ranks are fused via RRF (k=60); authority and
     freshness never resurrect a candidate that no signal retrieved (relevance
     gate). ``source_label`` only prefixes warning messages (e.g. "指南：…").
+
+    ``variant_weights`` (fidelity gate): optional per-query-variant
+    multiplier applied to a document's lexical score contribution, keyed by
+    the variant text (``matched_query`` of the primary lexical score). v0
+    semantics: only the base lexical component (0.55 * lexical_norm) is
+    weighted; RRF fusion and the relevance gate are unchanged so that the
+    gate can never make an irrelevant candidate relevant.
     """
     deduped, duplicate_count, conflicts = _deduplicate(documents)
     statuses = [(doc, _status(doc, as_of)) for doc in deduped]
@@ -129,10 +137,16 @@ def rank_documents(plan: QueryPlan, documents: Iterable[SourceDocument], *, as_o
     candidates: list[RankedDocument] = []
     field_token_cache: dict[str, set[str]] = {}
     variant_token_cache = {query: set(tokenize(query)) for query in plan.variants}
+    weights_map = dict(variant_weights or {})
     for doc, status in relevant:
         key = doc.identity_key()
         lexical_item = lexical.get(primary, {}).get(key) if primary else None
-        base = 0.55 * lexical_norm.get(key, 0.0) + 0.20 * rrf_norm.get(key, 0.0) + 0.15 * _authority(doc) + 0.10 * _freshness(doc, as_of)
+        variant_factor = 1.0
+        if lexical_item is not None and weights_map:
+            factor = weights_map.get(lexical_item.matched_query)
+            if factor is not None:
+                variant_factor = float(factor)
+        base = 0.55 * lexical_norm.get(key, 0.0) * variant_factor + 0.20 * rrf_norm.get(key, 0.0) + 0.15 * _authority(doc) + 0.10 * _freshness(doc, as_of)
         best_neural_method, best_neural_score = None, None
         for method, scores in neural.items():
             value = scores.get(key)

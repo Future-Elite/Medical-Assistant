@@ -85,6 +85,7 @@ class EvidenceRAG:
                         "source_mode": {"type": "string", "enum": ["live", "custom"], "description": "来源模式，仅两种：live=实时 PubMed + 官方指南元数据（默认）；custom=调用方注册的自有知识库（经 /api/sources/custom 传入，schema 见 contracts/README.md）。服务不内置本地语料；实时失败不自动回退。"},
                         "retrieval_method": {"type": "string", "description": "底层检索方法：bm25（默认）/ql（Dirichlet 查询似然）/rm3（伪相关反馈）/dense（MedCPT 双塔，英文域）/xlingual（multilingual-e5 双塔，中文问题直接编码、跨语言检索英文语料）/m3（BGE-M3 多语言双塔，CLS 池化，跨语言）/translate（zh→en 机器译文作为额外查询变体，原问题保留、数字不一致会告警）/splade/colbert/query2doc；多选用逗号或数组（如 \"bm25,xlingual\"）做多路 RRF 融合；零分路线不参与 RRF。神经方法需本地模型，不可用时该方法标 not_configured（trace/warnings），不静默降级。"},
                         "rerank": {"type": "boolean", "description": "true 时在召回后用 MedCPT cross-encoder 重排；未配置时 rerank_trace.status=not_configured。"},
+                        "fidelity_gate": {"type": "string", "enum": ["off", "audit", "warn", "downweight", "reject"], "description": "查询保真门控（研究特性，默认 off=不审计）。审计对象是中文问题→英文检索计划的转换产物（审核术语/机器译文/多语言编码输入）：实体覆盖、数值保留、否定/时间表达、词表实体串换。audit=记录不改信号；warn=警示；downweight/reject=按判定级别对受影响路线降权或退出检索融合（审核映射为质量上界分支，只警示不降权）。全过程写入 trace.query_fidelity；查询计划不被静默改写。"},
                     },
                 },
             },
