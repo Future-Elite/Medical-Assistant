@@ -1,0 +1,35 @@
+# Maven / Java
+target/
+*.jar
+!.mvn/wrapper/maven-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+
+# Node
+node_modules/
+dist/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# ===== 开源上传时排除：不进入 GitHub 仓库 =====
+# 文档 / spec / 计划 / 论文 / 参考资料
+docs/
+
+# SQL 目录里的评审说明文档
+backend/sql/AUTHOR-REVIEW-phase3.md
+
+# Claude Code 项目指令
+CLAUDE.md
+
+# Claude Code / 插件工具链本地状态（含记忆、设置、SDD 简报与评审）
+.claude/
+.superpowers/

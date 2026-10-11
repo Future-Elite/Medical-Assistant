@@ -1,0 +1,13 @@
+spring:
+  main:
+    web-application-type: none
+  datasource:
+    url: jdbc:mysql://localhost:3306/his_demo?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&rewriteBatchedStatements=true
+    username: his_user
+    password: his@2026
+    driver-class-name: com.mysql.cj.jdbc.Driver
+generator:
+  patient-count: 10000
+  # 生成前清空六张业务数据表（patient/visit/diagnosis/prescription/prescription_item/lab_test），
+  # 字典表 drug / rule_config 不动；重复执行即为「重新生成」
+  clear-before-run: true
