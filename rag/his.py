@@ -2,6 +2,11 @@
 
 This module accepts synthetic or explicitly authorized structured snapshots. It
 never writes to a chart and never sends snapshot text to external connectors.
+
+Layering (``contracts/his_rag.md``): HIS -> Agent -> RAG. This package never
+connects to HIS; the Agent reads HIS and passes the structured snapshot in
+(dict or :class:`PatientSnapshot`). Any HIS client -- including the reference
+implementation in ``contracts/agent_his_adapter.py`` -- lives on the caller side.
 """
 from __future__ import annotations
 

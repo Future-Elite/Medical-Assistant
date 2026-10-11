@@ -9,7 +9,7 @@ identifiers (trace ``rag_version``, ``/api/health``) read it instead of
 hard-coding any version string.
 """
 
-__version__ = "6.6.0"
+__version__ = "6.6.1"
 
 from .agent import EvidenceSessionStore, EvidenceRAG
 from .audit import GroundedAnswerAuditor, MiniCheckVerifier
@@ -30,7 +30,6 @@ from .custom_sources import (
     load_custom_library,
 )
 from .his import HISAdapter, InMemoryHISAdapter, PatientFact, PatientSnapshot, snapshot_from_dict
-from .his_http import DEFAULT_HIS_BASE_URL, HISHttpError, HisHttpAdapter
 from .fidelity import (
     FidelityFinding,
     FidelityLexicon,
@@ -84,9 +83,6 @@ __all__ = [
     "EvidenceSessionStore",
     "GroundedAnswerAuditor",
     "HISAdapter",
-    "HISHttpError",
-    "HisHttpAdapter",
-    "DEFAULT_HIS_BASE_URL",
     "InMemoryConnector",
     "InMemoryHISAdapter",
     "KnowledgeConnector",

@@ -16,7 +16,7 @@
 
 HTTP 服务和浏览器工作台只是这个核心调用层之上的附加封装，见第 13 节。不需要启动 `server.py` 就可以直接使用 RAG。
 
-当前版本在包 `__init__.py` 中以 `__version__` 声明（当前 `6.6.0`）；运行时 trace 的 `rag_version` 与 `/api/health` 均读取该值，代码中不硬编码版本字符串。
+当前版本在包 `__init__.py` 中以 `__version__` 声明（当前 `6.6.1`）；运行时 trace 的 `rag_version` 与 `/api/health` 均读取该值，代码中不硬编码版本字符串。
 
 模块不会读取原始病历、写回 HIS/PACS、生成诊断或治疗决定。`patient_terms` 只能传入人工审核的最小化术语，不得传入患者姓名、住院号、身份证号、自由文本病史或原始病历。RAG 不自行读取真实 HIS：`patient_snapshot` 由 Agent 读取并授权传入。
 
@@ -384,7 +384,7 @@ result = rag.retrieve_evidence({
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
-| `rag_version` | `str` | 包 `__version__`（当前 `6.6.0`）。 |
+| `rag_version` | `str` | 包 `__version__`（当前 `6.6.1`）。 |
 | `source_mode` | `str` | 本轮来源模式。 |
 | `retrieved_at` | `str` | UTC 时间戳。 |
 | `connector_trace` | `list[dict]` | 每个连接器的执行状态。成功含 `source_id`、`status`、`returned`、`kind`；失败含错误类型和阶段。 |
@@ -528,36 +528,36 @@ result = rag.retrieve_evidence({
 - 外部连接器只接收完成检索所需的最小信息（`reviewed_external_terms`、审核英文词、MeSH、问题与 `as_of`）；**绝不发送** `patient_ref`、自由文本、病历或凭据；
 - `applicability` 只表示结构化字段匹配提示（`possible_match`/`mismatch`/`unknown`/`not_assessed`），不是临床决策；无结构化条件时返回 `not_assessed`，不会根据自由文本相似度声称患者适用。
 
-### 8.1 直连 HIS：`HisHttpAdapter`（只读 HTTP）
+### 8.1 结构化快照的传入（Agent 读取 HIS，RAG 不连 HIS）
 
-HIS 演示系统（`his/`，Spring Boot，默认 `http://127.0.0.1:8080`）暴露只读接口；`rag.his_http.HisHttpAdapter` 按 [`contracts/his_rag.md`](../contracts/his_rag.md)（`contract_version: 0.1.0`）的映射规则，把患者时间线转成 `PatientSnapshot`：
+链路是 **HIS → Agent → RAG**：**Agent** 通过只读接口读取 HIS，把结构化数据整理成 `patient_snapshot` 载荷传入 RAG；**RAG 自身不连接、不请求 HIS**（包内没有任何 HIS 客户端，也没有 HIS 地址/端点常量）。
 
 ```python
-from rag import HisHttpAdapter
-
-adapter = HisHttpAdapter()                      # 默认 http://127.0.0.1:8080
-snapshot = adapter.get_snapshot("2001", "2025-12-31")   # patient_ref 就是合成患者 id
+snapshot = {                       # Agent 侧构造（结构见 ../contracts/his_rag.md）
+    "patient_ref": "2001",
+    "as_of": "2025-12-31",
+    "source": "his_demo",
+    "facts": [...],                # 带时间边界的扁平事实
+    "reviewed_external_terms": ["hypertension"],   # 人工审核后才放入
+}
 
 result = rag.retrieve_evidence({
     "question": "该患者原发性高血压的长期管理建议和依据是什么？",
     "as_of": "2025-12-31",
     "patient_terms": ["高血压"],
     "english_terms": ["hypertension"],
-    "patient_snapshot": snapshot,               # 快照对象直接传入（也接受同构 dict）
+    "patient_snapshot": snapshot,   # dict 或 PatientSnapshot 对象都可以
 })
 ```
 
-行为与边界：
+RAG 侧的职责（也是它与 HIS 的唯一关系）：
 
-- **只读**：只请求 `GET /api/patients/{id}`、`GET /api/patients/{id}/timeline`、`GET /api/admissions/{id}/timeline`（住院级医嘱/生命体征/住院检验只在住院时间线里，适配器自动合并）；传输层只接收 URL 与超时，发不出写请求。
-- **标识剔除**：`name`/`idCard`/`phone`/`address`/`patientId` 映射时丢弃；患者记录只留 `gender`/`birthDate`；跨组件测试会断言标识不出现在证据包里。
-- **不改写**：临床字段原样进入 `fields`，不翻译、不推断、不填默认值；嵌套（如处方 `items`）原样保留。
-- **时间语义**：`as_of` 过滤只在 RAG 侧 `filter_snapshot` 实现；`ORDER`/`ADMISSION` 用 `start`/`end` 表达区间（未停医嘱 `end=None` 表示进行中）。
-- **可审计的缺口**：缺载荷、缺 `type`、时间线混入非对象元素都会保留事实并写 `warnings`，不静默丢弃。
-- **错误**：网络/HTTP 失败抛 `HISHttpError`（含 `stage`/`status_code`/`retryable`）；`code != 0` 也抛 `HISHttpError`；患者不存在抛 `ValueError("unknown patient_ref: …")`。
-- 与 PubMed 连接器一致，显式绕过环境 `HTTP_PROXY`；`reviewed_external_terms` 不由适配器推断，需调用方人工审核后附加。
+- **接收与校验**：`snapshot_from_dict()` 校验 `patient_ref`/`as_of`/事实结构，缺字段直接报错，不猜测；
+- **时间边界**：`as_of` 可见性只由 `filter_snapshot()` 实现（未来事实计入 `suppressed_future`）；
+- **不回连**：RAG 不持有 HIS 地址，不发 HIS 请求；HIS 的连接、错误与字段映射属于 Agent 侧（参考实现见 `contracts/agent_his_adapter.py`，按 `contracts/his_rag.md` 的映射规则）；
+- **最小信息**：`reviewed_external_terms` 由调用方人工审核后提供，RAG 不从原始字段推断。
 
-字段级映射、样例与黄金快照见 [`contracts/his_rag.md`](../contracts/his_rag.md) 与 `contracts/examples/`；测试见 `tests/test_his_rag_snapshot.py`（跨组件契约，逐字比对样例）与 `rag/tests/test_his_http.py`（单测，含本机 HTTP 实测）。
+Agent 侧参考实现（`contracts/agent_his_adapter.py`，**不属于 rag 包**）演示了只读读取 HIS 三个端点、剔除患者标识、把时间线映射为上面的载荷；跨组件测试 `tests/test_his_rag_snapshot.py` 用 `contracts/examples/` 的合成响应驱动它，并断言标识不进入证据包、以及 RAG 包内不存在 HIS 端点。
 
 ## 9. 实时 PubMed 的直接调用
 
@@ -773,7 +773,7 @@ HTTP 状态码：
 
 ### 13.5 契约文档
 
-- `contracts/agent_contract.json`：机器可读的 Agent/HIS/RAG 契约（`contract_version` 与包 `__version__` 同步，当前 `6.6.0`），含 `language_rules` 与字段语义；
+- `contracts/agent_contract.json`：机器可读的 Agent/HIS/RAG 契约（`contract_version` 与包 `__version__` 同步，当前 `6.6.1`），含 `language_rules` 与字段语义；
 - `contracts/README.md`：调用顺序、接口字段定义、隐私与错误边界（含查询保真门控字段，见其第 9.4 节）；
 - `contracts/examples/`：请求/响应/错误示例（含 `agent_fidelity_gate_request.json`、`fidelity_lexicon_example.json`）；
 - 运行时的同一份语义可从 `GET /api/tools` 获取（`agent.py` 的 `tool_specifications()`）。
@@ -818,7 +818,7 @@ python3 -m compileall -q rag
 
 测试使用合成或录制数据，不请求实时 PubMed、不请求 LLM、不下载模型、不加载神经模型。
 
-测试覆盖含查询保真审计与门控（`tests/test_fidelity.py`、`tests/test_gate.py`）、离线实验骨架的指标层（`tests/test_fidelity_metrics.py`）与 HIS 只读快照适配器（`tests/test_his_http.py`，含本机 HTTP 实测）。跨组件的 HIS × RAG 契约测试在仓库根 `tests/`（用 `contracts/examples/` 的合成样例，离线运行）：`python3 -m unittest discover -s tests -t . -p 'test_*.py'`。`rag/eval/run_fidelity_experiments.py --plan` 只打印实验臂矩阵与数据需求、不执行检索（实验前模式）。
+测试覆盖含查询保真审计与门控（`tests/test_fidelity.py`、`tests/test_gate.py`）与离线实验骨架的指标层（`tests/test_fidelity_metrics.py`）。跨组件契约测试在仓库根 `tests/`（HIS→Agent→RAG 链路，用 `contracts/examples/` 的合成样例，离线运行）：`python3 -m unittest discover -s tests -t . -p 'test_*.py'`。`rag/eval/run_fidelity_experiments.py --plan` 只打印实验臂矩阵与数据需求、不执行检索（实验前模式）。
 
 ## 16. 使用边界
 
@@ -828,6 +828,6 @@ python3 -m compileall -q rag
 - 排序分数、关键词匹配、关键证据句和引用存在性不等于临床正确性或指南符合性。
 - MiniCheck 与 ALCE/RAGTruth 风格指标都不是诊断、处方、治疗建议或临床有效性证明。
 - 神经检索/重排不可用时报告 `not_configured`；未测量不写成零错误率。
-- HIS 快照适配器只面向**合成数据的 HIS 演示系统**，不是医院真实 HIS 接入；映射会剔除患者标识，`as_of` 过滤与拒答语义仍由 RAG 侧实现。
+- HIS 数据由 **Agent 读取后传入**（HIS → Agent → RAG）：RAG 不连接 HIS，也不做字段映射；`as_of` 过滤与拒答语义在 RAG 侧，患者标识剔除是 Agent 侧参考实现的责任（`contracts/his_rag.md` 写明规则）。
 - 查询保真审计/门控是**研究特性**（默认 `off`）：审计器是确定性词面基线，判定名（`suspected_*`/`unverifiable`）是对人工标注量的假设，不是诊断或证据质量结论；`downweight`/`reject` 只改变包内检索信号；词表不内置，内容许可由调用方负责。
 - 使用者必须核对完整原文、来源定位、适用人群、时间范围和撤回状态；证据不足时保留不确定性或拒答。
