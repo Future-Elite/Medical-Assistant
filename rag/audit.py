@@ -10,11 +10,15 @@ heuristic as a substitute.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Mapping, Protocol, Sequence
 
 from .config import get_config
 from .models import EvidencePackage
+
+
+_CITATION_ID_RE = re.compile(r"[A-Za-z0-9._-]+:cit-\d+", re.IGNORECASE)
+_SHORT_CITATION_RE = re.compile(r"cit-\d+", re.IGNORECASE)
 
 
 class ClaimVerifier(Protocol):
@@ -100,15 +104,33 @@ class GroundedAnswerAuditor:
     """Audits an answer only against citations belonging to one retrieval."""
 
     verifier: ClaimVerifier
+    _checks: dict[tuple[str, str], tuple[bool, float | None]] = field(default_factory=dict, init=False, repr=False)
 
-    def audit(self, *, package: EvidencePackage, answer: str) -> dict[str, Any]:
+    def audit(self, *, package: EvidencePackage, answer: str, claim_records: Sequence[Mapping[str, Any]] | None = None) -> dict[str, Any]:
         answer = str(answer or "").strip()
         if not answer:
             raise ValueError("answer must be a non-empty string")
         documents = {item.document.document_id: item.document.text for item in package.ranked_documents}
         citations = {item.citation_id: item for item in package.citations}
-        claims = _sentences(answer)
+        claims = split_answer_claims(answer) if claim_records is None else []
         rows = [_claim_row(claim, citations) for claim in claims]
+        if claim_records is not None:
+            for record in claim_records:
+                text = str(record.get("claim_en") or "").strip()
+                ids = list(dict.fromkeys(record.get("citation_ids") or []))
+                if not text or not ids or not all(isinstance(item, str) and _CITATION_ID_RE.fullmatch(item) for item in ids):
+                    raise ValueError("structured claim requires text and complete citation IDs")
+                rows.append({
+                    "claim": text,
+                    "claim_zh": record.get("claim_zh"),
+                    "claim_en": text,
+                    "verifier_claim": text,
+                    "citation_ids": ids,
+                    "valid_citation_ids": [item for item in ids if item in citations],
+                    "invalid_citation_ids": [item for item in ids if item not in citations],
+                    "citation_checks": [],
+                    "ragtruth_label": "not_checked",
+                })
         pairs: list[tuple[str, str]] = []
         pair_locations: list[tuple[int, int]] = []
         for row_index, row in enumerate(rows):
@@ -123,12 +145,20 @@ class GroundedAnswerAuditor:
         if pairs:
             if self.verifier.available:
                 try:
-                    results = self.verifier.verify(pairs)
+                    missing = list(dict.fromkeys(pair for pair in pairs if pair not in self._checks))
+                    if missing:
+                        new_results = list(self.verifier.verify(missing))
+                        if len(new_results) != len(missing):
+                            raise RuntimeError("Verifier returned an incomplete result set")
+                        if len(self._checks) + len(missing) > 512:
+                            self._checks.clear()
+                        self._checks.update(zip(missing, new_results))
+                    results = [self._checks[pair] for pair in pairs]
                 except RuntimeError as exc:
                     verification_warning = str(exc)
             else:
                 verification_warning = _unavailable_reason(self.verifier)
-        elif claims:
+        elif rows:
             verification_warning = "回答中没有可用于证据校验的有效 citation_id。"
         per_link: dict[tuple[int, int], tuple[bool, float | None]] = dict(zip(pair_locations, results))
         for row_index, row in enumerate(rows):
@@ -151,18 +181,60 @@ class GroundedAnswerAuditor:
         }
 
 
-def _sentences(answer: str) -> list[str]:
+def split_answer_claims(answer: str) -> list[str]:
+    """Split an answer into the same claim units used by the verifier."""
     parts = re.split(r"(?<=[。！？!?；;])\s*|\n+", answer)
     return [part.strip() for part in parts if part.strip()]
 
 
+def parse_citation_ids(text: str) -> tuple[str, ...]:
+    """Parse full and abbreviated IDs from citation brackets.
+
+    For example, ``[retrieval-x:cit-6, cit-2]`` expands to two complete IDs.
+    Non-citation Markdown brackets are ignored.
+    """
+    parsed: list[str] = []
+    for group in re.findall(r"\[([^\[\]]+)\]", str(text or "")):
+        prefix = None
+        for token in re.split(r"\s*[,，、;；]\s*", group.strip()):
+            token = token.strip()
+            full = _CITATION_ID_RE.fullmatch(token)
+            if full:
+                citation_id = full.group(0)
+                prefix = citation_id.rsplit(":", 1)[0]
+            elif prefix and _SHORT_CITATION_RE.fullmatch(token):
+                citation_id = f"{prefix}:{token}"
+            else:
+                continue
+            if citation_id not in parsed:
+                parsed.append(citation_id)
+    return tuple(parsed)
+
+
+def normalize_citation_groups(text: str) -> str:
+    """Render every citation as an independent bracketed full ID."""
+    def replace(match: re.Match[str]) -> str:
+        ids = parse_citation_ids(match.group(0))
+        return "".join(f"[{citation_id}]" for citation_id in ids) if ids else match.group(0)
+
+    return re.sub(r"\[[^\[\]]+\]", replace, str(text or ""))
+
+
+def strip_citation_groups(text: str) -> str:
+    """Remove citation brackets while retaining unrelated Markdown text."""
+    def replace(match: re.Match[str]) -> str:
+        return "" if parse_citation_ids(match.group(0)) else match.group(0)
+
+    return re.sub(r"\[[^\[\]]+\]", replace, str(text or "")).strip()
+
+
 def _claim_row(claim: str, citations: Mapping[str, Any]) -> dict[str, Any]:
-    cited = tuple(dict.fromkeys(re.findall(r"\[([^\[\]]+)\]", claim)))
+    cited = parse_citation_ids(claim)
     valid = [item for item in cited if item in citations]
     invalid = [item for item in cited if item not in citations]
     return {
         "claim": claim,
-        "verifier_claim": re.sub(r"\[[^\[\]]+\]", "", claim).strip(),
+        "verifier_claim": strip_citation_groups(claim),
         "citation_ids": list(cited),
         "valid_citation_ids": valid,
         "invalid_citation_ids": invalid,

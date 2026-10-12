@@ -190,6 +190,11 @@ if __name__ == "__main__":
             temperature=0.7,
             top_p=0.95,
         )
+    for tool in tools_dict.values():
+        if hasattr(tool, "preload_auditor"):
+            print("Loading MiniCheck before accepting requests...", flush=True)
+            tool.preload_auditor()
+            print("MiniCheck ready.", flush=True)
     demo = create_demo(agent, tools_dict)
 
     demo.launch(server_name="0.0.0.0", server_port=8585, share=False)

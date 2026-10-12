@@ -1,4 +1,5 @@
 import ast
+import asyncio
 import base64
 import json
 import re
@@ -8,8 +9,11 @@ from pathlib import Path
 import time
 import shutil
 from uuid import uuid4
+from queue import Queue, Empty
 from typing import AsyncGenerator, List, Optional, Tuple
 from gradio import ChatMessage
+
+from medrax.answer_audit import AnswerAuditModule
 
 
 class ChatInterface:
@@ -36,6 +40,22 @@ class ChatInterface:
         self.audit_path = Path("logs/evidence_audit.jsonl")
         self.current_thread_id = self._new_id()
         self.thread_verified_ids = {}
+        self.thread_retrieval_context = {}
+        rag_tool = next(
+            (
+                tool for tool in tools_dict.values()
+                if hasattr(tool, "audit_grounded_answer")
+            ),
+            None,
+        )
+        self.answer_auditor = (
+            AnswerAuditModule(
+                rag_tool.audit_grounded_answer,
+                rag_tool.translate_claims,
+            )
+            if rag_tool and hasattr(rag_tool, "translate_claims")
+            else None
+        )
         # Separate storage for original and display paths
         self.original_file_path = None  # For LLM (.dcm or other)
         self.display_file_path = None  # For UI (always viewable format)
@@ -47,6 +67,7 @@ class ChatInterface:
     def reset_conversation(self, thread_id: Optional[str] = None) -> str:
         old_thread_id = thread_id or self.current_thread_id
         self.thread_verified_ids.pop(old_thread_id, None)
+        self.thread_retrieval_context.pop(old_thread_id, None)
         new_thread_id = self._new_id()
         self.current_thread_id = new_thread_id
         self.original_file_path = None
@@ -115,6 +136,27 @@ class ChatInterface:
         }
         with self.audit_path.open("a", encoding="utf-8") as handle:
             handle.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+    def _revise_draft(self, prompt: str, thread_id: str) -> Optional[str]:
+        revised_draft = None
+        called_tool = False
+        for event in self.workflow.stream(
+            {"messages": [{"role": "user", "content": prompt}]},
+            {"configurable": {"thread_id": thread_id}},
+            stream_mode="updates",
+        ):
+            if not isinstance(event, dict):
+                continue
+            model_node = "process" if "process" in event else "model"
+            if model_node not in event:
+                continue
+            model_message = event[model_node]["messages"][-1]
+            if getattr(model_message, "tool_calls", None):
+                called_tool = True
+                continue
+            if model_message.content:
+                revised_draft = str(model_message.content)
+        return None if called_tool else revised_draft
 
     def handle_upload(self, file_path: str) -> str:
         """
@@ -196,6 +238,10 @@ class ChatInterface:
         turn_tool_calls = {}
         turn_tool_args = {}
         verified_ids = self.thread_verified_ids.setdefault(thread_id, set())
+        previous_context = self.thread_retrieval_context.get(thread_id, {})
+        retrieval_id = previous_context.get("retrieval_id")
+        citation_map = dict(previous_context.get("citation_map") or {})
+        draft = None
         messages = []
         image_path = self.original_file_path or display_image
 
@@ -245,36 +291,7 @@ class ChatInterface:
                                     )
                             continue
                         if content:
-                            content = re.sub(r"temp/[^\s]*", "", content)
-                            mentioned_ids = self._extract_citation_ids(content)
-                            invalid_ids = sorted(mentioned_ids - verified_ids)
-                            if invalid_ids:
-                                self._append_audit({
-                                    "event": "citation_validation_failed",
-                                    "turn_id": turn_id,
-                                    "tool_call_counts": turn_tool_calls,
-                                    "invalid_source_ids": invalid_ids,
-                                }, thread_id)
-                                chat_history.append(ChatMessage(
-                                    role="assistant",
-                                    content=(
-                                        "⚠️ 本次回答包含未经对应工具验证的引用标识，"
-                                        f"已拦截：{', '.join(invalid_ids)}。请重试。"
-                                    ),
-                                    metadata={"title": "引用校验未通过"},
-                                ))
-                                yield chat_history, self.display_file_path, ""
-                                continue
-
-                            chat_history.append(ChatMessage(role="assistant", content=content))
-                            if turn_tool_calls or mentioned_ids:
-                                self._append_audit({
-                                    "event": "final_response",
-                                    "turn_id": turn_id,
-                                    "tool_call_counts": turn_tool_calls,
-                                    "adopted_source_ids": sorted(mentioned_ids),
-                                }, thread_id)
-                            yield chat_history, self.display_file_path, ""
+                            draft = re.sub(r"temp/[^\s]*", "", str(content))
 
                     elif tool_node in event:
                         for message in event[tool_node]["messages"]:
@@ -318,6 +335,19 @@ class ChatInterface:
                                         "tool_args", model_tool_args
                                     )
                                     trace = artifact.get("trace") or {}
+                                    retrieval_id = artifact.get("retrieval_id") or retrieval_id
+                                    for item in evidence:
+                                        citation_id = str(
+                                            (item.get("metadata") or {}).get("citation_id") or ""
+                                        )
+                                        source_id = str(item.get("source_id") or "")
+                                        if citation_id and source_id:
+                                            citation_map[citation_id] = source_id
+                                    if retrieval_id:
+                                        self.thread_retrieval_context[thread_id] = {
+                                            "retrieval_id": retrieval_id,
+                                            "citation_map": dict(citation_map),
+                                        }
                                     source_ids = sorted(self._artifact_citation_ids(artifact))
                                     if not artifact.get("error"):
                                         verified_ids.update(source_ids)
@@ -374,6 +404,152 @@ class ChatInterface:
                                 )
 
                             yield chat_history, self.display_file_path, ""
+
+            if not draft:
+                return
+
+            if self.answer_auditor:
+                draft = self.answer_auditor.normalize_citations(draft)
+
+            self._append_audit({
+                "event": "answer_draft",
+                "turn_id": turn_id,
+                "attempt": 0,
+                "retrieval_id": retrieval_id,
+                "draft": draft,
+            }, thread_id)
+
+            if self.answer_auditor:
+                for attempt in range(self.answer_auditor.max_revisions + 1):
+                    progress_events = Queue()
+                    status_message = ChatMessage(
+                        role="assistant",
+                        content=f"正在准备证据审计（attempt={attempt}）…",
+                        metadata={"title": "证据审计进度"},
+                    )
+                    chat_history.append(status_message)
+                    yield chat_history, self.display_file_path, ""
+                    def report_progress(stage):
+                        self._append_audit({
+                            "event": "audit_stage",
+                            "turn_id": turn_id,
+                            "attempt": attempt,
+                            "stage": stage,
+                        }, thread_id)
+                        progress_events.put(stage)
+                    audit_task = asyncio.create_task(asyncio.to_thread(
+                        self.answer_auditor.audit, draft, retrieval_id, report_progress
+                    ))
+                    labels = {
+                        "translation_started": "检查主张语言；仅中文主张需要翻译…",
+                        "translation_completed": "主张语言处理完成…",
+                        "verification_started": "MiniCheck 正在校验主张与证据…",
+                        "verification_completed": "MiniCheck 校验完成…",
+                    }
+                    while not audit_task.done():
+                        try:
+                            stage = progress_events.get_nowait()
+                        except Empty:
+                            await asyncio.sleep(0.1)
+                            continue
+                        status_message.content = labels[stage]
+                        yield chat_history, self.display_file_path, ""
+                    audit_result = await audit_task
+                    status_message.content = (
+                        f"审计通过（attempt={attempt}）"
+                        if audit_result.get("passed")
+                        else f"审计未通过（attempt={attempt}），{audit_result.get('status')}"
+                    )
+                    self._append_audit({
+                        "event": "answer_audit",
+                        "turn_id": turn_id,
+                        "attempt": attempt,
+                        "retrieval_id": retrieval_id,
+                        "passed": audit_result.get("passed", False),
+                        "status": audit_result.get("status"),
+                        "verifier": audit_result.get("verifier"),
+                        "checked_claim_count": audit_result.get("checked_claim_count", 0),
+                        "failure_reasons": audit_result.get("failure_reasons", []),
+                        "claim_translations": audit_result.get("claim_translations", []),
+                        "timings": audit_result.get("timings", {}),
+                        "claims": audit_result.get("claims", []),
+                        "warnings": audit_result.get("warnings", []),
+                    }, thread_id)
+                    if audit_result.get("passed"):
+                        break
+                    if audit_result.get("status") == "error":
+                        chat_history.append(ChatMessage(
+                            role="assistant",
+                            content="⚠️ 翻译或审计执行异常，已拦截回答。请检查审计日志后重试；此次未修改原始草稿。",
+                            metadata={"title": "审计执行异常"},
+                        ))
+                        yield chat_history, self.display_file_path, ""
+                        return
+                    if attempt >= self.answer_auditor.max_revisions:
+                        chat_history.append(ChatMessage(
+                            role="assistant",
+                            content=(
+                                "⚠️ 回答草稿经过两次修改后仍未通过证据支持性审计，"
+                                "已拦截输出，请转人工复核或稍后重试。"
+                            ),
+                            metadata={"title": "回答审计未通过"},
+                        ))
+                        yield chat_history, self.display_file_path, ""
+                        return
+                    revised = self._revise_draft(
+                        self.answer_auditor.revision_prompt(audit_result, attempt + 1),
+                        thread_id,
+                    )
+                    if not revised:
+                        chat_history.append(ChatMessage(
+                            role="assistant",
+                            content="⚠️ 回答草稿无法安全修改，已拦截输出，请转人工复核。",
+                            metadata={"title": "回答审计未通过"},
+                        ))
+                        yield chat_history, self.display_file_path, ""
+                        return
+                    draft = self.answer_auditor.normalize_citations(revised)
+                    self._append_audit({
+                        "event": "answer_draft",
+                        "turn_id": turn_id,
+                        "attempt": attempt + 1,
+                        "retrieval_id": retrieval_id,
+                        "draft": draft,
+                    }, thread_id)
+
+            content = (
+                self.answer_auditor.render_public_citations(draft, citation_map)
+                if self.answer_auditor else draft
+            )
+            mentioned_ids = self._extract_citation_ids(content)
+            invalid_ids = sorted(mentioned_ids - verified_ids)
+            if invalid_ids:
+                self._append_audit({
+                    "event": "citation_validation_failed",
+                    "turn_id": turn_id,
+                    "tool_call_counts": turn_tool_calls,
+                    "invalid_source_ids": invalid_ids,
+                }, thread_id)
+                chat_history.append(ChatMessage(
+                    role="assistant",
+                    content=(
+                        "⚠️ 本次回答包含未经对应工具验证的引用标识，"
+                        f"已拦截：{', '.join(invalid_ids)}。请重试。"
+                    ),
+                    metadata={"title": "引用校验未通过"},
+                ))
+                yield chat_history, self.display_file_path, ""
+                return
+
+            chat_history.append(ChatMessage(role="assistant", content=content))
+            if turn_tool_calls or mentioned_ids:
+                self._append_audit({
+                    "event": "final_response",
+                    "turn_id": turn_id,
+                    "tool_call_counts": turn_tool_calls,
+                    "adopted_source_ids": sorted(mentioned_ids),
+                }, thread_id)
+            yield chat_history, self.display_file_path, ""
 
         except Exception as e:
             chat_history.append(

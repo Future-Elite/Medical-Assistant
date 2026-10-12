@@ -8,4 +8,7 @@ cd "$SCRIPT_DIR"
 export PYTHONPATH="$REPO_ROOT${PYTHONPATH:+:$PYTHONPATH}"
 export MEDRAX_AGENT_MODE=medical_evidence
 
+export HF_HUB_OFFLINE=1
+export TRANSFORMERS_OFFLINE=1
+
 exec /media/hdd2/xiaoying/conda_envs/medrax/bin/python main.py
