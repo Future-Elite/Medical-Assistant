@@ -11,6 +11,8 @@ from pydantic import BaseModel, Field
 from rag.agent import EvidenceRAG
 from rag.runtime import create_evidence_rag
 
+from medrax.answer_audit import QwenClaimTranslator
+
 from .evidence import EvidenceAggregator
 
 
@@ -29,6 +31,11 @@ def _get_rag() -> EvidenceRAG:
     return create_evidence_rag()
 
 
+@lru_cache(maxsize=1)
+def _get_claim_translator() -> QwenClaimTranslator:
+    return QwenClaimTranslator()
+
+
 class MedicalEvidenceRAGTool(BaseTool):
     """Expose the repository RAG as the Agent's single external-evidence tool."""
 
@@ -41,6 +48,23 @@ class MedicalEvidenceRAGTool(BaseTool):
     )
     args_schema: Type[BaseModel] = MedicalEvidenceRAGInput
     response_format: Literal["content_and_artifact"] = "content_and_artifact"
+
+    def audit_grounded_answer(self, retrieval_id: str, answer: str, claim_records=None) -> Dict[str, Any]:
+        """Audit a draft against evidence retained by this tool's RAG session."""
+        return _get_rag().audit_grounded_answer({
+            "retrieval_id": retrieval_id,
+            "answer": answer,
+            "claim_records": claim_records,
+        })
+
+    def preload_auditor(self) -> None:
+        verifier = _get_rag().auditor.verifier
+        if not verifier.available:
+            raise RuntimeError(getattr(verifier, "unavailable_reason", "MiniCheck unavailable"))
+
+    def translate_claims(self, claims: List[str]) -> List[str]:
+        """Translate cited claims with Qwen before MiniCheck verification."""
+        return _get_claim_translator()(claims)
 
     def _run(
         self,

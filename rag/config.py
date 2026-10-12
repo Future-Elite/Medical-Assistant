@@ -24,8 +24,8 @@ class RAGConfig:
     ncbi_api_key: str = ""
 
     # Optional MiniCheck verifier
-    minicheck_model: str = ""
-    minicheck_cache_dir: str = ""
+    minicheck_model: str = "flan-t5-large"
+    minicheck_cache_dir: str = "/media/hdd2/xiaoying/model-weights/minicheck"
 
     # Local HTTP service
     server_host: str = "127.0.0.1"
