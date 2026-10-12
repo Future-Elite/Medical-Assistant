@@ -1,0 +1,8 @@
+{
+  "高血压": ["hypertension"],
+  "糖尿病": ["diabetes mellitus"],
+  "二甲双胍": ["metformin"],
+  "奥希替尼": ["osimertinib"],
+  "非小细胞肺癌": ["non-small cell lung cancer"],
+  "肺间质病": ["interstitial lung disease"]
+}

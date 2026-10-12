@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(dirname "$SCRIPT_DIR")"
+
+cd "$SCRIPT_DIR"
+export PYTHONPATH="$REPO_ROOT${PYTHONPATH:+:$PYTHONPATH}"
+export MEDRAX_AGENT_MODE=medical_evidence
+
+export HF_HUB_OFFLINE=1
+export TRANSFORMERS_OFFLINE=1
+
+exec "${MEDRAX_PYTHON:-python}" main.py
