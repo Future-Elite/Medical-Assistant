@@ -5,7 +5,7 @@
   "description": "Agent 与只读检索层的对接契约：Agent 先获取带 as_of 的 HIS 快照，再调用 RAG 完成患者事实 + PubMed + 版本化指南的联合检索。检索分三层执行：按来源收集 → 分源独立排序（各自词表内 IDF/RRF/相关度门，跨来源分数不比较）→ 联合选择（来源可见性保证 + 意图配额 + 来源内排名轮转补齐 + 按来源内排名交错）。中英文字段语义见 language_rules：中文原始问题原样保留，英文相关字段（english_terms/mesh_terms/user_terms/question_english_terms）分别定义。",
   "contract_metadata": {
     "contract_id": "chinallm.rag.agent",
-    "contract_version": "6.6.2",
+    "contract_version": "6.6.3",
     "status": "experimental"
   },
   "scope_and_safety": {
@@ -22,6 +22,7 @@
   "language_rules": {
     "original_question": "question 是中文临床原始问题，原样保留（不翻译、不改写），既作为精确查询参与词面检索，也用于结果审计。",
     "question_english_terms": "问题中直接出现的英文词（≥2 字符、含字母、过滤常见功能词与纯数值）由系统自动提取并加入英文检索词；调用方不得手工填写。记录在 EvidencePackage.query_plan.question_english_terms 和 trace.external_terms。",
+    "machine_translations": "translate 路线在来源召回前生成的英文候选查询，独立于审核术语。原问题保留；保真 reject 路线不会发送到外部来源。候选与检查记录在 query_plan.machine_translations、trace.machine_queries、trace.recall_query_fidelity；实际 PubMed 查询式记录在 connector_trace.query。",
     "reviewed_english_terms": "english_terms 与 mesh_terms 是人工审核的英文术语/缩写与 MeSH 主题词，直接参与英文来源检索与实时 PubMed 查询（优先级高于自动提取）。",
     "reviewed_mapping": "user_terms 是人工审核的中文概念→英文术语映射；仅当键出现在问题/患者术语文本中才生效，展开记录在 query_plan.expansion_trace（source=reviewed_user_terms）。不调用自动翻译或不受控同义词服务。",
     "cjk_matching": "中文片段以 CJK 二元组分词参与词面匹配，可直接命中中文来源（source 文档语言为中文时无需英文术语）；纯数字 token（年份/序号）不参与匹配。",
@@ -399,6 +400,11 @@
             "type": "string"
           },
           "description": "问题中自动提取的英文词（只读）；直接参与英文检索与实时 PubMed 查询。"
+        },
+        "machine_translations": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "机器生成的英文查询变体，与审核术语分开；由 translate 路线生成并在召回前经过保真门控。"
         },
         "mesh_terms": {
           "type": "array",

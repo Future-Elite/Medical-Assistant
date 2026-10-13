@@ -177,5 +177,6 @@ def score_documents_rm3(
         mesh_terms=plan.mesh_terms,
         expansion_trace=(*plan.expansion_trace, {"concept": "rm3", "terms": list(expansion_tokens), "source": "pseudo_relevance_feedback"}),
         question_english_terms=plan.question_english_terms,
+        machine_translations=plan.machine_translations,
     )
     return score_documents(expanded_plan, docs, field_weights=weights)

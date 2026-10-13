@@ -1,6 +1,7 @@
 # Medical Agent integration contract (draft 0.1.0)
 
-This integration targets RAG 6.6.2 and HIS snapshot contract 0.2.0. It is a
+This integration includes the RAG 6.6.3 query-conversion patch on main's 6.6.2
+baseline and HIS snapshot contract 0.2.0. It is a
 read-only synthetic-data prototype. It does not write HIS records or connect PACS.
 
 ## Entry point and ownership
@@ -33,6 +34,13 @@ applicability, patient_context, warnings and trace. Citation linkage uses the st
 The original user question is retained. The small operator-maintained terminology
 table in `agent/config/medical_terms.json` is a starting vocabulary, not a complete
 medical dictionary. Model suggestions cannot masquerade as reviewed mappings.
+user_terms is not a model-facing parameter. Chinese requests automatically select
+the RAG translate route using Qwen as an injected converter. Machine queries are
+prepared and fidelity-gated before external recall, retained separately in
+QueryPlan.machine_translations, and logged in connector_trace.query. English
+questions bypass conversion. Conversion sees the original question, never HIS
+snapshot contents. Startup checks the configured HIS endpoint; only the default
+synthetic localhost:18080 mock is auto-started and managed by the Agent process.
 
 ## Audit and termination
 

@@ -19,9 +19,22 @@ loading; the weights must already exist in the specified cache. Missing weights
 cause an explicit startup error. Qwen and PubMed still need network connectivity.
 
 The UI accepts a synthetic HIS patient ID and an ISO cutoff date. Leave the ID
-empty for literature-only questions. HIS defaults to localhost:8080; configure
-HIS_BASE_URL for a different deployment. A selected patient is not automatically
+empty for literature-only questions. HIS defaults to the read-only synthetic mock
+at localhost:18080. Startup checks it and starts an owned mock process if absent;
+that process stops when this Agent exits. An already-running service is reused.
+Set HIS_BASE_URL (or the second inference.sh argument) to connect a deployed HIS;
+an unavailable explicit endpoint fails early rather than silently switching data.
+A selected patient is not automatically
 read: Qwen calls the read-only HIS tool when patient facts are required.
+
+`bash agent/inference.sh /path/to/minicheck/cache http://127.0.0.1:18080`
+passes both settings explicitly. Model-facing RAG arguments no longer include
+user_terms. The program supplies reviewed mappings; Chinese questions also use
+Qwen-generated English candidate queries through the RAG translate slot before
+live recall. Candidates are labelled separately, fidelity-audited, cached and
+logged with the actual PubMed query. No additional local translation model is
+needed. English questions do not invoke query conversion. A rejected machine
+route is removed before recall; warn/downweight keep candidates and report risks.
 
 Live mode provides PubMed and WHO guideline metadata. To use a registered local
 knowledge library, set RAG_SOURCE_MODE=custom and RAG_CUSTOM_SOURCES_FILE to a

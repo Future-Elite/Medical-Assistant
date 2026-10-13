@@ -16,7 +16,9 @@
 
 HTTP 服务和浏览器工作台只是这个核心调用层之上的附加封装，见第 13 节。不需要启动 `server.py` 就可以直接使用 RAG。
 
-当前版本在包 `__init__.py` 中以 `__version__` 声明（当前 `6.6.2`）；运行时 trace 的 `rag_version` 与 `/api/health` 均读取该值，代码中不硬编码版本字符串。
+当前版本在包 `__init__.py` 中以 `__version__` 声明（当前 `6.6.3`）；运行时 trace 的 `rag_version` 与 `/api/health` 均读取该值，代码中不硬编码版本字符串。
+
+集成分支 v6.6.3：translate 在外部来源召回前生成候选，查询保真 reject 也在外发前生效。`query_plan.machine_translations` 与审核术语分开，实际 PubMed 查询记录在 `trace.connector_trace[].query`。中文 Agent 默认通过现有 translate 槽接入 Qwen 查询转换，英文查询不需转换；未配置或失败仍在 method_trace/warnings 明确报告。
 
 模块不会读取原始病历、写回 HIS/PACS、生成诊断或治疗决定。`patient_terms` 只能传入人工审核的最小化术语，不得传入患者姓名、住院号、身份证号、自由文本病史或原始病历。RAG 不自行读取真实 HIS：`patient_snapshot` 由 Agent 读取并授权传入。
 
@@ -384,7 +386,7 @@ result = rag.retrieve_evidence({
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
-| `rag_version` | `str` | 包 `__version__`（当前 `6.6.2`）。 |
+| `rag_version` | `str` | 包 `__version__`（当前 `6.6.3`）。 |
 | `source_mode` | `str` | 本轮来源模式。 |
 | `retrieved_at` | `str` | UTC 时间戳。 |
 | `connector_trace` | `list[dict]` | 每个连接器的执行状态。成功含 `source_id`、`status`、`returned`、`kind`；失败含错误类型和阶段。 |
@@ -774,7 +776,7 @@ HTTP 状态码：
 
 ### 13.5 契约文档
 
-- `contracts/agent_contract.json`：机器可读的 Agent/HIS/RAG 契约（`contract_version` 与包 `__version__` 同步，当前 `6.6.2`），含 `language_rules` 与字段语义；
+- `contracts/agent_contract.json`：机器可读的 Agent/HIS/RAG 契约（`contract_version` 与包 `__version__` 同步，当前 `6.6.3`），含 `language_rules` 与字段语义；
 - `contracts/README.md`：调用顺序、接口字段定义、隐私与错误边界（含查询保真门控字段，见其第 9.4 节）；
 - `contracts/examples/`：请求/响应/错误示例（含 `agent_fidelity_gate_request.json`、`fidelity_lexicon_example.json`）；
 - 运行时的同一份语义可从 `GET /api/tools` 获取（`agent.py` 的 `tool_specifications()`）。

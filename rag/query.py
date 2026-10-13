@@ -138,12 +138,12 @@ def review_query_plan(plan: QueryPlan, *, english_source_present: bool) -> dict[
     question = plan.original_question
 
     # 1) 问题概念→英文覆盖：完全无英文术语时，英文来源只能靠 CJK 二元组（通常零命中）。
-    has_english = bool(plan.english_terms or plan.question_english_terms)
+    has_english = bool(plan.english_terms or plan.question_english_terms or plan.machine_translations)
     checks.append({
         "item": "english_coverage",
         "status": "ok" if has_english or not english_source_present else "review_needed",
         "detail": (
-            f"英文检索词 {len(plan.english_terms)} 个（审核）+ {len(plan.question_english_terms)} 个（问题内提取）"
+            f"英文检索词 {len(plan.english_terms)} 个（审核）+ {len(plan.question_english_terms)} 个（问题内提取）+ {len(plan.machine_translations)} 个机器生成查询（未人工审核）"
             if has_english else "无任何英文检索词。"
         ),
     })
@@ -160,7 +160,7 @@ def review_query_plan(plan: QueryPlan, *, english_source_present: bool) -> dict[
         "status": "ok",
         "detail": "；".join(mapped_sources) or "未发生术语展开。",
     })
-    if english_source_present and not plan.english_terms and not plan.question_english_terms and "reviewed_user_terms" not in mapped_sources:
+    if english_source_present and not plan.english_terms and not plan.question_english_terms and not plan.machine_translations and "reviewed_user_terms" not in mapped_sources:
         findings.append(
             "审核映射未展开：user_terms 的键必须与问题/患者术语原文一致（含大小写）才会生效；"
             "请核对键的写法，或直接提供 english_terms。"
@@ -170,7 +170,7 @@ def review_query_plan(plan: QueryPlan, *, english_source_present: bool) -> dict[
     numbers = _NUMERIC_RE.findall(question)
     if numbers:
         numbers_in_english = {token for term in (*plan.english_terms, *plan.mesh_terms) for token in _NUMERIC_RE.findall(term)}
-        combined = " ".join((*plan.english_terms, *plan.mesh_terms, *plan.concepts))
+        combined = " ".join((*plan.english_terms, *plan.mesh_terms, *plan.concepts, *plan.machine_translations))
         missing = [value for value in sorted(set(numbers)) if value not in combined and value not in numbers_in_english]
         checks.append({
             "item": "numeric_preservation",

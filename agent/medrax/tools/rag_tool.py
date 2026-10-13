@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 from dataclasses import replace
 from functools import lru_cache
 from pathlib import Path
@@ -16,7 +17,10 @@ from rag import config as rag_config
 from rag.audit import MiniCheckVerifier
 from rag.server import create_tool
 from rag.custom_sources import load_custom_library
+from rag.neural_adapters import LocalZhEnTranslator
+from rag.models import RetrievalRequest
 from medrax.answer_audit import QwenClaimTranslator
+from medrax.query_converter import QwenQueryConverter
 from medrax.medical_session import ACTIVE_TURN
 from .evidence import EvidenceAggregator
 
@@ -25,7 +29,6 @@ class MedicalEvidenceRAGInput(BaseModel):
     question: str = Field(..., min_length=2, description="Original medical question; retain its original language")
     top_k: int = Field(default=8, ge=1, le=20)
     as_of: Optional[str] = None
-    user_terms: Dict[str, List[str]] = Field(default_factory=dict, description="Only mappings already in the operator-reviewed terminology table; never invent reviewed terms")
     source_kinds: List[Literal["pubmed", "guideline", "drug", "clinical_trial", "local_knowledge"]] = Field(default_factory=list)
     clinical_intent: Optional[Literal["guideline_recommendation", "evidence_update", "drug_safety", "clinical_question"]] = None
     retrieval_method: str = "bm25"
@@ -48,6 +51,11 @@ def _get_rag() -> EvidenceRAG:
             raise ValueError("custom mode requires RAG_CUSTOM_SOURCES_FILE")
         library = load_custom_library(path)
     rag = create_tool(mode, custom_library=library)
+    # Reuse the RAG translate/fidelity path with the configured Qwen service;
+    # no additional Marian model is required on this machine.
+    rag.pipeline.translator = LocalZhEnTranslator(
+        translate=_get_query_converter().convert, expander_id="qwen-query-conversion",
+    )
     rag.auditor.verifier = MiniCheckVerifier(
         model_name=os.getenv("MINICHECK_MODEL", "flan-t5-large"),
         cache_dir=os.getenv("MINICHECK_CACHE_DIR") or None,
@@ -58,6 +66,11 @@ def _get_rag() -> EvidenceRAG:
 @lru_cache(maxsize=1)
 def _get_claim_translator():
     return QwenClaimTranslator()
+
+
+@lru_cache(maxsize=1)
+def _get_query_converter():
+    return QwenQueryConverter()
 
 
 def reviewed_terms():
@@ -91,20 +104,22 @@ class MedicalEvidenceRAGTool(BaseTool):
     def translate_claims(self, claims):
         return _get_claim_translator()(claims)
 
-    def _run(self, question, top_k=8, as_of=None, user_terms=None, source_kinds=None,
+    def _run(self, question, top_k=8, as_of=None, source_kinds=None,
              clinical_intent=None, retrieval_method="bm25", rerank=False, fidelity_gate="warn"):
         turn = ACTIVE_TURN.get()
         if turn:
             turn.consume(self.name)
         terms = reviewed_terms()
-        if user_terms and any(key not in terms or values != terms[key] for key, values in user_terms.items()):
-            raise ValueError("user_terms contains a mapping outside the reviewed terminology table")
+        original = turn.question if turn else question.strip()
+        methods = RetrievalRequest.parse_methods(retrieval_method)
+        if re.search(r"[\u3400-\u9fff]", original) and "translate" not in methods:
+            methods = (*methods, "translate")
         request = {
             "request_id": f"agent-{uuid4().hex}",
-            "question": turn.question if turn else question.strip(),
+            "question": original,
             "top_k": top_k, "user_terms": terms,
             "source_kinds": source_kinds or [], "clinical_intent": clinical_intent,
-            "retrieval_method": retrieval_method, "rerank": rerank,
+            "retrieval_method": ",".join(methods), "rerank": rerank,
             "fidelity_gate": fidelity_gate, "source_mode": os.getenv("RAG_SOURCE_MODE", "live"),
         }
         cutoff = turn.session.as_of if turn else as_of

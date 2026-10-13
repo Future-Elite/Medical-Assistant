@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from contracts.agent_his_adapter import AgentHisClient
 from rag.his import filter_snapshot, snapshot_from_dict
 from medrax.medical_session import require_turn
+from medrax.his_service import DEFAULT_HIS_URL
 
 
 class SnapshotInput(BaseModel):
@@ -34,7 +35,7 @@ class PatientSnapshotTool(BaseTool):
         if not session.patient_ref:
             return "No patient selected. Ask the user to select a synthetic patient.", {"error": "patient_required"}
         try:
-            payload = AgentHisClient(base_url=os.getenv("HIS_BASE_URL", "http://127.0.0.1:8080")).snapshot_payload(
+            payload = AgentHisClient(base_url=os.getenv("HIS_BASE_URL") or DEFAULT_HIS_URL).snapshot_payload(
                 session.patient_ref, session.as_of
             )
             # RAG owns the single visibility implementation. Keep the fetched payload

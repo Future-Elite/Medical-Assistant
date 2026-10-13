@@ -67,6 +67,17 @@ class MedicalEvidenceRAGToolTest(unittest.TestCase):
             ["retrieve_medical_evidence", "get_patient_snapshot", "open_medical_citation"],
         )
 
+    @patch("medrax.tools.rag_tool._get_rag", return_value=StubRAG())
+    def test_user_terms_is_not_exposed_and_stale_parameter_cannot_abort(self, get_rag):
+        tool = MedicalEvidenceRAGTool()
+        self.assertNotIn("user_terms", tool.args_schema.model_json_schema()["properties"])
+        result = tool.invoke({
+            "name": tool.name, "type": "tool_call", "id": "stale-call",
+            "args": {"question": "哮喘治疗", "user_terms": {"未知词": ["model guess"]}},
+        })
+        self.assertNotIn("未知词", result.artifact["tool_args"]["user_terms"])
+        self.assertIn("translate", result.artifact["tool_args"]["retrieval_method"])
+
 
 if __name__ == "__main__":
     unittest.main()

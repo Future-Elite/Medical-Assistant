@@ -1,6 +1,7 @@
 import os
 import warnings
 from pathlib import Path
+from contextlib import nullcontext
 from typing import *
 from dotenv import load_dotenv
 #from transformers import logging
@@ -19,6 +20,7 @@ from medrax.tools.his_tool import PatientSnapshotTool
 from medrax.tools.citation_tool import OpenMedicalCitationTool
 from medrax.orchestrator import MedicalAgentOrchestrator
 from medrax.medical_session import ACTIVE_TURN
+from medrax.his_service import managed_his_service
 from medrax.utils import load_prompts_from_file
 
 
@@ -206,14 +208,15 @@ if __name__ == "__main__":
             temperature=0.7,
             top_p=0.95,
         )
-    for tool in tools_dict.values():
-        if hasattr(tool, "preload_auditor"):
-            print("Loading MiniCheck before accepting requests...", flush=True)
-            tool.preload_auditor()
-            print("MiniCheck ready.", flush=True)
-    demo = create_demo(agent, tools_dict)
-
-    demo.launch(
-        server_name=os.getenv("MEDRAX_HOST", "0.0.0.0"),
-        server_port=int(os.getenv("MEDRAX_PORT", "8585")), share=False,
-    )
+    service = managed_his_service() if "PatientSnapshotTool" in tools_dict else nullcontext()
+    with service:
+        for tool in tools_dict.values():
+            if hasattr(tool, "preload_auditor"):
+                print("Loading MiniCheck before accepting requests...", flush=True)
+                tool.preload_auditor()
+                print("MiniCheck ready.", flush=True)
+        demo = create_demo(agent, tools_dict)
+        demo.launch(
+            server_name=os.getenv("MEDRAX_HOST", "0.0.0.0"),
+            server_port=int(os.getenv("MEDRAX_PORT", "8585")), share=False,
+        )
