@@ -1,0 +1,111 @@
+# 诊断编码白名单（糖尿病相关子集）。
+#
+# 编译器规则：
+#   - 若填了 gb14396，用 system=ICD10_CN + 该 6 位码
+#   - 否则回退到 icd10_who（WHO 四位码），system=ICD10_WHO
+#   - 两者都没有 → 编译失败
+#
+# `verified` 描述的是**码值本身**是否已核对：
+#   icd10_who 的码值是公开的 WHO ICD-10，可信；
+#   gb14396 一律留空 + null，直到拿到 GB/T 14396-2016 正式代码表。
+
+diagnoses:
+
+  t2dm:
+    name_zh: 2型糖尿病
+    name_en: Type 2 diabetes mellitus
+    icd10_who: E11
+    gb14396: null
+    verified_who: true
+    source: WHO ICD-10 Version 2019，E10-E14 糖尿病
+
+  t2dm_without_complication:
+    name_zh: 2型糖尿病不伴并发症
+    name_en: Type 2 diabetes mellitus without complications
+    icd10_who: E11.9
+    gb14396: null
+    verified_who: true
+    source: WHO ICD-10 Version 2019
+
+  t2dm_with_kidney_complication:
+    name_zh: 2型糖尿病伴肾脏并发症
+    name_en: Type 2 diabetes mellitus with kidney complications
+    icd10_who: E11.2
+    gb14396: null
+    verified_who: true
+    source: WHO ICD-10 Version 2019
+
+  t2dm_with_eye_complication:
+    name_zh: 2型糖尿病伴眼并发症
+    name_en: Type 2 diabetes mellitus with ophthalmic complications
+    icd10_who: E11.3
+    gb14396: null
+    verified_who: true
+    source: WHO ICD-10 Version 2019
+
+  t2dm_with_neurological_complication:
+    name_zh: 2型糖尿病伴神经系统并发症
+    name_en: Type 2 diabetes mellitus with neurological complications
+    icd10_who: E11.4
+    gb14396: null
+    verified_who: true
+    source: WHO ICD-10 Version 2019
+
+  t2dm_with_peripheral_vascular_complication:
+    name_zh: 2型糖尿病伴周围循环并发症
+    name_en: Type 2 diabetes mellitus with peripheral circulatory complications
+    icd10_who: E11.5
+    gb14396: null
+    verified_who: true
+    source: WHO ICD-10 Version 2019
+
+  t2dm_with_multiple_complications:
+    name_zh: 2型糖尿病伴多个并发症
+    name_en: Type 2 diabetes mellitus with multiple complications
+    icd10_who: E11.7
+    gb14396: null
+    verified_who: true
+    source: WHO ICD-10 Version 2019
+
+  prediabetes_igg:
+    name_zh: 空腹血糖受损
+    name_en: Impaired fasting glucose
+    icd10_who: R73.0
+    gb14396: null
+    verified_who: true
+    source: WHO ICD-10 Version 2019，R73 血糖升高
+
+  prediabetes_igt:
+    name_zh: 糖耐量受损
+    name_en: Impaired glucose tolerance
+    icd10_who: R73.0
+    gb14396: null
+    verified_who: true
+    source: WHO ICD-10 Version 2019（IGT 与 IFG 同归 R73.0）
+
+  essential_hypertension:
+    name_zh: 原发性高血压
+    name_en: Essential (primary) hypertension
+    icd10_who: I10
+    gb14396: null
+    verified_who: true
+    source: WHO ICD-10 Version 2019
+
+  hyperlipidaemia:
+    name_zh: 高脂血症
+    name_en: Hyperlipidaemia, unspecified
+    icd10_who: E78.5
+    gb14396: null
+    verified_who: true
+    source: WHO ICD-10 Version 2019
+
+  esrd:
+    name_zh: 终末期肾病
+    name_en: End stage renal disease
+    icd10_who: N18.5
+    gb14396: null
+    verified_who: true
+    source: WHO ICD-10 Version 2019，N18 慢性肾脏病；N18.5 为终末期
+    # 注意：这是**肾脏病**的码，与病因无关。糖尿病患者同时有 E11.2 时，
+    # 正确编码是 E11.2 + N18.5 两条，而不是把病因塞进 N18。
+    # 本模块的 esrd 状态目前只开 N18.5，糖尿病那一半靠此前的 t2dm__onset 带出。

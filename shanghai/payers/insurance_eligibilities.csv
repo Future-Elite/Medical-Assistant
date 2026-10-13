@@ -1,0 +1,3 @@
+Name,Age Threshold,Poverty Multiplier,Income Threshold,Qualifying Codes,Qualifying Attributes,Poverty Multiplier File,Spenddown File,Acceptance Likelihood,Sub-Eligibilities,Logical Operator,Notes
+EMPLOYEE_MEDICAL,16,,,,,,,,,,按 16 周岁及以上简化近似职工医保参保条件；真实口径是在职职工与退休人员。见 SOURCES.md
+SUPPLEMENTAL,,,,,,,,0.20,,,商业补充医疗保险，按 20% 接受率近似企业团体投保比例。见 SOURCES.md

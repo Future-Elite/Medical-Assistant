@@ -1,0 +1,79 @@
+# 编码体系注册表。
+#
+# 每条 system 的 `key` 是 IR 里写 `system:` 时用的键名，不是 URI。
+#
+# verified: true  —— 出处已核对，可放心写入产物
+# verified: false —— 出处未确认（见设计文档 §11.2）。URI 一律用
+#                   `urn:hisgen:unverified:<key>` 这种自描述占位符，
+#                   绝不编造看起来像真的 OID。编译器会对用到它们的
+#                   模块发出告警并记入 review/待核实编码体系.md。
+#
+# 一旦拿到权威 OID，只需改这一处 uri，IR 与编译器都不用动。
+
+systems:
+
+  ICD10_CN:
+    name_zh: 疾病分类与代码
+    standard: GB/T 14396-2016
+    uri: "urn:hisgen:unverified:ICD10_CN"
+    verified: false
+    note: >
+      标准为 6 位扩展码（首位字母 + 5 位数字），约 2 万余条。
+      值域 OID 未能确认权威出处，须经国家卫健委统计信息中心 OID 注册查询
+      系统或 WS/T 364-2023 附录核对后替换 uri。
+
+  ICD10_WHO:
+    name_zh: 国际疾病分类第十次修订本（WHO 四位码）
+    standard: ICD-10 (WHO)
+    uri: "http://hl7.org/fhir/sid/icd-10"
+    verified: true
+    note: >
+      兜底体系。当 terminology/diagnoses.yaml 中某条没有填 gb14396 码时，
+      编译器回退到 icd10_who，产物里能明确看出「用的是 WHO 码而非国标码」，
+      而不是假装已经是国标。填入 gb14396 后自动切换到 ICD10_CN。
+
+  YPID:
+    name_zh: 药品采购使用管理分类代码与标识码
+    standard: WS/T 778-2021
+    uri: "urn:hisgen:unverified:YPID"
+    verified: false
+    note: YPID 在 FHIR 中的 CodeSystem URI 未查到 OID 注册信息，须核对。
+
+  ATC:
+    name_zh: 解剖治疗化学分类
+    standard: WHO ATC/DDD Index
+    uri: "http://www.whocc.no/atc"
+    verified: true
+    note: 兜底体系。药品没有 YPID 码时回退到 ATC，产物里能看出区别。
+
+  ICD9CM3:
+    name_zh: 国际疾病分类第九版临床修订本手术与操作（国家临床版3.0）
+    standard: ICD-9-CM-3 国家临床版 3.0
+    uri: "urn:hisgen:unverified:ICD9CM3"
+    verified: false
+    note: 该码表未获取，本项目中 procedures.yaml 一律留空 icd9cm3，走 LOCAL_ZH 占位。
+
+  LOINC:
+    name_zh: 观测指标标识符逻辑命名与编码
+    standard: LOINC
+    uri: "http://loinc.org"
+    verified: true
+
+  CN_ID:
+    name_zh: 居民身份证号码
+    standard: GB 11643-1999
+    uri: "urn:hisgen:unverified:CN_ID"
+    verified: false
+    note: >
+      身份证号相关的 FHIR identifier system URI 未确认。
+      注意 FhirR4.java 把 SSN 体系的 URI 硬编码成 us-ssn，见 §11.2 第 3 条。
+
+  LOCAL_ZH:
+    name_zh: 本项目自定义本地编码（非国标）
+    standard: 无
+    uri: "urn:hisgen:local:zh"
+    verified: true
+    note: >
+      仅用于承载中文 display 的占位编码，例如科室名、照护计划名。
+      code 值就是中文名本身，一眼能看出不是真实编码体系。
+      拿到国标码后应逐条替换。

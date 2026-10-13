@@ -1,0 +1,388 @@
+# 药品白名单。key 是 IR 里 `drug:` 用的键名。
+#
+# 药品通用名用《中国药品通用名称》规范名。
+# atc 为 WHO ATC/DDD Index 码，公开可信。
+# ypid 一律留空 —— YPID 码表（WS/T 778-2021）未获取，不编造。
+# 填上 ypid 后编译器会自动用 YPID 体系，否则用 ATC。
+
+medications:
+
+  metformin:
+    name_zh: 二甲双胍
+    name_en: Metformin
+    atc: A10BA02
+    ypid: null
+    default_dosage_zh: 口服 0.5g 每日2次
+    # 规格与给药途径。FHIR 的 MedicationRequest 里没有这两个位置
+    # （FhirR4 只读 as_needed / dosage / instructions / refills），
+    # 所以它们属于药品字典 —— 导出层从这张表回填 医嘱_药品.规格 / .给药途径。
+    spec_zh: 0.5g
+    route_zh: 口服
+    # 结构化用法用量。Synthea 的 prescription.dosage 要求这四个键齐全，
+    # 缺一个 FhirR4 就 NPE（见 registry.Dosage 的说明）。
+    default_dosage:
+      amount: 1          # 每次 1 个最小给药单位
+      frequency: 2     # 每日2次
+      period: 1
+      unit: days
+    source: 《中国2型糖尿病防治指南(2020年版)》二甲双胍为一线首选
+
+  acarbose:
+    name_zh: 阿卡波糖
+    name_en: Acarbose
+    atc: A10BF01
+    ypid: null
+    default_dosage_zh: 口服 50mg 每日3次，随第一口主食嚼服
+    # 规格与给药途径。FHIR 的 MedicationRequest 里没有这两个位置
+    # （FhirR4 只读 as_needed / dosage / instructions / refills），
+    # 所以它们属于药品字典 —— 导出层从这张表回填 医嘱_药品.规格 / .给药途径。
+    spec_zh: 50mg
+    route_zh: 口服
+    # 结构化用法用量。Synthea 的 prescription.dosage 要求这四个键齐全，
+    # 缺一个 FhirR4 就 NPE（见 registry.Dosage 的说明）。
+    default_dosage:
+      amount: 1          # 每次 1 个最小给药单位
+      frequency: 3     # 每日3次
+      period: 1
+      unit: days
+    source: 《中国2型糖尿病防治指南(2020年版)》
+
+  glimepiride:
+    name_zh: 格列美脲
+    name_en: Glimepiride
+    atc: A10BB12
+    ypid: null
+    default_dosage_zh: 口服 2mg 每日1次
+    # 规格与给药途径。FHIR 的 MedicationRequest 里没有这两个位置
+    # （FhirR4 只读 as_needed / dosage / instructions / refills），
+    # 所以它们属于药品字典 —— 导出层从这张表回填 医嘱_药品.规格 / .给药途径。
+    spec_zh: 2mg
+    route_zh: 口服
+    # 结构化用法用量。Synthea 的 prescription.dosage 要求这四个键齐全，
+    # 缺一个 FhirR4 就 NPE（见 registry.Dosage 的说明）。
+    default_dosage:
+      amount: 1          # 每次 1 个最小给药单位
+      frequency: 1     # 每日1次
+      period: 1
+      unit: days
+    source: 《中国2型糖尿病防治指南(2020年版)》
+
+  gliclazide:
+    name_zh: 格列齐特
+    name_en: Gliclazide
+    atc: A10BB09
+    ypid: null
+    default_dosage_zh: 口服 30mg 每日1次
+    # 规格与给药途径。FHIR 的 MedicationRequest 里没有这两个位置
+    # （FhirR4 只读 as_needed / dosage / instructions / refills），
+    # 所以它们属于药品字典 —— 导出层从这张表回填 医嘱_药品.规格 / .给药途径。
+    spec_zh: 30mg
+    route_zh: 口服
+    # 结构化用法用量。Synthea 的 prescription.dosage 要求这四个键齐全，
+    # 缺一个 FhirR4 就 NPE（见 registry.Dosage 的说明）。
+    default_dosage:
+      amount: 1          # 每次 1 个最小给药单位
+      frequency: 1     # 每日1次
+      period: 1
+      unit: days
+    source: 《中国2型糖尿病防治指南(2020年版)》
+
+  repaglinide:
+    name_zh: 瑞格列奈
+    name_en: Repaglinide
+    atc: A10BX02
+    ypid: null
+    default_dosage_zh: 口服 1mg 每日3次，餐前15分钟
+    # 规格与给药途径。FHIR 的 MedicationRequest 里没有这两个位置
+    # （FhirR4 只读 as_needed / dosage / instructions / refills），
+    # 所以它们属于药品字典 —— 导出层从这张表回填 医嘱_药品.规格 / .给药途径。
+    spec_zh: 1mg
+    route_zh: 口服
+    # 结构化用法用量。Synthea 的 prescription.dosage 要求这四个键齐全，
+    # 缺一个 FhirR4 就 NPE（见 registry.Dosage 的说明）。
+    default_dosage:
+      amount: 1          # 每次 1 个最小给药单位
+      frequency: 3     # 每日3次
+      period: 1
+      unit: days
+    source: 《中国2型糖尿病防治指南(2020年版)》
+
+  sitagliptin:
+    name_zh: 西格列汀
+    name_en: Sitagliptin
+    atc: A10BH01
+    ypid: null
+    default_dosage_zh: 口服 100mg 每日1次
+    # 规格与给药途径。FHIR 的 MedicationRequest 里没有这两个位置
+    # （FhirR4 只读 as_needed / dosage / instructions / refills），
+    # 所以它们属于药品字典 —— 导出层从这张表回填 医嘱_药品.规格 / .给药途径。
+    spec_zh: 100mg
+    route_zh: 口服
+    # 结构化用法用量。Synthea 的 prescription.dosage 要求这四个键齐全，
+    # 缺一个 FhirR4 就 NPE（见 registry.Dosage 的说明）。
+    default_dosage:
+      amount: 1          # 每次 1 个最小给药单位
+      frequency: 1     # 每日1次
+      period: 1
+      unit: days
+    source: 《中国2型糖尿病防治指南(2020年版)》
+
+  linagliptin:
+    name_zh: 利格列汀
+    name_en: Linagliptin
+    atc: A10BH05
+    ypid: null
+    default_dosage_zh: 口服 5mg 每日1次
+    # 规格与给药途径。FHIR 的 MedicationRequest 里没有这两个位置
+    # （FhirR4 只读 as_needed / dosage / instructions / refills），
+    # 所以它们属于药品字典 —— 导出层从这张表回填 医嘱_药品.规格 / .给药途径。
+    spec_zh: 5mg
+    route_zh: 口服
+    # 结构化用法用量。Synthea 的 prescription.dosage 要求这四个键齐全，
+    # 缺一个 FhirR4 就 NPE（见 registry.Dosage 的说明）。
+    default_dosage:
+      amount: 1          # 每次 1 个最小给药单位
+      frequency: 1     # 每日1次
+      period: 1
+      unit: days
+    source: 《中国2型糖尿病防治指南(2020年版)》
+
+  empagliflozin:
+    name_zh: 恩格列净
+    name_en: Empagliflozin
+    atc: A10BK03
+    ypid: null
+    default_dosage_zh: 口服 10mg 每日1次
+    # 规格与给药途径。FHIR 的 MedicationRequest 里没有这两个位置
+    # （FhirR4 只读 as_needed / dosage / instructions / refills），
+    # 所以它们属于药品字典 —— 导出层从这张表回填 医嘱_药品.规格 / .给药途径。
+    spec_zh: 10mg
+    route_zh: 口服
+    # 结构化用法用量。Synthea 的 prescription.dosage 要求这四个键齐全，
+    # 缺一个 FhirR4 就 NPE（见 registry.Dosage 的说明）。
+    default_dosage:
+      amount: 1          # 每次 1 个最小给药单位
+      frequency: 1     # 每日1次
+      period: 1
+      unit: days
+    source: 《中国2型糖尿病防治指南(2020年版)》
+
+  dapagliflozin:
+    name_zh: 达格列净
+    name_en: Dapagliflozin
+    atc: A10BK01
+    ypid: null
+    default_dosage_zh: 口服 10mg 每日1次
+    # 规格与给药途径。FHIR 的 MedicationRequest 里没有这两个位置
+    # （FhirR4 只读 as_needed / dosage / instructions / refills），
+    # 所以它们属于药品字典 —— 导出层从这张表回填 医嘱_药品.规格 / .给药途径。
+    spec_zh: 10mg
+    route_zh: 口服
+    # 结构化用法用量。Synthea 的 prescription.dosage 要求这四个键齐全，
+    # 缺一个 FhirR4 就 NPE（见 registry.Dosage 的说明）。
+    default_dosage:
+      amount: 1          # 每次 1 个最小给药单位
+      frequency: 1     # 每日1次
+      period: 1
+      unit: days
+    source: 《中国2型糖尿病防治指南(2020年版)》
+
+  liraglutide:
+    name_zh: 利拉鲁肽
+    name_en: Liraglutide
+    atc: A10BJ02
+    ypid: null
+    default_dosage_zh: 皮下注射 0.6mg 每日1次
+    # 规格与给药途径。FHIR 的 MedicationRequest 里没有这两个位置
+    # （FhirR4 只读 as_needed / dosage / instructions / refills），
+    # 所以它们属于药品字典 —— 导出层从这张表回填 医嘱_药品.规格 / .给药途径。
+    spec_zh: 0.6mg
+    route_zh: 皮下注射
+    # 结构化用法用量。Synthea 的 prescription.dosage 要求这四个键齐全，
+    # 缺一个 FhirR4 就 NPE（见 registry.Dosage 的说明）。
+    default_dosage:
+      amount: 1          # 每次 1 个最小给药单位
+      frequency: 1     # 每日1次
+      period: 1
+      unit: days
+    source: 《中国2型糖尿病防治指南(2020年版)》
+
+  dulaglutide:
+    name_zh: 度拉糖肽
+    name_en: Dulaglutide
+    atc: A10BJ05
+    ypid: null
+    default_dosage_zh: 皮下注射 0.75mg 每周1次
+    # 规格与给药途径。FHIR 的 MedicationRequest 里没有这两个位置
+    # （FhirR4 只读 as_needed / dosage / instructions / refills），
+    # 所以它们属于药品字典 —— 导出层从这张表回填 医嘱_药品.规格 / .给药途径。
+    spec_zh: 0.75mg
+    route_zh: 皮下注射
+    # 结构化用法用量。Synthea 的 prescription.dosage 要求这四个键齐全，
+    # 缺一个 FhirR4 就 NPE（见 registry.Dosage 的说明）。
+    default_dosage:
+      amount: 1          # 每次 1 个最小给药单位
+      frequency: 1     # 每周1次
+      period: 1
+      unit: weeks
+    source: 《中国2型糖尿病防治指南(2020年版)》
+
+  semaglutide:
+    name_zh: 司美格鲁肽
+    name_en: Semaglutide
+    atc: A10BJ06
+    ypid: null
+    default_dosage_zh: 皮下注射 0.25mg 每周1次
+    # 规格与给药途径。FHIR 的 MedicationRequest 里没有这两个位置
+    # （FhirR4 只读 as_needed / dosage / instructions / refills），
+    # 所以它们属于药品字典 —— 导出层从这张表回填 医嘱_药品.规格 / .给药途径。
+    spec_zh: 0.25mg
+    route_zh: 皮下注射
+    # 结构化用法用量。Synthea 的 prescription.dosage 要求这四个键齐全，
+    # 缺一个 FhirR4 就 NPE（见 registry.Dosage 的说明）。
+    default_dosage:
+      amount: 1          # 每次 1 个最小给药单位
+      frequency: 1     # 每周1次
+      period: 1
+      unit: weeks
+    source: 《中国2型糖尿病防治指南(2020年版)》
+
+  insulin_glargine:
+    name_zh: 甘精胰岛素
+    name_en: Insulin glargine
+    atc: A10AE04
+    ypid: null
+    default_dosage_zh: 皮下注射 起始 0.2U/kg 每日1次
+    # 规格与给药途径。FHIR 的 MedicationRequest 里没有这两个位置
+    # （FhirR4 只读 as_needed / dosage / instructions / refills），
+    # 所以它们属于药品字典 —— 导出层从这张表回填 医嘱_药品.规格 / .给药途径。
+    spec_zh: 0.2U/kg（起始）
+    route_zh: 皮下注射
+    # 结构化用法用量。Synthea 的 prescription.dosage 要求这四个键齐全，
+    # 缺一个 FhirR4 就 NPE（见 registry.Dosage 的说明）。
+    default_dosage:
+      amount: 1          # 每次 1 个最小给药单位
+      frequency: 1     # 每日1次
+      period: 1
+      unit: days
+    source: 《中国2型糖尿病防治指南(2020年版)》基础胰岛素起始方案
+
+  insulin_aspart:
+    name_zh: 门冬胰岛素
+    name_en: Insulin aspart
+    atc: A10AB05
+    ypid: null
+    default_dosage_zh: 皮下注射 4U 每日3次，餐前即刻
+    # 规格与给药途径。FHIR 的 MedicationRequest 里没有这两个位置
+    # （FhirR4 只读 as_needed / dosage / instructions / refills），
+    # 所以它们属于药品字典 —— 导出层从这张表回填 医嘱_药品.规格 / .给药途径。
+    spec_zh: 4U
+    route_zh: 皮下注射
+    # 结构化用法用量。Synthea 的 prescription.dosage 要求这四个键齐全，
+    # 缺一个 FhirR4 就 NPE（见 registry.Dosage 的说明）。
+    default_dosage:
+      amount: 1          # 每次 1 个最小给药单位
+      frequency: 3     # 每日3次
+      period: 1
+      unit: days
+    source: 《中国2型糖尿病防治指南(2020年版)》
+
+  amlodipine:
+    name_zh: 氨氯地平
+    name_en: Amlodipine
+    atc: C08CA01
+    ypid: null
+    default_dosage_zh: 口服 5mg 每日1次
+    # 规格与给药途径。FHIR 的 MedicationRequest 里没有这两个位置
+    # （FhirR4 只读 as_needed / dosage / instructions / refills），
+    # 所以它们属于药品字典 —— 导出层从这张表回填 医嘱_药品.规格 / .给药途径。
+    spec_zh: 5mg
+    route_zh: 口服
+    # 结构化用法用量。Synthea 的 prescription.dosage 要求这四个键齐全，
+    # 缺一个 FhirR4 就 NPE（见 registry.Dosage 的说明）。
+    default_dosage:
+      amount: 1          # 每次 1 个最小给药单位
+      frequency: 1     # 每日1次
+      period: 1
+      unit: days
+    source: 《中国高血压防治指南(2018年修订版)》
+
+  losartan:
+    name_zh: 氯沙坦
+    name_en: Losartan
+    atc: C09CA01
+    ypid: null
+    default_dosage_zh: 口服 50mg 每日1次
+    # 规格与给药途径。FHIR 的 MedicationRequest 里没有这两个位置
+    # （FhirR4 只读 as_needed / dosage / instructions / refills），
+    # 所以它们属于药品字典 —— 导出层从这张表回填 医嘱_药品.规格 / .给药途径。
+    spec_zh: 50mg
+    route_zh: 口服
+    # 结构化用法用量。Synthea 的 prescription.dosage 要求这四个键齐全，
+    # 缺一个 FhirR4 就 NPE（见 registry.Dosage 的说明）。
+    default_dosage:
+      amount: 1          # 每次 1 个最小给药单位
+      frequency: 1     # 每日1次
+      period: 1
+      unit: days
+    source: 《中国高血压防治指南(2018年修订版)》
+
+  atorvastatin:
+    name_zh: 阿托伐他汀
+    name_en: Atorvastatin
+    atc: C10AA05
+    ypid: null
+    default_dosage_zh: 口服 20mg 每晚1次
+    # 规格与给药途径。FHIR 的 MedicationRequest 里没有这两个位置
+    # （FhirR4 只读 as_needed / dosage / instructions / refills），
+    # 所以它们属于药品字典 —— 导出层从这张表回填 医嘱_药品.规格 / .给药途径。
+    spec_zh: 20mg
+    route_zh: 口服
+    # 结构化用法用量。Synthea 的 prescription.dosage 要求这四个键齐全，
+    # 缺一个 FhirR4 就 NPE（见 registry.Dosage 的说明）。
+    default_dosage:
+      amount: 1          # 每次 1 个最小给药单位
+      frequency: 1     # 每晚1次
+      period: 1
+      unit: days
+    source: 《中国2型糖尿病防治指南(2020年版)》血脂管理
+
+  rosuvastatin:
+    name_zh: 瑞舒伐他汀
+    name_en: Rosuvastatin
+    atc: C10AA07
+    ypid: null
+    default_dosage_zh: 口服 10mg 每晚1次
+    # 规格与给药途径。FHIR 的 MedicationRequest 里没有这两个位置
+    # （FhirR4 只读 as_needed / dosage / instructions / refills），
+    # 所以它们属于药品字典 —— 导出层从这张表回填 医嘱_药品.规格 / .给药途径。
+    spec_zh: 10mg
+    route_zh: 口服
+    # 结构化用法用量。Synthea 的 prescription.dosage 要求这四个键齐全，
+    # 缺一个 FhirR4 就 NPE（见 registry.Dosage 的说明）。
+    default_dosage:
+      amount: 1          # 每次 1 个最小给药单位
+      frequency: 1     # 每晚1次
+      period: 1
+      unit: days
+    source: 《中国2型糖尿病防治指南(2020年版)》血脂管理
+
+  aspirin:
+    name_zh: 阿司匹林
+    name_en: Acetylsalicylic acid
+    atc: B01AC06
+    ypid: null
+    default_dosage_zh: 口服 100mg 每日1次
+    # 规格与给药途径。FHIR 的 MedicationRequest 里没有这两个位置
+    # （FhirR4 只读 as_needed / dosage / instructions / refills），
+    # 所以它们属于药品字典 —— 导出层从这张表回填 医嘱_药品.规格 / .给药途径。
+    spec_zh: 100mg
+    route_zh: 口服
+    # 结构化用法用量。Synthea 的 prescription.dosage 要求这四个键齐全，
+    # 缺一个 FhirR4 就 NPE（见 registry.Dosage 的说明）。
+    default_dosage:
+      amount: 1          # 每次 1 个最小给药单位
+      frequency: 1     # 每日1次
+      period: 1
+      unit: days
+    source: 《中国2型糖尿病防治指南(2020年版)》抗血小板治疗

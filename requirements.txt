@@ -1,0 +1,9 @@
+pydantic>=2.9
+PyYAML>=6.0
+
+# 可选：层 1 LLM 生成 IR 时需要
+langchain-core>=0.3
+langchain-deepseek>=0.1
+
+# 开发/测试
+pytest>=7.4

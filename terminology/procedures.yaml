@@ -1,0 +1,58 @@
+# 操作/检查项目白名单。key 是 IR 里 `term:` 用的键名。
+#
+# 编码说明：中国临床操作分类用 ICD-9-CM-3 国家临床版 3.0，
+# 本表未获取该码表，故 icd9cm3 一律留空 —— 不编造。
+# 留空时编译器用 LOCAL_ZH 占位体系，code 就是中文名本身，
+# 产物里一眼能看出「这不是真实编码」。
+#
+# 拿到 ICD-9-CM-3 码表后填入 icd9cm3，编译器自动切换体系。
+
+procedures:
+
+  fundus_examination:
+    name_zh: 眼底检查
+    name_en: Fundus examination
+    icd9cm3: null
+    source: 《中国2型糖尿病防治指南(2020年版)》糖尿病视网膜病变筛查
+
+  urine_albumin_creatinine_ratio_test:
+    name_zh: 尿白蛋白/肌酐比值测定
+    name_en: Urine albumin-to-creatinine ratio measurement
+    icd9cm3: null
+    source: 《中国2型糖尿病防治指南(2020年版)》糖尿病肾病筛查
+
+  diabetic_peripheral_neuropathy_screening:
+    name_zh: 糖尿病周围神经病变筛查
+    name_en: Diabetic peripheral neuropathy screening
+    icd9cm3: null
+    source: 《中国2型糖尿病防治指南(2020年版)》
+
+  ankle_brachial_index:
+    name_zh: 踝肱指数测定
+    name_en: Ankle-brachial index measurement
+    icd9cm3: null
+    source: 《中国2型糖尿病防治指南(2020年版)》下肢血管病变筛查
+
+  oral_glucose_tolerance_test:
+    name_zh: 口服葡萄糖耐量试验
+    name_en: Oral glucose tolerance test
+    icd9cm3: null
+    source: 《中国2型糖尿病防治指南(2020年版)》
+
+  hemodialysis:
+    name_zh: 血液透析
+    name_en: Hemodialysis
+    icd9cm3: null
+    source: 《中国2型糖尿病防治指南(2020年版)》终末期肾病替代治疗
+
+  continuous_glucose_monitoring:
+    name_zh: 动态血糖监测
+    name_en: Continuous glucose monitoring
+    icd9cm3: null
+    source: 《中国2型糖尿病防治指南(2020年版)》血糖监测
+
+  diabetes_self_management_education:
+    name_zh: 糖尿病自我管理教育
+    name_en: Diabetes self-management education
+    icd9cm3: null
+    source: 《中国2型糖尿病防治指南(2020年版)》糖尿病教育与管理

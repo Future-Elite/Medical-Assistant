@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hisgen"
+version = "0.1.0"
+description = "上海地区 Synthea 患者数据生成：临床路径 IR -> GMF 编译器 -> 关系型表导出"
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.9",
+    "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+llm = [
+    "langchain-core>=0.3",
+    "langchain-deepseek>=0.1",
+]
+dev = [
+    "pytest>=7.4",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+markers = [
+    "synthea: 需要真实运行 Synthea 的慢测试（默认跳过，设 HISDATA_RUN_SYNTHEA=1 启用）",
+]

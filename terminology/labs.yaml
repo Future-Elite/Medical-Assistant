@@ -1,0 +1,154 @@
+# 检验项目白名单。体系用 LOINC（国际权威，国内亦在用），display 用中文。
+#
+# 码值说明：以下 LOINC 码取自 LOINC 通用表。LOINC 体系本身无疑义，
+# 但逐条码值与版本的对应关系请在投产前用 LOINC 官方检索复核一次
+# （https://loinc.org/search/）。`verified` 标 false 的条目为尚未逐条复核。
+#
+# reference_range 是**默认**参考区间；IR 里的 range 可以覆盖它。
+# 单位统一用国内临床习惯单位（mmol/L、μmol/L、g/L 等），不是 mg/dL。
+
+labs:
+
+  fasting_plasma_glucose:
+    name_zh: 空腹血糖
+    name_en: Glucose [Mass/volume] in Serum or Plasma
+    loinc: "1558-6"
+    unit_zh: mmol/L
+    reference_range: [3.9, 6.1]
+    verified: true
+    source: LOINC 1558-6
+
+  glucose_2h_ogtt:
+    name_zh: 口服葡萄糖耐量试验2小时血糖
+    name_en: Glucose [Mass/volume] in Serum or Plasma --2 hours post 75 g glucose PO
+    loinc: "1518-0"
+    unit_zh: mmol/L
+    reference_range: [3.9, 7.8]
+    verified: false
+    source: LOINC（码值待官方检索复核）
+
+  hba1c:
+    name_zh: 糖化血红蛋白
+    name_en: Hemoglobin A1c/Hemoglobin.total in Blood
+    loinc: "4548-4"
+    unit_zh: "%"
+    reference_range: [4.0, 6.0]
+    verified: true
+    source: LOINC 4548-4
+
+  random_glucose:
+    name_zh: 随机血糖
+    name_en: Glucose [Mass/volume] in Blood
+    loinc: "2339-0"
+    unit_zh: mmol/L
+    reference_range: [3.9, 11.1]
+    verified: true
+    source: LOINC 2339-0
+
+  serum_creatinine:
+    name_zh: 血清肌酐
+    name_en: Creatinine [Mass/volume] in Serum or Plasma
+    loinc: "2160-0"
+    unit_zh: μmol/L
+    reference_range: [44, 106]
+    verified: true
+    source: LOINC 2160-0
+
+  urine_albumin_creatinine_ratio:
+    name_zh: 尿白蛋白/肌酐比值
+    name_en: Microalbumin/Creatinine [Mass Ratio] in Urine
+    loinc: "14959-1"
+    unit_zh: mg/g
+    reference_range: [0, 30]
+    verified: true
+    source: LOINC 14959-1
+
+  urine_microalbumin:
+    name_zh: 尿微量白蛋白
+    name_en: Microalbumin [Mass/volume] in Urine
+    loinc: "14957-5"
+    unit_zh: mg/L
+    reference_range: [0, 20]
+    verified: false
+    source: LOINC（码值待官方检索复核）
+
+  egfr:
+    name_zh: 估算肾小球滤过率
+    name_en: Glomerular filtration rate/1.73 sq M.predicted
+    loinc: "33914-3"
+    unit_zh: mL/min/1.73m2
+    reference_range: [90, 200]
+    verified: false
+    source: LOINC（码值待官方检索复核）
+
+  total_cholesterol:
+    name_zh: 总胆固醇
+    name_en: Cholesterol [Mass/volume] in Serum or Plasma
+    loinc: "2093-3"
+    unit_zh: mmol/L
+    reference_range: [2.8, 5.2]
+    verified: true
+    source: LOINC 2093-3
+
+  triglyceride:
+    name_zh: 甘油三酯
+    name_en: Triglyceride [Mass/volume] in Serum or Plasma
+    loinc: "2571-8"
+    unit_zh: mmol/L
+    reference_range: [0.4, 1.7]
+    verified: true
+    source: LOINC 2571-8
+
+  hdl_cholesterol:
+    name_zh: 高密度脂蛋白胆固醇
+    name_en: Cholesterol in HDL [Mass/volume] in Serum or Plasma
+    loinc: "2085-9"
+    unit_zh: mmol/L
+    reference_range: [1.0, 2.0]
+    verified: true
+    source: LOINC 2085-9
+
+  ldl_cholesterol:
+    name_zh: 低密度脂蛋白胆固醇
+    name_en: Cholesterol in LDL [Mass/volume] in Serum or Plasma
+    loinc: "13457-7"
+    unit_zh: mmol/L
+    reference_range: [0, 3.4]
+    verified: true
+    source: LOINC 13457-7
+
+  systolic_bp:
+    name_zh: 收缩压
+    name_en: Systolic blood pressure
+    loinc: "8480-6"
+    unit_zh: mmHg
+    reference_range: [90, 140]
+    verified: true
+    source: LOINC 8480-6
+
+  diastolic_bp:
+    name_zh: 舒张压
+    name_en: Diastolic blood pressure
+    loinc: "8462-4"
+    unit_zh: mmHg
+    reference_range: [60, 90]
+    verified: true
+    source: LOINC 8462-4
+
+  body_mass_index:
+    name_zh: 体质指数
+    name_en: Body mass index (BMI) [Ratio]
+    loinc: "39156-5"
+    unit_zh: kg/m2
+    reference_range: [18.5, 24.0]
+    verified: true
+    source: LOINC 39156-5（参考区间取中国成人标准，非 WHO 的 18.5-25）
+
+  body_weight:
+    name_zh: 体重
+    name_en: Body weight
+    loinc: "29463-7"
+    unit_zh: kg
+    reference_range: [40, 100]
+    verified: true
+    source: LOINC 29463-7

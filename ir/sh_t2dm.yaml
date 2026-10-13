@@ -1,0 +1,271 @@
+# 2型糖尿病 —— 上海地区自然史模拟（第一轮）
+#
+# 这是**层 1 的产物**，也是人工审阅的对象。读懂它不需要任何 Synthea 知识。
+#
+# ---------------------------------------------------------------------------
+# source 字段的写法约定
+# ---------------------------------------------------------------------------
+# 每条概率/参考区间/编码都必须带 source。凡是**数值本身尚未从原文核对**的，
+# source 里要用【待核实】起头，写明应该去哪份文件的哪一节核对。
+# 编译器会把这些条目单独拉成一张表放进 review/待核实数字清单.md。
+#
+# 本文件里带【待核实】的数值都是**占位值**，量级取自常识与指南的一般表述，
+# 不是从原文抄下来的。投产前必须逐条核对替换。
+#
+# ---------------------------------------------------------------------------
+# 本轮范围声明
+# ---------------------------------------------------------------------------
+# 运行时用 -m "sh_*" 关掉官方 107 个美国模块，所以这批数据里**只有**
+# 糖尿病自然史人群：健康 → 糖尿病前期 → 2型糖尿病 → 并发症 → 死亡。
+# 这是刻意的取舍：混着官方模块跑，无法判断中文内容究竟由谁产出。
+
+disease:
+  id: sh_t2dm
+  name_zh: 2型糖尿病
+  name_en: Type 2 Diabetes Mellitus
+  # 编码不写在这里 —— 诊断码在 terminology/diagnoses.yaml 里统一管，
+  # 状态用 diagnosis.term 引用键名，IR 里不出现任何码值。
+  source: 《中国2型糖尿病防治指南(2020年版)》，中华医学会糖尿病学分会
+
+defaults:
+  # 出边概率之和不足 1 时，剩余概率走「等这么久再评估一次」的回环
+  followup_interval_days: 180
+
+# ---------------------------------------------------------------------------
+# 危险因素：模块入口处评估一次，条件成立就把属性设上，供 when 里的叶子条件引用
+# ---------------------------------------------------------------------------
+risk_factors:
+  - id: has_obesity
+    name_zh: 肥胖
+    attribute: has_obesity
+    value: true
+    condition:
+      vital_sign: BMI
+      operator: ">="
+      value: 28
+    source: 《中国成人超重和肥胖症预防控制指南》，中国肥胖标准 BMI≥28（WHO 为 30）
+
+# ---------------------------------------------------------------------------
+# 状态
+# ---------------------------------------------------------------------------
+states:
+
+  # --- 人群入口：无糖尿病的成年人群 ---
+  #
+  # 刻意不放 on_enter 动作：健康人不应因为「进了这个模块」就产生一次就诊。
+  # 状态的出边靠 180/365 天的 Delay 回环，逐年重新评估。
+  - id: healthy
+    name_zh: 健康人群
+    kind: initial
+    repeat:
+      interval_days: 365
+    on_enter: []
+
+  # --- 糖尿病前期 ---
+  - id: prediabetes
+    name_zh: 糖尿病前期
+    kind: chronic
+    diagnosis:
+      term: prediabetes_igg
+      source: 《中国2型糖尿病防治指南(2020年版)》糖尿病前期诊断标准
+    repeat:
+      interval_days: 90
+    on_enter:
+      - action: encounter
+        class: ambulatory
+        department_zh: 内分泌科
+      - action: observation
+        term: fasting_plasma_glucose
+        # 糖尿病前期的空腹血糖区间是 5.6–6.9，比 labs.yaml 的通用参考区间窄
+        range: [5.6, 6.9]
+        source: 《中国2型糖尿病防治指南(2020年版)》空腹血糖受损 5.6–6.9 mmol/L
+      - action: care_plan
+        name_zh: 生活方式干预
+        activities_zh:
+          - 医学营养治疗
+          - 运动治疗
+          - 控制体重
+
+  # --- 2型糖尿病 ---
+  - id: t2dm
+    name_zh: 2型糖尿病
+    kind: chronic
+    diagnosis:
+      term: t2dm
+      source: 《中国2型糖尿病防治指南(2020年版)》诊断标准
+    repeat:
+      interval_days: 90
+    on_enter:
+      - action: encounter
+        class: ambulatory
+        department_zh: 内分泌科
+      - action: observation
+        term: fasting_plasma_glucose
+        range: [7.0, 14.0]
+        source: 《中国2型糖尿病防治指南(2020年版)》糖尿病诊断切点 空腹血糖≥7.0
+      - action: observation
+        term: hba1c
+        source: 《中国2型糖尿病防治指南(2020年版)》糖化血红蛋白控制目标
+      - action: medication
+        drug: metformin
+        source: 《中国2型糖尿病防治指南(2020年版)》二甲双胍为一线首选且全程保留
+      - action: procedure
+        term: diabetes_self_management_education
+        source: 《中国2型糖尿病防治指南(2020年版)》糖尿病教育与管理
+
+  # --- 并发症：糖尿病肾病 ---
+  - id: t2dm_nephropathy
+    name_zh: 糖尿病肾病
+    kind: chronic
+    diagnosis:
+      term: t2dm_with_kidney_complication
+      source: 《中国2型糖尿病防治指南(2020年版)》糖尿病肾病
+    repeat:
+      interval_days: 90
+    on_enter:
+      - action: referral
+        class: ambulatory
+        department_zh: 肾内科
+      - action: observation
+        term: urine_albumin_creatinine_ratio
+        range: [30, 300]
+        source: 《中国2型糖尿病防治指南(2020年版)》微量白蛋白尿 30–300 mg/g
+      - action: observation
+        term: serum_creatinine
+        source: 《中国2型糖尿病防治指南(2020年版)》肾功能评估
+      - action: medication
+        drug: losartan
+        source: 《中国2型糖尿病防治指南(2020年版)》合并高血压/蛋白尿首选 ACEI 或 ARB
+
+  # --- 并发症：糖尿病视网膜病变 ---
+  - id: t2dm_retinopathy
+    name_zh: 糖尿病视网膜病变
+    kind: chronic
+    diagnosis:
+      term: t2dm_with_eye_complication
+      source: 《中国2型糖尿病防治指南(2020年版)》糖尿病视网膜病变
+    repeat:
+      interval_days: 180
+    on_enter:
+      - action: referral
+        class: ambulatory
+        department_zh: 眼科
+      - action: procedure
+        term: fundus_examination
+        source: 《中国2型糖尿病防治指南(2020年版)》确诊后应进行眼底检查并定期随访
+
+  # --- 终末期肾病 ---
+  - id: esrd
+    name_zh: 终末期肾病
+    kind: chronic
+    diagnosis:
+      # 用肾脏病本身的码（N18.5），不是糖尿病肾病的码（E11.2）——
+      # 后者在上一个状态已经开过了，重复开只会得到两条同样的诊断。
+      term: esrd
+      source: 《中国2型糖尿病防治指南(2020年版)》终末期肾病
+    repeat:
+      interval_days: 90
+    on_enter:
+      - action: encounter
+        class: inpatient
+        department_zh: 肾内科
+      - action: procedure
+        term: hemodialysis
+        source: 《中国2型糖尿病防治指南(2020年版)》终末期肾病替代治疗
+
+  # --- 终点 ---
+  - id: death
+    name_zh: 死亡
+    kind: terminal
+
+# ---------------------------------------------------------------------------
+# 转移
+#
+# probability 与 when 的合成语义：
+#   * 同一 from 下，条件按书写顺序判定，**第一条成立的生效**（Synthea complex_transition 语义）
+#   * 条件分支内按 probability 决定走不走，走不了就落到「过 N 天再评估」的回环
+#   * 无条件出边的 probability 之和不足 1 时，差额自动变成回环
+# ---------------------------------------------------------------------------
+transitions:
+
+  # 健康 → 糖尿病前期
+  - from: healthy
+    to: prediabetes
+    probability: 0.10
+    # 口径：本状态每 365 天回环一次，而这个数是**年**发生率，
+    # 编译器按复利折算成每次评估的概率。不写这一行就会按每次评估直接用，
+    # 结果静默放大数倍。
+    rate_period_days: 365
+    when:
+      attribute: has_obesity
+      operator: "=="
+      value: true
+    source: 【待核实】肥胖人群糖尿病前期年转化率占位值，需查《中国2型糖尿病防治指南(2020年版)》糖尿病前期章节
+
+  - from: healthy
+    to: prediabetes
+    probability: 0.06
+    # 口径：本状态每 365 天回环一次，而这个数是**年**发生率，
+    # 编译器按复利折算成每次评估的概率。不写这一行就会按每次评估直接用，
+    # 结果静默放大数倍。
+    rate_period_days: 365
+    when:
+      attribute: age
+      operator: ">="
+      value: 45
+    source: 【待核实】45岁以上人群糖尿病前期年转化率占位值，需查指南糖尿病前期章节
+
+  # 糖尿病前期 → 2型糖尿病
+  - from: prediabetes
+    to: t2dm
+    probability: 0.07
+    # 口径：本状态每 90 天回环一次，而这个数是**年**发生率，
+    # 编译器按复利折算成每次评估的概率。不写这一行就会按每次评估直接用，
+    # 结果静默放大数倍。
+    rate_period_days: 365
+    source: 【待核实】糖尿病前期年转糖尿病率，常被引用为每年 5%–10%，需查指南原文确认
+
+  # 2型糖尿病 → 并发症
+  - from: t2dm
+    to: t2dm_nephropathy
+    probability: 0.05
+    # 口径：本状态每 90 天回环一次，而这个数是**年**发生率，
+    # 编译器按复利折算成每次评估的概率。不写这一行就会按每次评估直接用，
+    # 结果静默放大数倍。
+    rate_period_days: 365
+    source: 【待核实】2型糖尿病年发糖尿病肾病率占位值，需查指南并发症章节
+
+  - from: t2dm
+    to: t2dm_retinopathy
+    probability: 0.04
+    # 口径：本状态每 90 天回环一次，而这个数是**年**发生率，
+    # 编译器按复利折算成每次评估的概率。不写这一行就会按每次评估直接用，
+    # 结果静默放大数倍。
+    rate_period_days: 365
+    source: 【待核实】2型糖尿病年发视网膜病变率占位值，需查指南并发症章节
+
+  # 视网膜病变 → 肾病（横向流动：微血管并发症常并存）
+  - from: t2dm_retinopathy
+    to: t2dm_nephropathy
+    probability: 0.03
+    # 口径：本状态每 180 天回环一次，而这个数是**年**发生率，
+    # 编译器按复利折算成每次评估的概率。不写这一行就会按每次评估直接用，
+    # 结果静默放大数倍。
+    rate_period_days: 365
+    source: 【待核实】视网膜病变患者合并肾病的年发生率占位值
+
+  # 肾病 → 终末期肾病
+  - from: t2dm_nephropathy
+    to: esrd
+    probability: 0.02
+    # 口径：本状态每 90 天回环一次，而这个数是**年**发生率，
+    # 编译器按复利折算成每次评估的概率。不写这一行就会按每次评估直接用，
+    # 结果静默放大数倍。
+    rate_period_days: 365
+    source: 【待核实】糖尿病肾病年进展至终末期肾病率占位值，需查指南或肾脏病流行病学资料
+
+  # 终末期肾病 → 死亡
+  - from: esrd
+    to: death
+    probability: 1.0
+    source: 模型设定：进入终末期肾病后本模块内必然走向终点（Synthea 核心 Lifecycle 模块另按预期寿命判定自然死亡）

@@ -1,0 +1,4 @@
+Payer Id,Plan Id,Services Covered,Deductible,Default Coinsurance,Default Copay,Monthly Premium,Medicare Supplement,Eligibility Policy,Priority Level,Start Year,End Year,Max Out of Pocket,Is ACA Plan,Income Based Premium,Name,Notes
+1,1,*,1500.00,0.15,0.00,0.00,false,EMPLOYEE_MEDICAL,1,,,630000.00,false,false,上海市城镇职工基本医疗保险,门诊起付线 1500 元、统筹基金最高支付限额 63 万元。见 SOURCES.md
+2,2,*,300.00,0.30,0.00,58.33,false,GENERIC,2,,,340000.00,false,false,上海市城乡居民基本医疗保险,60 周岁以上门诊起付线 300 元、年个人缴费约 700 元。见 SOURCES.md
+3,3,*,20000.00,0.30,0.00,10.75,false,SUPPLEMENTAL,3,,,1000000.00,false,false,上海市商业补充医疗保险,免赔额 2 万元、赔付比例 30%。见 SOURCES.md

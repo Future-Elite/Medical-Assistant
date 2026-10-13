@@ -1,0 +1,63 @@
+# ============================================================
+# HISdata .gitignore
+# 原则：只忽略「生成产物 / 缓存 / IDE / 环境」；
+#       代码与运行时必需的输入数据（shanghai/、terminology/、ir/）一律提交。
+# ============================================================
+
+# ---------- Python ----------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# ---------- 打包 / 构建 ----------
+build/
+dist/
+*.egg-info/
+.eggs/
+*.whl
+
+# ---------- 虚拟环境 ----------
+.venv/
+venv/
+env/
+ENV/
+.env
+
+# ---------- 测试 / 缓存 ----------
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.tox/
+.python-version
+
+# ---------- IDE ----------
+.idea/
+.vscode/
+*.iml
+*.swp
+
+# ---------- 系统 ----------
+.DS_Store
+Thumbs.db
+
+# ---------- 日志 ----------
+*.log
+
+# ============================================================
+# 本项目生成产物（clone 后可用命令重新生成，不入库）
+# ============================================================
+
+# 生成的合成患者数据：FHIR Bundle / 8 张 CSV（体积大，含"合成患者"明细）
+output/
+
+# 编译器产物 GMF 模块（python -m hisgen.compiler --ir sh_t2dm 重新生成）
+modules/
+
+# 自动生成的核对清单（python -m hisgen.llm --from-file ir/sh_t2dm.yaml / compiler 重新生成）
+review/
+
+# 设计文档 / 规格说明（spec）—— 本地设计草稿，不入库
+docs/
