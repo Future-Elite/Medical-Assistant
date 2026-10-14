@@ -9,7 +9,7 @@
 |---|---|---|---|
 | `rag/` | RAG 证据检索（Python 包 `rag`） | 分支 `rag` | 正式发布线；版本在 `rag/__init__.py` 的 `__version__` |
 | `his/` | HIS 演示系统（Spring Boot + Vue，合成数据） | 分支 `his` | 由 HIS 维护者负责；本仓库用 subtree 挂载，只做同步 |
-| `agent/` | Medical Agent | 分支 `agent` | 由 Agent 维护者负责（Agent 最终调用 `rag/` 与 `his/`）；该目录**尚未并入 `main`**，合并后出现 |
+| `agent/` | Medical Agent | 分支 `agent` | 由 Agent 维护者负责（Agent 最终调用 `rag/` 与 `his/`）；已通过集成分支并入 `main`，`git subtree` 挂载 |
 | `contracts/` | 跨组件契约（有版本号） | `main` | 只描述组件之间的接口；组件**内部**契约留在组件目录（如 `rag/contracts/`） |
 | `tests/` | 跨组件测试 | `main` | 离线优先（stub/录制数据，不依赖 MySQL 与网络）；模块内单测留在模块自己的 `tests/` |
 
@@ -20,7 +20,7 @@
 | `main` | 集成区（本项目） | 集成/发布线：`rag/` + `his/` + `contracts/` + `tests/` + 根文档 | 只接受合并与顶层集成区改动；`rag/` 不在其上直接改 |
 | `rag` | RAG 线（本项目） | RAG 包开发 | 里程碑与 `main` 对齐；此后可临时领先 |
 | `agent` | Agent 维护者 | Medical Agent 代码 | 他人线：不改动、不评论；其改动走该分支 |
-| `feat/medical-agent-integration` | Agent 维护者 | Agent × RAG × HIS 集成（只读 HIS 编排 + RAG 调用 + 回答审计） | 他人线：从 `main@20f9750` 拉出；合并进 `main` 由其维护者发起 |
+| `feat/medical-agent-integration` | Agent 维护者 | Agent × RAG × HIS 集成 | 他人线：已并入 `main`（`4976389`）；保留与否由其维护者决定 |
 | `his` | HIS 维护者 | HIS 演示系统 | 只通过 `git subtree pull` 同步进 `main/his/` |
 | `hisdata` | 数据维护者 | 上海合成患者数据（Synthea 版，T2DM 端到端） | 他人线、独立历史；若其产物要进 `his/` 由 HIS 维护者决定 |
 
@@ -101,14 +101,15 @@ git subtree add --prefix=his origin/his -m "chore(his): 以 subtree 挂载 HIS �
 在仓库根目录运行（离线，不联网、不加载模型、只用合成数据）：
 
 ```bash
-python3 -m unittest discover -s rag/tests -p 'test_*.py'   # 包内测试（当前 166 例）
-python3 -m unittest discover -s tests -t . -p 'test_*.py'  # 跨组件契约测试（当前 16 例）
+python3 -m unittest discover -s rag/tests -p 'test_*.py'   # 包内测试（当前 168 例）
+python3 -m unittest discover -s tests -t . -p 'test_*.py'  # 跨组件契约测试（当前 22 例；见下）
 python3 -m compileall -q rag contracts
 ```
 
 - 改动 `rag/`：必须跑包内测试；若涉及契约或映射（`rag/contracts/`、`contracts/`），同时跑跨组件测试。
 - 改动 `contracts/` 或 `tests/`：跨组件测试必须通过；映射或字段变化要同步更新 `contracts/examples/` 的黄金样例。
 - 改动文档：确认命令、路径、版本值与当前仓库一致（版本值以根 README 表为准）。
+- `tests/test_medical_agent_integration.py` 属于 Agent 侧集成测试，需要 medrax 环境（`langchain_core`/`pydantic`/`gradio`）+ Qwen + MiniCheck；**没有该环境时报导入错误属预期**，不是回归——其余跨组件测试无额外依赖。
 - 测试数量与结论以**本次运行输出**为准；不要把历史报告里的数字当作当前状态。
 
 ## 6. 发布纪律（不可协商）

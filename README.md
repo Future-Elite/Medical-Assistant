@@ -69,7 +69,7 @@ python3 -m unittest discover -s tests -t . -p 'test_*.py'  # 跨组件契约测�
 python3 -m compileall -q rag contracts
 ```
 
-当前实测：包内 **166** 例、跨组件 **16** 例通过（2026-10-11 运行；数量以本次运行输出为准）。
+当前实测：包内 **168** 例、跨组件 **22** 例（2026-10-13 运行；数量以本次运行输出为准）。其中 `tests/test_medical_agent_integration.py` 需要 Agent 侧的 medrax 环境（`langchain_core`/`pydantic`/`gradio`），没有该环境时会报导入错误——属预期，不是回归；其余跨组件测试（含 mock HIS 用例）无额外依赖。
 
 直接调用 RAG（最短示例；完整 API 见 [`rag/README.md`](rag/README.md)）：
 
@@ -151,12 +151,13 @@ Medical-Assistant/
 │   ├── eval/                # 离线实验指标骨架（实验前模式）
 │   ├── requirements.txt     # 可选依赖（MiniCheck）
 │   └── tests/               # 包内离线测试（20 个测试模块 + fixtures/helpers）
+├── agent/                   # Medical Agent（MedRax 系；subtree 挂载，Agent 维护线负责）
 ├── his/                     # HIS 演示系统（Spring Boot + Vue，合成数据；subtree 挂载，他人维护）
 ├── contracts/               # 跨组件契约 + 合成样例 + Agent 侧参考实现
 └── tests/                   # 跨组件契约测试（离线）
 ```
 
-`agent/` 目录属于 Agent 维护线，尚未并入 `main`（合并后出现）；`his/` 由 HIS 维护者负责，本仓库不直接修改其文件（同步命令见 [CONTRIBUTING.md](CONTRIBUTING.md)）。
+`agent/`（Agent 维护线，`git subtree` 挂载）与 `his/`（HIS 维护线，subtree 挂载）都由各自维护者负责，本仓库不直接修改其文件；两条线的同步命令见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
 ## 5. 组件与接口版本
 
@@ -181,7 +182,7 @@ Medical-Assistant/
 | 查询保真审计与分级门控（研究特性，默认 `off`） | 已有（确定性词面基线；见 §8 边界） |
 | HIS 演示系统（Spring Boot + Vue，合成数据） | 已有，HIS 维护者负责，subtree 同步 |
 | HIS → Agent → RAG 只读快照打通 | 已有：Agent 侧参考实现 + 载荷契约 + 跨组件测试；真实 HIS 联调待本地执行 |
-| Medical Agent 只读 HIS 编排 + RAG 调用 | Agent 侧已在集成分支实现（`feat/medical-agent-integration`：用 `contracts/agent_his_adapter.py` 的 `AgentHisClient` 读 HIS、把载荷交给 RAG，并按契约移除被拒的转换路线）；**尚未并入 `main`** |
+| Medical Agent 只读 HIS 编排 + RAG 调用 | 已有（`agent/`，来自 Agent 维护线的集成分支）：用 `contracts/agent_his_adapter.py` 的 `AgentHisClient` 读 HIS、把载荷交给 RAG，并按契约移除被拒的转换路线；运行需 Agent 侧环境（Qwen/MiniCheck/Gradio），本仓库不代跑 |
 | PACS / 影像接入、真实医院数据验证 | 未实现（预研） |
 | 生产部署与临床验证 | 未实现 |
 
@@ -194,6 +195,7 @@ Medical-Assistant/
 | HIS × RAG 只读快照（分层、端点、映射、载荷） | [`contracts/his_rag.md`](contracts/his_rag.md)（`contract_version: 0.2.0`） | HIS → Agent → RAG；样例与载荷黄金样例在 [`contracts/examples/`](contracts/examples/) |
 | Agent 侧参考实现（读 HIS → 载荷） | [`contracts/agent_his_adapter.py`](contracts/agent_his_adapter.py) | 不属于 `rag` 包；演示只读读取、标识剔除与映射 |
 | RAG 包接口契约（工具规格、快照 schema、来源模式与示例） | [`rag/contracts/agent_contract.json`](rag/contracts/agent_contract.json) | `contract_version` 与包 `__version__` 同步，随包发布 |
+| Agent 编排契约（入口、预算、审计与日志边界） | [`contracts/agent_orchestration.md`](contracts/agent_orchestration.md)（draft 0.1.0） | Agent 侧定义：`run_turn` 入口、只读 HIS 注入、检索/审计预算与终止条件 |
 | 契约索引与纪律 | [`contracts/README.md`](contracts/README.md) | 变更必须版本 +1，样例同步更新 |
 
 ## 8. 安全与使用边界
@@ -229,7 +231,7 @@ Medical-Assistant/
 | `main` | 集成区（本项目） | 集成/发布线：`rag/`、`his/`、`contracts/`、`tests/`、根文档 | — |
 | `rag` | RAG 线（本项目） | RAG 包开发；在里程碑与 `main` 对齐 | 同 tip |
 | `agent` | Agent 维护者 | Medical Agent（MedRax 系）代码 | 独立演进 |
-| `feat/medical-agent-integration` | Agent 维护者 | Agent × RAG × HIS 集成（只读 HIS 编排 + RAG 调用 + 回答审计） | 从 `main@20f9750` 拉出，含 16 个提交，**未合并** |
+| `feat/medical-agent-integration` | Agent 维护者 | Agent × RAG × HIS 集成（只读 HIS 编排 + RAG 调用 + 回答审计） | **已并入 `main`**（合并提交 `4976389`，11 个提交；血统清理后不再带改写前的旧提交） |
 | `his` | HIS 维护者 | HIS 演示系统（Spring Boot + Vue） | 通过 `git subtree` 同步进 `main` 的 `his/` |
 | `hisdata` | 数据维护者 | 上海地区合成患者数据（Synthea 版，2 型糖尿病端到端） | 独立历史，未并入 `main` |
 
