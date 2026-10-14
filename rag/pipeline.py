@@ -91,35 +91,12 @@ class EvidenceRetrievalPipeline:
         plan = build_query_plan(request, known_sources)
         selected_connectors = self.registry.selected(plan.source_order)
         english_source_present = any("pubmed" in set(connector.kinds) for connector in selected_connectors)
-        query_review = review_query_plan(plan, english_source_present=english_source_present)
         documents = []
         warnings: list[str] = list(patient_trace.get("warnings", []))
         warnings.extend(getattr(self.registry, "warnings", ()))
-        warnings.extend(f"检索式自检：{finding}" for finding in query_review["findings"])
         connector_trace: list[dict[str, object]] = []
         method_trace: list[dict[str, object]] = []
         kind_order: list[str] = []
-        for connector in selected_connectors:
-            for kind in connector.kinds:
-                if kind not in kind_order:
-                    kind_order.append(kind)
-            try:
-                result = connector.search(plan, limit=max(request.top_k * 5, 50))
-            except Exception as exc:
-                warning = str(exc).strip() or type(exc).__name__
-                warnings.append(f"来源 {connector.source_id} 检索失败：{warning}。")
-                connector_trace.append({"source_id": connector.source_id, "status": "error", "error_type": type(exc).__name__, "error": warning[:500]})
-                continue
-            documents.extend(result.documents)
-            warnings.extend(result.warnings)
-            connector_trace.append({"source_id": result.source_id, "status": "ok", "returned": len(result.documents), "kind": list(connector.kinds)})
-
-        # --- Global dedup across sources (cross-source conflicts are reported, not merged) ---
-        deduped, duplicate_count, conflicts = deduplicate_documents(documents)
-        if duplicate_count:
-            warnings.append(f"已按 DOI/PMID/标题跨来源去重 {duplicate_count} 条候选。")
-        if conflicts:
-            warnings.append("检测到跨来源共享 DOI/PMID/标题的候选；已保留权威来源，但不能据此消除指南与文献的语义冲突。")
 
         explicit_method = request.retrieval_method is not None
         if isinstance(request.retrieval_method, (tuple, list)):
@@ -179,7 +156,7 @@ class EvidenceRetrievalPipeline:
                     continue
                 translations_produced = tuple(translations)
                 plan = _with_translations(plan, translations)
-                entry = {"method": "translate", "status": "ok", "generated": len(translations), "translations": [text[:300] for text in translations]}
+                entry = {"method": "translate", "status": "ok", "generated": len(translations), "translations": [text[:300] for text in translations], "expander_id": getattr(self.translator, "expander_id", type(self.translator).__name__)}
                 mismatches = _numeric_mismatches(plan.original_question, translations)
                 if mismatches:
                     entry["numeric_mismatches"] = mismatches
@@ -193,6 +170,43 @@ class EvidenceRetrievalPipeline:
             else:
                 warnings.append(f"未知检索方法 {method}；已忽略。")
                 method_trace.append({"method": str(method), "status": "unknown"})
+        # Convert and gate before live recall, not just after candidates arrive.
+        # A rejected machine route must never be sent to an external connector.
+        fidelity_policy = str(request.fidelity_gate or self.fidelity_default_policy or "off").lower()
+        recall_fidelity = None
+        if translations_produced and fidelity_policy != "off":
+            report = self.fidelity_auditor.audit(
+                plan, translations=translations_produced, translate_requested=True,
+                translate_configured=self.translator is not None, multilingual_methods=(),
+            )
+            decisions = FidelityGate(policy=fidelity_policy, penalty=self.fidelity_penalty).decide(report)
+            recall_fidelity = {"report": report.to_dict(), "decisions": [item.to_dict() for item in decisions]}
+            if FidelityGate.variant_weight(decisions, "translate") is None:
+                plan = _without_translations(plan, translations_produced)
+
+        query_review = review_query_plan(plan, english_source_present=english_source_present)
+        warnings.extend(f"检索式自检：{finding}" for finding in query_review["findings"])
+        for connector in selected_connectors:
+            for kind in connector.kinds:
+                if kind not in kind_order:
+                    kind_order.append(kind)
+            try:
+                result = connector.search(plan, limit=max(request.top_k * 5, 50))
+            except Exception as exc:
+                warning = str(exc).strip() or type(exc).__name__
+                warnings.append(f"来源 {connector.source_id} 检索失败：{warning}。")
+                connector_trace.append({"source_id": connector.source_id, "status": "error", "error_type": type(exc).__name__, "error": warning[:500]})
+                continue
+            documents.extend(result.documents)
+            warnings.extend(result.warnings)
+            connector_trace.append({"source_id": result.source_id, "status": "ok", "returned": len(result.documents),
+                                    "kind": list(connector.kinds), "query": getattr(connector, "last_query", None)})
+        deduped, duplicate_count, conflicts = deduplicate_documents(documents)
+        if duplicate_count:
+            warnings.append(f"已按 DOI/PMID/标题跨来源去重 {duplicate_count} 条候选。")
+        if conflicts:
+            warnings.append("检测到跨来源共享 DOI/PMID/标题的候选；已保留权威来源，但不能据此消除指南与文献的语义冲突。")
+
         neural_scores: dict[str, dict[str, float]] = {}
         neural_trace: list[dict[str, object]] = []
         for method in methods:
@@ -241,7 +255,6 @@ class EvidenceRetrievalPipeline:
         # 在分源排序之前运行：审计对象是查询转换产物（审核映射/译文/多语言编码显式词），
         # 处置只影响被判定不合格的路线信号；查询计划不被静默改写（被拒绝的译文变体
         # 只从检索输入中移除，且逐条写入 trace 与 warnings）。
-        fidelity_policy = str(request.fidelity_gate or self.fidelity_default_policy or "off").lower()
         fidelity_report_dict: dict[str, object] | None = None
         fidelity_trace: dict[str, object] = {"policy": fidelity_policy, "applied": False}
         fidelity_variant_weights: dict[str, float] = {}
@@ -382,6 +395,7 @@ class EvidenceRetrievalPipeline:
                 "source_mode": request.source_mode,
                 "retrieved_at": retrieved_at,
                 "connector_trace": connector_trace,
+                "recall_query_fidelity": recall_fidelity,
                 "candidate_count": len(documents),
                 "deduplicated_count": len(deduped),
                 "selected_count": len(ranked),
@@ -405,6 +419,7 @@ class EvidenceRetrievalPipeline:
                     "suppressed_future": patient_trace.get("suppressed_future", 0),
                 },
                 "external_terms": list(dict.fromkeys((*plan.english_terms, *plan.question_english_terms))),
+                "machine_queries": list(plan.machine_translations),
                 "source_separation": {"status": "grouped", "groups": sorted(evidence_groups)},
             },
         )
@@ -453,6 +468,7 @@ def _with_pseudo_documents(plan, pseudo_docs: tuple[str, ...]):
         mesh_terms=plan.mesh_terms,
         expansion_trace=(*plan.expansion_trace, trace_entry),
         question_english_terms=plan.question_english_terms,
+        machine_translations=plan.machine_translations,
     )
 
 
@@ -478,6 +494,7 @@ def _with_translations(plan, translations: tuple[str, ...]):
         mesh_terms=plan.mesh_terms,
         expansion_trace=(*plan.expansion_trace, trace_entry),
         question_english_terms=plan.question_english_terms,
+        machine_translations=tuple(dict.fromkeys((*plan.machine_translations, *translations))),
     )
 
 
@@ -517,6 +534,7 @@ def _without_translations(plan, translations: tuple[str, ...]):
         mesh_terms=plan.mesh_terms,
         expansion_trace=marked_entries,
         question_english_terms=plan.question_english_terms,
+        machine_translations=tuple(text for text in plan.machine_translations if text not in translated),
     )
 
 

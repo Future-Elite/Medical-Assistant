@@ -223,6 +223,8 @@ class QueryPlan:
     # 问题文本中直接提取的英文词（已过滤常见功能词与纯数值），
     # 直接参与英文检索/实时 PubMed 查询；与调用方审核的 english_terms 分开记录。
     question_english_terms: tuple[str, ...] = ()
+    # Machine-generated query variants, separate from operator-reviewed terms.
+    machine_translations: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)

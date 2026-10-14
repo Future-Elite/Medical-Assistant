@@ -52,7 +52,8 @@ class PubMedConnector(KnowledgeConnector):
         if not self.email:
             warnings.append("PubMed 请求未在 config.py 设置 ncbi_email；建议配置有效邮箱以符合 NCBI 使用规范。")
         params = self._base_params()
-        params.update({"db": "pubmed", "retmode": "json", "retmax": str(limit), "sort": "relevance", "term": _safe_term(plan)})
+        self.last_query = _safe_term(plan)
+        params.update({"db": "pubmed", "retmode": "json", "retmax": str(limit), "sort": "relevance", "term": self.last_query})
         raw = self._request("esearch", params)
         try:
             payload = json.loads(raw.decode("utf-8"))
@@ -104,13 +105,18 @@ class PubMedConnector(KnowledgeConnector):
 def _safe_term(plan: QueryPlan) -> str:
     # 审核术语优先，其次问题内直接提取的英文词（question_english_terms），最后 MeSH。
     terms = list(dict.fromkeys((*plan.english_terms, *plan.question_english_terms, *plan.mesh_terms)))
-    if not terms:
+    dynamic = [text.strip() for text in plan.machine_translations if str(text).strip()][:3]
+    if not terms and not dynamic:
         # 没有英文术语时，优先使用问题/概念中的纯 ASCII 词（PubMed 对中文检索差），
         # 确实没有英文词时才退回中文片段；绝不序列化患者快照。
         ascii_concepts = [item for item in plan.concepts if str(item).isascii() and _safe_ascii_or_cjk(item)]
         terms = ascii_concepts or [item for item in plan.concepts if _safe_ascii_or_cjk(item)]
     # Only reviewed/derived question terms are used for the live request; never serialize patient snapshot.
-    return " AND ".join('"' + item.replace('"', "") + '"' for item in terms[:12])
+    baseline = " AND ".join('"' + item.replace('"', "") + '"' for item in terms[:12])
+    if dynamic:
+        routes = ([baseline] if baseline else []) + dynamic
+        return " OR ".join(f"({text})" for text in routes)
+    return baseline
 
 
 def _safe_ascii_or_cjk(value: str) -> bool:

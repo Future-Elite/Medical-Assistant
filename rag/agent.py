@@ -51,7 +51,10 @@ class EvidenceRAG:
 
     def audit_grounded_answer(self, arguments: Mapping[str, Any]) -> dict[str, Any]:
         package = self.sessions.get(str(arguments.get("retrieval_id") or ""))
-        return self.auditor.audit(package=package, answer=str(arguments.get("answer") or ""))
+        return self.auditor.audit(
+            package=package, answer=str(arguments.get("answer") or ""),
+            claim_records=arguments.get("claim_records"),
+        )
 
     @staticmethod
     def tool_specifications() -> list[dict[str, Any]]:

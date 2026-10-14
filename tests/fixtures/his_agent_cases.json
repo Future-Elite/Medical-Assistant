@@ -1,0 +1,74 @@
+{
+  "dataset_id": "synthetic-his-agent-integration-v1",
+  "synthetic_only": true,
+  "description": "三组联调病例；2001 来自仓库契约样例，2002 为新增模拟患者。ID 不保证存在于真实运行的 HIS 数据库。",
+  "recorded_routes": {
+    "/api/patients/2001": "contracts/examples/his_rag_patient_2001.json",
+    "/api/patients/2001/timeline": "contracts/examples/his_rag_patient_2001_timeline.json",
+    "/api/admissions/7101/timeline": "contracts/examples/his_rag_admission_7101_timeline.json"
+  },
+  "inline_routes": {
+    "/api/patients/2002": {
+      "code": 0, "message": "success",
+      "data": {"id": 2002, "name": "合成患者B（非真实）", "gender": 0, "birthDate": "1985-06-15", "createdAt": "2025-04-01T08:00:00"}
+    },
+    "/api/patients/2002/timeline": {
+      "code": 0, "message": "success",
+      "data": {
+        "patientId": 2002,
+        "events": [
+          {"type": "VISIT", "time": "2025-04-01T09:00:00", "data": {"id": 3201, "patientId": 2002, "visitNo": "SYN-V-2002", "department": "内分泌科", "visitTime": "2025-04-01T09:00:00", "status": 1}},
+          {"type": "DIAGNOSIS", "time": "2025-04-01T09:20:00", "data": {"id": 4201, "patientId": 2002, "visitId": 3201, "icdCode": "E11.9", "diagnosisName": "2型糖尿病", "diagnosedAt": "2025-04-01T09:20:00"}},
+          {"type": "PRESCRIPTION", "time": "2025-04-01T09:30:00", "data": {"id": 9301, "patientId": 2002, "visitId": 3201, "prescribedAt": "2025-04-01T09:30:00", "items": [{"id": 9401, "prescriptionId": 9301, "drugName": "二甲双胍片"}]}}
+        ]
+      }
+    }
+  },
+  "cases": [
+    {
+      "case_id": "case-1-normal-joint-evidence",
+      "title": "正常路径：患者事实与外部知识联合检索",
+      "start_new_thread": true,
+      "turns": [
+        {"patient_ref": "2001", "as_of": "2025-12-31", "question": "请先读取这位患者的 HIS 记录，列出已记录的诊断、用药、血压和血钾，再检索高血压长期管理相关文献。明确区分患者事实、文献知识和缺失信息，不给出具体处方。"},
+        {"patient_ref": "2001", "as_of": "2025-12-31", "question": "刚才回答中的血压和血钾来自哪里？高血压管理相关文献来自哪里？需要时打开已有引用，解释来源，不要把文献结论说成该患者的检查结果。"}
+      ],
+      "expected_patient_facts": {
+        "diagnosis": "原发性高血压",
+        "medication": {"name": "硝苯地平控释片", "dosage": "30mg", "frequency": "qd"},
+        "blood_pressure": {"systolic": 158, "diastolic": 96, "recorded_at": "2025-03-02T06:30:00"},
+        "potassium": [{"value": "3.4", "unit": "mmol/L", "date": "2025-03-02"}, {"value": "3.9", "unit": "mmol/L", "date": "2025-03-03"}]
+      },
+      "must_not_use": ["2026-01-20 的肌酐 88 μmol/L", "编造该患者的 HbA1c、过敏史或肾功能结论"],
+      "acceptance": ["调用 get_patient_snapshot 并读取患者及住院时间线", "patient_snapshot 自动注入 RAG", "同一患者第二问可以复用第一问已检索文献", "所有外部引用绑定真实检索结果并通过审计", "指南 metadata_only 不被用作具体推荐依据"]
+    },
+    {
+      "case_id": "case-2-historical-cutoff",
+      "title": "历史时点：隔离未来检查与截止日期切换",
+      "start_new_thread": true,
+      "turns": [
+        {"patient_ref": "2001", "as_of": "2025-03-02", "question": "仅根据截至 2025-03-02 的记录，说明最近一次血压、血钾和已记录用药。是否已有出院记录？没有资料的项目请明确说明，不使用未来结果。"},
+        {"patient_ref": "2001", "as_of": "2025-03-03", "question": "现在截止日期改为 2025-03-03，请重新读取 HIS。最新血钾是否更新？注明检查时间，不沿用上一截止日期的旧快照。"}
+      ],
+      "expected_by_cutoff": {
+        "2025-03-02": {"visible_fact_count": 9, "suppressed_future": 4, "latest_potassium": "3.4 mmol/L", "latest_bp": "158/96", "discharge_event_visible": false},
+        "2025-03-03": {"visible_fact_count": 10, "suppressed_future": 3, "latest_potassium": "3.9 mmol/L", "discharge_event_visible": false}
+      },
+      "acceptance": ["截止日期切换后 patient_scope 和图线程发生变化", "2025-03-02 不使用 2025-03-03 血钾", "两个截止日期均不使用 2026-01-20 肌酐", "正在执行的医嘱不会因 stopTime 为空被删除"],
+      "known_gap_to_detect": "当前按事件时间过滤。样例的 2025-03-01 ADMISSION 载荷已经带有 2025-03-08 dischargeTime、dischargeDiagnosis、出院 status 等后续字段，字段级历史可见性尚未处理。这组应识别此风险，不能据早期 ADMISSION 载荷声称当时已出院。"
+    },
+    {
+      "case_id": "case-3-patient-switch-and-missing-data",
+      "title": "患者切换：缺失信息不能被历史患者事实填补",
+      "start_new_thread": true,
+      "turns": [
+        {"patient_ref": "2001", "as_of": "2025-12-31", "question": "读取这位患者的 HIS，列出诊断、用药和最近血压，检索相关外部证据。"},
+        {"patient_ref": "2002", "as_of": "2025-12-31", "question": "已切换到另一位患者，请重新读取 HIS。记录里二甲双胍的剂量、HbA1c 和肾功能是多少？哪些信息缺失？请检索二甲双胍相关文献，但不要用文献或上一位患者的记录填补这些缺失字段。"}
+      ],
+      "expected_patient_facts": {"patient_ref": "2002", "diagnosis": "2型糖尿病", "medication": "二甲双胍片", "dosage": null, "frequency": null, "HbA1c": null, "renal_function": null, "blood_pressure": null},
+      "must_not_use": ["患者 2001 的 158/96 血压", "患者 2001 的硝苯地平及 30mg qd", "把二甲双胍片的常见规格当作当前患者处方剂量", "把无检查记录解释为检查正常"],
+      "acceptance": ["患者切换后旧检索作用域和图记忆隔离", "HIS 与 RAG 的 patient_context 对应患者 2002", "剂量、HbA1c、肾功能均明确标为未记录，并可向用户追问", "旧患者的 citation_id 不得直接使用；重新检索到同篇外部文献可以使用新 citation_id"],
+      "negative_variant": {"patient_ref": "999999", "as_of": "2025-12-31", "expected": "模拟服务返回 data=null；Agent 报告患者不存在或信息不足，不构造空的成功快照，不沿用旧患者事实"}
+    }
+  ]
+}
