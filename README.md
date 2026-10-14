@@ -69,6 +69,8 @@ python3 -m unittest discover -s tests -t . -p 'test_*.py'  # 跨组件契约测�
 python3 -m compileall -q rag contracts
 ```
 
+当前实测：包内 **166** 例、跨组件 **16** 例通过（2026-10-11 运行；数量以本次运行输出为准）。
+
 直接调用 RAG（最短示例；完整 API 见 [`rag/README.md`](rag/README.md)）：
 
 ```python
@@ -124,23 +126,37 @@ python3 -m rag.server          # 或 cd rag && python3 server.py
 Medical-Assistant/
 ├── README.md
 ├── CONTRIBUTING.md          # 分支、提交、版本与发布规范（本仓库权威）
-├── rag/                     # RAG 组件（Python 包 `rag`，正式发布线）
-│   ├── README.md            # 直接调用与接口指南
+├── rag/                     # RAG 组件（Python 包 `rag`，正式发布线；核心只用标准库）
+│   ├── README.md            # 直接调用与接口指南（§8.1 Agent 传入快照）
 │   ├── agent.py             # EvidenceRAG：检索 / 打开引用 / 回答审计
 │   ├── pipeline.py          # 分源联合检索、联合选择与证据包生成
 │   ├── ranking.py           # 分源排序、RRF、相关度门、MMR、联合选择
-│   ├── query.py             # 查询计划、受控术语扩展、检索式自检
-│   ├── fidelity.py / gate.py # 查询保真审计与分级门控（研究特性，默认关闭）
-│   ├── his.py               # 只读 HIS 快照契约（PatientSnapshot 接收端）
-│   ├── connectors.py / pubmed.py / guidelines.py / custom_sources.py
-│   ├── server.py            # HTTP 服务与浏览器工作台（只读）
-│   ├── contracts/           # RAG 包自身契约（JSON + 说明 + 示例，随包发布）
+│   ├── query.py             # 查询计划、受控术语扩展、检索式自检（PRESS 风格）
+│   ├── fidelity.py / gate.py # 查询保真审计与分级门控（研究特性，默认 off）
+│   ├── his.py               # 只读 HIS 快照契约（接收端：PatientSnapshot）
+│   ├── patient_retrieval.py # 患者事实检索
+│   ├── connectors.py        # 连接器契约与注册表
+│   ├── pubmed.py            # 实时 PubMed 连接器（E-utilities）
+│   ├── guidelines.py        # 版本化指南元数据连接器
+│   ├── custom_sources.py    # 调用方自定义来源库（custom 模式）
+│   ├── lexical.py / bm25.py # 词面检索方法（BM25 / QL / RM3）
+│   ├── retrieval_adapters.py / neural_adapters.py # 检索适配器与可选神经方法
+│   ├── evidence.py          # 关键证据句定位
+│   ├── audit.py             # 回答审计与 MiniCheck 适配器
+│   ├── models.py            # 请求 / 文档 / 证据包契约
+│   ├── config.py            # 本地配置（来源模式、端口、查询保真）
+│   ├── server.py            # HTTP 服务（只读）
+│   ├── evidence_retrieval_workbench.html  # 浏览器工作台（单文件）
+│   ├── contracts/           # 包内契约（JSON + 说明 + 示例，随包发布）
 │   ├── eval/                # 离线实验指标骨架（实验前模式）
-│   └── tests/               # 包内离线测试（合成数据仅存在于 tests/）
+│   ├── requirements.txt     # 可选依赖（MiniCheck）
+│   └── tests/               # 包内离线测试（20 个测试模块 + fixtures/helpers）
 ├── his/                     # HIS 演示系统（Spring Boot + Vue，合成数据；subtree 挂载，他人维护）
-├── contracts/               # 跨组件契约（有版本号；HIS→Agent→RAG 分层与载荷）
-└── tests/                   # 跨组件契约测试（离线；Python 3.10+，标准库即可）
+├── contracts/               # 跨组件契约 + 合成样例 + Agent 侧参考实现
+└── tests/                   # 跨组件契约测试（离线）
 ```
+
+`agent/` 目录属于 Agent 维护线，尚未并入 `main`（合并后出现）；`his/` 由 HIS 维护者负责，本仓库不直接修改其文件（同步命令见 [CONTRIBUTING.md](CONTRIBUTING.md)）。
 
 ## 5. 组件与接口版本
 
@@ -165,7 +181,7 @@ Medical-Assistant/
 | 查询保真审计与分级门控（研究特性，默认 `off`） | 已有（确定性词面基线；见 §8 边界） |
 | HIS 演示系统（Spring Boot + Vue，合成数据） | 已有，HIS 维护者负责，subtree 同步 |
 | HIS → Agent → RAG 只读快照打通 | 已有：Agent 侧参考实现 + 载荷契约 + 跨组件测试；真实 HIS 联调待本地执行 |
-| Medical Agent 自主编排闭环 | 未完成（独立维护线） |
+| Medical Agent 只读 HIS 编排 + RAG 调用 | Agent 侧已在集成分支实现（`feat/medical-agent-integration`：用 `contracts/agent_his_adapter.py` 的 `AgentHisClient` 读 HIS、把载荷交给 RAG，并按契约移除被拒的转换路线）；**尚未并入 `main`** |
 | PACS / 影像接入、真实医院数据验证 | 未实现（预研） |
 | 生产部署与临床验证 | 未实现 |
 
@@ -205,5 +221,16 @@ Medical-Assistant/
 - 跨组件契约：[contracts/README.md](contracts/README.md)
 - RAG 包调用与接口：[rag/README.md](rag/README.md)
 - HIS 组件：[`his/`](his/)（由 HIS 维护者负责；本仓库不直接修改其文件）
+
+### 分支一览（2026-10-13 现状）
+
+| 分支 | 维护者 | 内容 | 与 `main` 的关系 |
+|---|---|---|---|
+| `main` | 集成区（本项目） | 集成/发布线：`rag/`、`his/`、`contracts/`、`tests/`、根文档 | — |
+| `rag` | RAG 线（本项目） | RAG 包开发；在里程碑与 `main` 对齐 | 同 tip |
+| `agent` | Agent 维护者 | Medical Agent（MedRax 系）代码 | 独立演进 |
+| `feat/medical-agent-integration` | Agent 维护者 | Agent × RAG × HIS 集成（只读 HIS 编排 + RAG 调用 + 回答审计） | 从 `main@20f9750` 拉出，含 16 个提交，**未合并** |
+| `his` | HIS 维护者 | HIS 演示系统（Spring Boot + Vue） | 通过 `git subtree` 同步进 `main` 的 `his/` |
+| `hisdata` | 数据维护者 | 上海地区合成患者数据（Synthea 版，2 型糖尿病端到端） | 独立历史，未并入 `main` |
 
 **许可**：本仓库尚未附许可协议（待定）。

@@ -9,9 +9,20 @@
 |---|---|---|---|
 | `rag/` | RAG 证据检索（Python 包 `rag`） | 分支 `rag` | 正式发布线；版本在 `rag/__init__.py` 的 `__version__` |
 | `his/` | HIS 演示系统（Spring Boot + Vue，合成数据） | 分支 `his` | 由 HIS 维护者负责；本仓库用 subtree 挂载，只做同步 |
-| `agent/` | Medical Agent | 分支 `agent` | 由 Agent 维护者负责（Agent 最终调用 `rag/` 与 `his/`） |
+| `agent/` | Medical Agent | 分支 `agent` | 由 Agent 维护者负责（Agent 最终调用 `rag/` 与 `his/`）；该目录**尚未并入 `main`**，合并后出现 |
 | `contracts/` | 跨组件契约（有版本号） | `main` | 只描述组件之间的接口；组件**内部**契约留在组件目录（如 `rag/contracts/`） |
 | `tests/` | 跨组件测试 | `main` | 离线优先（stub/录制数据，不依赖 MySQL 与网络）；模块内单测留在模块自己的 `tests/` |
+
+### 分支一览（2026-10-13）
+
+| 分支 | 维护者 | 内容 | 规则 |
+|---|---|---|---|
+| `main` | 集成区（本项目） | 集成/发布线：`rag/` + `his/` + `contracts/` + `tests/` + 根文档 | 只接受合并与顶层集成区改动；`rag/` 不在其上直接改 |
+| `rag` | RAG 线（本项目） | RAG 包开发 | 里程碑与 `main` 对齐；此后可临时领先 |
+| `agent` | Agent 维护者 | Medical Agent 代码 | 他人线：不改动、不评论；其改动走该分支 |
+| `feat/medical-agent-integration` | Agent 维护者 | Agent × RAG × HIS 集成（只读 HIS 编排 + RAG 调用 + 回答审计） | 他人线：从 `main@20f9750` 拉出；合并进 `main` 由其维护者发起 |
+| `his` | HIS 维护者 | HIS 演示系统 | 只通过 `git subtree pull` 同步进 `main/his/` |
+| `hisdata` | 数据维护者 | 上海合成患者数据（Synthea 版，T2DM 端到端） | 他人线、独立历史；若其产物要进 `his/` 由 HIS 维护者决定 |
 
 分支规则：
 
@@ -19,12 +30,13 @@
 - **`rag`：RAG 组件线。** `rag/` 内的改动落在 `rag` 线（或其短分支）并同步到 `main`；两条线在里程碑对齐（例如发布或大特性落地时把 `rag` 快进到 `main`，此后 `main` 可临时领先——属设计而非漂移）。
 - **`his`：HIS 组件线（他人维护）。** **不要直接修改 `his/` 下的文件**——它们会随 subtree 同步被覆盖或产生冲突；需要 HIS 侧改动时先与 HIS 维护者沟通，走 `his` 分支。
 - **`agent`：Agent 组件线（他人维护）。** 同理：不直接改 `agent/` 下的文件，改动走 `agent` 分支；`main` 只做整合。
+- **他人线的集成分支（如 `feat/medical-agent-integration`）由各自维护者整合。** 我们不改动、不代为合并；需要联动时先对齐 `contracts/` 的契约版本（当前 `his_rag.md` 0.2.0）与 `rag` 包版本（当前 6.6.2）。
 - **集成工作用短分支。** 从 `main` 开 `feat/…`、`fix/…`，完成并测试后合并回 `main`。
-- **`contracts/` 与 `tests/` 用"新增文件"扩展。** 不要重写别人已有的文件（如各线自带的 README）——这样各条线合并到 `main` 时不会产生冲突；需要改动别人文件时先在两个维护者之间对齐。
+- **`contracts/` 与 `tests/` 优先用「新增文件」扩展。** 新增不产生合并冲突；确需扩展他人已有的文件（如 `contracts/README.md` 已由集成区保留原文并追加索引）时：**保留原文再追加**、在提交信息中说明、并知会该文件的维护线——这会产生一次内容冲突，需在对应分支合并前对齐。
 
 ## 2. 提交信息（Conventional Commits）
 
-格式：`<type>(<scope>): <描述>`；`scope` 用目录名或模块名；描述里保留版本号（如 `v6.6.0`）。
+格式：`<type>(<scope>): <描述>`；`scope` 用目录名或模块名；描述里保留版本号（如 `v6.7.0`）。当前各组件的版本值见根 [README](README.md) 的「组件与接口版本」表，不在此重复。
 
 | type | 用途 |
 |---|---|
@@ -65,7 +77,7 @@ docs: 更新项目结构与组件版本表
 
 ```text
 medassist-0.1.0
-rag 6.6.0 / his 1.0.0@<short-sha> / his_rag_contract 0.1.0
+rag 6.6.2 / his 1.0.0@<short-sha> / his_rag_contract 0.2.0
 ```
 
 发布流程：契约冻结 → 全量测试通过 → 打 tag → 更新根 `README.md` 的"组件与接口版本"表。
@@ -84,7 +96,22 @@ git subtree pull --prefix=his origin/his -m "chore(his): 同步 his 线至 <shor
 git subtree add --prefix=his origin/his -m "chore(his): 以 subtree 挂载 HIS 线（origin/his@<short-sha>）"
 ```
 
-## 5. 发布纪律（不可协商）
+## 5. 提交前检查
+
+在仓库根目录运行（离线，不联网、不加载模型、只用合成数据）：
+
+```bash
+python3 -m unittest discover -s rag/tests -p 'test_*.py'   # 包内测试（当前 166 例）
+python3 -m unittest discover -s tests -t . -p 'test_*.py'  # 跨组件契约测试（当前 16 例）
+python3 -m compileall -q rag contracts
+```
+
+- 改动 `rag/`：必须跑包内测试；若涉及契约或映射（`rag/contracts/`、`contracts/`），同时跑跨组件测试。
+- 改动 `contracts/` 或 `tests/`：跨组件测试必须通过；映射或字段变化要同步更新 `contracts/examples/` 的黄金样例。
+- 改动文档：确认命令、路径、版本值与当前仓库一致（版本值以根 README 表为准）。
+- 测试数量与结论以**本次运行输出**为准；不要把历史报告里的数字当作当前状态。
+
+## 6. 发布纪律（不可协商）
 
 - **分层**：HIS → Agent → RAG。**RAG 包不连接 HIS**（不得出现 HIS 客户端、HIS 地址或 `/api/patients` 等端点）；HIS 由 Agent 读取后以 `patient_snapshot` 载荷传入（规则与参考实现见 `contracts/his_rag.md`）。
 - **只读**：与 HIS 的交互只允许只读接口（`GET`）；任何写 HIS 的代码（落病历、医嘱、处方）不得进入本仓库。
