@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import Mock, patch
 
 from medrax.tools.rag_tool import MedicalEvidenceRAGTool
+from medrax.medical_session import ACTIVE_TURN, MedicalSession, TurnContext
 
 
 class StubRAG:
@@ -32,11 +33,126 @@ class StubRAG:
                 "locator": "Abstract",
             }],
             "warnings": [],
-            "trace": {"connector_trace": [{"source_id": "pubmed-live", "status": "ok"}]},
+            "trace": {
+                "candidate_count": 12,
+                "selected_count": 1,
+                "connector_trace": [{
+                    "source_id": "pubmed-live", "kind": "pubmed", "status": "ok",
+                    "query": '("hypertension")', "returned": 12,
+                }],
+            },
         }
 
 
 class MedicalEvidenceRAGToolTest(unittest.TestCase):
+    def test_turn_summary_keeps_earlier_results_after_an_empty_retry(self):
+        rag = StubRAG()
+        first = rag.retrieve_evidence({"question": "hypertension"})
+        empty = {
+            **first,
+            "retrieval_id": "retrieval-empty",
+            "ranked_documents": [],
+            "citations": [],
+            "trace": {
+                "candidate_count": 0,
+                "selected_count": 0,
+                "connector_trace": [{
+                    "source_id": "pubmed-live", "kind": "pubmed", "status": "ok",
+                    "query": '("nifedipine")', "returned": 0,
+                }],
+            },
+        }
+        rag.retrieve_evidence = Mock(side_effect=[first, empty])
+        turn = TurnContext(MedicalSession(), "Find hypertension evidence", lambda event: None)
+        token = ACTIVE_TURN.set(turn)
+        try:
+            with patch("medrax.tools.rag_tool._get_rag", return_value=rag):
+                tool = MedicalEvidenceRAGTool()
+                tool._run(search_query="hypertension")
+                content, artifact = tool._run(
+                    search_query="nifedipine", evidence_gap="Need drug-specific evidence",
+                    adjustment_reason="Target nifedipine studies",
+                )
+        finally:
+            ACTIVE_TURN.reset(token)
+
+        summary = artifact["turn_retrieval_summary"]
+        self.assertEqual([row["connectors"][0]["returned"] for row in summary["attempts"]], [12, 0])
+        self.assertTrue(summary["any_connector_results_returned"])
+        self.assertEqual(summary["returned_across_attempts_by_source"]["pubmed-live"], 12)
+        self.assertEqual(summary["unique_selected_by_source"]["pubmed"], 1)
+        self.assertIn('"any_connector_results_returned": true', content)
+
+    def test_publication_range_is_structured_logged_and_validated(self):
+        rag = StubRAG()
+        rag.retrieve_evidence = Mock(wraps=rag.retrieve_evidence)
+        turn = TurnContext(MedicalSession(), "recent hypertension evidence", lambda event: None)
+        token = ACTIVE_TURN.set(turn)
+        try:
+            with patch("medrax.tools.rag_tool._get_rag", return_value=rag):
+                _, artifact = MedicalEvidenceRAGTool()._run(
+                    search_query="primary hypertension",
+                    publication_from="2024-10-13",
+                    publication_to="2026-10-13",
+                )
+        finally:
+            ACTIVE_TURN.reset(token)
+        request = rag.retrieve_evidence.call_args.args[0]
+        self.assertEqual(request["question"], "primary hypertension")
+        self.assertEqual(request["filters"], {
+            "publication_from": "2024-10-13", "publication_to": "2026-10-13",
+        })
+        self.assertEqual(artifact["tool_args"]["publication_from"], "2024-10-13")
+        self.assertEqual(artifact["turn_retrieval_summary"]["attempts"][0]["publication_to"], "2026-10-13")
+        with self.assertRaisesRegex(ValueError, "must not be later"):
+            MedicalEvidenceRAGTool()._run(
+                search_query="primary hypertension",
+                publication_from="2026-10-13",
+                publication_to="2024-10-13",
+            )
+
+    def test_query_separation_retry_reasons_and_turn_scoped_reuse(self):
+        rag = StubRAG()
+        rag.retrieve_evidence = Mock(wraps=rag.retrieve_evidence)
+        events = []
+        original = "读取患者用药和血钾，并检索高血压研究"
+        turn = TurnContext(MedicalSession(as_of="2025-12-31"), original, events.append)
+        token = ACTIVE_TURN.set(turn)
+        try:
+            with patch("medrax.tools.rag_tool._get_rag", return_value=rag):
+                tool = MedicalEvidenceRAGTool()
+                _, first = tool._run(search_query="hypertension treatment")
+                self.assertEqual(rag.retrieve_evidence.call_args.args[0]["question"], "hypertension treatment")
+                self.assertEqual(first["original_question"], original)
+                self.assertNotIn("translate", first["tool_args"]["retrieval_method"])
+                _, reused = tool._run(search_query=" hypertension   treatment ")
+                self.assertTrue(reused["cache_hit"])
+                self.assertEqual(first["retrieval_id"], reused["retrieval_id"])
+                self.assertEqual(rag.retrieve_evidence.call_count, 1)
+                _, rejected = tool._run(search_query="hypertension")
+                self.assertEqual(rejected["error"], "retrieval_adjustment_required")
+                self.assertEqual(rag.retrieve_evidence.call_count, 1)
+                self.assertEqual([e["event"] for e in events], ["evidence_search", "evidence_reused", "retrieval_rejected"])
+        finally:
+            ACTIVE_TURN.reset(token)
+        next_turn = TurnContext(turn.session, original, events.append)
+        token = ACTIVE_TURN.set(next_turn)
+        try:
+            with patch("medrax.tools.rag_tool._get_rag", return_value=rag):
+                tool._run(search_query="hypertension treatment")
+                _, broader = tool._run(search_query="hypertension", evidence_gap="No applicable treatment studies",
+                                       adjustment_reason="Remove treatment restriction to broaden recall")
+                self.assertEqual(rag.retrieve_evidence.call_count, 3)
+                self.assertEqual(broader["search_query"], "hypertension")
+                self.assertEqual(broader["tool_args"]["original_question"], original)
+                summary = broader["turn_retrieval_summary"]
+                self.assertEqual(summary["attempt_count"], 2)
+                self.assertTrue(summary["any_connector_results_returned"])
+                self.assertEqual(summary["returned_across_attempts_by_source"]["pubmed-live"], 24)
+                self.assertEqual(summary["attempts"][0]["connectors"][0]["query"], '("hypertension")')
+        finally:
+            ACTIVE_TURN.reset(token)
+
     @patch("medrax.tools.rag_tool._get_rag", return_value=StubRAG())
     def test_normalizes_rag_package_for_agent(self, get_rag):
         result = MedicalEvidenceRAGTool().invoke({

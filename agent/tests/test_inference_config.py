@@ -19,7 +19,7 @@ class InferenceConfigTest(unittest.TestCase):
             executable = root / "python-probe"
             executable.write_text('#!/bin/sh\nprintf "%s\\n" "$MINICHECK_CACHE_DIR" "$MEDRAX_AGENT_MODE"\n')
             executable.chmod(0o700)
-            env = {**os.environ, "MEDRAX_PYTHON": str(executable), "MINICHECK_CACHE_DIR": "/not-used"}
+            env = {**os.environ, "MEDRAX_PYTHON": str(executable), "MINICHECK_CACHE_DIR": "/not-used", "ANSWER_AUDIT_MODE": "strict"}
             result = subprocess.run(["bash", str(script), str(cache)], env=env, capture_output=True, text=True)
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(result.stdout.splitlines()[-2:], [str(cache), "medical_evidence"])
@@ -33,6 +33,13 @@ class InferenceConfigTest(unittest.TestCase):
             result = subprocess.run(["bash", str(script), str(root / "missing")], env=env, capture_output=True, text=True)
             self.assertEqual(result.returncode, 2)
             self.assertIn("does not exist", result.stderr)
+            env["ANSWER_AUDIT_MODE"] = "observe"
+            result = subprocess.run(["bash", str(script), str(root / "missing")], env=env, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("Answer audit mode: observe", result.stdout)
+            env["ANSWER_AUDIT_MODE"] = "invalid"
+            result = subprocess.run(["bash", str(script)], env=env, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 2)
 
 
 if __name__ == "__main__":

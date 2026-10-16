@@ -3,6 +3,13 @@ import json
 from typing import Dict, List
 
 
+PROMPT_SECTIONS = (
+    "MEDICAL_ASSISTANT",
+    "GENERAL_ASSISTANT",
+    "MEDICAL_EVIDENCE_ASSISTANT",
+)
+
+
 def load_prompts_from_file(file_path: str) -> Dict[str, str]:
     """
     Load multiple prompts from a file.
@@ -23,19 +30,21 @@ def load_prompts_from_file(file_path: str) -> Dict[str, str]:
     current_prompt = None
     current_content = []
 
-    with open(file_path, "r") as file:
+    section_headers = {f"[{name}]": name for name in PROMPT_SECTIONS}
+
+    with open(file_path, "r", encoding="utf-8") as file:
         for line in file:
-            line = line.strip()
-            if line.startswith("[") and line.endswith("]"):
-                if current_prompt:
-                    prompts[current_prompt] = "\n".join(current_content).strip()
-                current_prompt = line[1:-1]
+            header = line.rstrip("\r\n")
+            if header in section_headers:
+                if current_prompt is not None:
+                    prompts[current_prompt] = "".join(current_content)
+                current_prompt = section_headers[header]
                 current_content = []
-            elif line:
+            elif current_prompt is not None:
                 current_content.append(line)
 
-    if current_prompt:
-        prompts[current_prompt] = "\n".join(current_content).strip()
+    if current_prompt is not None:
+        prompts[current_prompt] = "".join(current_content)
 
     return prompts
 

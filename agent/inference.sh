@@ -10,7 +10,13 @@ if (( $# > 2 )); then
     exit 2
 fi
 export MINICHECK_CACHE_DIR="${1:-${MINICHECK_CACHE_DIR:-/media/hdd2/xiaoying/model-weights/minicheck}}"
-if [[ ! -d "$MINICHECK_CACHE_DIR" ]]; then
+export ANSWER_AUDIT_MODE="${ANSWER_AUDIT_MODE:-observe}"
+if [[ "$ANSWER_AUDIT_MODE" != "observe" && "$ANSWER_AUDIT_MODE" != "strict" ]]; then
+    echo "ANSWER_AUDIT_MODE must be observe or strict" >&2
+    exit 2
+fi
+echo "Answer audit mode: $ANSWER_AUDIT_MODE"
+if [[ "$ANSWER_AUDIT_MODE" == "strict" && ! -d "$MINICHECK_CACHE_DIR" ]]; then
     echo "MiniCheck cache directory does not exist: $MINICHECK_CACHE_DIR" >&2
     exit 2
 fi
