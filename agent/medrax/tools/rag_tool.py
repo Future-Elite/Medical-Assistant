@@ -121,6 +121,13 @@ def _summarize_retrieval_history(turn):
         "unique_selected_count": len(unique_selected),
         "unique_selected_by_source": unique_selected_by_source,
         "attempts": [dict(attempt) for attempt in turn.retrieval_history],
+        "tool_call_budget": {
+            "limit": turn.limits["retrieve_medical_evidence"],
+            "used": turn.counts.get("retrieve_medical_evidence", 0),
+            "remaining": max(0, turn.limits["retrieve_medical_evidence"]
+                             - turn.counts.get("retrieve_medical_evidence", 0)),
+            "rejected_and_reused_calls_count": True,
+        },
     }
 
 
@@ -156,12 +163,21 @@ def _record_retrieval_summary(turn, artifact):
 def _with_retrieval_summary(content, turn, summary=None):
     if not turn:
         return content
-    summary = summary or {
-        "attempt_count": len(turn.retrieval_history), "attempts": turn.retrieval_history,
-    }
+    summary = summary or _summarize_retrieval_history(turn)
+    remaining = summary["tool_call_budget"]["remaining"]
+    instruction = (
+        "Retrieval budget exhausted: generate the final answer from existing evidence. "
+        "Do not call tools again. State evidence gaps explicitly."
+        if remaining == 0 else
+        f"{remaining} retrieval tool calls remain; this is a maximum, not a target. "
+        "If existing evidence answers the question, stop retrieving and answer now. "
+        "For a changed follow-up query, supply evidence_gap and adjustment_reason "
+        "and target one specific gap."
+    )
     return (
         "TURN RETRIEVAL SUMMARY (program-generated and authoritative; later empty attempts "
         "do not erase earlier results):\n" + json.dumps(summary, ensure_ascii=False) +
+        "\nRETRIEVAL BUDGET INSTRUCTION:\n" + instruction +
         "\nCURRENT TOOL RESULT:\n" + content
     )
 

@@ -10,6 +10,7 @@ from langchain.agents import create_agent
 from langchain.agents.middleware import ModelCallLimitMiddleware, ToolCallLimitMiddleware, wrap_model_call
 from langgraph.checkpoint.memory import MemorySaver
 from langchain_openai import ChatOpenAI
+from langchain_core.messages import SystemMessage
 
 from interface import create_demo
 # from medrax.agent import *
@@ -38,6 +39,23 @@ def medical_model_budget(request, handler):
     turn = ACTIVE_TURN.get()
     if turn:
         turn.consume("model")
+        limit = turn.limits["retrieve_medical_evidence"]
+        used = turn.counts.get("retrieve_medical_evidence", 0)
+        if used >= limit:
+            instruction = (
+                "The retrieval budget is exhausted. Tools are now unavailable. "
+                "Generate the final answer now using only HIS records and evidence already "
+                "returned in this conversation. Later empty results do not erase earlier "
+                "evidence. State limitations or missing evidence explicitly; do not invent "
+                "citations or request another tool call. Preserve the user's answer language."
+            )
+            system_text = request.system_message.content if request.system_message else ""
+            request = request.override(
+                tools=[], tool_choice=None,
+                system_message=SystemMessage(content=f"{system_text}\n\n{instruction}"),
+            )
+            turn.emit({"event": "retrieval_budget_exhausted", "used": used,
+                       "limit": limit, "action": "generate_final_answer"})
     return handler(request)
 
 
@@ -162,7 +180,7 @@ def initialize_medical_agent(
                     tool_name=tool.name,
                     run_limit={"retrieve_medical_evidence": 3, "get_patient_snapshot": 1,
                                "open_medical_citation": 4}[tool.name],
-                    exit_behavior="error",
+                    exit_behavior="continue" if tool.name == "retrieve_medical_evidence" else "error",
                 )
                 for tool in tools
             ],
