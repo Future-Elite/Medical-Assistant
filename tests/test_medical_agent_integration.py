@@ -6,6 +6,7 @@ import asyncio
 from pathlib import Path
 import sys
 import tempfile
+from threading import Event
 from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock, patch
@@ -84,12 +85,16 @@ class MedicalAgentIntegrationTest(unittest.TestCase):
         patch("medrax.tools.rag_tool._get_claim_translator", return_value=translator).start()
 
     def controller(self, workflow):
-        controller = MedicalAgentOrchestrator(workflow, self.tool)
+        controller = MedicalAgentOrchestrator(workflow, self.tool, audit_mode="strict")
         controller.audit_path = Path(self.tmp.name) / "audit.jsonl"
+        self.addCleanup(controller._audit_jobs.join)
         return controller
 
-    def retrieve(self, text="Supported claim"):
-        content, artifact = self.tool._run("hypertension treatment")
+    def retrieve(self, text="Supported claim", *, query=None, top_k=8):
+        turn = ACTIVE_TURN.get()
+        content, artifact = self.tool._run(search_query=query or turn.question, top_k=top_k,
+            evidence_gap="Prior evidence did not support the requested claim" if turn.retrieval_attempts else None,
+            adjustment_reason="Adjust query or selection; retry a transient source error if unchanged" if turn.retrieval_attempts else None)
         evidence = artifact["evidence"]
         if not evidence:
             return "No evidence."
@@ -113,13 +118,20 @@ class MedicalAgentIntegrationTest(unittest.TestCase):
         self.assertIn("PMID:", second["answer"])
         rows = [json.loads(line) for line in controller.audit_path.read_text().splitlines()]
         audits = [row for row in rows if row["event"] == "answer_audit"]
-        self.assertEqual(len(audits[0]["claims"]), 1)
-        self.assertIn(";", audits[0]["claims"][0]["verifier_claim"])
+        self.assertEqual(len(audits[0]["claims"]), 2)
+        self.assertEqual(
+            [claim["verifier_claim"] for claim in audits[0]["claims"]],
+            ["Supported claim;", "P < 0.001."],
+        )
+        self.assertEqual(
+            audits[0]["claims"][0]["valid_citation_ids"],
+            audits[0]["claims"][1]["valid_citation_ids"],
+        )
 
     def test_two_retrievals_audited_in_their_own_packages(self):
         def draft():
             first = self.retrieve()
-            second = self.retrieve()
+            second = self.retrieve(query="hypertension treatment evidence")
             return first + "\n" + second
         controller = self.controller(ScriptedWorkflow([draft]))
         result = controller.run_turn("hypertension treatment", "thread", as_of="2025-12-31")
@@ -133,7 +145,7 @@ class MedicalAgentIntegrationTest(unittest.TestCase):
     def test_failed_draft_can_retrieve_new_support(self):
         controller = self.controller(ScriptedWorkflow([
             lambda: self.retrieve("Unsupported claim"),
-            lambda: self.retrieve("Supported replacement"),
+            lambda: self.retrieve("Supported replacement", top_k=6),
         ]))
         result = controller.run_turn("hypertension treatment", "thread", as_of="2025-12-31")
         self.assertEqual(result["status"], "passed")
@@ -178,7 +190,11 @@ class MedicalAgentIntegrationTest(unittest.TestCase):
         self.assertIsNotNone(next(iter(controller.sessions["thread"].retrievals.values()))["patient_context"])
 
     def test_empty_retrieval_stops_after_three_queries(self):
-        controller = self.controller(ScriptedWorkflow([lambda: self.retrieve()] * 3))
+        controller = self.controller(ScriptedWorkflow([
+            lambda: self.retrieve(query="unmatchedzzzzzz one"),
+            lambda: self.retrieve(query="unmatchedzzzzzz two"),
+            lambda: self.retrieve(query="unmatchedzzzzzz three"),
+        ]))
         result = controller.run_turn("unmatchedzzzzzz", "thread", as_of="2025-12-31")
         self.assertEqual(result["status"], "insufficient_evidence")
         self.assertEqual(len(controller.sessions["thread"].retrievals), 3)
@@ -200,7 +216,7 @@ class MedicalAgentIntegrationTest(unittest.TestCase):
 
     def test_real_create_agent_tool_workers_keep_turn_context(self):
         from main import initialize_medical_agent
-        with patch("main._create_qwen_model", return_value=ToolCallingModel()):
+        with patch("main._create_qwen_model", return_value=ToolCallingModel()), patch.dict("os.environ", {"ANSWER_AUDIT_MODE": "strict"}):
             controller, tools = initialize_medical_agent(str(ROOT / "agent/medrax/docs/system_prompts.txt"))
         controller.audit_path = Path(self.tmp.name) / "graph-audit.jsonl"
         result = controller.run_turn("hypertension treatment", "graph-thread", as_of="2025-12-31")
@@ -252,6 +268,126 @@ class MedicalAgentIntegrationTest(unittest.TestCase):
         result = controller.run_turn("hypertension treatment", "thread", as_of="2025-12-31")
         self.assertEqual(result["status"], "audit_error")
         self.assertEqual(len(controller.workflow.calls), 1)
+
+    def test_observe_returns_failed_audit_without_revision_and_reuses_evidence(self):
+        def followup():
+            cid = next(iter(ACTIVE_TURN.get().session.citation_map))
+            return f"Supported follow-up[{cid}]"
+        controller = self.controller(ScriptedWorkflow([
+            lambda: self.retrieve("Unsupported claim"), followup,
+        ]))
+        controller.audit_mode = "observe"
+        first = controller.run_turn("hypertension treatment", "thread")
+        second = controller.run_turn("follow-up", "thread")
+        self.assertEqual((first["status"], second["status"]), ("observed", "observed"))
+        self.assertNotIn("联调草稿", first["answer"])
+        self.assertNotIn("证据支持性未全部通过", first["answer"])
+        self.assertIn("PMID:", second["answer"])
+        self.assertEqual(len(controller.workflow.calls), 2)
+        controller._audit_jobs.join()
+        rows = [json.loads(line) for line in controller.audit_path.read_text().splitlines()]
+        self.assertFalse(next(r for r in rows if r["event"] == "answer_audit")["blocking"])
+
+    def test_background_audit_does_not_delay_output_or_mix_patient_scopes(self):
+        started, release = Event(), Event()
+        calls = []
+
+        def translate(claims):
+            calls.append(list(claims))
+            if len(calls) == 1:
+                started.set()
+                if not release.wait(5):
+                    raise TimeoutError("Response waited for background translation")
+            return claims
+
+        def patient_draft():
+            turn = ACTIVE_TURN.get()
+            draft = self.retrieve()
+            turn.session.snapshot = {"patient_ref": turn.session.patient_ref, "facts": []}
+            return draft
+
+        controller = self.controller(ScriptedWorkflow([patient_draft, patient_draft]))
+        controller.audit_mode = "observe"
+        patch.object(MedicalEvidenceRAGTool, "translate_claims", side_effect=translate).start()
+        events = []
+        try:
+            first = controller.run_turn("hypertension treatment", "thread", patient_ref="2001", emit=events.append)
+            self.assertIn("PMID:", first["answer"])
+            self.assertTrue(started.wait(2))
+            self.assertEqual(first["status"], "observed")
+            self.assertFalse(release.is_set())
+            # Remove live evidence while its audit is pending: the frozen scope must survive.
+            controller.sessions["thread"].retrievals.clear()
+            second = controller.run_turn("hypertension treatment", "thread", patient_ref="2002", emit=events.append)
+            self.assertEqual(second["status"], "observed")
+        finally:
+            release.set()
+            controller._audit_jobs.join()
+
+        self.assertEqual(len(controller.workflow.calls), 2)
+        self.assertFalse(any(row["event"] in {"audit_stage", "answer_audit"} for row in events))
+        rows = [json.loads(line) for line in controller.audit_path.read_text().splitlines()]
+        audits = [row for row in rows if row["event"] == "answer_audit"]
+        self.assertEqual(len(audits), 2)
+        self.assertTrue(all(row["passed"] for row in audits))
+        self.assertEqual([row["turn_id"] for row in audits], [first["turn_id"], second["turn_id"]])
+        self.assertNotEqual(audits[0]["patient_scope"], audits[1]["patient_scope"])
+        for audit in audits:
+            final_index = next(i for i, row in enumerate(rows)
+                               if row["event"] == "final_response" and row["turn_id"] == audit["turn_id"])
+            self.assertLess(final_index, rows.index(audit))
+
+    def test_observe_his_survives_empty_or_failed_retrieval(self):
+        payload = {"patient_ref": "2001", "facts": [{"record_path": "his:old", "fields": {"diagnosisName": "hypertension"}}]}
+        for fail in (False, True):
+            with self.subTest(fail=fail):
+                def draft():
+                    ACTIVE_TURN.get().session.snapshot = payload
+                    self.retrieve(query="unmatchedzzzzzz")
+                    return "患者记录：hypertension[his:old]。检索证据：未获得。"
+                controller = self.controller(ScriptedWorkflow([draft]))
+                controller.audit_mode = "observe"
+                with patch.object(self.rag, "retrieve_evidence", side_effect=RuntimeError("offline")) if fail else patch.dict({}, {}):
+                    result = controller.run_turn("unmatchedzzzzzz", "thread", patient_ref="2001")
+                self.assertEqual(result["status"], "observed")
+                self.assertIn("患者记录：hypertension", result["answer"])
+                self.assertEqual(len(controller.workflow.calls), 1)
+
+    def test_observe_still_blocks_unknown_public_internal_and_his_citations(self):
+        for draft in ("PMID:99999999", "Claim[retrieval-other:cit-1]", "患者[his:other]"):
+            with self.subTest(draft=draft):
+                controller = self.controller(ScriptedWorkflow([draft]))
+                controller.audit_mode = "observe"
+                self.assertEqual(controller.run_turn("question", "thread")["status"], "invalid_citation")
+
+    def test_observe_audit_error_does_not_hide_draft(self):
+        self.rag.audit_grounded_answer = Mock(side_effect=RuntimeError("unavailable"))
+        controller = self.controller(ScriptedWorkflow([lambda: self.retrieve()]))
+        controller.audit_mode = "observe"
+        result = controller.run_turn("hypertension treatment", "thread")
+        self.assertEqual(result["status"], "observed")
+        self.assertIn("Supported claim", result["answer"])
+        self.assertEqual(len(controller.workflow.calls), 1)
+        controller._audit_jobs.join()
+        rows = [json.loads(line) for line in controller.audit_path.read_text().splitlines()]
+        audit = next(row for row in rows if row["event"] == "answer_audit")
+        self.assertEqual(audit["status"], "error")
+        self.assertFalse(audit["blocking"])
+
+    def test_observe_combined_his_citations_validate_each_record(self):
+        for separator in (", ", "，", "; ", "；", "、"):
+            for second, expected in (("his:timeline:DISCHARGE:1", "observed"), ("his:other", "invalid_citation")):
+                with self.subTest(separator=separator, second=second):
+                    def draft():
+                        ACTIVE_TURN.get().session.snapshot = {
+                            "facts": [{"record_path": path} for path in (
+                                "his:timeline:ADMISSION:1", "his:timeline:DISCHARGE:1")]
+                        }
+                        return f"患者记录[his:timeline:ADMISSION:1{separator}{second}]"
+                    controller = self.controller(ScriptedWorkflow([draft]))
+                    controller.audit_mode = "observe"
+                    result = controller.run_turn("读取患者记录", "thread", patient_ref="2001")
+                    self.assertEqual(result["status"], expected)
 
 
 if __name__ == "__main__":

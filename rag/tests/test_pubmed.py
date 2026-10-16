@@ -3,7 +3,7 @@ import unittest
 import xml.etree.ElementTree as ET
 
 from rag.models import QueryPlan
-from rag.pubmed import PubMedConnector, PubMedError, _parse_efetch
+from rag.pubmed import PubMedConnector, PubMedError, PUBMED_SEARCH_CACHE, _parse_efetch
 
 
 ES = json.dumps({"esearchresult": {"idlist": ["123"]}}).encode()
@@ -18,6 +18,41 @@ class FakeTransport:
 
 
 class PubMedConnectorTests(unittest.TestCase):
+    def test_publication_range_uses_esearch_parameters_and_separate_cache_entries(self):
+        transport = FakeTransport()
+        connector = PubMedConnector(transport=transport)
+        token = PUBMED_SEARCH_CACHE.set({})
+        try:
+            first = QueryPlan("q", ("q",), ("hypertension",), ("pubmed-live",), {
+                "publication_from": "2024-10-13", "publication_to": "2026-10-13",
+            }, (), english_terms=("hypertension",))
+            connector.search(first, limit=3)
+            params = transport.calls[0][1]
+            self.assertEqual((params["datetype"], params["mindate"], params["maxdate"]),
+                             ("pdat", "2024/10/13", "2026/10/13"))
+            self.assertEqual(connector.last_date_filter, {
+                "publication_from": "2024-10-13", "publication_to": "2026-10-13",
+            })
+            calls = len(transport.calls)
+            connector.search(first, limit=3)
+            self.assertEqual(len(transport.calls), calls)
+            second = QueryPlan("q", ("q",), ("hypertension",), ("pubmed-live",), {
+                "publication_from": "2025-01-01", "publication_to": "2026-10-13",
+            }, (), english_terms=("hypertension",))
+            connector.search(second, limit=3)
+            self.assertGreater(len(transport.calls), calls)
+        finally:
+            PUBMED_SEARCH_CACHE.reset(token)
+
+    def test_publication_range_removes_parsed_dates_outside_window(self):
+        connector = PubMedConnector(transport=FakeTransport())
+        plan = QueryPlan("q", ("q",), ("hypertension",), ("pubmed-live",), {
+            "publication_from": "2024-10-13", "publication_to": "2026-10-13",
+        }, (), english_terms=("hypertension",))
+        result = connector.search(plan, limit=3)
+        self.assertFalse(result.documents)
+        self.assertTrue(any("超出请求时间窗口" in warning for warning in result.warnings))
+
     def test_search_maps_fields_and_keeps_patient_data_out(self):
         transport = FakeTransport()
         connector = PubMedConnector(transport=transport)

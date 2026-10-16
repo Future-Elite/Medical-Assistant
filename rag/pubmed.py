@@ -6,6 +6,7 @@ reviewed query terms; it never receives or serializes a PatientSnapshot.
 from __future__ import annotations
 
 import json
+from contextvars import ContextVar
 import socket
 import urllib.error
 import urllib.parse
@@ -18,6 +19,9 @@ from typing import Any, Callable, Mapping
 from .config import get_config
 from .connectors import KnowledgeConnector
 from .models import QueryPlan, SearchResult, SourceDocument
+
+# The Agent supplies a fresh cache for each user turn; standalone RAG is uncached.
+PUBMED_SEARCH_CACHE: ContextVar[dict | None] = ContextVar("pubmed_search_cache", default=None)
 
 
 class PubMedError(RuntimeError):
@@ -48,12 +52,26 @@ class PubMedConnector(KnowledgeConnector):
 
     def search(self, plan: QueryPlan, *, limit: int) -> SearchResult:
         limit = max(1, min(int(limit), self.max_results))
+        self.last_query = _safe_term(plan)
+        date_params, self.last_date_filter = _publication_date_params(plan)
+        cache = PUBMED_SEARCH_CACHE.get()
+        key = (id(self), self.last_query, limit, tuple(sorted(date_params.items())))
+        self.last_cache_hit = cache is not None and key in cache
+        if self.last_cache_hit:
+            return cache[key]
+        result = self._search(plan, limit=limit, date_params=date_params)
+        if cache is not None:
+            cache[key] = result
+        return result
+
+    def _search(self, plan: QueryPlan, *, limit: int, date_params: Mapping[str, str] | None = None) -> SearchResult:
         warnings: list[str] = []
         if not self.email:
             warnings.append("PubMed 请求未在 config.py 设置 ncbi_email；建议配置有效邮箱以符合 NCBI 使用规范。")
         params = self._base_params()
         self.last_query = _safe_term(plan)
         params.update({"db": "pubmed", "retmode": "json", "retmax": str(limit), "sort": "relevance", "term": self.last_query})
+        params.update(date_params or {})
         raw = self._request("esearch", params)
         try:
             payload = json.loads(raw.decode("utf-8"))
@@ -68,6 +86,16 @@ class PubMedConnector(KnowledgeConnector):
         documents, skipped = _parse_efetch(xml, self.source_id)
         if skipped:
             warnings.append(f"PubMed 有 {skipped} 条记录缺少 PMID、标题或摘要，未加入证据列表。")
+        if date_params:
+            earliest = date.fromisoformat(date_params["mindate"].replace("/", "-")) if date_params.get("mindate") else None
+            latest = date.fromisoformat(date_params["maxdate"].replace("/", "-")) if date_params.get("maxdate") else None
+            before = len(documents)
+            documents = [document for document in documents if document.published_at and (
+                (earliest is None or date.fromisoformat(document.published_at) >= earliest) and
+                (latest is None or date.fromisoformat(document.published_at) <= latest)
+            )]
+            if before != len(documents):
+                warnings.append(f"已按规范化发表日期移除 {before - len(documents)} 条超出请求时间窗口或日期不明的 PubMed 记录。")
         return SearchResult(self.source_id, tuple(documents), tuple(warnings))
 
     def _base_params(self) -> dict[str, str]:
@@ -114,9 +142,35 @@ def _safe_term(plan: QueryPlan) -> str:
     # Only reviewed/derived question terms are used for the live request; never serialize patient snapshot.
     baseline = " AND ".join('"' + item.replace('"', "") + '"' for item in terms[:12])
     if dynamic:
-        routes = ([baseline] if baseline else []) + dynamic
-        return " OR ".join(f"({text})" for text in routes)
+        # Execute the targeted route first. Broadening is a separate Agent call,
+        # with a new query and an explicit evidence gap, never a broad OR branch.
+        return dynamic[0]
     return baseline
+
+
+def _publication_date_params(plan: QueryPlan) -> tuple[dict[str, str], dict[str, str]]:
+    raw_from = str(plan.filters.get("publication_from") or "").strip()
+    raw_to = str(plan.filters.get("publication_to") or "").strip()
+    parsed = {}
+    for key, value in (("mindate", raw_from), ("maxdate", raw_to)):
+        if not value:
+            continue
+        try:
+            parsed[key] = date.fromisoformat(value)
+        except ValueError as exc:
+            name = "publication_from" if key == "mindate" else "publication_to"
+            raise ValueError(f"{name} must use YYYY-MM-DD format") from exc
+    if parsed.get("mindate") and parsed.get("maxdate") and parsed["mindate"] > parsed["maxdate"]:
+        raise ValueError("publication_from must not be later than publication_to")
+    params = {key: value.strftime("%Y/%m/%d") for key, value in parsed.items()}
+    if params:
+        params["datetype"] = "pdat"
+    trace = {
+        key: value for key, value in (
+            ("publication_from", raw_from or None), ("publication_to", raw_to or None),
+        ) if value
+    }
+    return params, trace
 
 
 def _safe_ascii_or_cjk(value: str) -> bool:

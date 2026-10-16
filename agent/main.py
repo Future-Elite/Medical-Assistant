@@ -211,7 +211,7 @@ if __name__ == "__main__":
     service = managed_his_service() if "PatientSnapshotTool" in tools_dict else nullcontext()
     with service:
         for tool in tools_dict.values():
-            if hasattr(tool, "preload_auditor"):
+            if hasattr(tool, "preload_auditor") and getattr(agent, "audit_mode", "strict") == "strict":
                 print("Loading MiniCheck before accepting requests...", flush=True)
                 tool.preload_auditor()
                 print("MiniCheck ready.", flush=True)

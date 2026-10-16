@@ -4,7 +4,7 @@ from contextvars import ContextVar
 from dataclasses import dataclass, field
 from typing import Any, Callable
 from uuid import uuid4
-from threading import Lock
+from threading import Lock, RLock
 
 
 class BudgetExceeded(RuntimeError):
@@ -36,6 +36,11 @@ class TurnContext:
     turn_id: str = field(default_factory=lambda: uuid4().hex)
     counts: dict[str, int] = field(default_factory=dict)
     retrieval_errors: list[str] = field(default_factory=list)
+    retrieval_history: list[dict] = field(default_factory=list)
+    retrieval_cache: dict[str, tuple[str, dict]] = field(default_factory=dict)
+    pubmed_cache: dict = field(default_factory=dict)
+    retrieval_attempts: int = 0
+    _retrieval_lock: Any = field(default_factory=RLock, repr=False)
     limits: dict[str, int] = field(default_factory=lambda: {
         "retrieve_medical_evidence": 3,
         "get_patient_snapshot": 1,

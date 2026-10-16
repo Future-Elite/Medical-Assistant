@@ -6,7 +6,7 @@ import unittest
 from rag.connectors import ConnectorRegistry
 from rag.models import RetrievalRequest
 from rag.pipeline import EvidenceRetrievalPipeline
-from rag.pubmed import PubMedConnector
+from rag.pubmed import PubMedConnector, PUBMED_SEARCH_CACHE
 
 
 class Transport:
@@ -31,6 +31,27 @@ class Translator:
 
 
 class DynamicQueryRecallTest(unittest.TestCase):
+    def test_targeted_query_and_candidate_cache_then_explicit_broadening(self):
+        pipeline, transport, translator = self.pipeline('("asthma") AND ("treatment")')
+        request = {"question": "哮喘治疗", "user_terms": {"哮喘": ["asthma"]},
+                   "retrieval_method": "bm25,translate", "top_k": 5}
+        token = PUBMED_SEARCH_CACHE.set({})
+        try:
+            first = pipeline.retrieve(RetrievalRequest.from_dict(request))
+            self.assertEqual(transport.calls[0]["term"], '("asthma") AND ("treatment")')
+            calls = len(transport.calls)
+            second = pipeline.retrieve(RetrievalRequest.from_dict({**request, "clinical_intent": "evidence_update"}))
+            self.assertEqual(len(transport.calls), calls)
+            self.assertTrue(second.trace["connector_trace"][0]["cache_hit"])
+            self.assertNotEqual(first.retrieval_id, second.retrieval_id)
+            translator.query = '("asthma")'
+            third = pipeline.retrieve(RetrievalRequest.from_dict({**request, "question": "哮喘"}))
+            self.assertGreater(len(transport.calls), calls)
+            self.assertEqual(third.trace["connector_trace"][0]["query"], '("asthma")')
+            self.assertFalse(third.trace["connector_trace"][0]["cache_hit"])
+        finally:
+            PUBMED_SEARCH_CACHE.reset(token)
+
     def pipeline(self, query):
         transport = Transport()
         registry = ConnectorRegistry()
