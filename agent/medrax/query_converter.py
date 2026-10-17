@@ -12,12 +12,10 @@ class QwenQueryConverter:
 
     def convert(self, question):
         question = str(question).strip()
-        if not re.search(r"[\u3400-\u9fff]", question):
-            return question
         if question in self._cache:
             return self._cache[question]
         response = self.client._get_model().invoke([
-            ("system", "Convert the original Chinese medical question into a concise English "
+            ("system", "Convert the Chinese or English medical search request into a concise English "
              "biomedical search query. Preserve diseases, drugs, population, relevant numbers, "
              "units, negation, comparisons and time constraints. Remove interface/workflow "
              "instructions such as reading HIS or opening citations. Never infer patient "
@@ -25,6 +23,11 @@ class QwenQueryConverter:
              "Return groups of English clinical concepts: all groups must be present (AND), "
              "terms within one group are true synonyms (OR). The first group must be the "
              "main disease/drug/topic; do not put study types in a separate OR route. Omit "
+             "Use only necessary concept groups, normally topic, explicit population, and ONE "
+             "intervention or outcome focus. Do not make every descriptive word a mandatory "
+             "group. Preserve explicit essential constraints; do not invent disease subtypes. "
+             "For broad treatment summaries, use a broad treatment concept rather than "
+             "requiring regimen, dosing, duration and respiratory support simultaneously. "
              "generic words such as evidence, research or article; add trial, guideline or "
              "review filters only when explicitly requested. Do not write Boolean operators "
              "or PubMed field tags inside terms. This is a machine-generated candidate, "

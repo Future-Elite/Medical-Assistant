@@ -17,7 +17,9 @@ class GuidelineTests(unittest.TestCase):
     def test_who_metadata_is_not_full_text(self):
         doc = who_hypertension_metadata()
         self.assertEqual(doc.metadata["content_mode"], "metadata_only")
-        result = GuidelineMetadataConnector("who-guideline-live", (doc,)).search(self.plan, limit=5)
+        plan = QueryPlan("adult hypertension guideline", ("adult hypertension guideline",),
+                         ("hypertension",), ("who-guideline-live",), {"source_kinds": ["guideline"]}, ())
+        result = GuidelineMetadataConnector("who-guideline-live", (doc,)).search(plan, limit=5)
         self.assertEqual(len(result.documents), 1)
         self.assertIn("元数据", result.warnings[0])
 

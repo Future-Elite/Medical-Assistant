@@ -24,6 +24,7 @@ from typing import Iterable, Mapping, Sequence
 from .bm25 import BM25Score, score_documents, tokenize
 from .lexical import score_documents_ql, score_documents_rm3
 from .models import EvidenceStatus, QueryPlan, RankedDocument, SourceDocument, parse_iso_date
+from .guidelines import matches_guideline_scope
 
 SOURCE_PRIOR = {"guideline": 1.0, "drug": 0.80, "pubmed": 0.70, "clinical_trial": 0.65, "local_knowledge": 0.40}
 
@@ -94,7 +95,9 @@ def rank_documents(plan: QueryPlan, documents: Iterable[SourceDocument], *, as_o
             return True
         return any(scores.get(key, 0.0) > 0.0 for scores in neural.values())
 
-    relevant = [(doc, status) for doc, status in eligible if relevant_candidate(doc.identity_key())]
+    relevant = [(doc, status) for doc, status in eligible
+                if (doc.kind != "guideline" or matches_guideline_scope(doc, plan))
+                and relevant_candidate(doc.identity_key())]
 
     primary = lexical_methods[0] if lexical_methods else None
     primary_max = max((item.score for item in lexical.get(primary, {}).values()), default=0.0) if primary else 0.0

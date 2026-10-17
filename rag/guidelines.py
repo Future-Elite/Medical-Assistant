@@ -8,10 +8,26 @@ guideline kind; verify the official page label before adding records.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
 from typing import Callable, Mapping, Sequence
 
 from .connectors import KnowledgeConnector
 from .models import QueryPlan, SearchResult, SourceDocument
+
+
+def matches_guideline_scope(document: SourceDocument, plan: QueryPlan) -> bool:
+    """Apply declared topic/population coverage before ranking or source quotas."""
+    scope = document.metadata.get("scope_terms")
+    if not scope:
+        return True
+    query = " ".join((plan.original_question, *plan.variants, *plan.english_terms,
+                      *plan.question_english_terms, *plan.mesh_terms, *plan.machine_translations)).lower()
+    if not any(re.search(r"(?<![a-z])" + re.escape(term.lower()) + r"(?![a-z])", query)
+               for term in scope):
+        return False
+    excluded = document.metadata.get("excluded_population_terms") or []
+    return not any(re.search(r"(?<![a-z])" + re.escape(term.lower()) + r"(?![a-z])", query)
+                   for term in excluded)
 
 
 @dataclass
@@ -51,13 +67,15 @@ class GuidelineMetadataConnector(KnowledgeConnector):
         allowed = set(plan.filters.get("source_kinds") or ())
         if allowed and "guideline" not in allowed:
             return SearchResult(self.source_id, ())
-        selected = list(self.records)
+        selected = [doc for doc in self.records if matches_guideline_scope(doc, plan)]
         requested_version = plan.filters.get("guideline_version")
         if requested_version:
             selected = [doc for doc in selected if doc.version_id == str(requested_version)]
         warnings = [
             f"来源 {self.source_id} 仅提供官方元数据和链接；未将未确认许可的全文加入检索。"
         ] if selected else []
+        if len(selected) < len(self.records):
+            warnings.append("指南：已排除无检索相关度或不符合来源疾病/人群覆盖范围的元数据候选。")
         return SearchResult(self.source_id, tuple(selected[:limit]), tuple(warnings))
 
 
@@ -75,6 +93,8 @@ def who_hypertension_metadata() -> SourceDocument:
             "rights_basis": "source_page_requires_verification", "full_text_allowed": False,
             "content_mode": "metadata_only", "live_source": True,
             "mesh_terms": "Hypertension", "keywords": "hypertension pharmacological treatment adults",
+            "scope_terms": ["hypertension", "high blood pressure", "高血压"],
+            "excluded_population_terms": ["neonatal", "newborn", "infant", "pediatric", "paediatric", "新生儿", "婴儿", "儿童"],
         },
     )
 
@@ -102,6 +122,8 @@ def who_diabetes_glucose_metadata() -> SourceDocument:
             "content_mode": "metadata_only", "live_source": True,
             "mesh_terms": "Diabetes Mellitus, Type 2; Hypoglycemic Agents; Insulin",
             "keywords": "blood glucose control second-line third-line insulin diabetes",
+            "scope_terms": ["diabetes", "糖尿病"],
+            "excluded_population_terms": ["neonatal", "newborn", "infant", "pediatric", "paediatric", "pregnant", "pregnancy", "新生儿", "婴儿", "儿童", "孕妇", "妊娠"],
         },
     )
 
