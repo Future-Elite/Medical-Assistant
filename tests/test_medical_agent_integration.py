@@ -26,8 +26,9 @@ from rag.connectors import ConnectorRegistry, InMemoryConnector
 from rag.pipeline import EvidenceRetrievalPipeline
 from rag.tests.fixtures import SYNTHETIC_PUBMED
 from langchain_core.language_models.chat_models import BaseChatModel
-from langchain_core.messages import AIMessage, ToolMessage
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langchain_core.outputs import ChatGeneration, ChatResult
+from pydantic import Field
 
 
 class ToolCallingModel(BaseChatModel):
@@ -55,6 +56,52 @@ class Verifier:
 
     def verify(self, pairs):
         return [(not claim.startswith("Unsupported"), 0.99) for claim, doc in pairs]
+
+
+class BudgetSeekingModel(BaseChatModel):
+    """Keep requesting retrieval while tools exist; answer only when withdrawn."""
+    calls: list[bool] = Field(default_factory=list)
+    parallel: bool = False
+
+    @property
+    def _llm_type(self):
+        return "offline-budget-seeking-model"
+
+    def bind_tools(self, tools, **kwargs):
+        return self.bind(tools=tools, **kwargs)
+
+    def _generate(self, messages, stop=None, run_manager=None, **kwargs):
+        has_tools = bool(kwargs.get("tools"))
+        self.calls.append(has_tools)
+        last_user = max(index for index, message in enumerate(messages) if isinstance(message, HumanMessage))
+        results = [message for message in messages[last_user:] if isinstance(message, ToolMessage)]
+        if has_tools:
+            if self.parallel and not results:
+                return ChatResult(generations=[ChatGeneration(message=AIMessage(
+                    content="", tool_calls=[{
+                        "name": "retrieve_medical_evidence",
+                        "args": {"search_query": "hypertension treatment"},
+                        "id": f"parallel-call-{index}",
+                    } for index in range(4)],
+                ))])
+            attempts = [
+                {"search_query": "hypertension treatment"},
+                {"search_query": "hypertension drug safety"},
+                {"search_query": "unmatchedzzzzzz", "evidence_gap": "Need direct evidence",
+                 "adjustment_reason": "Search one specific missing topic"},
+            ]
+            args = attempts[min(len(results), 2)]
+            message = AIMessage(content="", tool_calls=[{
+                "name": "retrieve_medical_evidence", "args": args,
+                "id": f"budget-call-{len(results)}",
+            }])
+        else:
+            citation = re.search(
+                r"retrieval-[A-Za-z0-9._-]+:cit-\d+",
+                "\n".join(str(result.content) for result in results),
+            ).group(0)
+            message = AIMessage(content=f"Supported claim[{citation}]")
+        return ChatResult(generations=[ChatGeneration(message=message)])
 
 
 class ScriptedWorkflow:
@@ -226,6 +273,50 @@ class MedicalAgentIntegrationTest(unittest.TestCase):
         final = rows[-1]
         self.assertEqual(final["tool_call_counts"]["model"], 2)
         self.assertEqual(final["tool_call_counts"]["retrieve_medical_evidence"], 1)
+
+    def test_real_agent_finalizes_after_rejected_and_empty_searches_and_resets_next_turn(self):
+        from main import initialize_medical_agent
+        model = BudgetSeekingModel()
+        with patch("main._create_qwen_model", return_value=model), patch.dict("os.environ", {"ANSWER_AUDIT_MODE": "observe"}):
+            controller, _ = initialize_medical_agent(str(ROOT / "agent/medrax/docs/system_prompts.txt"))
+        self.addCleanup(controller._audit_jobs.join)
+        controller.audit_path = Path(self.tmp.name) / "budget-audit.jsonl"
+        for question in ("hypertension treatment", "hypertension follow-up"):
+            result = controller.run_turn(question, "budget-thread", as_of="2025-12-31")
+            self.assertEqual(result["status"], "observed")
+            self.assertIn("PMID:", result["answer"])
+        controller._audit_jobs.join()
+        self.assertEqual(model.calls, [True, True, True, False] * 2)
+        rows = [json.loads(line) for line in controller.audit_path.read_text().splitlines()]
+        self.assertFalse(any(row["event"] == "agent_error" for row in rows))
+        finals = [row for row in rows if row["event"] == "final_response"]
+        self.assertEqual(len(finals), 2)
+        for row in finals:
+            self.assertEqual(row["tool_call_counts"]["retrieve_medical_evidence"], 3)
+        rejected = [row for row in rows if row["event"] == "retrieval_rejected"]
+        self.assertEqual(len(rejected), 2)
+        self.assertTrue(all(row["artifact"]["turn_retrieval_summary"]["tool_call_budget"]["remaining"] == 1
+                            for row in rejected))
+        searches = [row for row in rows if row["event"] == "evidence_search"]
+        self.assertEqual(len(searches), 4)
+        self.assertEqual([row["artifact"]["turn_retrieval_summary"]["tool_call_budget"]["remaining"]
+                          for row in searches], [2, 0, 2, 0])
+
+    def test_parallel_over_budget_tool_calls_still_produce_a_final_answer(self):
+        from main import initialize_medical_agent
+        model = BudgetSeekingModel(parallel=True)
+        with patch("main._create_qwen_model", return_value=model), patch.dict("os.environ", {"ANSWER_AUDIT_MODE": "observe"}):
+            controller, _ = initialize_medical_agent(str(ROOT / "agent/medrax/docs/system_prompts.txt"))
+        self.addCleanup(controller._audit_jobs.join)
+        controller.audit_path = Path(self.tmp.name) / "parallel-budget-audit.jsonl"
+        result = controller.run_turn("hypertension treatment", "parallel-thread", as_of="2025-12-31")
+        self.assertEqual(result["status"], "observed", controller.audit_path.read_text()[-3000:])
+        self.assertIn("PMID:", result["answer"])
+        self.assertEqual(model.calls, [True, False])
+        controller._audit_jobs.join()
+        rows = [json.loads(line) for line in controller.audit_path.read_text().splitlines()]
+        final = next(row for row in rows if row["event"] == "final_response")
+        self.assertEqual(final["tool_call_counts"]["retrieve_medical_evidence"], 3)
 
     def test_gradio_entry_runs_the_same_orchestration(self):
         from interface import ChatInterface

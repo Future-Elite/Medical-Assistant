@@ -627,8 +627,8 @@ def create_demo(agent, tools_dict):
         with gr.Column():
             gr.Markdown(
                 """
-            # 🏥 MedRAX
-            Medical Reasoning Agent with unified medical evidence RAG
+            # 🏥 Medical Assistant
+            A Medical Reasoning Agent with unified medical evidence RAG
             """
             )
 

@@ -5,6 +5,16 @@ from dataclasses import dataclass, field
 from typing import Any, Callable
 from uuid import uuid4
 from threading import Lock, RLock
+import re
+
+
+def needs_patient_context(question: str) -> bool:
+    """Reuse a selected patient's context only for an explicit record/patient request."""
+    return bool(re.search(
+        r"患者|病历|病人|该患儿|这名患儿|该婴儿|这名婴儿|他的|她的|我的|"
+        r"\b(?:this|the|my|selected)\s+patient\b|\b(?:HIS|medical record)\b",
+        question, re.IGNORECASE,
+    ))
 
 
 class BudgetExceeded(RuntimeError):

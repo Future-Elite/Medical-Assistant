@@ -124,7 +124,7 @@ class MedicalEvidenceRAGToolTest(unittest.TestCase):
                 _, first = tool._run(search_query="hypertension treatment")
                 self.assertEqual(rag.retrieve_evidence.call_args.args[0]["question"], "hypertension treatment")
                 self.assertEqual(first["original_question"], original)
-                self.assertNotIn("translate", first["tool_args"]["retrieval_method"])
+                self.assertIn("translate", first["tool_args"]["retrieval_method"])
                 _, reused = tool._run(search_query=" hypertension   treatment ")
                 self.assertTrue(reused["cache_hit"])
                 self.assertEqual(first["retrieval_id"], reused["retrieval_id"])

@@ -80,6 +80,13 @@ actual query and candidate limit are unchanged: see
 parameters. WHO requests are not cached at this connector layer. Caches are
 per-turn and include patient context at the package level; they are not reused
 across turns. All tool invocations still consume the three-call budget.
+Each tool response and retrieval summary reports the call limit, used calls and
+remaining calls, including rejected and reused calls. Three is a maximum, not a
+required number of searches. Once exhausted, model middleware removes tools and
+requests a final answer using the accumulated evidence, with explicit gaps.
+Parallel calls exceeding the LangChain limit receive tool errors instead of
+aborting the entire turn. Citation and patient-scope checks still apply to the
+final answer.
 
 PubMed executes the first accepted translated query, without OR-ing it with a
 broad reviewed-term baseline. With no translated query it uses the reviewed /

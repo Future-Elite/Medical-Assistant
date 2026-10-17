@@ -24,7 +24,7 @@ from rag.models import RetrievalRequest
 from rag.pubmed import PUBMED_SEARCH_CACHE
 from medrax.answer_audit import QwenClaimTranslator
 from medrax.query_converter import QwenQueryConverter
-from medrax.medical_session import ACTIVE_TURN
+from medrax.medical_session import ACTIVE_TURN, needs_patient_context
 from .evidence import EvidenceAggregator
 
 
@@ -121,6 +121,13 @@ def _summarize_retrieval_history(turn):
         "unique_selected_count": len(unique_selected),
         "unique_selected_by_source": unique_selected_by_source,
         "attempts": [dict(attempt) for attempt in turn.retrieval_history],
+        "tool_call_budget": {
+            "limit": turn.limits["retrieve_medical_evidence"],
+            "used": turn.counts.get("retrieve_medical_evidence", 0),
+            "remaining": max(0, turn.limits["retrieve_medical_evidence"]
+                             - turn.counts.get("retrieve_medical_evidence", 0)),
+            "rejected_and_reused_calls_count": True,
+        },
     }
 
 
@@ -156,12 +163,30 @@ def _record_retrieval_summary(turn, artifact):
 def _with_retrieval_summary(content, turn, summary=None):
     if not turn:
         return content
-    summary = summary or {
-        "attempt_count": len(turn.retrieval_history), "attempts": turn.retrieval_history,
-    }
+    summary = summary or _summarize_retrieval_history(turn)
+    remaining = summary["tool_call_budget"]["remaining"]
+    instruction = (
+        "Retrieval budget exhausted: generate the final answer from existing evidence. "
+        "Do not call tools again. State evidence gaps explicitly."
+        if remaining == 0 else
+        f"{remaining} retrieval tool calls remain; this is a maximum, not a target. "
+        "If existing evidence answers the question, stop retrieving and answer now. "
+        "For a changed follow-up query, supply evidence_gap and adjustment_reason "
+        "and target one specific gap."
+    )
+    compact = {key: summary[key] for key in (
+        "any_connector_results_returned", "unique_selected_count", "unique_selected_by_source",
+    )}
+    compact["usable_evidence_count"] = len({
+        record["source_id"]
+        for package in turn.session.retrievals.values()
+        for record in package.get("evidence", [])
+        if record.get("metadata", {}).get("content_mode") != "metadata_only"
+    })
     return (
         "TURN RETRIEVAL SUMMARY (program-generated and authoritative; later empty attempts "
-        "do not erase earlier results):\n" + json.dumps(summary, ensure_ascii=False) +
+        "do not erase earlier results; internal context, do not narrate):\n" + json.dumps(compact, ensure_ascii=False) +
+        "\nRETRIEVAL BUDGET INSTRUCTION:\n" + instruction +
         "\nCURRENT TOOL RESULT:\n" + content
     )
 
@@ -219,7 +244,7 @@ class MedicalEvidenceRAGTool(BaseTool):
             return "Provide a focused search_query before retrieving.", {"error": "search_query_required"}
         publication_from, publication_to = _publication_range(publication_from, publication_to)
         methods = RetrievalRequest.parse_methods(retrieval_method)
-        if re.search(r"[\u3400-\u9fff]", effective) and "translate" not in methods:
+        if "translate" not in methods:
             methods = (*methods, "translate")
         request = {
             "request_id": f"agent-{uuid4().hex}",
@@ -239,7 +264,9 @@ class MedicalEvidenceRAGTool(BaseTool):
         cutoff = turn.session.as_of if turn else as_of
         if cutoff:
             request["as_of"] = cutoff
-        if turn and turn.session.snapshot:
+        if turn and turn.session.snapshot and (
+            needs_patient_context(turn.question) or turn.counts.get("get_patient_snapshot", 0)
+        ):
             request["patient_snapshot"] = turn.session.snapshot
         # Log the effective request without persisting the complete patient snapshot.
         tool_args = {key: value for key, value in request.items() if key != "patient_snapshot"}
@@ -314,11 +341,15 @@ class MedicalEvidenceRAGTool(BaseTool):
             artifact["turn_retrieval_summary"] = _record_retrieval_summary(turn, artifact)
             turn.session.retrievals[package["retrieval_id"]] = artifact
             turn.emit({"event": "evidence_search", "artifact": artifact, "tool_name": self.name})
-        context = {key: artifact.get(key) for key in (
-            "retrieval_id", "original_question", "search_query", "patient_hits", "patient_context", "applicability", "warnings", "trace"
-        )}
-        content = EvidenceAggregator.format_for_model(evidence) if evidence else "No citable external evidence found."
-        content = content + "\nRAG context: " + json.dumps(context, ensure_ascii=False)
+        view = [{**item, "metadata": {key: value for key, value in item["metadata"].items()
+                 if key in {"citation_id", "content_mode", "journal", "locator", "evidence_status"}}}
+                for item in evidence]
+        content = EvidenceAggregator.format_for_model(view) if view else "No citable external evidence found."
+        content += "\nInternal guidance: answer the user's topic; do not narrate retrieval operations."
+        if any(item["metadata"].get("content_mode") == "metadata_only" for item in evidence):
+            content += " Metadata-only records identify publications but do not support treatment claims."
+        if artifact.get("applicability"):
+            content += "\nEvidence applicability: " + json.dumps(artifact["applicability"], ensure_ascii=False)
         if turn:
             turn.retrieval_cache[cache_key] = (content, artifact)
         return _with_retrieval_summary(content, turn, artifact.get("turn_retrieval_summary")), artifact

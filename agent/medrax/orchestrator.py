@@ -11,7 +11,7 @@ from threading import RLock, Lock, Thread
 
 from rag.audit import parse_citation_ids
 from medrax.answer_audit import AnswerAuditModule
-from medrax.medical_session import ACTIVE_TURN, BudgetExceeded, MedicalSession, TurnContext
+from medrax.medical_session import ACTIVE_TURN, BudgetExceeded, MedicalSession, TurnContext, needs_patient_context
 
 
 class MedicalAgentOrchestrator:
@@ -146,9 +146,21 @@ class MedicalAgentOrchestrator:
         )
         graph_thread = f"{thread_id}:{session.generation}"
         revisions = 0
+        patient_needed = needs_patient_context(question)
+        patient_context = (
+            f"Selected patient: {selected}; reference date: {cutoff}. Read HIS when needed.\n"
+            if selected and patient_needed else ""
+        )
         prompt = (
             f"Original user question: {question}\n"
-            f"Caller-selected synthetic patient: {selected or 'none'}; as_of: {cutoff}.\n"
+            + patient_context +
+            f"Current reference date: {cutoff}.\n"
+            "For general literature questions, omit patient-record sections and patient selection "
+            "status. Answer the medical topic directly. Keep tool names, budgets, traces, rejected "
+            "sources and implementation details out of the final answer. State only limitations "
+            "that affect the medical conclusions. Do not turn risk-factor evidence into treatment findings. "
+            "For follow-up retrieval, target ONE missing topic and remove unnecessary constraints "
+            "when broadening. Keep search_query concise. "
             "Read HIS if patient facts are needed. Ask the user when a required patient or "
             "clinical detail is missing. Inspect RAG gaps and warnings; you may retrieve again "
             "or open citations before drafting. Preserve the user's answer language."
@@ -175,7 +187,7 @@ class MedicalAgentOrchestrator:
                         continue
                     return self._finish("信息不足：检索未获得可引用的外部证据，请补充问题或审核后的英文医学术语。", turn, send, "insufficient_evidence")
                 ids = parse_citation_ids(draft)
-                if selected and session.snapshot is None and not ("?" in draft or "？" in draft):
+                if selected and patient_needed and session.snapshot is None and not ("?" in draft or "？" in draft):
                     return self._finish("信息不足：尚未获得所选患者的 HIS 快照，请检查 HIS 连接或补充患者信息。", turn, send, "missing_patient_facts")
                 unknown = set(ids) - set(session.citation_map)
                 if self.audit_mode == "observe":
