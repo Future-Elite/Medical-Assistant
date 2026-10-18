@@ -2,10 +2,10 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://example.invalid/chinallm/rag/agent-contract.json",
   "title": "ChinaLLM RAG Agent/HIS/RAG Contract",
-  "description": "Agent 与只读检索层的对接契约：Agent 先获取带 as_of 的 HIS 快照，再调用 RAG 完成患者事实 + PubMed + 版本化指南的联合检索。检索分三层执行：按来源收集 → 分源独立排序（各自词表内 IDF/RRF/相关度门，跨来源分数不比较）→ 联合选择（来源可见性保证 + 意图配额 + 来源内排名轮转补齐 + 按来源内排名交错）。中英文字段语义见 language_rules：中文原始问题原样保留，英文相关字段（english_terms/mesh_terms/user_terms/question_english_terms）分别定义。",
+  "description": "Agent 与只读检索层的对接契约：Agent 先获取带 as_of 的 HIS 快照，再调用 RAG 完成患者事实 + PubMed + 版本化指南的联合检索。检索分三层执行：按来源收集 → 分源独立排序（各自词表内 IDF/RRF/相关度门，跨来源分数不比较）→ 联合选择（来源可见性保证 + 意图配额 + 来源内排名轮转补齐 + 按来源内排名交错）。v6.6.4 的 live 指南注册表只含新生儿指南元数据（成人 WHO 条目已移除）；新生儿演示档案（rag/demo/）是调用方库，需经 POST /api/demo/guidelines/load 显式加载。中英文字段语义见 language_rules：中文原始问题原样保留，英文相关字段（english_terms/mesh_terms/user_terms/question_english_terms）分别定义。",
   "contract_metadata": {
     "contract_id": "chinallm.rag.agent",
-    "contract_version": "6.6.3",
+    "contract_version": "6.6.4",
     "status": "experimental"
   },
   "scope_and_safety": {
@@ -17,7 +17,9 @@
     "scores_are_evidence_quality": false,
     "required_human_review": true,
     "server_has_builtin_corpus": false,
-    "fidelity_gate": "门控只改变被判定路线的检索信号（降权/退出融合），不修改查询计划本身；每次处置写入 trace.query_fidelity 与 warnings；未配置词表时不做静默推断。"
+    "fidelity_gate": "门控只改变被判定路线的检索信号（降权/退出融合），不修改查询计划本身；每次处置写入 trace.query_fidelity 与 warnings；未配置词表时不做静默推断。",
+    "neonatal_scope": "live 指南元数据注册表只含新生儿指南；成人指南不得因来源配额进入临床证据包。演示病例与合成指南块全部 synthetic=true，不是临床证据。",
+    "demo_profile": "neonatal_demo_v1：9 例合成新生儿病例 + 两个调用方指南库（元数据库 synthetic=false 仅书目；合成块库 synthetic=true）。演示库不是第三种来源模式，加载后按 custom 检索。"
   },
   "language_rules": {
     "original_question": "question 是中文临床原始问题，原样保留（不翻译、不改写），既作为精确查询参与词面检索，也用于结果审计。",
@@ -27,7 +29,9 @@
     "reviewed_mapping": "user_terms 是人工审核的中文概念→英文术语映射；仅当键出现在问题/患者术语文本中才生效，展开记录在 query_plan.expansion_trace（source=reviewed_user_terms）。不调用自动翻译或不受控同义词服务。",
     "cjk_matching": "中文片段以 CJK 二元组分词参与词面匹配，可直接命中中文来源（source 文档语言为中文时无需英文术语）；纯数字 token（年份/序号）不参与匹配。",
     "live_fallback": "实时 PubMed 在没有任何英文词时，优先退回概念中的 ASCII 词，其次才是中文片段；绝不发送患者快照内容。",
-    "fidelity_gate": "查询保真门控审计对象是'中文问题→英文检索计划'的转换产物（审核术语映射/机器译文/多语言编码显式输入）。v0 为确定性词面基线：实体覆盖（期望英文是否出现）、数值保留、否定/时间表达、词表实体串换检测。自动判定使用 suspected_*/unverifiable 等名称，与人工标注标签刻意区分；无词表时串换检测记为不可检测。"
+    "fidelity_gate": "查询保真门控审计对象是'中文问题→英文检索计划'的转换产物（审核术语映射/机器译文/多语言编码显式输入）。v0 为确定性词面基线：实体覆盖（期望英文是否出现）、数值保留、否定/时间表达、词表实体串换检测。自动判定使用 suspected_*/unverifiable 等名称，与人工标注标签刻意区分；无词表时串换检测记为不可检测。",
+    "neonatal_age_terms": "新生儿年龄语义：ga_days（出生胎龄总天数）+ ga_text（原始“周+天”）+ pna_hours（生后小时）+ 派生的 PMA 必须分开记录；不得从出生体重反推胎龄，不得把生后小时/经后周数/矫正年龄互相替换。RAG 只读快照字段，不自行推导年龄。",
+    "data_status": "数据状态词表：observed_positive / observed_negative / not_recorded / pending / unavailable / hypothesis。“培养待回报(pending)”“未记录(not_recorded)”“阴性(observed_negative)”不得互相转译；母体事实用 subject_role=mother 与患儿事实分开。"
   },
   "tools": {
     "retrieve_evidence": {
@@ -140,14 +144,14 @@
               "type": "string"
             }
           },
-          "description": "人工审核的中文概念→英文术语映射，例如 {\"高血压\": [\"hypertension\"]}。仅当键出现在问题/患者术语文本中才展开，过程记录在 query_plan.expansion_trace；不自动翻译。"
+          "description": "人工审核的中文概念→英文术语映射，例如 {\"新生儿呼吸窘迫综合征\": [\"respiratory distress syndrome\"]}。仅当键出现在问题/患者术语文本中才展开，过程记录在 query_plan.expansion_trace；不自动翻译。"
         },
         "english_terms": {
           "type": "array",
           "items": {
             "type": "string"
           },
-          "description": "人工审核的英文医学术语/缩写（如 \"type 2 diabetes\"、\"HbA1c\"、\"metformin\"），直接参与英文来源检索与实时 PubMed 查询。"
+          "description": "人工审核的英文医学术语/缩写（如 \"respiratory distress syndrome\"、\"pulmonary surfactant\"），直接参与英文来源检索与实时 PubMed 查询。"
         },
         "mesh_terms": {
           "type": "array",
@@ -403,7 +407,9 @@
         },
         "machine_translations": {
           "type": "array",
-          "items": {"type": "string"},
+          "items": {
+            "type": "string"
+          },
           "description": "机器生成的英文查询变体，与审核术语分开；由 translate 路线生成并在召回前经过保真门控。"
         },
         "mesh_terms": {
@@ -942,11 +948,14 @@
     "ranked_documents 与 citations 通过 citation_id 外键关联（管线内置一致性校验，错配会显式报错）；不要在调用方按数组下标自行配对。",
     "跨来源原始检索分数不可直接比较；联合选择只使用来源内排名（轮转补齐），并保证每个有相关候选的来源至少获得一个名额（top_k 足够时）。",
     "检索式自检（query_review）只报告需人工复核的点，不修改检索计划，也不构成检索质量或临床结论。",
-    "The server holds no built-in corpus: source_mode is either live (real-time PubMed + official guideline metadata) or custom (caller-registered libraries). Synthetic test data exists only inside the test package and is never served.",
+    "The server holds no built-in corpus: source_mode is either live (real-time PubMed + neonatal guideline metadata) or custom (caller-registered libraries). The neonatal demo library is a caller library and is registered only after an explicit POST /api/demo/guidelines/load (or config.demo_autoload_guidelines=True). Synthetic test data exists only inside the test package/demo profile and is never served implicitly.",
     "Applicability is a structured matching hint, not a clinical decision.",
     "BM25/RRF/semantic scores are not evidence certainty or recommendation strength.",
     "Candidates with zero lexical and zero semantic relevance are excluded before scoring; authority/freshness never backfill unrelated source entries.",
     "Chinese concepts are never auto-translated: English expansion comes only from reviewed user_terms/english_terms/mesh_terms or English words written in the question.",
-    "CJK matching uses bigram tokenization; pure-digit tokens (years, ordinal numbers) do not participate in matching."
+    "CJK matching uses bigram tokenization; pure-digit tokens (years, ordinal numbers) do not participate in matching.",
+    "v6.6.4 live 指南注册表只含新生儿指南元数据（肺炎 2025、RDS 2025 更新版、RDS 中文解读）；不包含任何成人指南。元数据条目 content_mode=metadata_only，不提供推荐原文。",
+    "演示档案（neonatal_demo_v1）的病例全部为合成数据；指南库分两类：经书目核验的元数据（synthetic=false，仅书目）与合成指南块（synthetic=true，不是真实推荐）。两者都不得作为临床证据。",
+    "年龄语义（ga_days/ga_text、pna_hours、PMA、矫正年龄）与数据状态（observed_positive/observed_negative/not_recorded/pending/unavailable/hypothesis）必须在 Agent 侧构造快照时显式标注；RAG 不推导年龄、不把 pending 或 not_recorded 解释为阴性。"
   ]
 }

@@ -1,2 +1,7 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Generated demo CSVs are hash-pinned in manifest.json; keep their CRLF bytes intact.
+rag/demo/his_generated/tables/*.csv -text
+rag/demo/his_generated_30/tables/*.csv -text
+rag/demo/his_generated_30/case_index.csv -text

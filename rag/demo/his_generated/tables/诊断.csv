@@ -1,0 +1,12 @@
+﻿诊断ID,就诊ID,编码体系,诊断编码,诊断名称,诊断类型,确诊时间,数据来源,synthetic
+DX-NEO-HIS-APNEA-01,VIS-NEO-HIS-APNEA,ICD10_WHO（待复核）,P28.4,早产儿呼吸暂停,出院诊断,2026-11-08,synthetic_neonatal_his,true
+DX-NEO-HIS-BPD-01,VIS-NEO-HIS-BPD,ICD10_WHO（待复核）,P27.1,支气管肺发育不良,出院诊断,2026-05-20,synthetic_neonatal_his,true
+DX-NEO-HIS-HYPOGLYCEMIA-01,VIS-NEO-HIS-HYPOGLYCEMIA,ICD10_WHO（待复核）,P70.4,新生儿低血糖,出院诊断,2026-04-05,synthetic_neonatal_his,true
+DX-NEO-HIS-JAUNDICE-01,VIS-NEO-HIS-JAUNDICE,ICD10_WHO（待复核）,P59.9,新生儿黄疸,出院诊断,2026-07-18,synthetic_neonatal_his,true
+DX-NEO-HIS-PNEUMONIA-01,VIS-NEO-HIS-PNEUMONIA,ICD10_WHO（待复核）,P23.9,新生儿感染性肺炎,出院诊断,2026-09-12,synthetic_neonatal_his,true
+DX-NEO-HIS-PPHN-01,VIS-NEO-HIS-PPHN,ICD10_WHO（待复核）,P29.3,持续性肺动脉高压,出院诊断,2026-06-12,synthetic_neonatal_his,true
+DX-NEO-HIS-PPHN-02,VIS-NEO-HIS-PPHN,ICD10_WHO（待复核）,P24.0,胎粪吸入综合征,出院诊断,2026-06-12,synthetic_neonatal_his,true
+DX-NEO-HIS-RDS-01,VIS-NEO-HIS-RDS,ICD10_WHO（待复核）,P22.0,新生儿呼吸窘迫综合征,出院诊断,2026-03-10,synthetic_neonatal_his,true
+DX-NEO-HIS-RDS-RETRO-01,VIS-NEO-HIS-RDS-RETRO,ICD10_WHO（待复核）,P22.0,新生儿呼吸窘迫综合征,出院诊断,2026-02-25,synthetic_neonatal_his,true
+DX-NEO-HIS-RDS-SEVERE-01,VIS-NEO-HIS-RDS-SEVERE,ICD10_WHO（待复核）,P22.0,新生儿呼吸窘迫综合征,出院诊断,2026-04-22,synthetic_neonatal_his,true
+DX-NEO-HIS-TTN-01,VIS-NEO-HIS-TTN,ICD10_WHO（待复核）,P22.1,暂时性呼吸增快,出院诊断,2026-08-20,synthetic_neonatal_his,true

@@ -5,7 +5,7 @@
 ```text
 Agent
   1. 调用只读 HIS 工具
-  2. 获取带 as_of 的 PatientSnapshot
+  2. 获取带 as_of 的 PatientSnapshot（新生儿：出生胎龄、生后小时、呼吸支持等）
   3. 将 PatientSnapshot 和问题传给 RAG
   4. 读取 EvidencePackage
   5. 根据证据和审计结果组织上层回答
@@ -18,13 +18,15 @@ HIS 工具
 
 RAG
   - 在本地 PatientSnapshot 中检索患者事实
-  - 使用人工审核的最小术语检索 PubMed 和指南
+  - 使用人工审核的最小术语检索 PubMed 和新生儿指南
   - 保留患者事实、PubMed、指南三个来源
   - 输出引用、版本、时间、适用性状态和 trace
   - 不生成临床决策
 ```
 
 RAG 不应该拥有一个可以自行读取真实 HIS 的隐式连接器。Agent 先读取 HIS，再显式传入快照，便于权限、审计和测试。
+
+v6.6.4 的 live 指南注册表**只含新生儿指南元数据**（肺炎 2025、RDS 2025 更新版、RDS 中文解读）；成人指南不再注册。live 模式还注册 `guideline-fulltext-live`：检索时实时查询 Europe PMC，仅对 `isOpenAccess=Y` 的记录抓取 JATS 全文并按章节分块；非 OA 记录只返回书目/摘要与链接（`full_text_allowed=false`）。全文不落盘、不缓存、不再分发，调用方负责在复用前核对 `license`。
 
 ## 2. 推荐调用顺序
 
@@ -39,13 +41,20 @@ Content-Type: application/json
 
 {
   "patient_snapshot": {
-    "patient_ref": "syn-patient-001",
-    "as_of": "2025-12-31",
+    "patient_ref": "syn-neo-001",
+    "as_of": "2026-04-15",
     "source": "caller_his",
-    "reviewed_external_terms": ["hypertension"],
+    "reviewed_external_terms": ["respiratory distress syndrome"],
     "facts": [
-      {"collection": "diagnoses", "event_type": "diagnosis", "record_path": "diagnoses[0]",
-       "field_path": "diagnoses[0].name", "time": "2024-02-01", "fields": {"name": "高血压"}}
+      {"collection": "birth", "event_type": "birth", "record_path": "birth[0]",
+       "field_path": "birth[0].ga_days", "time": "2026-04-10",
+       "fields": {"subject_role": "patient", "ga_days": 212, "ga_text": "30周+2天",
+                  "birth_weight_g": 1450, "data_status": "observed_positive"}},
+      {"collection": "respiratory_support", "event_type": "support",
+       "record_path": "respiratory_support[0]", "field_path": "respiratory_support[0].mode",
+       "start": "2026-04-10", "end": null,
+       "fields": {"subject_role": "patient", "mode": "CPAP", "fio2": "0.30",
+                  "fio2_unit": "fraction", "data_status": "observed_positive"}}
     ]
   }
 }
@@ -53,39 +62,47 @@ Content-Type: application/json
 
 缺少 `patient_ref`/`as_of` 会显式报 400。返回的是过滤后的 `PatientSnapshot`。快照中的记录必须保留：
 
-- `record_path`，例如 `medications[0]`；
-- `field_path`，例如 `medications[0].name`；
+- `record_path`，例如 `respiratory_support[0]`；
+- `field_path`，例如 `respiratory_support[0].mode`；
 - 单点日期或 `start/end`；
-- 结构化字段；
+- 结构化字段（含 `subject_role` 与 `data_status`）；
 - `suppressed_future` 和 warnings。
+
+**新生儿年龄字段约定**（详见 `../demo/README.md` §2.1）：
+
+| 字段 | 含义 | 约束 |
+|---|---|---|
+| `ga_days` | 出生胎龄总天数 | 不得由出生体重反推 |
+| `ga_text` | 原始“周+天”文本 | 与 `ga_days` 同时保留 |
+| `pna_hours` | 生后小时数 | 急性呼吸场景至少到小时 |
+| PMA | `ga_days + floor(pna_hours/24)` | 由 Agent 派生并标注；RAG 不推导 |
+| 矫正年龄 | 随访场景 | 不与 PMA 混用 |
+
+**数据状态词表**：`observed_positive` / `observed_negative` / `not_recorded` / `pending` / `unavailable` / `hypothesis`。
+`pending`（培养待回报）与 `not_recorded`（未记载）不得转译成阴性。母体事实用 `fields.subject_role="mother"`，患儿事实为 `"patient"`。
 
 ### 第二步：Agent 调用 RAG
 
 ```json
 {
-  "request_id": "agent-case-001",
-  "question": "该患者当前高血压相关指南推荐和近期研究证据是什么？",
-  "as_of": "2025-12-31",
+  "request_id": "agent-neo-001",
+  "question": "该患儿新生儿呼吸窘迫综合征的肺表面活性物质指征和呼吸支持推荐是什么？",
+  "as_of": "2026-04-15",
   "top_k": 6,
-  "source_kinds": ["pubmed", "guideline"],
+  "source_kinds": ["guideline", "pubmed"],
   "patient_snapshot": {
-    "patient_ref": "syn-patient-001",
-    "as_of": "2025-12-31",
+    "patient_ref": "syn-neo-001",
+    "as_of": "2026-04-15",
     "source": "caller_his",
-    "reviewed_external_terms": ["hypertension"],
+    "reviewed_external_terms": ["respiratory distress syndrome", "pulmonary surfactant"],
     "facts": [
-      {
-        "collection": "diagnoses",
-        "event_type": "diagnosis",
-        "record_path": "diagnoses[0]",
-        "field_path": "diagnoses[0].name",
-        "time": "2024-02-01",
-        "fields": {"name": "高血压"}
-      }
+      {"collection": "respiratory_support", "event_type": "support", "record_path": "respiratory_support[0]",
+       "field_path": "respiratory_support[0].mode", "start": "2026-04-10", "end": null,
+       "fields": {"subject_role": "patient", "mode": "CPAP", "fio2": "0.30"}}
     ]
   },
-  "english_terms": ["hypertension"],
-  "mesh_terms": ["Hypertension"]
+  "english_terms": ["respiratory distress syndrome", "pulmonary surfactant"],
+  "mesh_terms": ["Respiratory Distress Syndrome, Newborn", "Pulmonary Surfactants"]
 }
 ```
 
@@ -124,7 +141,7 @@ Content-Type: application/json
 
 - `patient_ref`；
 - 患者姓名、身份证号、住院号；
-- HIS 原始 JSON；
+- HIS 原始 JSON（含母体记录原文）；
 - 病历自由文本、主诉、病史叙述；
 - 未经审核的患者事实字段；
 - 凭据。
@@ -135,8 +152,8 @@ Content-Type: application/json
 
 - `as_of` 是患者事实和外部证据的可见日期边界；
 - 未来患者记录不会进入 `patient_hits`；
-- 开放用药区间可以在 `as_of` 继续有效，但不泄露之后的停药时间；
-- 未来 PubMed 文献、撤回文献和已替代指南会被过滤；
+- 开放呼吸支持/用药区间可以在 `as_of` 继续有效，但不泄露之后的停止时间；
+- 未来 PubMed 文献、撤回文献和已替代指南会被过滤；**指南版本标签不等于发表时间**（如 RDS `version_id="2025"`、`published_at="2026-03-09"`，回顾时点早于发表日则不视为可用）；
 - 无法判断指南是否适用于患者时，输出 `not_assessed` 或 `unknown`，不能写成“适用”。
 
 ## 5. 适用性状态解释
@@ -159,6 +176,7 @@ Content-Type: application/json
 - 不使用不属于当前 `retrieval_id` 的 citation；
 - 不把 `not_checked` 写成已完成人工或模型验证；
 - 不因病历没有记录就断言患者没有该疾病或用药；
+- 不把 `pending` 培养写成阴性，不把母体记录写成患儿事实；
 - 不绕过引用审计直接输出结论。
 
 ## 7. 接口字段定义（中文原始问题与英文术语）
@@ -173,13 +191,14 @@ Content-Type: application/json
 | `as_of` | ISO 日期 | Agent | 证据与患者事实的可见截止边界 | 未来记录/文献、撤回文献、被替代指南在边界外被排除 |
 | `patient_terms` | 中英皆可 | Agent | 人工审核的最小化患者相关术语，作为检索概念参与匹配 | 不得放患者标识或自由文本病史 |
 | `user_terms` | 键=中文概念，值=英文术语 | Agent（人工审核） | **中文概念→英文术语的唯一展开通道**：仅当键出现在问题/患者术语文本中才生效，展开记录到 `query_plan.expansion_trace`（`source=reviewed_user_terms`） | 不调用自动翻译/同义词服务；未提供映射的中文概念不会生成英文查询词 |
-| `english_terms` | 英文 | Agent（人工审核） | 审核过的英文医学术语/缩写（如 `type 2 diabetes`、`HbA1c`、`metformin`），**优先参与**英文来源检索与实时 PubMed 查询 | 请填审核后的词；系统不做同义词扩展 |
-| `mesh_terms` | 英文（MeSH） | Agent（人工审核） | 审核过的 MeSH 主题词（如 `Diabetes Mellitus, Type 2`） | 同上 |
+| `english_terms` | 英文 | Agent（人工审核） | 审核过的英文医学术语/缩写（如 `respiratory distress syndrome`、`pulmonary surfactant`、`CPAP`），**优先参与**英文来源检索与实时 PubMed 查询 | 请填审核后的词；系统不做同义词扩展 |
+| `mesh_terms` | 英文（MeSH） | Agent（人工审核） | 审核过的 MeSH 主题词（如 `Respiratory Distress Syndrome, Newborn`） | 同上 |
 | `facets` | 中英皆可 | Agent | 结构化问题槽位（population/outcome 等），取值作为检索概念参与匹配 | 避免把人群、结局压成不可审计长句 |
-| `filters` | 任意 | Agent | 结构化过滤，如 `{"guideline_version": "2024"}` | 版本过滤只匹配来源明确提供的版本字段 |
-| `retrieval_method` | — | Agent | 底层检索方法：`bm25`（默认）/`ql`/`rm3`/`dense`（MedCPT，英文域）/`xlingual`（multilingual-e5，中文问题直接编码跨语言）/`translate`（zh→en 机器译文附加查询变体）/`splade`/`colbert`/`query2doc`，或 `"bm25,xlingual"`/`["bm25","rm3","dense"]` 多路 RRF 融合 | 未指定时为 bm25；未知方法名请求直接 400；神经方法不可用时该方法标 `not_configured`（trace/warnings），不静默降级；零分路线不参与 RRF |
+| `filters` | 任意 | Agent | 结构化过滤，如 `{"guideline_version": "2025"}` | 版本过滤只匹配来源明确提供的版本字段 |
+| `retrieval_method` | — | Agent | 底层检索方法：`bm25`（默认）/`ql`/`rm3`/`dense`（MedCPT，英文域）/`xlingual`（multilingual-e5，中文问题直接编码跨语言）/`m3`（BGE-M3）/`translate`（zh→en 机器译文附加查询变体）/`splade`/`colbert`/`query2doc`，或 `"bm25,xlingual"`/`["bm25","rm3","dense"]` 多路 RRF 融合 | 未指定时为 bm25；未知方法名请求直接 400；神经方法不可用时该方法标 `not_configured`（trace/warnings），不静默降级；零分路线不参与 RRF |
 | `rerank` | — | Agent | `true` 时在召回后用 MedCPT cross-encoder 重排 | 未配置时 `rerank_trace.status=not_configured`；重排分数不是证据质量 |
 | `patient_snapshot` | 结构化为准 | Agent（从只读 HIS 获取） | 患者事实检索的输入；`reviewed_external_terms` 是快照内审核过的最小外部术语 | 快照原文不会发送给外部连接器 |
+| `source_mode` | — | Agent/工作台 | `live` 或 `custom` | 仅两种；`custom` 库为空时显式报错 |
 
 ### 7.2 输出/系统自动字段（调用方不要手工填）
 
@@ -196,15 +215,15 @@ Content-Type: application/json
 
 ### 7.3 一次中文问题里各字段如何配合（示例）
 
-可直接运行的完整示例文件见 `examples/`：`agent_joint_retrieval_request.json`（高血压）、`agent_joint_retrieval_request_diabetes.json`（含 `user_terms` 审核映射）、`agent_joint_retrieval_request_question_english.json`（问题内英文词自动参与）、`agent_joint_retrieval_response.json`（响应字段）与 `agent_error_response.json`（错误）。
+可直接运行的完整示例文件见 `examples/`：`agent_joint_retrieval_request.json`（RDS）、`agent_joint_retrieval_request_pneumonia.json`（肺炎，含 `user_terms` 审核映射）、`agent_joint_retrieval_request_question_english.json`（问题内英文词自动参与）、`agent_joint_retrieval_response.json`（响应字段）与 `agent_error_response.json`（错误）。
 
-问题：`"该患者 metformin 治疗2型糖尿病的近期证据？"`，Agent 另提供 `user_terms={"2型糖尿病": ["type 2 diabetes"]}`。
+问题：`"该患儿 surfactant 治疗新生儿呼吸窘迫综合征的近期证据？"`，Agent 另提供 `user_terms={"新生儿呼吸窘迫综合征": ["neonatal respiratory distress syndrome"]}`。
 
 - `question`：中文原样保留 → 参与词面检索与审计；
-- `question_english_terms`：系统自动得到 `["metformin"]`（常见功能词已过滤）；
-- `user_terms` 展开：`2型糖尿病` 出现在问题中 → 英文追加 `type 2 diabetes`，记入 `expansion_trace`；
-- 若 Agent 还提供 `english_terms=["metformin","glycemic control"]`、`mesh_terms=["Diabetes Mellitus, Type 2"]`，则实时 PubMed 收到的查询词为 审核英文 + 问题英文词 + MeSH 的并集（去重后最多 12 个，AND 连接）；
-- 如果问题换成 `"该患儿支气管哮喘的长期管理建议和依据是什么？"` 且不提供任何英文术语：中文片段按 CJK 二元组直接匹配中文来源（如中文指南）；英文来源若无词命中则不会强行返回。
+- `question_english_terms`：系统自动得到 `["surfactant"]`（常见功能词已过滤）；
+- `user_terms` 展开：`新生儿呼吸窘迫综合征` 出现在问题中 → 英文追加 `neonatal respiratory distress syndrome`，记入 `expansion_trace`；
+- 若 Agent 还提供 `english_terms=["respiratory distress syndrome","pulmonary surfactant"]`、`mesh_terms=["Respiratory Distress Syndrome, Newborn"]`，则实时 PubMed 收到的查询词为 审核英文 + 问题英文词 + MeSH 的并集（去重后最多 12 个，AND 连接）；
+- 如果问题换成 `"该患儿黄疸的光疗阈值是什么？"` 且不提供任何英文术语：中文片段按 CJK 二元组直接匹配中文来源（如中文指南）；英文来源若无词命中则不会强行返回。
 
 ### 7.4 中文/英文参与检索的完整规则
 
@@ -213,12 +232,11 @@ Content-Type: application/json
 - **不自动翻译**：中文概念绝不会被自动翻译成英文；英文查询词只能来自上面的显式来源。
 - **实时模式**：没有任何英文词时，实时 PubMed 优先退回概念中的 ASCII 词，其次才是中文片段；实时失败显式报错，不回退到任何其它数据（服务无内置语料）。
 
-
 ## 8. 来源模式：live 与 custom（仅这两种）
 
 `source_mode` 只有两个合法值；**服务不内置任何本地语料，也没有 offline/simulated 模式**：
 
-- `live`（默认）：实时 NCBI PubMed + 官方指南元数据/链接。需要 `config.allow_live_pubmed` 与 `allow_live_guidelines` 同时为 `True`（默认如此）；实时失败显式报错，**不自动回退**到任何其它数据。实时 PubMed 连接器只接收审核后的 `english_terms`/`mesh_terms` 与问题内英文词，绝不发送患者快照。WHO 指南首期是 `metadata_only`，未确认全文许可时只返回官方 URL、稳定 ID、许可声明和定位。
+- `live`（默认）：实时 NCBI PubMed + **新生儿指南元数据**/链接。需要 `config.allow_live_pubmed` 与 `config.allow_live_guidelines` 同时为 `True`（默认如此）；实时失败显式报错，**不自动回退**到任何其它数据。实时 PubMed 连接器只接收审核后的 `english_terms`/`mesh_terms` 与问题内英文词，绝不发送患者快照。新生儿指南首期是 `metadata_only`，未确认全文许可时只返回官方 URL、稳定 ID、许可声明和定位。
 - `custom`：调用方传入的自有知识库（例如医院指南库、自备文献快照）。库为空时检索**显式报错**，不返回空结果冒充"没有证据"。
 
 ### 8.1 custom 来源接口（定义）
@@ -230,21 +248,21 @@ POST /api/sources/custom
 Content-Type: application/json
 
 {
-  "source_id": "hospital-guideline-library",
+  "source_id": "hospital-neonatal-guideline-library",
   "kinds": ["guideline", "pubmed"],
   "description": "可选说明",
-  "version": "2025-12",
+  "version": "2026-10",
   "documents": [
     {
-      "document_id": "local-guide-htn-2025",
+      "document_id": "local-neo-rds-2026",
       "kind": "guideline",
-      "title": "本地高血压用药指南",
-      "text": "对高血压成人患者，…",
-      "version_id": "2025",
-      "recommendation_id": "2.1",
-      "population": "高血压成人",
-      "locator": "第2章 推荐2.1",
-      "published_at": "2025-06-01",
+      "title": "本地新生儿呼吸窘迫综合征路径（示例）",
+      "text": "对早产儿呼吸窘迫综合征，…",
+      "version_id": "2026",
+      "recommendation_id": "1.1",
+      "population": "早产儿",
+      "locator": "第1章 推荐1.1",
+      "published_at": "2026-06-01",
       "status": "current"
     }
   ]
@@ -259,7 +277,7 @@ Content-Type: application/json
 
 **其它端点**：
 - `POST /api/sources/custom/clear`：清空已注册来源（返回移除数量）；
-- `GET /api/sources`：当前两种模式的可用性、已注册来源清单与最近注册事件（审计用）。
+- `GET /api/sources`：当前两种模式的可用性、已注册来源清单、live 指南注册表与最近注册事件（审计用）。
 
 **Python 接口**：
 
@@ -274,6 +292,16 @@ registry, warnings = library.build_registry()                        # 转成检
 **启动预载**：在 `config.py` 设置 `custom_sources_path = "/abs/path/libs.json"`，文件为 `{"sources": [<上文的单来源 payload>, ...]}`（或 JSON 数组）。
 
 **存储边界**：自定义库只在内存中，进程重启即清空；服务不把它写入磁盘、不缓存全文。调用方负责其内容的许可与合规。
+
+### 8.2 新生儿演示档案（`rag/demo/`，不是第三种模式）
+
+```text
+GET  /api/demo/cases               读取 9 例合成病例（snapshot + preset）
+GET  /api/demo/guidelines          查看三个演示来源（元数据/合成指南/合成文献）及是否已注册
+POST /api/demo/guidelines/load     显式登记演示指南库（写入 custom 库）
+```
+
+演示库 schema、合成标记、年龄字段与修改规则见 [`../demo/README.md`](../demo/README.md)。未显式加载时 `source_mode=custom` 检索会报“no custom sources registered”。
 
 ## 9. 分源联合检索与检索式自检
 
@@ -326,22 +354,23 @@ registry, warnings = library.build_registry()                        # 转成检
 - **词表**：不内置；调用方提供 `FidelityLexicon`（JSON 结构示例见
   `examples/fidelity_lexicon_example.json`）；未提供词表时串换检测标"不可检测"。
 
-## 10. 查询相关度门与演示示例
+## 10. 查询相关度门与演示病例
 
 检索结果中的每条候选必须至少被一个检索信号命中（词面 BM25 分数 > 0 或语义分数 > 0），否则不会仅因"来源里有该条目"而获得 RRF/权威性/新鲜度分数。无关候选被排除时会写入 warnings（“已排除 N 条与查询无检索相关度……”）。
 
-工作台内置八个演示预设（下拉框“演示示例”），选择后自动填充问题、患者引用、中英文术语与 MeSH：
+工作台的演示病例来自 `rag/demo/neonatal_cases.json`（9 例，下拉框“合成病例”），选择后自动填充节点 01–05 的全部 `RetrievalRequest` 字段：
 
-1. **示例1 高血压**：`syn-patient-001` + `as_of=2025-12-31`，问题“该患者高血压的指南推荐和最新证据是什么？”。预期：返回高血压指南（ver 2024, rec 2.1）和高血压文献；无相关度候选被剔除提示。
-2. **示例2 2型糖尿病**：`syn-patient-002` + `as_of=2025-12-31`，问题“该患者2型糖尿病的初始降糖治疗有哪些指南推荐和近期研究证据？”。预期：返回糖尿病指南（ver 2025, rec 3.2）和 metformin 文献；高血压指南不会串入（相关度门）。术语：`english_terms=["type 2 diabetes","metformin"]`、`mesh_terms=["Diabetes Mellitus, Type 2"]`。
-3. **示例3 时间与版本过滤**：`syn-patient-001` + `as_of=2024-06-01`。预期：仅保留 2024 指南与 2024 文献；2023 旧版被替代、2025 后条目属于未来而被排除。
-4. **示例4 新生儿黄疸**：`syn-patient-003` + `as_of=2025-12-31`，问题“该患儿新生儿黄疸的胆红素阈值和光疗指征有哪些推荐和近期证据？”。预期：命中黄疸诊断与胆红素化验；返回黄疸指南（ver 2025, rec 4.1）与光疗文献（pmid-1004）。
-5. **示例5 婴儿发热**：`syn-patient-004` + `as_of=2025-12-31`，问题“2月龄婴儿发热的评估推荐和近期证据是什么？”。预期：返回婴儿发热评估指南（ver 2024, rec 2.3）与队列研究（pmid-1005）；疫苗/黄疸条目不会串入。术语：`english_terms=["fever evaluation"]`、`mesh_terms=["Fever"]`。
-6. **示例6 婴儿疫苗**：`syn-patient-005` + `as_of=2025-12-31`，问题“该婴儿的常规疫苗接种推荐和不良反应证据是什么？”。预期：命中接种记录；返回免疫规划指南（ver 2025, rec 1.2）与安全性监测文献（pmid-1006）。
-7. **示例7 药品安全**：`syn-patient-006` + `as_of=2025-12-31`，问题“该患者服用氨氯地平后出现的周围性水肿，有哪些相关研究证据？”。预期：`clinical_intent=drug_safety`；命中用药与症状记录；仅返回氨氯地平相关文献（pmid-1007），无匹配指南。
-8. **示例8 中文直接匹配**：`syn-patient-007` + `as_of=2025-12-31`，问题“该患儿支气管哮喘的长期管理建议和依据是什么？”，不填任何英文术语。预期：中文问题通过 CJK 二元组直接命中中文指南（guide-cn-asthma-2025, ver 2025, rec 1.1），并命中哮喘诊断记录；英文/其他病种来源不串入。
+1. **neo-rds**：30周+2天、生后6小时、CPAP FiO₂ 0.30；`as_of=2026-03-10`（RDS 2025 已发表）。
+2. **neo-rds-retro**：同结构、`as_of=2026-02-25`（早于 2026-03-09 发表）→ 未来文献被排除。
+3. **neo-pneumonia**：生后36小时发热 38.9℃、CRP 升高、血培养 pending。
+4. **neo-ttn**：生后8小时呼吸增快、胸片叶间裂积液。
+5. **neo-jaundice**：生后72小时总胆红素 285 μmol/L。
+6. **neo-pphn**：胎粪吸入、导管前后 SpO₂ 差、iNO。
+7. **neo-bpd**：28周、经后年龄36周仍需 CPAP。
+8. **neo-hypoglycemia**：胎龄 not_recorded、出生体重 2100 g、血糖 2.1 mmol/L。
+9. **neo-gbs**：母体 GBS 阳性、胎膜早破20小时、新生儿无症状。
 
-注：纯数字查询 token（如“2月龄”的“2”、“2024年”的“2024”）不参与词面匹配，避免误串“type 2 diabetes”或年份相近的无关条目；时间语境由 `as_of` 与过滤器表达。
+注：纯数字查询 token（如“2月龄”的“2”、“2026年”的“2026”）不参与词面匹配，避免误串年份或序号；时间语境由 `as_of` 与过滤器表达。演示病例的 `english_terms` 必须人工审核后写入 `preset`，GUI 不自动翻译。
 
 **问题参与检索（中英文规则）：**
 - 问题中的英文词（≥2 字符、含字母、过滤常见功能词与纯数值）自动加入英文检索词，记录在 `trace.query_plan.question_english_terms`，并随 `trace.external_terms` 发往实时 PubMed；

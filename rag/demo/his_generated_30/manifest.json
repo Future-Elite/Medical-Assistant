@@ -1,0 +1,71 @@
+{
+  "profile": "neonatal_his_synthetic_manifest_v1",
+  "synthetic": true,
+  "generation_mode": "his_style_weighted_ontology",
+  "seed": 20261018,
+  "case_count": 30,
+  "patient_count": 30,
+  "ontology_weights": {
+    "neo-his-rds": 18,
+    "neo-his-rds-severe": 8,
+    "neo-his-rds-retro": 3,
+    "neo-his-pneumonia": 15,
+    "neo-his-ttn": 12,
+    "neo-his-jaundice": 12,
+    "neo-his-pphn": 6,
+    "neo-his-bpd": 5,
+    "neo-his-hypoglycemia": 12,
+    "neo-his-gbs": 7,
+    "neo-his-apnea": 5
+  },
+  "generator": "tools/generate_neonatal_his30.py",
+  "source_branches": {
+    "his": "origin/his@0e6a2d1",
+    "hisdata": "origin/hisdata@e85f469"
+  },
+  "why_not_java": "origin/his 需要 JDK 21 + Maven + MySQL 本体库，且 Java 生成器患者年龄固定 18-89 岁。本脚本移植其加权诊断选择、诊断-用药-检验-剂量池与时间链规则。",
+  "files": {
+    "cases": {
+      "name": "neonatal_cases.json",
+      "sha256": "93a1b95166ca17a5948ca2a23df6de6bdf9188a0414579ab663adf47c51b162e"
+    },
+    "snapshots": {
+      "name": "snapshots.json",
+      "sha256": "35f8fe1c0a6bb286950edd6508c203a1e3d9cad2775a8fe8e021c384d65636b3"
+    },
+    "requests": {
+      "name": "requests.json",
+      "sha256": "1571533922458b7c1db0f93908dc5a833d1c7c304876cf290d9e91da5ab9dafb"
+    },
+    "case_index": {
+      "name": "case_index.csv",
+      "sha256": "584cbc60102289f0ed0d0831426d41ff601038208bd97619991ec3624c4e12a1"
+    },
+    "tables": [
+      "体征.csv",
+      "医嘱_药品.csv",
+      "医生.csv",
+      "呼吸支持.csv",
+      "就诊.csv",
+      "患者.csv",
+      "手术操作.csv",
+      "机构.csv",
+      "检验.csv",
+      "母亲.csv",
+      "诊断.csv"
+    ]
+  },
+  "validation": {
+    "status": "ok",
+    "cases": 30,
+    "future_facts_suppressed": 30,
+    "smoke_citations": 6,
+    "guideline_sources": 3
+  },
+  "boundaries": [
+    "合成数据，不是真实患者，不构成诊断或治疗建议。",
+    "不是 Synthea/FHIR 产物，也不是 origin/his Java 生成器的直接运行产物。",
+    "ICD-10/LOINC/ATC 码值仅用于演示，未逐条核对国标/官方版本。",
+    "数量/单价/金额留空而不是填 0；空值表示未建模。"
+  ]
+}

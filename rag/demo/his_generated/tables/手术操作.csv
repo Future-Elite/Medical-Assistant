@@ -1,0 +1,2 @@
+﻿操作ID,就诊ID,编码,名称,时间,数据来源,synthetic
+PROC-NEO-HIS-JAUNDICE-01,VIS-NEO-HIS-JAUNDICE,LOCAL_ZH（占位，不是正式编码）,phototherapy,2026-07-18T09:00:00+08:00,synthetic_neonatal_his,true

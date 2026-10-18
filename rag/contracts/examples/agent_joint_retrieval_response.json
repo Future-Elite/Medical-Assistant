@@ -1,39 +1,41 @@
 {
-  "retrieval_id": "retrieval-example",
+  "retrieval_id": "retrieval-example-neo",
   "patient_hits": [
     {
-      "record_path": "diagnoses[0]",
-      "field_path": "diagnoses[0].name",
-      "collection": "diagnoses",
-      "event_type": "diagnosis",
-      "time": "2024-02-01",
+      "record_path": "respiratory_support[0]",
+      "field_path": "respiratory_support[0].mode",
+      "collection": "respiratory_support",
+      "event_type": "support",
+      "start": "2026-04-10",
+      "end": null,
       "matched_terms": [
-        "高血压"
+        "呼吸支持",
+        "CPAP"
       ],
-      "score": 1.0,
-      "evidence_text": "diagnoses diagnosis name=高血压",
+      "score": 0.5,
+      "evidence_text": "respiratory_support support subject_role=patient mode=CPAP fio2=0.30 fio2_unit=fraction data_status=observed_positive",
       "source_type": "patient_record"
     }
   ],
   "evidence_groups": {
-    "pubmed": [
-      {
-        "document_id": "pmid-1001",
-        "kind": "pubmed"
-      }
-    ],
     "guideline": [
       {
-        "document_id": "guide-2024-a",
+        "document_id": "guide-rds-2025",
         "kind": "guideline",
-        "version_id": "2024",
-        "recommendation_id": "2.1"
+        "version_id": "2025",
+        "recommendation_id": "3.1"
+      }
+    ],
+    "pubmed": [
+      {
+        "document_id": "pmid-2001",
+        "kind": "pubmed"
       }
     ]
   },
   "applicability": [
     {
-      "document_id": "guide-2024-a",
+      "document_id": "guide-rds-2025",
       "status": "not_assessed",
       "reason": "指南未提供结构化适用人群条件；仅展示原文人群字段。"
     }
@@ -49,27 +51,29 @@
     "当前数据为 synthetic fixture，仅用于机制测试。"
   ],
   "trace": {
-    "rag_version": "6.4.1",
+    "rag_version": "6.6.4",
     "query_plan": {
       "language": "zh",
       "intent": "guideline_recommendation",
       "english_terms": [
-        "hypertension"
+        "respiratory distress syndrome",
+        "pulmonary surfactant"
       ],
       "question_english_terms": [],
       "mesh_terms": [
-        "Hypertension"
+        "Respiratory Distress Syndrome, Newborn"
       ],
-      "original_question": "该患者当前高血压相关指南推荐和近期研究证据是什么？"
+      "original_question": "该患儿新生儿呼吸窘迫综合征的肺表面活性物质指征和呼吸支持推荐是什么？"
     },
     "patient_context": {
       "received": true,
-      "visible_fact_count": 2,
+      "visible_fact_count": 3,
       "patient_hit_count": 1,
       "suppressed_future": 1
     },
     "external_terms": [
-      "hypertension"
+      "respiratory distress syndrome",
+      "pulmonary surfactant"
     ],
     "generation_performed": false,
     "clinical_decision_performed": false

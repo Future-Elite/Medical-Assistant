@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Mapping
 
-from .audit import GroundedAnswerAuditor, MiniCheckVerifier
+from .audit import GroundedAnswerAuditor
 from .models import EvidencePackage, RetrievalRequest
 from .pipeline import EvidenceRetrievalPipeline
 
@@ -28,7 +28,8 @@ class EvidenceRAG:
     def __init__(self, pipeline: EvidenceRetrievalPipeline, sessions: EvidenceSessionStore | None = None, auditor: GroundedAnswerAuditor | None = None):
         self.pipeline = pipeline
         self.sessions = sessions or EvidenceSessionStore()
-        self.auditor = auditor or GroundedAnswerAuditor(MiniCheckVerifier())
+        # 默认只做引用结构审计；语义主张校验必须由调用方显式注入 verifier。
+        self.auditor = auditor or GroundedAnswerAuditor()
 
     def retrieve_evidence(self, arguments: Mapping[str, Any]) -> dict[str, Any]:
         package = self.pipeline.retrieve(RetrievalRequest.from_dict(arguments))
@@ -62,7 +63,9 @@ class EvidenceRAG:
             {
                 "name": "retrieve_evidence",
                 "description": (
-                    "先由 Agent 从只读 HIS 获取患者快照，再检索患者事实、PubMed 与版本化指南；不生成诊疗结论。"
+                    "新生儿专科只读检索：先由 Agent 从只读 HIS 获取患者快照，再检索患者事实、PubMed 与新生儿版本化指南；不生成诊疗结论。"
+                    "年龄与状态约定：ga_days/ga_text（出生胎龄）、pna_hours（生后小时）、PMA 与矫正年龄必须分开记录且由调用方派生，RAG 不推导；"
+                    "数据状态用 observed_positive/observed_negative/not_recorded/pending/unavailable/hypothesis，母体事实用 subject_role=mother 标注；pending 与 not_recorded 不得当作阴性。"
                     "引用关联：ranked_documents[].citation_id 与 citations[].citation_id 是同一稳定外键（evidence_groups 中同值），用外键关联引用，不要按下标配对；审计回答用 [<citation_id>] 标注。"
                     "中英文规则：question 为中文原始问题，原样保留不翻译；问题中直接出现的英文词由系统自动提取进 question_english_terms 并参与英文检索（调用方不要手工填该字段）；"
                     "english_terms/mesh_terms 是人工审核的英文术语与 MeSH 词，优先参与英文检索与实时 PubMed 查询；user_terms 是人工审核的中文概念→英文映射，只对问题/患者术语中出现的键展开，不自动翻译；"
@@ -76,11 +79,11 @@ class EvidenceRAG:
                         "question": {"type": "string", "description": "中文临床原始问题（可含英文药名/缩写，如 metformin）；原样保留、不翻译；英文词会被自动提取为 question_english_terms 并加入英文检索。"},
                         "task": {"type": "string", "description": "任务类型标记（预留），当前只随请求记录，不改变检索行为。"},
                         "as_of": {"type": "string", "description": "ISO 日期；证据与患者事实的可见截止边界，未来记录、撤回文献与被替代指南在此边界外被排除。"},
-                        "patient_terms": {"type": "array", "items": {"type": "string"}, "description": "人工审核的最小化患者相关术语（中英皆可），作为检索概念参与匹配；不得放原始病历、患者标识或自由文本病史。"},
+                        "patient_terms": {"type": "array", "items": {"type": "string"}, "description": "人工审核的最小化患者相关术语（中英皆可，新生儿场景可用“新生儿呼吸窘迫综合征”等），作为检索概念参与匹配；不得放原始病历、患者标识或自由文本病史。"},
                         "patient_snapshot": {"type": "object", "description": "Agent 从只读 HIS 获取的结构化、按 as_of 截止的患者快照（patient_ref/as_of/facts/reviewed_external_terms）；不得包含真实标识或未授权自由文本。"},
                         "source_kinds": {"type": "array", "items": {"type": "string", "enum": ["pubmed", "guideline", "drug", "clinical_trial", "local_knowledge"]}, "description": "来源种类过滤；不填表示按默认顺序检索已注册来源。"},
-                        "user_terms": {"type": "object", "additionalProperties": {"type": "array", "items": {"type": "string"}}, "description": "人工审核的中文概念→英文术语映射，如 {\"高血压\": [\"hypertension\"]}；仅当键出现在问题/患者术语文本中才展开，展开记录在 query_plan.expansion_trace，不自动翻译。"},
-                        "english_terms": {"type": "array", "items": {"type": "string"}, "description": "人工审核的英文医学术语/缩写（如 \"type 2 diabetes\"、\"metformin\"），直接参与英文检索与实时 PubMed 查询。"},
+                        "user_terms": {"type": "object", "additionalProperties": {"type": "array", "items": {"type": "string"}}, "description": "人工审核的中文概念→英文术语映射，如 {\"新生儿呼吸窘迫综合征\": [\"respiratory distress syndrome\"]}；仅当键出现在问题/患者术语文本中才展开，展开记录在 query_plan.expansion_trace，不自动翻译。"},
+                        "english_terms": {"type": "array", "items": {"type": "string"}, "description": "人工审核的英文医学术语/缩写（如 \"respiratory distress syndrome\"、\"pulmonary surfactant\"），直接参与英文检索与实时 PubMed 查询。"},
                         "mesh_terms": {"type": "array", "items": {"type": "string"}, "description": "人工审核的 MeSH 主题词（如 \"Diabetes Mellitus, Type 2\"），参与英文检索与实时 PubMed 查询。"},
                         "facets": {"type": "object", "additionalProperties": {"type": "array", "items": {"type": "string"}}, "description": "结构化临床问题槽位（population/outcome 等），取值作为检索概念参与匹配。"},
                         "filters": {"type": "object", "description": "结构化过滤项，如 {\"guideline_version\": \"2024\"} 限定指南版本。"},
@@ -93,5 +96,5 @@ class EvidenceRAG:
                 },
             },
             {"name": "open_citation", "description": "打开本次检索（同一 retrieval_id）中的版本化引文和原文定位；citation_id 必须属于该 retrieval_id。", "parameters": {"type": "object", "required": ["retrieval_id", "citation_id"], "properties": {"retrieval_id": {"type": "string", "description": "检索作用域 ID，来自 retrieve_evidence 结果。"}, "citation_id": {"type": "string", "description": "引用 ID（<retrieval_id>:cit-N）；跨检索使用会被拒绝。"}}}},
-            {"name": "audit_grounded_answer", "description": "以本次检索证据审计回答主张与引用（claim 级）；不生成诊疗结论，MiniCheck 未配置时标记 not_checked。", "parameters": {"type": "object", "required": ["retrieval_id", "answer"], "properties": {"retrieval_id": {"type": "string"}, "answer": {"type": "string", "description": "待审计回答；用 [citation_id] 标注引用，只能引用同一 retrieval_id 的 citation_id。"}}}},
+            {"name": "audit_grounded_answer", "description": "以本次检索证据审计回答主张与引用（claim 级）；不生成诊疗结论，默认只做引用结构检查，语义支持标记 not_checked。", "parameters": {"type": "object", "required": ["retrieval_id", "answer"], "properties": {"retrieval_id": {"type": "string"}, "answer": {"type": "string", "description": "待审计回答；用 [citation_id] 标注引用，只能引用同一 retrieval_id 的 citation_id。"}}}},
         ]

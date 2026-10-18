@@ -1,0 +1,13 @@
+﻿医嘱ID,就诊ID,药品编码,药品通用名,规格,剂量,频次,给药途径,开始时间,数量,单价,金额,数据来源,synthetic
+MED-NEO-HIS-APNEA-01,VIS-NEO-HIS-APNEA,N06BC01（ATC，待复核）,caffeine citrate,,maintenance,q24h,IV,2026-11-07,,,,synthetic_neonatal_his,true
+MED-NEO-HIS-BPD-01,VIS-NEO-HIS-BPD,N06BC01（ATC，待复核）,caffeine citrate,,maintenance,q24h,IV,2026-03-25,,,,synthetic_neonatal_his,true
+MED-NEO-HIS-PNEUMONIA-01,VIS-NEO-HIS-PNEUMONIA,J01CA01（ATC，待复核）,ampicillin,,50 mg/kg/dose,q12h,IV,2026-09-11,,,,synthetic_neonatal_his,true
+MED-NEO-HIS-PNEUMONIA-02,VIS-NEO-HIS-PNEUMONIA,J01GB03（ATC，待复核）,gentamicin,,4 mg/kg/dose,q24h,IV,2026-09-11,,,,synthetic_neonatal_his,true
+MED-NEO-HIS-PPHN-01,VIS-NEO-HIS-PPHN,R07AX01（ATC，待复核）,inhaled nitric oxide,,20 ppm,,inhaled,2026-06-12,,,,synthetic_neonatal_his,true
+MED-NEO-HIS-PPHN-02,VIS-NEO-HIS-PPHN,R07AA02（ATC，待复核）,pulmonary surfactant,,200 mg/kg,,intratracheal,2026-06-12,,,,synthetic_neonatal_his,true
+MED-NEO-HIS-RDS-01,VIS-NEO-HIS-RDS,N06BC01（ATC，待复核）,caffeine citrate,,loading,q24h,IV,2026-03-10,,,,synthetic_neonatal_his,true
+MED-NEO-HIS-RDS-02,VIS-NEO-HIS-RDS,R07AA02（ATC，待复核）,pulmonary surfactant,,,,,2026-03-10,,,,synthetic_neonatal_his,true
+MED-NEO-HIS-RDS-RETRO-01,VIS-NEO-HIS-RDS-RETRO,N06BC01（ATC，待复核）,caffeine citrate,,loading,q24h,IV,2026-02-25,,,,synthetic_neonatal_his,true
+MED-NEO-HIS-RDS-RETRO-02,VIS-NEO-HIS-RDS-RETRO,R07AA02（ATC，待复核）,pulmonary surfactant,,,,,2026-02-25,,,,synthetic_neonatal_his,true
+MED-NEO-HIS-RDS-SEVERE-01,VIS-NEO-HIS-RDS-SEVERE,N06BC01（ATC，待复核）,caffeine citrate,,maintenance,q24h,IV,2026-04-22,,,,synthetic_neonatal_his,true
+MED-NEO-HIS-RDS-SEVERE-02,VIS-NEO-HIS-RDS-SEVERE,R07AA02（ATC，待复核）,pulmonary surfactant,,200 mg/kg,,intratracheal,2026-04-22,,,,synthetic_neonatal_his,true

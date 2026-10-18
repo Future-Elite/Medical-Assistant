@@ -1,0 +1,54 @@
+{
+  "profile": "neonatal_his_synthetic_manifest_v1",
+  "synthetic": true,
+  "seed": 20261018,
+  "variants_per_scenario": 1,
+  "scenario_count": 11,
+  "case_count": 11,
+  "patient_count": 11,
+  "generator": "tools/generate_neonatal_his.py",
+  "source_branches": {
+    "his": "origin/his@0e6a2d1",
+    "hisdata": "origin/hisdata@e85f469"
+  },
+  "files": {
+    "cases": {
+      "name": "neonatal_cases.json",
+      "sha256": "1320d56f36e768352e53dcd31010f0acf915568805d54a510fe388430ebc6ecd"
+    },
+    "snapshots": {
+      "name": "snapshots.json",
+      "sha256": "25b8e1a178a9627a5e0c7153e39543e4a5c0d5fdfad3afdc109377f0c3a37a66"
+    },
+    "requests": {
+      "name": "requests.json",
+      "sha256": "ed2ab6f640f72e3d1237dedb4dd88651a0ef769fc30120dd6438f762e65efd6a"
+    },
+    "tables": [
+      "体征.csv",
+      "医嘱_药品.csv",
+      "医生.csv",
+      "呼吸支持.csv",
+      "就诊.csv",
+      "患者.csv",
+      "手术操作.csv",
+      "机构.csv",
+      "检验.csv",
+      "母亲.csv",
+      "诊断.csv"
+    ]
+  },
+  "validation": {
+    "status": "ok",
+    "cases": 11,
+    "future_facts_suppressed": 11,
+    "smoke_citations": 6,
+    "guideline_sources": 3
+  },
+  "boundaries": [
+    "合成数据，不是真实患者，不构成诊断或治疗建议。",
+    "不是 Synthea/FHIR 产物，不声称 Synthea 溯源。",
+    "ICD-10/LOINC/ATC 码值仅用于演示，未逐条核对国标/官方版本。",
+    "数量/单价/金额留空而不是填 0；空值表示未建模。"
+  ]
+}

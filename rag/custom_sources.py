@@ -3,7 +3,7 @@
 The retrieval layer supports exactly two source modes:
 
 - ``live``   — real-time PubMed (NCBI E-utilities) + guideline source
-               (WHO official metadata registry by default);
+               (neonatal guideline metadata registry by default);
 - ``custom`` — a knowledge library supplied by the caller (for example a
                hospital's own guideline database or a frozen literature dump).
 

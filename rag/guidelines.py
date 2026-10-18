@@ -1,17 +1,30 @@
 """Guideline source adapters with explicit metadata/license boundaries.
 
+Neonatal scope (v6.6.4): the live registry contains **only neonatal guideline
+metadata records** verified against their official bibliographic pages.  The
+adult WHO hypertension/diabetes records registered in v6.6.3 are deliberately
+not carried over: a neonatal assistant must never let an adult guideline enter
+a clinical evidence package through a source quota.
+
 Only formal guideline publications are registered with ``kind="guideline"``.
-WHO technical documents (for example "HEARTS D", which WHO labels a
-"Technical document", not a "Guideline") must not be indexed under the
-guideline kind; verify the official page label before adding records.
+A Chinese interpretation article is registered as a *secondary* record with
+``source_role=secondary_interpretation`` and ``official=false``; it must not be
+deduplicated against, or substituted for, the original guideline.
+
+Bibliographic identity is pinned by DOI/PMID/PMCID, and the version label
+(e.g. "2025 update") is kept separate from the publication date (2026-03-09):
+a retrospective ``as_of`` before that date must not treat the update as
+available.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable, Mapping, Sequence
+from typing import Mapping, Sequence
 
 from .connectors import KnowledgeConnector
 from .models import QueryPlan, SearchResult, SourceDocument
+
+NEONATAL_GUIDELINE_SOURCE_ID = "neonatal-guideline-live"
 
 
 @dataclass
@@ -61,51 +74,142 @@ class GuidelineMetadataConnector(KnowledgeConnector):
         return SearchResult(self.source_id, tuple(selected[:limit]), tuple(warnings))
 
 
-def who_hypertension_metadata() -> SourceDocument:
+def _metadata_record(
+    *,
+    document_id: str,
+    title: str,
+    text: str,
+    url: str,
+    published_at: str,
+    locator: str,
+    version_id: str | None,
+    population: str,
+    status: str,
+    doi: str | None,
+    pmid: str | None,
+    metadata: Mapping[str, object],
+) -> SourceDocument:
     return SourceDocument(
-        source_id="who-guideline-live", document_id="who:isbn:9789240033986", kind="guideline",
-        title="Guideline for the pharmacological treatment of hypertension in adults",
-        text="Official guideline metadata only; open the canonical WHO page for the authorized document. Hypertension pharmacological treatment in adults.",
-        url="https://www.who.int/publications/i/item/9789240033986",
-        published_at="2021-08-24", locator="WHO official publication page", authority="WHO",
-        version_id=None, status="unknown", metadata={
-            "publisher": "World Health Organization", "stable_id": "ISBN 978-92-4-003398-6",
-            "official": True, "license": "CC BY-NC-SA 3.0 IGO (page statement; verify for reuse)",
-            "license_url": "https://creativecommons.org/licenses/by-nc-sa/3.0/igo/",
+        source_id=NEONATAL_GUIDELINE_SOURCE_ID, document_id=document_id, kind="guideline",
+        title=title, text=text, url=url, published_at=published_at, locator=locator,
+        doi=doi, pmid=pmid, version_id=version_id, population=population, status=status,
+        metadata=dict(metadata),
+    )
+
+
+def neonatal_pneumonia_metadata() -> SourceDocument:
+    """Chinese grassroots guideline on neonatal infectious pneumonia (2025)."""
+    return _metadata_record(
+        document_id="neo:guide:pneumonia-2025",
+        title="基层医疗卫生机构常见新生儿疾病诊疗指南：新生儿感染性肺炎（2025年）",
+        text=(
+            "Official bibliographic metadata only; the full text is not indexed. "
+            "Neonatal infectious pneumonia: diagnosis, imaging, differential diagnosis and referral."
+        ),
+        url="https://www.zgddek.com/CN/10.7499/j.issn.1008-8830.2412164",
+        published_at="2025-09-01",
+        locator="中国当代儿科杂志 2025;27(9):1027-1037",
+        version_id="2025",
+        population="新生儿感染性肺炎（基层指南）",
+        status="unknown",
+        doi="10.7499/j.issn.1008-8830.2412164",
+        pmid="40962511",
+        metadata={
+            "publisher": "中国当代儿科杂志", "stable_id": "PMCID PMC12447934",
+            "official": True, "license": "source page statement; verify for reuse",
             "rights_basis": "source_page_requires_verification", "full_text_allowed": False,
-            "content_mode": "metadata_only", "live_source": True,
-            "mesh_terms": "Hypertension", "keywords": "hypertension pharmacological treatment adults",
+            "content_mode": "metadata_only", "live_source": True, "language": "zh",
+            "mesh_terms": "Pneumonia; Infant, Newborn",
+            "keywords": "neonatal infectious pneumonia diagnosis imaging differential referral",
         },
     )
 
 
-def who_diabetes_glucose_metadata() -> SourceDocument:
-    """WHO formal guideline (page label: 'Guideline'), 2018.
+def neonatal_rds_metadata() -> SourceDocument:
+    """European consensus guideline on RDS, 2025 update (published 2026-03-09)."""
+    return _metadata_record(
+        document_id="neo:guide:rds-2025",
+        title="European Consensus Guidelines on the Management of Respiratory Distress Syndrome: 2025",
+        text=(
+            "Official bibliographic metadata only; the full text is not indexed. "
+            "Respiratory distress syndrome in preterm infants: surfactant, respiratory support, "
+            "antenatal transfer and antibiotic stewardship."
+        ),
+        url="https://pubmed.ncbi.nlm.nih.gov/41802129/",
+        published_at="2026-03-09",
+        locator="Neonatology 2026;123(4):514-539",
+        version_id="2025",
+        population="早产儿呼吸窘迫综合征",
+        status="current",
+        doi="10.1159/000551062",
+        pmid="41802129",
+        metadata={
+            "publisher": "Neonatology", "stable_id": "PMCID PMC13038240",
+            "official": True, "license": "source page statement; verify for reuse",
+            "rights_basis": "source_page_requires_verification", "full_text_allowed": False,
+            "content_mode": "metadata_only", "live_source": True, "language": "en",
+            "version_label": "2025 update (7th edition)",
+            "mesh_terms": "Respiratory Distress Syndrome, Newborn; Pulmonary Surfactants",
+            "keywords": "respiratory distress syndrome RDS preterm surfactant CPAP",
+        },
+    )
 
-    Verified 2026-10-07 against the official who.int publication page
-    (title/date/ISBN/type label). The 2021 hypertension guideline and this
-    record are the two formal WHO guideline metadata records currently
-    registered; other diabetes-related WHO items are technical documents or
-    pregnancy-specific and are intentionally not registered here.
+
+def neonatal_rds_chinese_interpretation_metadata() -> SourceDocument:
+    """Chinese interpretation of the RDS 2025 update (secondary source)."""
+    return _metadata_record(
+        document_id="neo:guide:rds-2025-cn-interpretation",
+        title="《欧洲新生儿呼吸窘迫综合征管理共识指南2025版》解读",
+        text=(
+            "中文解读文章的官方书目元数据；未登记全文。作为二级解释来源登记，"
+            "不得与英文原版指南合并或互相替代。"
+        ),
+        url="https://www.zgddek.com/CN/10.7499/j.issn.1008-8830.2603060",
+        published_at="2026-05-01",
+        locator="中国当代儿科杂志 2026;28(5):529-535",
+        version_id="2025",
+        population="早产儿呼吸窘迫综合征（中文解读）",
+        status="unknown",
+        doi="10.7499/j.issn.1008-8830.2603060",
+        pmid="42130350",
+        metadata={
+            "publisher": "中国当代儿科杂志", "stable_id": "PMCID PMC13173480",
+            "official": False, "source_role": "secondary_interpretation",
+            "license": "source page statement; verify for reuse",
+            "rights_basis": "source_page_requires_verification", "full_text_allowed": False,
+            "content_mode": "metadata_only", "live_source": True, "language": "zh",
+            "mesh_terms": "Respiratory Distress Syndrome, Newborn",
+            "keywords": "RDS 指南解读 新生儿呼吸窘迫综合征",
+        },
+    )
+
+
+def neonatal_guideline_metadata_registry() -> tuple[SourceDocument, ...]:
+    """All registered neonatal guideline metadata records (metadata_only).
+
+    Deliberately excludes adult guidelines. Record order is the registry's
+    declared order, not a clinical ranking.
     """
-    return SourceDocument(
-        source_id="who-guideline-live", document_id="who:isbn:9789241550284", kind="guideline",
-        title="Guidelines on second- and third-line medicines and type of insulin for the control of blood glucose levels in non-pregnant adults with diabetes mellitus",
-        text="Official guideline metadata only; open the canonical WHO page for the authorized document. Blood glucose control with second- and third-line medicines and insulin in non-pregnant adults with diabetes mellitus.",
-        url="https://www.who.int/publications/i/item/9789241550284",
-        published_at="2018-04-21", locator="WHO official publication page", authority="WHO",
-        version_id=None, status="unknown", metadata={
-            "publisher": "World Health Organization", "stable_id": "ISBN 978-92-4-155028-4",
-            "official": True, "license": "CC BY-NC-SA 3.0 IGO (page statement; verify for reuse)",
-            "license_url": "https://creativecommons.org/licenses/by-nc-sa/3.0/igo/",
-            "rights_basis": "source_page_requires_verification", "full_text_allowed": False,
-            "content_mode": "metadata_only", "live_source": True,
-            "mesh_terms": "Diabetes Mellitus, Type 2; Hypoglycemic Agents; Insulin",
-            "keywords": "blood glucose control second-line third-line insulin diabetes",
-        },
+    return (
+        neonatal_pneumonia_metadata(),
+        neonatal_rds_metadata(),
+        neonatal_rds_chinese_interpretation_metadata(),
     )
 
 
-def who_guideline_metadata_registry() -> tuple[SourceDocument, ...]:
-    """All registered WHO formal guideline metadata records (metadata_only)."""
-    return (who_hypertension_metadata(), who_diabetes_glucose_metadata())
+def describe_registry(records: Sequence[SourceDocument]) -> list[dict[str, object]]:
+    """Audit-friendly summary; used by health output and tests."""
+    return [
+        {
+            "document_id": record.document_id,
+            "title": record.title,
+            "version_id": record.version_id,
+            "published_at": record.published_at,
+            "pmid": record.pmid,
+            "doi": record.doi,
+            "content_mode": record.metadata.get("content_mode"),
+            "official": record.metadata.get("official"),
+            "population": record.population,
+        }
+        for record in records
+    ]

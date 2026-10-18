@@ -1,10 +1,12 @@
-"""Grounded-answer auditing inspired by MiniCheck, ALCE, and RAGTruth.
+"""Grounded-answer auditing: citation structure plus an optional verifier.
 
 This module is deliberately downstream of retrieval.  It never changes evidence
 ranking and never turns an unsupported statement into a medical conclusion.
-MiniCheck is an optional, real sentence-level verifier.  If its package/model is
-unavailable, the result is explicitly marked ``not_checked`` rather than using a
-heuristic as a substitute.
+By default it checks citation structure: every claim must cite a ``citation_id``
+that belongs to the same retrieval.  Claim-to-evidence semantic support is only
+reported when the caller injects a verifier; with no verifier the label is
+``not_checked`` and precision/recall stay ``None`` rather than falling back to a
+lexical heuristic.
 """
 
 from __future__ import annotations
@@ -13,7 +15,6 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Mapping, Protocol, Sequence
 
-from .config import get_config
 from .models import EvidencePackage
 
 
@@ -34,76 +35,15 @@ class ClaimVerifier(Protocol):
 
 
 @dataclass
-class MiniCheckVerifier:
-    """Lazy adapter for the official ``minicheck`` Python package.
+class GroundedAnswerAuditor:
+    """Audits an answer only against citations belonging to one retrieval.
 
-    Install the package and fill ``minicheck_model`` in ``config.py`` before enabling
-    this adapter.  The official scorer may download model weights on first use;
-    that is intentionally not done at import time or as an implicit fallback.
+    ``verifier`` is optional.  Without one the audit is structural: it detects
+    missing citations and citations from another retrieval, and computes
+    citation completeness.  Semantic support stays ``not_checked``/``None``.
     """
 
-    model_name: str | None = None
-    cache_dir: str | None = None
-    _scorer: Any = None
-    _load_error: str | None = None
-
-    def __post_init__(self) -> None:
-        config = get_config()
-        if self.model_name is None:
-            self.model_name = config.minicheck_model or None
-        if self.cache_dir is None:
-            self.cache_dir = config.minicheck_cache_dir or None
-    @property
-    def name(self) -> str:
-        return "minicheck"
-
-    @property
-    def available(self) -> bool:
-        return bool(self.model_name) and self._ensure_loaded()
-
-    @property
-    def unavailable_reason(self) -> str:
-        if not self.model_name:
-            return "未在 config.py 中配置 minicheck_model；未执行主张级模型校验。"
-        self._ensure_loaded()
-        return self._load_error or "MiniCheck 当前不可用。"
-
-    def verify(self, pairs: Sequence[tuple[str, str]]) -> Sequence[tuple[bool, float | None]]:
-        if not pairs:
-            return []
-        if not self.available:
-            raise RuntimeError(self.unavailable_reason)
-        claims = [claim for claim, _ in pairs]
-        documents = [document for _, document in pairs]
-        try:
-            labels, probabilities, _, _ = self._scorer.score(docs=documents, claims=claims)
-        except Exception as exc:
-            raise RuntimeError(f"MiniCheck 推理失败：{type(exc).__name__}") from exc
-        return [(bool(label), _probability(probability)) for label, probability in zip(labels, probabilities)]
-
-    def _ensure_loaded(self) -> bool:
-        if self._scorer is not None:
-            return True
-        if self._load_error or not self.model_name:
-            return False
-        try:
-            from minicheck.minicheck import MiniCheck  # type: ignore[import-not-found]
-
-            kwargs: dict[str, Any] = {"model_name": self.model_name}
-            if self.cache_dir:
-                kwargs["cache_dir"] = self.cache_dir
-            self._scorer = MiniCheck(**kwargs)
-            return True
-        except Exception as exc:
-            self._load_error = f"MiniCheck 未就绪：{type(exc).__name__}。"
-            return False
-
-
-@dataclass
-class GroundedAnswerAuditor:
-    """Audits an answer only against citations belonging to one retrieval."""
-
-    verifier: ClaimVerifier
+    verifier: ClaimVerifier | None = None
     _checks: dict[tuple[str, str], tuple[bool, float | None]] = field(default_factory=dict, init=False, repr=False)
 
     def audit(self, *, package: EvidencePackage, answer: str, claim_records: Sequence[Mapping[str, Any]] | None = None) -> dict[str, Any]:
@@ -142,8 +82,9 @@ class GroundedAnswerAuditor:
                     pair_locations.append((row_index, citation_index))
         verification_warning = None
         results: Sequence[tuple[bool, float | None]] = []
+        verifier_available = bool(self.verifier is not None and self.verifier.available)
         if pairs:
-            if self.verifier.available:
+            if verifier_available:
                 try:
                     missing = list(dict.fromkeys(pair for pair in pairs if pair not in self._checks))
                     if missing:
@@ -170,12 +111,16 @@ class GroundedAnswerAuditor:
             row["ragtruth_label"] = _ragtruth_label(row, links, bool(results))
         return {
             "retrieval_id": package.retrieval_id,
-            "verifier": {"name": self.verifier.name, "available": self.verifier.available},
+            "verifier": {
+                "name": self.verifier.name if self.verifier is not None else "none",
+                "available": verifier_available,
+                "mode": "claim_verification" if verifier_available else "structural_only",
+            },
             "claims": rows,
             "alce_like": _alce_like(rows, verification_completed=bool(results)),
             "warnings": _warnings(verification_warning, rows),
             "limitations": [
-                "MiniCheck 为句子级主张-文档支持校验，不等同于临床正确性或指南推荐等级验证。",
+                "默认审计只校验引用结构与 citation_id 归属；未注入校验器时不判断语义支持。",
                 "当前 PubMed 摘要通常为英文；中文生成主张的跨语言校验效果尚未在本项目评测。",
             ],
         }
@@ -296,12 +241,14 @@ def _warnings(verification_warning: str | None, rows: Sequence[Mapping[str, Any]
     if invalid:
         warnings.append(f"发现 {invalid} 条主张引用了本次检索范围外的 citation_id。")
     if unsupported:
-        warnings.append(f"MiniCheck 判定 {unsupported} 条主张未被其所引证据支持。")
+        warnings.append(f"校验器判定 {unsupported} 条主张未被其所引证据支持。")
     return warnings
 
 
-def _unavailable_reason(verifier: ClaimVerifier) -> str:
-    return str(getattr(verifier, "unavailable_reason", "校验器未配置；未执行主张级模型校验。"))
+def _unavailable_reason(verifier: ClaimVerifier | None) -> str:
+    if verifier is None:
+        return "未配置主张级校验器；仅执行引用结构检查，语义支持未测量。"
+    return str(getattr(verifier, "unavailable_reason", "校验器不可用；未执行主张级校验。"))
 
 
 def _ratio(numerator: int, denominator: int) -> float | None:

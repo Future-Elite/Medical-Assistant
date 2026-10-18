@@ -20,7 +20,10 @@ def _pipeline() -> EvidenceRetrievalPipeline:
 class TestAgentTools(unittest.TestCase):
     def test_retrieve_then_open_its_own_citation(self) -> None:
         tool = EvidenceRAG(_pipeline())
-        result = tool.retrieve_evidence({"question": "高血压治疗指南推荐什么？", "as_of": "2025-12-31", "user_terms": {"高血压": ["hypertension"]}})
+        result = tool.retrieve_evidence({
+            "question": "新生儿呼吸窘迫综合征的治疗指南推荐什么？", "as_of": "2026-04-15",
+            "user_terms": {"新生儿呼吸窘迫综合征": ["respiratory distress syndrome"]},
+        })
         opened = tool.open_citation({"retrieval_id": result["retrieval_id"], "citation_id": result["citations"][0]["citation_id"]})
         self.assertIn("查看原文证据", opened["citation"]["actions"][0]["label"])
         self.assertTrue(opened["citation"]["key_evidence_sentences"])
@@ -28,8 +31,14 @@ class TestAgentTools(unittest.TestCase):
 
     def test_citation_cannot_cross_retrieval_boundaries(self) -> None:
         tool = EvidenceRAG(_pipeline())
-        first = tool.retrieve_evidence({"question": "高血压指南", "as_of": "2025-12-31", "user_terms": {"高血压": ["hypertension"]}})
-        second = tool.retrieve_evidence({"question": "高血压指南推荐", "as_of": "2025-12-31", "user_terms": {"高血压": ["hypertension"]}})
+        first = tool.retrieve_evidence({
+            "question": "新生儿呼吸窘迫综合征指南", "as_of": "2026-04-15",
+            "user_terms": {"新生儿呼吸窘迫综合征": ["respiratory distress syndrome"]},
+        })
+        second = tool.retrieve_evidence({
+            "question": "新生儿呼吸窘迫综合征指南推荐", "as_of": "2026-04-15",
+            "user_terms": {"新生儿呼吸窘迫综合征": ["respiratory distress syndrome"]},
+        })
         with self.assertRaises(ValueError):
             tool.open_citation({"retrieval_id": second["retrieval_id"], "citation_id": first["citations"][0]["citation_id"]})
 

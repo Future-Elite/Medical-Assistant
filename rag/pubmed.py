@@ -6,6 +6,7 @@ reviewed query terms; it never receives or serializes a PatientSnapshot.
 from __future__ import annotations
 
 import json
+import re
 import socket
 import urllib.error
 import urllib.parse
@@ -123,9 +124,18 @@ def _safe_ascii_or_cjk(value: str) -> bool:
     return bool(value and len(value) <= 80 and not any(token in value for token in ("patient_ref", "病历", "身份证", "住院号")))
 
 
+# EFetch 的 DOCTYPE 只声明外部 DTD；实体声明不是正常响应的一部分，
+# 一旦出现就可能被上游用来触发实体扩展，因此在解析前直接拒绝。
+_PUBMED_ENTITY_DECL = re.compile(rb"<!ENTITY\b", re.IGNORECASE)
+_PUBMED_DOCTYPE = re.compile(rb"<!DOCTYPE\b(?:[^>\[]|\[.*?\])*?>", re.DOTALL | re.IGNORECASE)
+
+
 def _parse_efetch(raw: bytes, source_id: str) -> tuple[list[SourceDocument], int]:
+    if _PUBMED_ENTITY_DECL.search(raw):
+        raise PubMedError("PubMed EFetch XML 包含不允许的实体声明", stage="efetch_parse")
+    payload = _PUBMED_DOCTYPE.sub(b"", raw, count=1)
     try:
-        root = ET.fromstring(raw)
+        root = ET.fromstring(payload)
     except (ET.ParseError, UnicodeDecodeError) as exc:
         raise PubMedError("PubMed EFetch XML 解析失败", stage="efetch_parse") from exc
     documents: list[SourceDocument] = []

@@ -1,16 +1,19 @@
 """Local read-only HTTP workbench for the RAG package.
 
-Source model (exactly two modes):
+Source model (exactly two **retrieval** modes):
 
-- ``live``   — real-time PubMed (NCBI E-utilities) + guideline source
-               (WHO official metadata registry; ``live`` requires both live
-               switches enabled in ``config.py``);
+- ``live``   — real-time PubMed (NCBI E-utilities) + **neonatal** guideline
+               metadata registry (``live`` requires both live switches enabled
+               in ``config.py``);
 - ``custom`` — caller-provided knowledge libraries registered at runtime via
                ``POST /api/sources/custom`` (payload schema in
                ``custom_sources.py`` and ``contracts/README.md``).
 
-There is no local offline corpus: the server registers no sources of its own
-and never falls back to synthetic data.
+The neonatal demo profile (``rag/demo/``) is **not** a third mode: it is a
+caller-style library that the workbench registers into ``custom`` only after
+an explicit ``POST /api/demo/guidelines/load`` (or
+``config.demo_autoload_guidelines=True`` at startup).  The server still holds
+no hidden corpus and never falls back to synthetic data.
 """
 from __future__ import annotations
 
@@ -35,7 +38,19 @@ from rag.agent import EvidenceRAG
 from rag.config import get_config
 from rag.connectors import ConnectorRegistry
 from rag.custom_sources import CustomSourceLibrary, SOURCE_MODES, load_custom_library
-from rag.guidelines import GuidelineMetadataConnector, who_guideline_metadata_registry
+from rag.demo import (
+    load_demo_cases,
+    load_demo_guidelines,
+    register_demo_guidelines,
+    guideline_summary as demo_guideline_summary,
+)
+from rag.guidelines import (
+    NEONATAL_GUIDELINE_SOURCE_ID,
+    GuidelineMetadataConnector,
+    describe_registry as describe_guideline_registry,
+    neonatal_guideline_metadata_registry,
+)
+from rag.guideline_fulltext import LiveGuidelineFullTextConnector
 from rag.his import PatientSnapshot
 from rag.models import RetrievalRequest
 from rag.neural_adapters import MedCPTReranker, build_neural_registry, cache_dir_hint, neural_dependencies_state
@@ -62,14 +77,16 @@ def build_live_registry() -> ConnectorRegistry:
         raise ValueError("live PubMed and guideline sources are not both enabled")
     registry = ConnectorRegistry()
     registry.register(PubMedConnector())
-    registry.register(GuidelineMetadataConnector("who-guideline-live", who_guideline_metadata_registry()))
+    registry.register(GuidelineMetadataConnector(NEONATAL_GUIDELINE_SOURCE_ID, neonatal_guideline_metadata_registry()))
+    if config.allow_live_guideline_fulltext:
+        registry.register(LiveGuidelineFullTextConnector())
     return registry
 
 
 def create_tool(source_mode: str = "live", *, custom_library: CustomSourceLibrary | None = None) -> EvidenceRAG:
     """按来源模式构建工具。
 
-    ``live``   实时 PubMed + 官方指南元数据；
+    ``live``   实时 PubMed + 新生儿指南元数据 + 开放获取指南全文；
     ``custom`` 调用方通过 ``CustomSourceLibrary`` 注册的知识库（空库显式报错）。
     """
     if source_mode not in SOURCE_MODES:
@@ -137,9 +154,21 @@ def _method_status() -> dict[str, dict[str, object]]:
 CUSTOM_LIBRARY = CustomSourceLibrary()
 
 
-def _minicheck_configured() -> bool:
-    """health 摘要：只读配置，不构建工具、不加载模型。"""
-    return bool(str(get_config().minicheck_model or "").strip())
+def _audit_mode() -> str:
+    """health 摘要：默认审计只做引用结构检查，语义主张校验需调用方注入 verifier。"""
+    return "structural_only"
+
+
+def load_startup_demo_library() -> int:
+    """可选：config.demo_autoload_guidelines=True 时，在启动阶段显式登记演示指南库。
+
+    这只是把"调用方显式加载"提前到启动阶段，并不改变"服务不内置语料"：
+    返回登记的来源数，未开启时返回 0。
+    """
+    if not get_config().demo_autoload_guidelines:
+        return 0
+    events = register_demo_guidelines(CUSTOM_LIBRARY)
+    return len(events)
 
 
 def load_startup_custom_library() -> int:
@@ -174,6 +203,11 @@ class RAGRequestHandler(BaseHTTPRequestHandler):
             self._send_json({
                 "ok": True,
                 "rag_version": __version__,
+                "demo_profile": get_config().demo_profile,
+                "demo_cases_available": True,
+                "demo_guidelines_loaded": any(
+                    item["source_id"].startswith("neonatal-guideline-") for item in CUSTOM_LIBRARY.describe()
+                ),
                 "retrieval_mode": self.source_mode,
                 "active_mode": self.source_mode,
                 "available_modes": [mode for mode, enabled in (("live", live_available), ("custom", True)) if enabled],
@@ -183,19 +217,47 @@ class RAGRequestHandler(BaseHTTPRequestHandler):
                 "semantic_trace": {"status": "not_configured", "retriever_id": None},
                 "generation_performed": False,
                 "clinical_decision_performed": False,
-                "minicheck_configured": _minicheck_configured(),
+                "audit_mode": _audit_mode(),
                 "retrieval_methods": _method_status(),
-                "message": "来源仅两种：live（实时 PubMed + 官方指南元数据）与 custom（调用方注册的数据库）；服务不内置任何本地语料。",
+                "message": "检索来源仅两种：live（实时 PubMed + 新生儿指南元数据 + 开放获取指南全文）与 custom（调用方注册的数据库）；服务不内置任何本地语料；新生儿演示指南库需显式加载。",
             })
             return
         if path == "/api/tools":
             self._send_json({"tools": EvidenceRAG.tool_specifications()})
             return
         if path == "/api/sources":
+            live_enabled = bool(get_config().allow_live_pubmed and get_config().allow_live_guidelines)
             self._send_json({
                 "source_modes": list(SOURCE_MODES),
-                "live": {"enabled": bool(get_config().allow_live_pubmed and get_config().allow_live_guidelines), "sources": ["pubmed-live", "who-guideline-live"] if get_config().allow_live_pubmed and get_config().allow_live_guidelines else []},
+                "live": {
+                    "enabled": live_enabled,
+                    "sources": (
+                        ["pubmed-live", NEONATAL_GUIDELINE_SOURCE_ID]
+                        + (["guideline-fulltext-live"] if get_config().allow_live_guideline_fulltext else [])
+                    ) if live_enabled else [],
+                    "guideline_fulltext_enabled": bool(get_config().allow_live_guideline_fulltext),
+                    "guideline_registry": describe_guideline_registry(neonatal_guideline_metadata_registry()),
+                },
                 "custom": {"registered": CUSTOM_LIBRARY.describe(), "recent_events": CUSTOM_LIBRARY.events[-10:]},
+            })
+            return
+        if path == "/api/demo/cases":
+            demo = load_demo_cases()
+            self._send_json({
+                "profile": get_config().demo_profile,
+                "synthetic": True,
+                "cases": demo["cases"],
+                "case_sets": demo.get("case_sets", {}),
+                "age_rules": demo.get("age_rules", {}),
+                "note": "全部病例为合成数据，仅用于界面与流程测试；不是真实患者，也不构成诊疗建议。",
+            })
+            return
+        if path == "/api/demo/guidelines":
+            self._send_json({
+                "profile": get_config().demo_profile,
+                "guidelines": demo_guideline_summary(load_demo_guidelines()),
+                "registered": [item for item in CUSTOM_LIBRARY.describe() if item["source_id"].startswith("neonatal-")],
+                "note": "演示来源（指南元数据/合成指南/合成文献）需显式加载；元数据条目只含书目信息，合成条目 synthetic=true。",
             })
             return
         self._send_error_json(HTTPStatus.NOT_FOUND, "未找到该资源")
@@ -208,6 +270,11 @@ class RAGRequestHandler(BaseHTTPRequestHandler):
                 # HIS 由调用方提供快照：请求体中的 patient_snapshot 原样回显并做 as_of 过滤。
                 # 服务不持有任何内置患者数据。
                 self._send_json({"status": "ok", "data": self._echo_snapshot(payload)})
+                return
+            if path == "/api/demo/guidelines/load":
+                events = register_demo_guidelines(CUSTOM_LIBRARY)
+                self.tools.pop("custom", None)  # 库变动后失效，下次检索重建
+                self._send_json({"status": "ok", "profile": get_config().demo_profile, "events": events, "registered": CUSTOM_LIBRARY.describe()})
                 return
             if path == "/api/sources/custom":
                 event = CUSTOM_LIBRARY.register_payload(payload)
@@ -477,6 +544,7 @@ def serve(host: str | None = None, port: int | None = None, *, cleanup_stale: bo
     import errno
 
     loaded = load_startup_custom_library()
+    demo_loaded = load_startup_demo_library()
     config = get_config()
     host = config.server_host if host is None else host
     if port is None:
@@ -497,8 +565,10 @@ def serve(host: str | None = None, port: int | None = None, *, cleanup_stale: bo
         raise
     live_ok = bool(config.allow_live_pubmed and config.allow_live_guidelines)
     print(f"RAG workbench: http://{host}:{port}/")
-    print(f"  来源模式：live（{'可用' if live_ok else '未启用：config.allow_live_* 未同时为 True'}）；custom（已注册自定义来源 {len(CUSTOM_LIBRARY)} 个{('，启动预载 ' + str(loaded)) if loaded else ''}）")
+    fulltext = "开放获取指南全文" if config.allow_live_guideline_fulltext else "仅指南元数据（全文开关关闭）"
+    print(f"  检索来源：live（{'可用' if live_ok else '未启用：config.allow_live_* 未同时为 True'}；{fulltext}）；custom（已注册来源 {len(CUSTOM_LIBRARY)} 个{('，启动预载 ' + str(loaded)) if loaded else ''}{('，演示指南库 ' + str(demo_loaded)) if demo_loaded else ''}）")
     print("  HIS：由调用方随请求传入 patient_snapshot（服务不内置患者数据）")
+    print(f"  演示档案：{config.demo_profile}（病例 GET /api/demo/cases；演示来源需 POST /api/demo/guidelines/load 显式加载）")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

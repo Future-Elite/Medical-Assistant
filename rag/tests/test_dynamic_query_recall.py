@@ -16,8 +16,8 @@ class Transport:
     def __call__(self, url, params, timeout):
         self.calls.append(dict(params))
         if url.endswith("esearch.fcgi"):
-            return json.dumps({"esearchresult": {"idlist": ["12345678"]}}).encode()
-        return b'<PubmedArticleSet><PubmedArticle><MedlineCitation><PMID>12345678</PMID><Article><ArticleTitle>Asthma treatment evidence</ArticleTitle><Abstract><AbstractText>Asthma treatment in adults.</AbstractText></Abstract><Journal><JournalIssue><PubDate><Year>2024</Year></PubDate></JournalIssue></Journal></Article></MedlineCitation></PubmedArticle></PubmedArticleSet>'
+            return json.dumps({"esearchresult": {"idlist": ["30012345"]}}).encode()
+        return b'<PubmedArticleSet><PubmedArticle><MedlineCitation><PMID>30012345</PMID><Article><ArticleTitle>Surfactant therapy in neonatal respiratory distress syndrome</ArticleTitle><Abstract><AbstractText>Surfactant therapy in preterm infants with respiratory distress syndrome.</AbstractText></Abstract><Journal><JournalIssue><PubDate><Year>2025</Year></PubDate></JournalIssue></Journal></Article></MedlineCitation></PubmedArticle></PubmedArticleSet>'
 
 
 class Translator:
@@ -39,15 +39,16 @@ class DynamicQueryRecallTest(unittest.TestCase):
         return EvidenceRetrievalPipeline(registry, neural_retrievers={"translate": translator}), transport, translator
 
     def test_uncovered_chinese_concept_reaches_live_pubmed_query(self):
-        pipeline, transport, translator = self.pipeline("asthma treatment in adults")
+        pipeline, transport, translator = self.pipeline("surfactant therapy for neonatal respiratory distress syndrome")
         result = pipeline.retrieve(RetrievalRequest.from_dict({
-            "question": "哮喘治疗有哪些研究证据？", "retrieval_method": "bm25,translate", "fidelity_gate": "warn",
+            "question": "新生儿呼吸窘迫综合征的肺表面活性物质治疗有哪些研究证据？",
+            "retrieval_method": "bm25,translate", "fidelity_gate": "warn",
         }))
         self.assertEqual(translator.calls, 1)
-        self.assertIn("asthma treatment", transport.calls[0]["term"])
-        self.assertEqual(result.query_plan.original_question, "哮喘治疗有哪些研究证据？")
+        self.assertIn("surfactant therapy", transport.calls[0]["term"])
+        self.assertEqual(result.query_plan.original_question, "新生儿呼吸窘迫综合征的肺表面活性物质治疗有哪些研究证据？")
         self.assertFalse(result.query_plan.english_terms)
-        self.assertEqual(result.query_plan.machine_translations, ("asthma treatment in adults",))
+        self.assertEqual(result.query_plan.machine_translations, ("surfactant therapy for neonatal respiratory distress syndrome",))
         self.assertEqual(result.trace["connector_trace"][0]["query"], transport.calls[0]["term"])
         self.assertTrue(result.ranked_documents)
         self.assertFalse(any("没有任何英文词" in warning for warning in result.warnings))

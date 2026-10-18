@@ -3,40 +3,66 @@ import unittest
 from rag.guidelines import (
     GuidelineMetadataConnector,
     LicensedGuidelineSnapshotConnector,
-    who_diabetes_glucose_metadata,
-    who_guideline_metadata_registry,
-    who_hypertension_metadata,
+    NEONATAL_GUIDELINE_SOURCE_ID,
+    describe_registry,
+    neonatal_guideline_metadata_registry,
+    neonatal_pneumonia_metadata,
+    neonatal_rds_chinese_interpretation_metadata,
+    neonatal_rds_metadata,
 )
 from rag.models import QueryPlan, SourceDocument
 
 
 class GuidelineTests(unittest.TestCase):
     def setUp(self):
-        self.plan = QueryPlan("guideline", ("guideline",), ("guideline",), ("who-guideline-live",), {"source_kinds": ["guideline"]}, ())
+        self.plan = QueryPlan("guideline", ("guideline",), ("guideline",), (NEONATAL_GUIDELINE_SOURCE_ID,), {"source_kinds": ["guideline"]}, ())
 
-    def test_who_metadata_is_not_full_text(self):
-        doc = who_hypertension_metadata()
-        self.assertEqual(doc.metadata["content_mode"], "metadata_only")
-        result = GuidelineMetadataConnector("who-guideline-live", (doc,)).search(self.plan, limit=5)
+    def test_registry_is_neonatal_only(self):
+        registry = neonatal_guideline_metadata_registry()
+        self.assertEqual(len(registry), 3)
+        joined = " ".join(doc.title.lower() for doc in registry)
+        self.assertIn("肺炎", joined)
+        self.assertIn("respiratory distress syndrome", joined)
+        self.assertIn("解读", joined)
+        # v6.6.3 的成人 WHO 条目不得出现
+        for adult in ("hypertension", "blood glucose", "diabetes"):
+            self.assertNotIn(adult, joined)
+        self.assertTrue(all(doc.kind == "guideline" for doc in registry))
+        self.assertTrue(all(doc.metadata["content_mode"] == "metadata_only" for doc in registry))
+        self.assertTrue(all(doc.metadata["full_text_allowed"] is False for doc in registry))
+
+    def test_pneumonia_metadata_fields(self):
+        doc = neonatal_pneumonia_metadata()
+        self.assertEqual(doc.doi, "10.7499/j.issn.1008-8830.2412164")
+        self.assertEqual(doc.pmid, "40962511")
+        self.assertEqual(doc.metadata["stable_id"], "PMCID PMC12447934")
+        self.assertEqual(doc.version_id, "2025")
+        self.assertEqual(doc.metadata["language"], "zh")
+
+    def test_rds_version_label_is_separate_from_publication_date(self):
+        doc = neonatal_rds_metadata()
+        self.assertEqual(doc.version_id, "2025")
+        self.assertEqual(doc.published_at, "2026-03-09")
+        self.assertEqual(doc.metadata["version_label"], "2025 update (7th edition)")
+        self.assertEqual(doc.pmid, "41802129")
+        self.assertEqual(doc.doi, "10.1159/000551062")
+
+    def test_chinese_interpretation_is_secondary_and_not_official(self):
+        doc = neonatal_rds_chinese_interpretation_metadata()
+        self.assertEqual(doc.metadata["source_role"], "secondary_interpretation")
+        self.assertFalse(doc.metadata["official"])
+        self.assertNotEqual(doc.doi, neonatal_rds_metadata().doi)
+
+    def test_metadata_connector_only_returns_metadata(self):
+        doc = neonatal_pneumonia_metadata()
+        result = GuidelineMetadataConnector(NEONATAL_GUIDELINE_SOURCE_ID, (doc,)).search(self.plan, limit=5)
         self.assertEqual(len(result.documents), 1)
         self.assertIn("元数据", result.warnings[0])
 
-    def test_who_diabetes_metadata_fields(self):
-        doc = who_diabetes_glucose_metadata()
-        self.assertEqual(doc.kind, "guideline")
-        self.assertEqual(doc.metadata["stable_id"], "ISBN 978-92-4-155028-4")
-        self.assertEqual(doc.published_at, "2018-04-21")
-        self.assertEqual(doc.url, "https://www.who.int/publications/i/item/9789241550284")
-        self.assertEqual(doc.metadata["content_mode"], "metadata_only")
-        self.assertFalse(doc.metadata["full_text_allowed"])
-
-    def test_metadata_registry_has_both_conditions(self):
-        registry = who_guideline_metadata_registry()
-        self.assertEqual(len(registry), 2)
-        joined = " ".join(doc.title.lower() for doc in registry)
-        self.assertIn("hypertension", joined)
-        self.assertIn("diabetes", joined)
-        self.assertTrue(all(doc.kind == "guideline" for doc in registry))
+    def test_metadata_registry_describe_is_audit_friendly(self):
+        rows = describe_registry(neonatal_guideline_metadata_registry())
+        self.assertEqual({row["content_mode"] for row in rows}, {"metadata_only"})
+        self.assertIn("pmid", rows[0])
 
     def test_unlicensed_snapshot_not_indexed(self):
         doc = SourceDocument(source_id="g", document_id="g1", kind="guideline", title="G", text="restricted", metadata={"content_mode": "metadata_only", "full_text_allowed": False})

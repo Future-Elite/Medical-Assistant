@@ -9,10 +9,10 @@ identifiers (trace ``rag_version``, ``/api/health``) read it instead of
 hard-coding any version string.
 """
 
-__version__ = "6.6.3"
+__version__ = "6.6.4"
 
 from .agent import EvidenceSessionStore, EvidenceRAG
-from .audit import GroundedAnswerAuditor, MiniCheckVerifier
+from .audit import ClaimVerifier, GroundedAnswerAuditor
 from .connectors import (
     CallableConnector,
     ConnectorRegistry,
@@ -86,7 +86,7 @@ __all__ = [
     "InMemoryConnector",
     "InMemoryHISAdapter",
     "KnowledgeConnector",
-    "MiniCheckVerifier",
+    "ClaimVerifier",
     "PatientFact",
     "PatientHit",
     "PatientSnapshot",

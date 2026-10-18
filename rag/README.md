@@ -1,6 +1,6 @@
 # RAG 直接调用使用指南
 
-本目录是可被 Python Agent 直接调用的只读 RAG 组件：在通用证据检索之上提供受控中英文/MeSH 查询规划、字段化 BM25 与可选语义/RRF 融合、患者事实 + PubMed + 版本化指南的分源联合检索、引用打开和回答审计。另含可选的**查询保真审计与门控**研究特性（`fidelity_gate`，默认 `off`，见第 5.8 节），用于审计中文问题→英文检索计划的转换产物。
+本目录是可被 Python Agent 直接调用的只读 RAG 组件，**v6.6.4 起收窄为新生儿专科场景**：在证据检索之上提供受控中英文/MeSH 查询规划、字段化 BM25 与可选语义/RRF 融合、患者事实 + PubMed + 版本化指南的分源联合检索、引用打开和回答审计。另含可选的**查询保真审计与门控**研究特性（`fidelity_gate`，默认 `off`，见第 5.8 节），用于审计中文问题→英文检索计划的转换产物。
 
 推荐的主调用路径是：
 
@@ -16,9 +16,11 @@
 
 HTTP 服务和浏览器工作台只是这个核心调用层之上的附加封装，见第 13 节。不需要启动 `server.py` 就可以直接使用 RAG。
 
-当前版本在包 `__init__.py` 中以 `__version__` 声明（当前 `6.6.3`）；运行时 trace 的 `rag_version` 与 `/api/health` 均读取该值，代码中不硬编码版本字符串。
+当前版本在包 `__init__.py` 中以 `__version__` 声明（当前 `6.6.4`）；运行时 trace 的 `rag_version` 与 `/api/health` 均读取该值，代码中不硬编码版本字符串。
 
-集成分支 v6.6.3：translate 在外部来源召回前生成候选，查询保真 reject 也在外发前生效。`query_plan.machine_translations` 与审核术语分开，实际 PubMed 查询记录在 `trace.connector_trace[].query`。中文 Agent 默认通过现有 translate 槽接入 Qwen 查询转换，英文查询不需转换；未配置或失败仍在 method_trace/warnings 明确报告。
+集成分支 v6.6.4：translate 在外部来源召回前生成候选，查询保真 reject 也在外发前生效。`query_plan.machine_translations` 与审核术语分开，实际 PubMed 查询记录在 `trace.connector_trace[].query`。中文 Agent 默认通过现有 translate 槽接入 Qwen 查询转换，英文查询不需转换；未配置或失败仍在 method_trace/warnings 明确报告。
+
+**v6.6.4 新生儿专科化**（详见 §13.4 与 `demo/README.md`）：live 指南注册表只含新生儿指南元数据；演示档案 `rag/demo/` 提供 9 例精选合成新生儿病例与三个调用方来源（元数据 + 合成指南块 + 合成文献），必须显式 `POST /api/demo/guidelines/load` 才注册进 custom 来源。另有独立档案 `rag/demo/his_generated/` 的 11 例场景病例与 `rag/demo/his_generated_30/` 的 30 例 HIS 风格批量病例（同 schema，`load_demo_cases(<该目录>)`；不进入默认 `/api/demo/cases`）。工作台改为节点式工作流，输入与 `RetrievalRequest` 逐字段对应。检索引擎（查询规划/排序/融合/门控/审计）与 v6.6.3 字节级一致，差分实测见 `validation/兼容性差分_2026-10-17.json`。
 
 模块不会读取原始病历、写回 HIS/PACS、生成诊断或治疗决定。`patient_terms` 只能传入人工审核的最小化术语，不得传入患者姓名、住院号、身份证号、自由文本病史或原始病历。RAG 不自行读取真实 HIS：`patient_snapshot` 由 Agent 读取并授权传入。
 
@@ -96,16 +98,9 @@ PYTHONPATH=. python3 path/to/your_script.py
 python3 --version
 ```
 
-如果只使用 `InMemoryConnector`、`CallableConnector`、`VersionedGuidelineConnector`、词面检索方法（bm25/ql/rm3）、本地排序和审计，不需要安装额外依赖。以下能力是可选依赖：
+如果只使用 `InMemoryConnector`、`CallableConnector`、`VersionedGuidelineConnector`、词面检索方法（bm25/ql/rm3）、本地排序和引用结构审计，不需要安装额外依赖。神经检索方法 `dense`/`xlingual`/`translate`/`splade`/`colbert`/`query2doc` 与 cross-encoder 重排需要 `torch`/`transformers` 与本地模型缓存（在国内网络可经 `HF_ENDPOINT=https://hf-mirror.com` 预下载）。
 
-- MiniCheck 真实主张校验（`requirements.txt`）；
-- 神经检索方法 `dense`/`xlingual`/`translate`/`splade`/`colbert`/`query2doc` 与 cross-encoder 重排（`torch`/`transformers` 与本地模型缓存；在国内网络可经 `HF_ENDPOINT=https://hf-mirror.com` 预下载）。
-
-```bash
-python3 -m pip install -r rag/requirements.txt
-```
-
-没有安装或配置 MiniCheck 时，审计仍可运行，但主张标签会明确标记为 `not_checked`，不会用词面规则冒充模型校验。神经方法不可用时在 `trace.method_trace` 中标记 `not_configured`（附原因），绝不静默降级。
+审计默认只做**引用结构检查**：每条主张必须引用本次 `retrieval_id` 内的 `citation_id`；语义支持标记 `not_checked`，精确率/召回率为 `None`，不用词面规则冒充模型校验。需要语义主张校验的调用方自行注入 `ClaimVerifier` 实现（见 `rag/audit.py` 的 `ClaimVerifier` 协议）。神经方法不可用时在 `trace.method_trace` 中标记 `not_configured`（附原因），绝不静默降级。
 
 环境变量：
 
@@ -192,7 +187,7 @@ rag = EvidenceRAG(
 |---|---|---|---|
 | `pipeline` | `EvidenceRetrievalPipeline` | 必填 | 实际执行检索的管线。 |
 | `sessions` | `EvidenceSessionStore \| None` | 自动创建 | 保存 `retrieval_id -> EvidencePackage` 的内存会话。 |
-| `auditor` | `GroundedAnswerAuditor \| None` | 自动创建 | 默认使用 `MiniCheckVerifier`。 |
+| `auditor` | `GroundedAnswerAuditor \| None` | 自动创建 | 默认只做引用结构审计；语义校验需显式注入 `ClaimVerifier`。 |
 
 `EvidenceRAG` 是 Agent 级 JSON 接口，不是回答生成器。它提供三个直接调用方法：
 
@@ -209,14 +204,14 @@ rag = EvidenceRAG(
 ```python
 request = RetrievalRequest.from_dict({
     "request_id": "request-001",
-    "question": "该患者高血压的指南推荐和最新证据是什么？",
-    "as_of": "2025-12-31",
-    "patient_terms": ["高血压"],
+    "question": "该患儿新生儿呼吸窘迫综合征的指南推荐和最新证据是什么？",
+    "as_of": "2026-04-15",
+    "patient_terms": ["新生儿呼吸窘迫综合征"],
     "source_kinds": ["pubmed", "guideline"],
     "top_k": 8,
-    "user_terms": {"高血压": ["hypertension"]},
-    "english_terms": ["hypertension"],
-    "mesh_terms": ["Hypertension"],
+    "user_terms": {"新生儿呼吸窘迫综合征": ["respiratory distress syndrome"]},
+    "english_terms": ["respiratory distress syndrome"],
+    "mesh_terms": ["Respiratory Distress Syndrome, Newborn"],
 })
 package = pipeline.retrieve(request)
 ```
@@ -233,14 +228,14 @@ package = pipeline.retrieve(request)
 | `source_kinds` | `tuple[str, ...]` | `()` | 否 | 来源类型，例如 `pubmed`、`guideline`、`drug`、`clinical_trial`、`local_knowledge`。 |
 | `filters` | `Mapping[str, Any]` | `{}` | 否 | 结构化过滤项，如 `{"guideline_version": "2024"}` 限定指南版本。 |
 | `top_k` | `int` | `8` | 否 | 最终返回文档数，必须在 1 到 50 之间。 |
-| `user_terms` | `Mapping[str, Sequence[str]]` | `{}` | 否 | 人工审核的中文概念→英文映射，如 `{"高血压": ["hypertension"]}`；仅当键出现在问题/患者术语文本中才展开，展开记录在 `query_plan.expansion_trace`，不自动翻译。 |
+| `user_terms` | `Mapping[str, Sequence[str]]` | `{}` | 否 | 人工审核的中文概念→英文映射，如 `{"新生儿呼吸窘迫综合征": ["respiratory distress syndrome"]}`；仅当键出现在问题/患者术语文本中才展开，展开记录在 `query_plan.expansion_trace`，不自动翻译。 |
 | `query_language` | `str` | `"zh"` | 否 | 问题语言标记（字段别名 `language` 亦可）。 |
 | `clinical_intent` | `str \| None` | `None` | 否 | `guideline_recommendation` / `evidence_update` / `drug_safety` / `clinical_question`；缺省时由问题文本推断。 |
 | `facets` | `Mapping[str, Sequence[str]]` | `{}` | 否 | 结构化临床问题槽位（population/outcome 等），取值作为检索概念参与匹配。 |
 | `english_terms` | `tuple[str, ...]` | `()` | 否 | 人工审核的英文医学术语/缩写，直接参与英文检索与实时 PubMed 查询。 |
 | `mesh_terms` | `tuple[str, ...]` | `()` | 否 | 人工审核的 MeSH 主题词，参与英文检索与实时 PubMed 查询。 |
 | `patient_snapshot` | `Any \| None` | `None` | 否 | Agent 从只读 HIS 获取的结构化快照对象（解码在管线内完成）。 |
-| `source_mode` | `str` | `"live"` | 否 | 仅两种：`live`（实时 PubMed + 官方指南元数据）与 `custom`（调用方注册的自有知识库）。服务不内置本地语料；实时失败不自动回退，custom 库为空时显式报错。 |
+| `source_mode` | `str` | `"live"` | 否 | 仅两种：`live`（实时 PubMed + 新生儿指南元数据 + Europe PMC 指南/同行评议全文）与 `custom`（调用方注册的自有知识库）。演示病例默认 `live`，不使用演示块；实时失败不自动回退，custom 库为空时显式报错。 |
 | `retrieval_method` | `str \| tuple[str, ...] \| None` | `None`（等价 bm25） | 否 | 检索方法，见第 12 节。 |
 | `rerank` | `bool` | `False` | 否 | `true` 时在排序后追加 cross-encoder 重排。 |
 | `fidelity_gate` | `str` | `"off"` | 否 | 查询保真门控（研究特性）：`off`/`audit`/`warn`/`downweight`/`reject`，见第 5.8 节。 |
@@ -283,13 +278,13 @@ RAG 从 `question`、`patient_terms` 和 `facets` 提取中英文概念，只扩
 ```python
 result = rag.retrieve_evidence({
     "request_id": "request-002",
-    "question": "该患者高血压的指南推荐和最新证据是什么？",
-    "as_of": "2025-12-31",
-    "patient_terms": ["高血压"],
-    "english_terms": ["hypertension"],
+    "question": "该患儿新生儿呼吸窘迫综合征的指南推荐和最新证据是什么？",
+    "as_of": "2026-04-15",
+    "patient_terms": ["新生儿呼吸窘迫综合征"],
+    "english_terms": ["respiratory distress syndrome"],
     "source_kinds": ["pubmed", "guideline"],
     "top_k": 5,
-    "user_terms": {"高血压": ["hypertension"]},
+    "user_terms": {"新生儿呼吸窘迫综合征": ["respiratory distress syndrome"]},
 })
 ```
 
@@ -386,7 +381,7 @@ result = rag.retrieve_evidence({
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
-| `rag_version` | `str` | 包 `__version__`（当前 `6.6.3`）。 |
+| `rag_version` | `str` | 包 `__version__`（当前 `6.6.4`）。 |
 | `source_mode` | `str` | 本轮来源模式。 |
 | `retrieved_at` | `str` | UTC 时间戳。 |
 | `connector_trace` | `list[dict]` | 每个连接器的执行状态。成功含 `source_id`、`status`、`returned`、`kind`；失败含错误类型和阶段。 |
@@ -488,7 +483,7 @@ audit = rag.audit_grounded_answer({
 | 字段 | 类型 | 说明 |
 |---|---|---|
 | `retrieval_id` | `str` | 被审计的检索 ID。 |
-| `verifier` | `dict` | `name` 和 `available`。MiniCheck 未配置时 `available=false`，主张标 `not_checked`。 |
+| `verifier` | `dict` | `name`、`available`、`mode`。默认 `name="none"`、`available=false`、`mode="structural_only"`，主张标 `not_checked`。 |
 | `claims` | `list[dict]` | 按句切分的主张结果。 |
 | `alce_like` | `dict` | 引用完整性、精度和召回风格指标（空分母为 `None`）。 |
 | `warnings` | `list[str]` | 缺引用、跨轮引用、校验器不可用等提示。 |
@@ -496,7 +491,7 @@ audit = rag.audit_grounded_answer({
 
 `claims[]` 字段：`claim`、`verifier_claim`、`citation_ids`、`valid_citation_ids`、`invalid_citation_ids`、`citation_checks`、`ragtruth_label`（`supported`/`evident_baseless_info`/`citation_missing`/`invalid_citation`/`not_checked`）。
 
-这些指标不等于临床正确率、指南符合率或医生审核结果。
+默认审计不注入校验器，因此 `citation_precision`/`citation_recall` 为 `None`、主张标签为 `not_checked`；`citation_completeness` 与 `invalid_citation` 仍可用于发现漏引和跨检索引用。需要语义支持判断时，向 `GroundedAnswerAuditor(verifier=...)` 注入实现 `ClaimVerifier` 协议的对象；此时 `verifier.mode="claim_verification"`。这些指标不等于临床正确率、指南符合率或医生审核结果。
 
 ## 8. 联合检索：HIS 快照与患者事实
 
@@ -508,17 +503,17 @@ RAG 不自行读取真实 HIS。调用链是：Agent 通过只读 HIS 工具获�
 from rag.his import InMemoryHISAdapter, snapshot_from_dict
 
 snapshot = snapshot_from_dict({
-    "patient_ref": "syn-patient-001",
-    "as_of": "2025-12-31",
+    "patient_ref": "syn-neo-001",
+    "as_of": "2026-04-15",
     "facts": [...],
-    "reviewed_external_terms": ["hypertension"],
+    "reviewed_external_terms": ["respiratory distress syndrome"],
 })
 
 result = rag.retrieve_evidence({
-    "question": "该患者高血压的指南推荐和最新证据是什么？",
-    "as_of": "2025-12-31",
-    "patient_terms": ["高血压"],
-    "english_terms": ["hypertension"],
+    "question": "该患儿新生儿呼吸窘迫综合征的指南推荐和最新证据是什么？",
+    "as_of": "2026-04-15",
+    "patient_terms": ["新生儿呼吸窘迫综合征"],
+    "english_terms": ["respiratory distress syndrome"],
     "patient_snapshot": snapshot,
 })
 ```
@@ -536,19 +531,19 @@ result = rag.retrieve_evidence({
 链路是 **HIS → Agent → RAG**：**Agent** 通过只读接口读取 HIS，把结构化数据整理成 `patient_snapshot` 载荷传入 RAG；**RAG 自身不连接、不请求 HIS**（包内没有任何 HIS 客户端，也没有 HIS 地址/端点常量）。
 
 ```python
-snapshot = {                       # Agent 侧构造（结构见 ../contracts/his_rag.md）
-    "patient_ref": "2001",
-    "as_of": "2025-12-31",
-    "source": "his_demo",
+snapshot = {                       # Agent 侧构造（结构见 contracts/README.md §2；HIS→Agent→RAG 分工见 Medical-Assistant/contracts/his_rag.md）
+    "patient_ref": "syn-neo-001",
+    "as_of": "2026-04-15",
+    "source": "caller_his",
     "facts": [...],                # 带时间边界的扁平事实
-    "reviewed_external_terms": ["hypertension"],   # 人工审核后才放入
+    "reviewed_external_terms": ["respiratory distress syndrome"],   # 人工审核后才放入
 }
 
 result = rag.retrieve_evidence({
-    "question": "该患者原发性高血压的长期管理建议和依据是什么？",
-    "as_of": "2025-12-31",
-    "patient_terms": ["高血压"],
-    "english_terms": ["hypertension"],
+    "question": "该患儿新生儿呼吸窘迫综合征的呼吸支持建议和依据是什么？",
+    "as_of": "2026-04-15",
+    "patient_terms": ["新生儿呼吸窘迫综合征"],
+    "english_terms": ["respiratory distress syndrome"],
     "patient_snapshot": snapshot,   # dict 或 PatientSnapshot 对象都可以
 })
 ```
@@ -557,10 +552,10 @@ RAG 侧的职责（也是它与 HIS 的唯一关系）：
 
 - **接收与校验**：`snapshot_from_dict()` 校验 `patient_ref`/`as_of`/事实结构，缺字段直接报错，不猜测；
 - **时间边界**：`as_of` 可见性只由 `filter_snapshot()` 实现（未来事实计入 `suppressed_future`）；
-- **不回连**：RAG 不持有 HIS 地址，不发 HIS 请求；HIS 的连接、错误与字段映射属于 Agent 侧（参考实现见 `contracts/agent_his_adapter.py`，按 `contracts/his_rag.md` 的映射规则）；
+- **不回连**：RAG 不持有 HIS 地址，不发 HIS 请求；HIS 的连接、错误与字段映射属于 Agent 侧（参考实现在发布线仓库 `Medical-Assistant/contracts/agent_his_adapter.py`，映射规则见 `Medical-Assistant/contracts/his_rag.md`；本包不含该文件）；
 - **最小信息**：`reviewed_external_terms` 由调用方人工审核后提供，RAG 不从原始字段推断。
 
-Agent 侧参考实现（`contracts/agent_his_adapter.py`，**不属于 rag 包**）演示了只读读取 HIS 三个端点、剔除患者标识、把时间线映射为上面的载荷；跨组件测试 `tests/test_his_rag_snapshot.py` 用 `contracts/examples/` 的合成响应驱动它，并断言标识不进入证据包、以及 RAG 包内不存在 HIS 端点。
+Agent 侧参考实现（发布线仓库 `Medical-Assistant/contracts/agent_his_adapter.py`，**不属于本 rag 包**）演示了只读读取 HIS 三个端点、剔除患者标识、把时间线映射为上面的载荷；跨组件测试位于发布线仓库的 `tests/test_his_rag_snapshot.py`。本包的结构性边界由 `tests/test_joint_retrieval.py` 守护（患者事实只进 `patient_hits`，不进入 `trace.external_terms`）。
 
 ## 9. 实时 PubMed 的直接调用
 
@@ -578,10 +573,10 @@ rag = EvidenceRAG(EvidenceRetrievalPipeline(registry))
 
 result = rag.retrieve_evidence({
     "request_id": "pubmed-demo-001",
-    "question": "高血压治疗有哪些近期研究证据？",
+    "question": "新生儿呼吸窘迫综合征的肺表面活性物质治疗有哪些近期研究证据？",
     "as_of": "2025-01-01",
-    "patient_terms": ["hypertension"],
-    "english_terms": ["hypertension"],
+    "patient_terms": ["respiratory distress syndrome"],
+    "english_terms": ["respiratory distress syndrome"],
     "source_kinds": ["pubmed"],
     "top_k": 5,
 })
@@ -612,9 +607,11 @@ result = rag.retrieve_evidence({
 位置：`rag/guidelines.py`
 
 - `GuidelineMetadataConnector`：只提供官方元数据和 canonical URL（标记 `metadata_only`），不索引全文；
+- `LiveGuidelineFullTextConnector`：检索时实时查询 Europe PMC；仅对 `isOpenAccess=Y` 的记录抓取 JATS 全文并按章节分块，非 OA 记录只返回书目/摘要与链接（`full_text_allowed=false`）；全文不落盘、不缓存、不再分发；
 - `VersionedGuidelineConnector`：离线/已授权只读指南源，校验非指南文档、警告缺失 `version_id`/`locator` 条目，支持 `filters["guideline_version"]` 过滤；
 - `LicensedGuidelineSnapshotConnector`：只有在 `full_text_allowed=true` 且 `rights_basis` 已记录时才索引全文；
-- WHO 正式指南注册表 `who_guideline_metadata_registry()` 当前含两条经官方页面核实的记录（2021 高血压药物治疗指南、2018 降糖二/三线药物与胰岛素指南）；标注为 "Technical document" 的条目不作为指南入库；
+- 新生儿指南注册表 `neonatal_guideline_metadata_registry()` 当前含三条经官方页面核实的记录：新生儿感染性肺炎（2025，中文）、欧洲 RDS 2025 更新版（Neonatology 2026-03-09，PMID 41802129）、RDS 中文解读（二级来源，`official=false`）；**成人指南不再注册**；
+- 版本标签与发表时间分开保存（RDS `version_id="2025"`、`published_at="2026-03-09"`）；回顾性 `as_of` 早于发表日时按未来文献排除；
 - 版本、更新时间和替代关系只有来源明确提供或人工审核时才填写，不根据年份猜测 `current`。
 
 ## 11. 自定义连接器
@@ -676,7 +673,7 @@ registry.register(CallableConnector(source_id="local-guideline", kinds=("guideli
 - 神经方法不可用（缺依赖/模型/加载失败）时在 `trace.method_trace` 标 `not_configured`（附原因）；全部所选方法都不可用且无神经信号时回退 `bm25` 并记 `fallback`；**绝不拿词面分数冒充 dense/SPLADE/ColBERT**。
 - 查询相关度门：词面与语义分数都为零的候选在打分前剔除，权威性/新鲜度/RRF 不会为“仅存在于来源中”的文档回填分数。
 - 分数只表示检索相关性，不表示证据质量、推荐强度或患者适用性。
-- **语义召回的实体风险显式化**：稠密方法对全部候选给正分，可能带回"语义相近但病种不同"的条目（实测：高血压问题带上中文哮喘指南）。系统不做静默过滤，而是把"入选候选中仅由语义方法召回（词面零分）"的条目逐条写入 `warnings`，要求核对实体一致性。
+- **语义召回的实体风险显式化**：稠密方法对全部候选给正分，可能带回"语义相近但病种不同"的条目（实测：新生儿肺炎问题带上不相关的中文指南）。系统不做静默过滤，而是把"入选候选中仅由语义方法召回（词面零分）"的条目逐条写入 `warnings`，要求核对实体一致性。
 - 神经依赖（torch/transformers）需单独安装；模型经 `HF_ENDPOINT` 镜像下载到 HF 缓存，离线用 `HF_HUB_OFFLINE=1`（适配器导入时自动开启离线模式，并通过 `RAG_ALLOW_MODEL_DOWNLOAD=1` 显式放开下载）。
 - **查询保真门控（可选，见第 5.8 节）**：`downweight`/`reject` 按判定级别对 `translate`（译文变体）与 `multilingual_encoding`（`xlingual`/`m3` 语义分数）路线降权或退出融合，`reviewed_mapping` 路线只警示；融合规则与相关度门不变。
 
@@ -691,9 +688,8 @@ registry.register(CallableConnector(source_id="local-guideline", kinds=("guideli
 | `openai_api_key` / `openai_model` / `openai_base_url` / `openai_api_mode` | `str` | `""` / `"auto"` | 预留的 OpenAI-compatible 配置位（当前包内不发起 LLM 调用）。 |
 | `ncbi_email` | `str` | `""` | PubMed 联系邮箱（NCBI 礼貌访问）。 |
 | `ncbi_api_key` | `str` | `""` | 可选 NCBI key。 |
-| `minicheck_model` / `minicheck_cache_dir` | `str` | `""` | MiniCheck 模型与缓存目录。 |
 | `request_timeout_seconds` | `float` | `60.0` | PubMed 请求超时。 |
-| `server_host` / `server_port` | `str` / `int` | `127.0.0.1` / `8797` | 本地 HTTP 服务地址。 |
+| `server_host` / `server_port` | `str` / `int` | `127.0.0.1` / `8798` | 本地 HTTP 服务地址。 |
 | `source_mode` | `str` | `"live"` | 默认来源模式（仅 `live`/`custom`）。 |
 | `allow_live_pubmed` / `allow_live_guidelines` | `bool` | `True` / `True` | 实时来源开关；关闭后 `live` 模式不可用。 |
 | `custom_sources_path` | `str` | `""` | 可选：启动时预载的自定义来源库文件（`{"sources":[...]}`）。 |
@@ -707,8 +703,10 @@ registry.register(CallableConnector(source_id="local-guideline", kinds=("guideli
 
 服务**不内置任何本地语料**；`source_mode` 只有两个合法值：
 
-- `live`（默认）：实时 PubMed（E-utilities）+ WHO 官方指南元数据/链接记录；需要 `allow_live_pubmed` 与 `allow_live_guidelines` 同时为 `True`；
+- `live`（默认）：实时 PubMed（E-utilities）+ 新生儿指南元数据/链接记录 + 开放获取指南全文（`allow_live_guideline_fulltext`，默认 `True`）；前两者需要 `allow_live_pubmed` 与 `allow_live_guidelines` 同时为 `True`；
 - `custom`：调用方注册的自有知识库（如医院指南库、自备文献快照）。库为空时检索**显式报错**，不返回空结果冒充"没有证据"。
+
+指南全文只对 Europe PMC 标记为 `isOpenAccess=Y` 的记录实时抓取；非 OA 记录只返回书目/摘要与链接，`full_text_allowed=false`，并在 warnings 中说明。全文不落盘、不缓存、不再分发。
 
 实时失败显式报错，**不静默回退**到任何其它数据。
 
@@ -747,7 +745,7 @@ cd rag
 python3 server.py
 ```
 
-默认地址 <http://127.0.0.1:8797/>（可用 `RAG_SERVER_PORT` 覆盖）。启动时若目标端口被旧的 RAG 服务实例占用，会在严格校验进程身份（`/proc/<pid>/cmdline` 匹配 `-m rag.server` 或 `.../rag/server.py`）后自动清退；**无关进程绝不触碰**，被其他程序占用时明确报错并给出持有者 PID。
+默认地址 <http://127.0.0.1:8798/>（可用 `RAG_SERVER_PORT` 覆盖）。启动时若目标端口被旧的 RAG 服务实例占用，会在严格校验进程身份（`/proc/<pid>/cmdline` 匹配 `-m rag.server` 或 `.../rag/server.py`）后自动清退；**无关进程绝不触碰**，被其他程序占用时明确报错并给出持有者 PID。
 
 | 方法 | 路径 | 作用 |
 |---|---|---|
@@ -755,6 +753,9 @@ python3 server.py
 | `GET` | `/api/health` | 进程与配置摘要（含 `rag_version`、来源模式、检索方法就绪状态），不触发检索、不验证网络，脱敏。 |
 | `GET` | `/api/tools` | 返回 `EvidenceRAG.tool_specifications()`。 |
 | `POST` | `/api/his/snapshot` | 读取 synthetic HIS 快照（演示用）。 |
+| `GET` | `/api/demo/cases` | 默认合并精选 9 例 + `his_generated_30/` 的 30 例（共 39，`case_sets` 区分）；11 例场景档案在 `rag/demo/his_generated/`，显式 `load_demo_cases(<目录>)` 只读该目录。 |
+| `GET` | `/api/demo/guidelines` | 演示指南库清单与是否已注册（不隐式注册）。 |
+| `POST` | `/api/demo/guidelines/load` | 显式把演示指南库注册进 custom 库（同 source_id 覆盖，事件可审计）。 |
 | `POST` | `/api/retrieve` | 接收检索字段（与 `RetrievalRequest.from_dict()` 相同）。 |
 | `POST` | `/api/citation` | 接收 `retrieval_id`、`citation_id`。 |
 | `POST` | `/api/audit` | 接收 `retrieval_id`、`answer`。 |
@@ -772,11 +773,31 @@ HTTP 状态码：
 
 ### 13.4 浏览器工作台
 
-工作台 = 单文件 HTML + 标准库 `http.server`，无前端框架、无 CDN、无构建步骤。功能：中文问题、证据截止日期、`top_k`、HIS 患者引用读取、最小化患者/受控术语、审核英文术语、MeSH、临床意图、指南版本、来源模式、检索方法与重排开关、查询保真门控（研究特性）、问题槽位；结果区分患者事实、PubMed 和指南来源，展示查询计划、警告、查询保真审计面板（`fidelity_gate` 非 `off` 时显示逐路线判定与信号调整）、引文详情（版本/推荐/适用人群/关键证据句）和回答审计面板。演示预设 8 例（高血压/2型糖尿病/时间过滤/新生儿黄疸/婴儿发热/婴儿疫苗/药品安全/中文直接匹配）自带 synthetic 测试快照与术语，**仅演示交互**；live 模式下检索的是实时来源。页面"来源模式"只提供 `live`/`custom`，选 custom 时展开"自定义来源库"面板（已注册来源、内联接口示例、一键清空）。HIS 快照由"载入快照"按钮按调用方数据结构组装后经 `/api/his/snapshot` 过滤回显——**服务不持有患者数据**。界面不含 LLM 摘要面板；核心检索不生成回答。GUI 默认显示 6 条结果，而核心 API 默认 `top_k=8`。
+工作台 = 单文件 HTML + 标准库 `http.server`，无前端框架、无 CDN、无构建步骤。**v6.6.4 起改为 ComfyUI 式可缩放节点画布**：顶部固定工具栏 + 节点跳转条，中间是独立视口（滚轮缩放 35%–220%、拖拽空白平移、拖节点标题移动、右下角缩放节点，布局存 localStorage，可“重置布局”），节点间用带箭头的贝塞尔连线；画布下方是固定信息区（后端与契约、演示来源、方法就绪、API 调用日志），再下方是结果面板与引文详情。所有输入都直接发给真实 `/api/his/snapshot`、`/api/retrieve`、`/api/citation`、`/api/audit`；节点 01 支持直接编辑快照 JSON 后载入，节点 08 可展开后端原始响应。
+
+九个节点按真实调用顺序排列，每个节点的输入字段与 `RetrievalRequest` 一一对应：
+
+| 节点 | 输入/动作 | 对应字段或接口 |
+|---|---|---|
+| 01 病例与快照 | 选择合成病例、调整 as_of、载入快照 | `patient_snapshot`、`as_of`；`POST /api/his/snapshot`、`GET /api/demo/cases` |
+| 02 问题与意图 | 中文问题、任务、语言、临床意图 | `question`、`task`、`query_language`、`clinical_intent` |
+| 03 术语与映射 | 患者术语、英文、MeSH、user_terms、facets | `patient_terms`、`english_terms`、`mesh_terms`、`user_terms`、`facets` |
+| 04 范围与过滤 | 来源模式、top_k、来源类型、filters | `source_mode`、`top_k`、`source_kinds`、`filters` |
+| 05 检索方法与门控 | 方法、重排、保真门控 | `retrieval_method`、`rerank`、`fidelity_gate` |
+| 06 RetrievalRequest | 只组装不发送，实时预览 JSON | `request_id` 在执行时生成 |
+| 07 执行检索 | Queue 按钮 | `POST /api/retrieve` |
+| 08 证据结果 | 包摘要、citation_id 出口 | `EvidencePackage` |
+| 09 引用与审计 | 打开引文、审计回答 | `POST /api/citation`、`POST /api/audit` |
+
+结果区保留分源结果、联合选择（`trace.joint_selection`）、检索式自检（`trace.query_review`）、查询保真（`trace.query_fidelity`）、患者事实、引文详情与回答审计；每个节点状态徽章与 API 日志都来自真实响应，不是前端模拟。
+
+**结果呈现**：执行成功后自动滚动到画布下方的“证据结果”面板（按指南/PubMed 分源卡片、患者事实命中、联合选择、检索式自检、查询保真、引文详情，与原列表一致）；节点 08 同时保留一份紧凑结果列表，便于在画布内直接点选。工具栏提供“查看结果 / 回到画布”两个跳转按钮。
+
+**失败处理**：`source_mode=custom` 但尚无已注册来源时，执行按钮会先真实调用 `POST /api/demo/guidelines/load` 再检索；若仍失败，结果区显示错误信息与“加载演示库并重试”按钮，并在日志中保留原始状态码。页面启动时会比对 `/api/health` 的 `rag_version`，若后端不是 6.6.4（例如误连到 8797 的旧实例）会在工具栏顶部显示版本不匹配警告。演示病例 9 例全部为合成新生儿数据（RDS/回顾时点/肺炎/TTN/黄疸/PPHN/BPD/低血糖/GBS），下拉框来自 `rag/demo/neonatal_cases.json`；每例默认 `source_mode=live`，直接检索真实指南与开放获取正文，不默认使用演示块。演示指南库需点击“加载新生儿演示指南库”（`POST /api/demo/guidelines/load`）后才会注册进 custom 库；服务不持有患者数据，也不内置语料。
 
 ### 13.5 契约文档
 
-- `contracts/agent_contract.json`：机器可读的 Agent/HIS/RAG 契约（`contract_version` 与包 `__version__` 同步，当前 `6.6.3`），含 `language_rules` 与字段语义；
+- `contracts/agent_contract.json`：机器可读的 Agent/HIS/RAG 契约（`contract_version` 与包 `__version__` 同步，当前 `6.6.4`），含 `language_rules` 与字段语义；
 - `contracts/README.md`：调用顺序、接口字段定义、隐私与错误边界（含查询保真门控字段，见其第 9.4 节）；
 - `contracts/examples/`：请求/响应/错误示例（含 `agent_fidelity_gate_request.json`、`fidelity_lexicon_example.json`）；
 - 运行时的同一份语义可从 `GET /api/tools` 获取（`agent.py` 的 `tool_specifications()`）。
@@ -825,12 +846,12 @@ python3 -m compileall -q rag
 
 ## 16. 使用边界
 
-- 服务**不内置任何语料**：`live` 模式只接入实时 PubMed 和 WHO 指南元数据，不代表已接入正式指南库、药品数据库、临床试验库或真实 HIS/PACS；`custom` 模式的内容由调用方负责许可与合规。测试用合成数据只存在于 `rag/tests/`（`tests/fixtures.py`），产品代码与服务器不引用。
+- 服务**不内置任何语料**：`live` 模式只接入实时 PubMed 和新生儿指南元数据，不代表已接入正式指南库、药品数据库、临床试验库或真实 HIS/PACS；`custom` 模式的内容由调用方负责许可与合规。测试用合成数据只存在于 `rag/tests/`（`tests/fixtures.py`），演示数据只存在于 `rag/demo/`（全部 `synthetic=true`），产品代码不隐式注册。
 - 实时 PubMed 受网络、NCBI 状态、摘要完整性和排序变化影响，不是冻结实验数据集。
 - 缺失日期不等于证据无效；缺失病历记录也不等于患者没有某种疾病。
 - 排序分数、关键词匹配、关键证据句和引用存在性不等于临床正确性或指南符合性。
-- MiniCheck 与 ALCE/RAGTruth 风格指标都不是诊断、处方、治疗建议或临床有效性证明。
+- 引用结构审计与 ALCE/RAGTruth 风格指标都不是诊断、处方、治疗建议或临床有效性证明；默认不执行语义主张校验。
 - 神经检索/重排不可用时报告 `not_configured`；未测量不写成零错误率。
-- HIS 数据由 **Agent 读取后传入**（HIS → Agent → RAG）：RAG 不连接 HIS，也不做字段映射；`as_of` 过滤与拒答语义在 RAG 侧，患者标识剔除是 Agent 侧参考实现的责任（`contracts/his_rag.md` 写明规则）。
+- HIS 数据由 **Agent 读取后传入**（HIS → Agent → RAG）：RAG 不连接 HIS，也不做字段映射；`as_of` 过滤与拒答语义在 RAG 侧，患者标识剔除是 Agent 侧参考实现的责任（规则见发布线 `Medical-Assistant/contracts/his_rag.md`）。
 - 查询保真审计/门控是**研究特性**（默认 `off`）：审计器是确定性词面基线，判定名（`suspected_*`/`unverifiable`）是对人工标注量的假设，不是诊断或证据质量结论；`downweight`/`reject` 只改变包内检索信号；词表不内置，内容许可由调用方负责。
 - 使用者必须核对完整原文、来源定位、适用人群、时间范围和撤回状态；证据不足时保留不确定性或拒答。
