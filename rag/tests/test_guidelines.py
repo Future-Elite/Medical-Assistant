@@ -74,3 +74,21 @@ class GuidelineTests(unittest.TestCase):
         doc = SourceDocument(source_id="g", document_id="g1", kind="guideline", title="G", text="licensed text", version_id="1", metadata={"content_mode": "licensed_full_text", "full_text_allowed": True, "rights_basis": "fixture-license"})
         result = LicensedGuidelineSnapshotConnector("g", (doc,)).search(self.plan, limit=5)
         self.assertEqual(len(result.documents), 1)
+
+    def test_metadata_connector_filters_unrelated_topic(self):
+        connector = GuidelineMetadataConnector(
+            NEONATAL_GUIDELINE_SOURCE_ID, neonatal_guideline_metadata_registry()
+        )
+        rds_plan = QueryPlan(
+            "q", ("q",), (), (NEONATAL_GUIDELINE_SOURCE_ID,), {"source_kinds": ["guideline"]}, (),
+            english_terms=("respiratory distress syndrome", "pulmonary surfactant"),
+        )
+        rds_docs = connector.search(rds_plan, limit=5).documents
+        self.assertFalse(any("肺炎" in doc.title for doc in rds_docs))
+
+        pneumonia_plan = QueryPlan(
+            "q", ("q",), (), (NEONATAL_GUIDELINE_SOURCE_ID,), {"source_kinds": ["guideline"]}, (),
+            english_terms=("neonatal pneumonia",),
+        )
+        pneumonia_docs = connector.search(pneumonia_plan, limit=5).documents
+        self.assertTrue(any("肺炎" in doc.title for doc in pneumonia_docs))

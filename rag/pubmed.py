@@ -19,6 +19,7 @@ from typing import Any, Callable, Mapping
 from .config import get_config
 from .connectors import KnowledgeConnector
 from .models import QueryPlan, SearchResult, SourceDocument
+from .query import is_generic_population, is_unit_term, population_clause, primary_topic
 
 
 class PubMedError(RuntimeError):
@@ -53,14 +54,19 @@ class PubMedConnector(KnowledgeConnector):
         if not self.email:
             warnings.append("PubMed 请求未在 config.py 设置 ncbi_email；建议配置有效邮箱以符合 NCBI 使用规范。")
         params = self._base_params()
-        self.last_query = _safe_term(plan)
-        params.update({"db": "pubmed", "retmode": "json", "retmax": str(limit), "sort": "relevance", "term": self.last_query})
-        raw = self._request("esearch", params)
-        try:
-            payload = json.loads(raw.decode("utf-8"))
-            ids = [str(value) for value in payload.get("esearchresult", {}).get("idlist", []) if str(value).strip()]
-        except (UnicodeDecodeError, json.JSONDecodeError, AttributeError) as exc:
-            raise PubMedError("PubMed ESearch JSON 解析失败", stage="esearch_parse") from exc
+        params.update({"db": "pubmed", "retmode": "json", "retmax": str(limit), "sort": "relevance"})
+        query = _safe_term(plan)
+        if not query:
+            self.last_query = ""
+            return SearchResult(self.source_id, (), (*warnings, "没有可用的英文检索词；未向 PubMed 发送查询。"))
+        self.last_query = query
+        ids = self._esearch_ids(params, query)
+        if not ids:
+            # 主词过窄时退回同义词组，但单位词永远不会进入查询。
+            fallback = _fallback_term(plan)
+            if fallback and fallback != query:
+                self.last_query = fallback
+                ids = self._esearch_ids(params, fallback)
         if not ids:
             return SearchResult(self.source_id, (), (*warnings, "PubMed 没有返回 PMID。"))
         fetch_params = self._base_params()
@@ -70,6 +76,16 @@ class PubMedConnector(KnowledgeConnector):
         if skipped:
             warnings.append(f"PubMed 有 {skipped} 条记录缺少 PMID、标题或摘要，未加入证据列表。")
         return SearchResult(self.source_id, tuple(documents), tuple(warnings))
+
+    def _esearch_ids(self, params: Mapping[str, str], query: str) -> list[str]:
+        request_params = dict(params)
+        request_params["term"] = query
+        raw = self._request("esearch", request_params)
+        try:
+            payload = json.loads(raw.decode("utf-8"))
+            return [str(value) for value in payload.get("esearchresult", {}).get("idlist", []) if str(value).strip()]
+        except (UnicodeDecodeError, json.JSONDecodeError, AttributeError) as exc:
+            raise PubMedError("PubMed ESearch JSON 解析失败", stage="esearch_parse") from exc
 
     def _base_params(self) -> dict[str, str]:
         params = {"tool": self.tool_name}
@@ -104,20 +120,57 @@ class PubMedConnector(KnowledgeConnector):
 
 
 def _safe_term(plan: QueryPlan) -> str:
-    # 审核术语优先，其次问题内直接提取的英文词（question_english_terms），最后 MeSH。
-    terms = list(dict.fromkeys((*plan.english_terms, *plan.question_english_terms, *plan.mesh_terms)))
+    """Build a precise PubMed query: disease topic AND neonatal population.
+
+    The first reviewed topic term is the disease anchor; synonyms are only a
+    fallback when the anchor returns no PMIDs. Units such as ``mmol/L`` are
+    removed because numeric conditions are not indexed as text.
+    """
+    primary = primary_topic(plan)
+    if primary:
+        # The disease anchor, plus at most two non-unit English words that
+        # actually appeared in the question. Reviewed synonyms stay fallback-only.
+        terms = [primary]
+        terms.extend(
+            term for term in plan.question_english_terms
+            if len(str(term).strip()) >= 4
+            and not is_unit_term(term)
+            and not is_generic_population(term)
+        )
+        terms = list(dict.fromkeys(str(term).strip() for term in terms if str(term).strip()))[:3]
+        query = _quoted(terms[0]) if len(terms) == 1 else "(" + " OR ".join(_quoted(term) for term in terms) + ")"
+        population = population_clause(plan)
+        if population:
+            query += f" AND ({population})"
+        return query
+    return _fallback_term(plan)
+
+
+def _fallback_term(plan: QueryPlan) -> str:
+    candidates = [
+        term for term in (*plan.english_terms, *plan.mesh_terms, *plan.question_english_terms)
+        if not is_unit_term(str(term))
+    ]
+    if not candidates:
+        # Snapshot-derived reviewed terms are already allowed to leave the
+        # process; use the ASCII concepts only, never raw Chinese records.
+        candidates = [
+            str(item) for item in plan.concepts
+            if str(item).isascii() and _safe_ascii_or_cjk(str(item)) and not is_unit_term(str(item))
+        ]
+    candidates = list(dict.fromkeys(str(term).strip() for term in candidates if str(term).strip()))[:8]
     dynamic = [text.strip() for text in plan.machine_translations if str(text).strip()][:3]
-    if not terms and not dynamic:
-        # 没有英文术语时，优先使用问题/概念中的纯 ASCII 词（PubMed 对中文检索差），
-        # 确实没有英文词时才退回中文片段；绝不序列化患者快照。
-        ascii_concepts = [item for item in plan.concepts if str(item).isascii() and _safe_ascii_or_cjk(item)]
-        terms = ascii_concepts or [item for item in plan.concepts if _safe_ascii_or_cjk(item)]
-    # Only reviewed/derived question terms are used for the live request; never serialize patient snapshot.
-    baseline = " AND ".join('"' + item.replace('"', "") + '"' for item in terms[:12])
-    if dynamic:
-        routes = ([baseline] if baseline else []) + dynamic
-        return " OR ".join(f"({text})" for text in routes)
-    return baseline
+    if not candidates:
+        return " OR ".join(f"({text})" for text in dynamic)
+    expression = "(" + " OR ".join(_quoted(term) for term in candidates) + ")"
+    population = population_clause(plan)
+    if population:
+        expression += f" AND ({population})"
+    return expression
+
+
+def _quoted(term: str) -> str:
+    return '"' + str(term).replace('"', "") + '"'
 
 
 def _safe_ascii_or_cjk(value: str) -> bool:

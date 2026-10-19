@@ -19,12 +19,47 @@ available.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
 from typing import Mapping, Sequence
 
 from .connectors import KnowledgeConnector
 from .models import QueryPlan, SearchResult, SourceDocument
+from .query import reviewed_topic_terms
 
 NEONATAL_GUIDELINE_SOURCE_ID = "neonatal-guideline-live"
+
+_TOPIC_STOP_TOKENS = frozenset({
+    "neonatal", "newborn", "infant", "preterm", "premature",
+    "with", "from", "that", "this", "their", "patient", "disease",
+    "respiratory", "monitoring", "support", "ventilation",
+    "therapy", "treatment", "management", "clinical",
+})
+
+
+def _matches_topic(document: SourceDocument, plan: QueryPlan) -> bool:
+    """Keep registry metadata only when it shares a disease token with the query.
+
+    The registry is tiny and deliberately neonatal-only, but a pneumonia record
+    matching only the generic word "新生儿" must not top a hypoglycaemia query.
+    """
+    terms = reviewed_topic_terms(plan)
+    if not terms:
+        return True
+    haystack = " ".join((
+        document.title,
+        document.text,
+        str(document.metadata.get("keywords") or ""),
+        str(document.metadata.get("mesh_terms") or ""),
+        str(document.population or ""),
+    )).lower()
+    for term in terms:
+        tokens = [
+            token for token in re.findall(r"[a-z][a-z0-9-]{4,}", str(term).lower())
+            if token not in _TOPIC_STOP_TOKENS
+        ]
+        if tokens and any(token in haystack for token in tokens):
+            return True
+    return False
 
 
 @dataclass
@@ -68,6 +103,7 @@ class GuidelineMetadataConnector(KnowledgeConnector):
         requested_version = plan.filters.get("guideline_version")
         if requested_version:
             selected = [doc for doc in selected if doc.version_id == str(requested_version)]
+        selected = [doc for doc in selected if _matches_topic(doc, plan)]
         warnings = [
             f"来源 {self.source_id} 仅提供官方元数据和链接；未将未确认许可的全文加入检索。"
         ] if selected else []

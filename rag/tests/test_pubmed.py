@@ -77,3 +77,47 @@ class PubMedConnectorTests(unittest.TestCase):
         term = _safe_term(plan)
         self.assertIn("surfactant", term)
         self.assertNotIn("肺表面活性物质", term)
+
+    def test_units_do_not_become_required_pubmed_terms(self):
+        from rag.pubmed import _safe_term
+        plan = QueryPlan(
+            "该低出生体重儿生后2小时，血糖2.1 mmol/L，新生儿低血糖的筛查和喂养推荐是什么？",
+            ("q",), (), ("pubmed-live",), {"source_kinds": ["pubmed"]}, (),
+            english_terms=("neonatal hypoglycemia", "blood glucose", "low birth weight infant"),
+            mesh_terms=("Hypoglycemia", "Infant, Newborn"),
+            question_english_terms=("mmol/l",),
+        )
+        term = _safe_term(plan)
+        self.assertIn("neonatal hypoglycemia", term)
+        self.assertIn("neonatal OR newborn OR infant OR preterm", term)
+        self.assertNotIn("mmol/l", term.lower())
+        # Reviewed synonyms are fallback-only; they must not dilute the anchor.
+        self.assertNotIn("blood glucose", term.lower())
+
+    def test_primary_no_hits_falls_back_to_reviewed_synonyms(self):
+        class EmptyThenHit:
+            def __init__(self):
+                self.terms = []
+
+            def __call__(self, url, params, timeout):
+                if url.endswith("esearch.fcgi"):
+                    self.terms.append(dict(params).get("term", ""))
+                    if len(self.terms) == 1:
+                        return json.dumps({"esearchresult": {"idlist": []}}).encode()
+                    return ES
+                return EF
+
+        transport = EmptyThenHit()
+        connector = PubMedConnector(transport=transport)
+        plan = QueryPlan(
+            "该低出生体重儿生后2小时，血糖2.1 mmol/L，新生儿低血糖的筛查和喂养推荐是什么？",
+            ("q",), (), ("pubmed-live",), {"source_kinds": ["pubmed"]}, (),
+            english_terms=("neonatal hypoglycemia", "blood glucose", "low birth weight infant"),
+            mesh_terms=("Hypoglycemia", "Infant, Newborn"),
+            question_english_terms=("mmol/l",),
+        )
+        connector.search(plan, limit=1)
+        self.assertEqual(len(transport.terms), 2)
+        self.assertIn("neonatal hypoglycemia", transport.terms[0])
+        self.assertIn("blood glucose", transport.terms[1])
+        self.assertNotIn("mmol/l", transport.terms[1].lower())

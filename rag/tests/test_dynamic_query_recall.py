@@ -58,7 +58,8 @@ class DynamicQueryRecallTest(unittest.TestCase):
         result = pipeline.retrieve(RetrievalRequest.from_dict({
             "question": "2月龄婴儿未记录过敏史", "retrieval_method": "translate", "fidelity_gate": "reject",
         }))
-        self.assertNotIn("adult asthma", transport.calls[0]["term"])
+        self.assertFalse(any("adult asthma" in str(call.get("term", "")) for call in transport.calls))
+        self.assertEqual(transport.calls, [])  # no usable English query -> don't call PubMed at all
         self.assertFalse(result.query_plan.machine_translations)
         self.assertTrue(any(item["action"] == "reject" for item in result.trace["recall_query_fidelity"]["decisions"]))
 

@@ -31,16 +31,16 @@ SEARCH_PAYLOAD = {
                 "pubType": "practice guideline",
             },
             {
-                "id": "40962511",
-                "pmid": "40962511",
-                "pmcid": "PMC12447934",
-                "doi": "10.7499/j.issn.1008-8830.2412164",
-                "title": "Guideline for neonatal infectious pneumonia (2025)",
-                "journalTitle": "Zhongguo Dang Dai Er Ke Za Zhi",
+                "id": "41802130",
+                "pmid": "41802130",
+                "pmcid": "PMC99999998",
+                "doi": "10.1000/non-oa-rds",
+                "title": "Respiratory Distress Syndrome in Preterm Infants: A Non-Open-Access Guideline",
+                "journalTitle": "Test Journal",
                 "pubYear": "2025",
                 "firstPublicationDate": "2025-09-01",
                 "isOpenAccess": "N",
-                "abstractText": "Abstract: neonatal pneumonia diagnosis.",
+                "abstractText": "Abstract: respiratory distress syndrome and surfactant.",
                 "pubType": "practice guideline",
             },
         ]
@@ -128,9 +128,9 @@ class LiveGuidelineFullTextTests(unittest.TestCase):
             self.assertEqual(doc.metadata["doi"], "10.1159/000551062")
             self.assertIn(doc.metadata["section"], {"Recommendations on CPAP", "Monitoring"})
 
-        pneumonia_metadata = next(doc for doc in metadata_docs if doc.pmid == "40962511")
-        self.assertEqual(pneumonia_metadata.metadata["rights_basis"], "not_open_access")
-        self.assertFalse(pneumonia_metadata.metadata["full_text_allowed"])
+        non_open_access = next(doc for doc in metadata_docs if doc.pmid == "41802130")
+        self.assertEqual(non_open_access.metadata["rights_basis"], "not_open_access")
+        self.assertFalse(non_open_access.metadata["full_text_allowed"])
         self.assertTrue(any("不是开放获取全文" in warning for warning in result.warnings))
 
     def test_peer_reviewed_fallback_is_labelled(self):
@@ -241,6 +241,21 @@ class LiveGuidelineFullTextTests(unittest.TestCase):
             for item in package.ranked_documents
         ))
         self.assertTrue(any("不是开放获取全文" in warning for warning in package.warnings))
+
+
+class TopicSelectionTests(unittest.TestCase):
+    def test_topic_phrase_prefers_disease_over_population(self):
+        from rag.guideline_fulltext import _topic_phrase
+        plan = QueryPlan(
+            "q", ("q",), (), ("guideline-fulltext-live",),
+            {"source_kinds": ["guideline"]}, (),
+            english_terms=("neonatal hypoglycemia", "blood glucose", "low birth weight infant"),
+            mesh_terms=("Hypoglycemia", "Infant, Newborn"),
+        )
+        self.assertEqual(_topic_phrase(plan), "neonatal hypoglycemia")
+
+    def test_default_chunk_cap_limits_single_article_dominance(self):
+        self.assertEqual(LiveGuidelineFullTextConnector().max_chunks_per_article, 3)
 
 
 if __name__ == "__main__":

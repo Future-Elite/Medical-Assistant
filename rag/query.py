@@ -236,6 +236,91 @@ def _question_english_terms(question: str) -> tuple[str, ...]:
     return _unique(kept)
 
 
+_GENERIC_QUERY_TERMS = frozenset({
+    "guideline", "guidelines", "recommendation", "recommendations",
+    "evidence", "management", "treatment", "therapy", "diagnosis",
+    "clinical", "patient", "study", "review", "update", "question",
+})
+
+_GENERIC_POPULATION_TERMS = frozenset({
+    "neonatal", "newborn", "newborn infant", "infant", "preterm", "preterm infant",
+    "premature", "premature infant", "low birth weight infant",
+    "very low birth weight infant", "extremely low birth weight infant",
+})
+
+_UNIT_PATTERN = re.compile(
+    r"^(?:[<>]=?\s*)?\d*(?:\.\d+)?\s*"
+    r"(?:mmol|mol|µmol|μmol|umol|mg|g|kg|ml|dl|l|mmhg|cmh2o|bpm|°c|%)"
+    r"(?:/(?:l|dl|ml|kg|min))?$",
+    re.IGNORECASE,
+)
+
+
+def is_unit_term(term: str) -> bool:
+    """True for measurement units such as ``mmol/L`` or ``2.1 mmol/L``.
+
+    Numeric conditions are not indexed as text in PubMed; making a unit a
+    required term turns a valid clinical question into zero hits.
+    """
+    text = str(term or "").strip()
+    return bool(_UNIT_PATTERN.fullmatch(text)) or bool(re.fullmatch(r"[<>]=?\d+(?:\.\d+)?", text))
+
+
+def is_generic_population(term: str) -> bool:
+    return str(term or "").strip().lower() in _GENERIC_POPULATION_TERMS
+
+
+def reviewed_topic_terms(plan: QueryPlan) -> tuple[str, ...]:
+    """Reviewed English/MeSH terms that name a topic, in caller-provided order.
+
+    Callers are expected to put the disease concept first. Population-only terms
+    (``infant``, ``low birth weight infant``) and units are removed so they
+    cannot displace the disease term in PubMed or guideline topic matching.
+    When the caller supplied no English/MeSH fields, fall back to the ASCII
+    concepts already present in the plan (snapshot-reviewed terms and question
+    English words); this keeps the no-reviewed-terms path usable.
+    """
+    terms = _unique((*plan.english_terms, *plan.mesh_terms))
+    if not terms:
+        terms = _unique(
+            str(item) for item in plan.concepts
+            if str(item).isascii() and not is_unit_term(str(item))
+        )
+    return tuple(
+        term for term in terms
+        if not is_unit_term(term)
+        and not is_generic_population(term)
+        and term.strip().lower() not in _GENERIC_QUERY_TERMS
+    )
+
+
+def primary_topic(plan: QueryPlan) -> str:
+    """Prefer a multi-word disease phrase over an acronym or population term.
+
+    ``CPAP`` alone is a therapy, not a disease anchor; ``respiratory distress
+    syndrome`` is. Reviewed lists usually put the disease first, but the
+    multi-word preference makes the choice robust when they do not.
+    """
+    terms = reviewed_topic_terms(plan)
+    for term in terms:
+        if len(term.split()) >= 2:
+            return term
+    return terms[0] if terms else ""
+
+
+def topic_synonyms(plan: QueryPlan) -> tuple[str, ...]:
+    primary = primary_topic(plan)
+    return tuple(term for term in reviewed_topic_terms(plan) if term != primary)
+
+
+def population_clause(plan: QueryPlan) -> str:
+    """PubMed population restriction, only when the plan actually mentions one."""
+    text = " ".join((*plan.english_terms, *plan.mesh_terms, plan.original_question or "")).lower()
+    if any(token in text for token in ("neonat", "newborn", "infant", "preterm", "新生儿", "早产儿", "婴儿")):
+        return "neonatal OR newborn OR infant OR preterm"
+    return ""
+
+
 def _strings(value: Any) -> list[str]:
     if isinstance(value, str):
         return [value] if value.strip() else []

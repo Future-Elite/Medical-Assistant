@@ -42,6 +42,7 @@ from typing import Any, Callable, Iterable, Mapping, Sequence
 from .config import get_config
 from .connectors import KnowledgeConnector
 from .models import QueryPlan, SearchResult, SourceDocument
+from .query import primary_topic
 
 EUROPEPMC_SEARCH = "https://www.ebi.ac.uk/europepmc/webservices/rest/search"
 EUROPEPMC_FULLTEXT = "https://www.ebi.ac.uk/europepmc/webservices/rest/{pmcid}/fullTextXML"
@@ -65,8 +66,8 @@ class LiveGuidelineFullTextConnector(KnowledgeConnector):
     #: Injectable for tests: (url, params, timeout) -> bytes.
     transport: Callable[[str, Mapping[str, str], float], bytes] | None = None
     timeout_seconds: float | None = None
-    max_articles: int = 8
-    max_chunks_per_article: int = 24
+    max_articles: int = 5
+    max_chunks_per_article: int = 3
     chunk_chars: int = 1200
 
     def __post_init__(self) -> None:
@@ -93,13 +94,14 @@ class LiveGuidelineFullTextConnector(KnowledgeConnector):
         terms = _query_terms(plan)
         topic = _topic_phrase(plan)
         results = _guideline_first(results, terms, topic)
+        results = _topic_filter(results, topic)
         requested_version = str(plan.filters.get("guideline_version") or "").strip() or None
 
         documents: list[SourceDocument] = []
         seen_articles: set[str] = set()
-        # Iterate over more candidate articles than the final document budget so
-        # one large article cannot consume every slot with its own chunks.
-        for result in results[: max(self.max_articles, limit)]:
+        # Fetch at most max_articles full texts; each contributes at most
+        # max_chunks_per_article chunks, so one large article cannot dominate.
+        for result in results[: self.max_articles]:
             if not isinstance(result, Mapping):
                 continue
             metadata = _result_metadata(result)
@@ -403,22 +405,63 @@ def _review_evidence_type(result: Mapping[str, Any], metadata: Mapping[str, Any]
 
 
 def _topic_phrase(plan: QueryPlan) -> str:
-    """Pick the most specific clinical phrase from the reviewed terms.
+    """Pick the disease phrase from the caller's reviewed terms.
 
-    The longest English term is the best proxy for the disease topic
-    ("neonatal hypoglycemia" over "blood glucose").
+    The reviewed list is expected to put the disease concept first; population
+    terms (``infant``, ``low birth weight infant``) and units are skipped.  A
+    "longest term" heuristic is wrong here: it picks "low birth weight infant"
+    over "neonatal hypoglycemia" and lets adult diabetes guidelines outrank the
+    neonatal topic.
     """
+    primary = primary_topic(plan)
+    if primary:
+        return primary
     terms = [str(term).strip() for term in (*plan.english_terms, *plan.mesh_terms) if str(term).strip()]
     if not terms:
         return ""
     return max(terms, key=lambda term: (len(term.split()), len(term)))
 
 
+def _normalise_topic_text(value: Any) -> str:
+    """Normalise British/American spellings used by Europe PMC titles."""
+    text = str(value or "").lower()
+    return (
+        text.replace("aemia", "emia")
+        .replace("pnoea", "pnea")
+        .replace("oedema", "edema")
+        .replace("haem", "hem")
+    )
+
+
 def _topic_matches(item: Mapping[str, Any], topic: str) -> bool:
     if not topic:
         return False
-    haystack = f"{item.get('title') or ''} {item.get('abstractText') or ''}".lower()
-    return topic.lower() in haystack
+    haystack = _normalise_topic_text(
+        f"{item.get('title') or ''} {item.get('abstractText') or ''}"
+    )
+    return _normalise_topic_text(topic) in haystack
+
+
+def _topic_filter(
+    results: Sequence[Mapping[str, Any]], topic: str
+) -> list[Mapping[str, Any]]:
+    """Drop off-topic records before fetching full texts.
+
+    A title match is the strongest signal.  When fewer than three titles carry
+    the topic phrase, keep records whose abstract carries it as well; if no
+    record matches at all, keep the original list rather than returning nothing.
+    """
+    if not topic or not results:
+        return list(results)
+    normalised_topic = _normalise_topic_text(topic)
+    title_hits = [
+        item for item in results
+        if normalised_topic in _normalise_topic_text(item.get("title") or "")
+    ]
+    if len(title_hits) >= 3:
+        return title_hits
+    phrase_hits = [item for item in results if _topic_matches(item, topic)]
+    return phrase_hits or list(results)
 
 
 def _guideline_first(

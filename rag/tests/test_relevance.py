@@ -56,7 +56,12 @@ class RelevanceGateTests(unittest.TestCase):
         }))
         self.assertEqual(package.ranked_documents, ())
         self.assertEqual(package.citations, ())
-        self.assertTrue(any("无检索相关度" in warning for warning in package.warnings))
+        # The unrelated record is now excluded at the source/topic gate before
+        # ranking; either warning proves it was not backfilled.
+        self.assertTrue(any(
+            "无检索相关度" in warning or "没有满足" in warning
+            for warning in package.warnings
+        ))
 
     def test_irrelevant_pubmed_candidates_are_excluded_too(self):
         package = build_pipeline().retrieve(RetrievalRequest.from_dict(PNEUMONIA_REQUEST))

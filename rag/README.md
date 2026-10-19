@@ -20,7 +20,7 @@ HTTP 服务和浏览器工作台只是这个核心调用层之上的附加封装
 
 集成分支 v6.6.4：translate 在外部来源召回前生成候选，查询保真 reject 也在外发前生效。`query_plan.machine_translations` 与审核术语分开，实际 PubMed 查询记录在 `trace.connector_trace[].query`。中文 Agent 默认通过现有 translate 槽接入 Qwen 查询转换，英文查询不需转换；未配置或失败仍在 method_trace/warnings 明确报告。
 
-**v6.6.4 新生儿专科化**（详见 §13.4 与 `demo/README.md`）：live 指南注册表只含新生儿指南元数据；演示档案 `rag/demo/` 提供 9 例精选合成新生儿病例与三个调用方来源（元数据 + 合成指南块 + 合成文献），必须显式 `POST /api/demo/guidelines/load` 才注册进 custom 来源。另有独立档案 `rag/demo/his_generated/` 的 11 例场景病例与 `rag/demo/his_generated_30/` 的 30 例 HIS 风格批量病例（同 schema，`load_demo_cases(<该目录>)`；不进入默认 `/api/demo/cases`）。工作台改为节点式工作流，输入与 `RetrievalRequest` 逐字段对应。检索引擎（查询规划/排序/融合/门控/审计）与 v6.6.3 字节级一致，差分实测见 `validation/兼容性差分_2026-10-17.json`。
+**v6.6.4 新生儿专科化**（详见 §13.4 与 `demo/README.md`）：live 指南注册表只含新生儿指南元数据；演示档案 `rag/demo/` 提供 9 例精选合成新生儿病例与三个调用方来源（元数据 + 合成指南块 + 合成文献），必须显式 `POST /api/demo/guidelines/load` 才注册进 custom 来源。另有独立档案 `rag/demo/his_generated/` 的 11 例场景病例与 `rag/demo/his_generated_30/` 的 30 例 HIS 风格批量病例（同 schema，`load_demo_cases(<该目录>)`；不进入默认 `/api/demo/cases`）。工作台改为节点式工作流，输入与 `RetrievalRequest` 逐字段对应。引擎层相对 v6.6.3：13 个文件字节级一致（`pipeline/ranking/fidelity/gate/bm25/lexical/evidence/patient_retrieval/his/connectors/models/neural_adapters/retrieval_adapters`），`query.py`/`pubmed.py`/`guidelines.py`/`guideline_fulltext.py` 为检索修复，`audit.py` 默认改为结构化审计；2026-10-17 差分早于上述改动，不覆盖它们。
 
 模块不会读取原始病历、写回 HIS/PACS、生成诊断或治疗决定。`patient_terms` 只能传入人工审核的最小化术语，不得传入患者姓名、住院号、身份证号、自由文本病史或原始病历。RAG 不自行读取真实 HIS：`patient_snapshot` 由 Agent 读取并授权传入。
 
@@ -232,7 +232,7 @@ package = pipeline.retrieve(request)
 | `query_language` | `str` | `"zh"` | 否 | 问题语言标记（字段别名 `language` 亦可）。 |
 | `clinical_intent` | `str \| None` | `None` | 否 | `guideline_recommendation` / `evidence_update` / `drug_safety` / `clinical_question`；缺省时由问题文本推断。 |
 | `facets` | `Mapping[str, Sequence[str]]` | `{}` | 否 | 结构化临床问题槽位（population/outcome 等），取值作为检索概念参与匹配。 |
-| `english_terms` | `tuple[str, ...]` | `()` | 否 | 人工审核的英文医学术语/缩写，直接参与英文检索与实时 PubMed 查询。 |
+| `english_terms` | `tuple[str, ...]` | `()` | 否 | 人工审核的英文医学术语/缩写，直接参与英文检索与实时 PubMed 查询。约定按「疾病 → 检查/干预 → 人群」排序：首个多词疾病术语被用作 PubMed 与指南检索的主题锚点。 |
 | `mesh_terms` | `tuple[str, ...]` | `()` | 否 | 人工审核的 MeSH 主题词，参与英文检索与实时 PubMed 查询。 |
 | `patient_snapshot` | `Any \| None` | `None` | 否 | Agent 从只读 HIS 获取的结构化快照对象（解码在管线内完成）。 |
 | `source_mode` | `str` | `"live"` | 否 | 仅两种：`live`（实时 PubMed + 新生儿指南元数据 + Europe PMC 指南/同行评议全文）与 `custom`（调用方注册的自有知识库）。演示病例默认 `live`，不使用演示块；实时失败不自动回退，custom 库为空时显式报错。 |
@@ -561,6 +561,8 @@ Agent 侧参考实现（发布线仓库 `Medical-Assistant/contracts/agent_his_a
 
 实时 PubMed 连接器位置：`rag/pubmed.py`。它只接收 `QueryPlan`，不会接收原始患者病历。
 
+**查询构造**：实时查询优先使用疾病主题锚点 + 新生儿人群，而不是把全部术语用 `AND` 串起来。锚点取审核英文/MeSH 中首个多词疾病术语；单位（`mmol/L`、`μmol/L` 等）和纯数值不进入 PubMed 查询；锚点返回 0 条时才回退到同义词 `OR` 组。问题里的 ASCII 单位不会压过审核术语；没有任何可用英文术语时不发送 PubMed 请求，并在 warnings 中说明。实际查询见 `trace.connector_trace[].query`。
+
 ```python
 from rag.agent import EvidenceRAG
 from rag.connectors import ConnectorRegistry
@@ -707,6 +709,8 @@ registry.register(CallableConnector(source_id="local-guideline", kinds=("guideli
 - `custom`：调用方注册的自有知识库（如医院指南库、自备文献快照）。库为空时检索**显式报错**，不返回空结果冒充"没有证据"。
 
 指南全文只对 Europe PMC 标记为 `isOpenAccess=Y` 的记录实时抓取；非 OA 记录只返回书目/摘要与链接，`full_text_allowed=false`，并在 warnings 中说明。全文不落盘、不缓存、不再分发。
+
+**主题过滤与抓取上限**：指南连接器用审核术语中的疾病短语做主题匹配，先过滤与主题不符的记录，再抓取全文；每次最多处理 `max_articles=5` 篇文章，每篇最多保留 `max_chunks_per_article=3` 个章节块，避免单篇文章的多个 chunk 占满 `top_k`。新生儿指南元数据注册表同样按疾病 token 过滤，只有查询主题相关的元数据记录会进入候选。两个上限均为连接器构造参数，可按调用方预算调整。
 
 实时失败显式报错，**不静默回退**到任何其它数据。
 
