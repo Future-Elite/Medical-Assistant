@@ -1,233 +1,425 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
 <title>ChinaLLM · 新生儿证据检索工作流</title>
 <style>
   :root{
-    --ink:#16222c;--muted:#65727d;--faint:#8b98a3;--line:#d9e1e7;--line-soft:#ecf1f4;
-    --paper:#eef2f5;--panel:#fff;--canvas:#e7edf1;--accent:#116579;--accent-dark:#0d4f60;
-    --accent-soft:#eef6f8;--teal:#0d7f72;--teal-soft:#f0faf6;--warn:#8f5610;--warn-soft:#fff8ec;
-    --danger:#a23535;--danger-soft:#fdf1f1;--shadow:0 8px 22px rgba(18,34,46,.08);--radius:9px;
-    --socket-in:#7c8b96;--socket-out:#116579;--wire:#3f7a86;--node-head:#f7fafb;
+    color-scheme:light;
+    --radius:9px;
+    --ink:#16222c;--muted:#5e6c77;--faint:#8493a0;
+    --line:#d7e0e6;--line-soft:#eaf0f3;
+    --paper:#eef2f5;--panel:#ffffff;--canvas:#e7edf1;--node-head:#f6f9fa;
+    --accent:#116579;--accent-dark:#0d4f60;--accent-soft:#eaf5f8;--accent-ink:#ffffff;
+    --teal:#0d7f72;--teal-soft:#eefaf6;
+    --warn:#8a5310;--warn-soft:#fff7e8;--warn-line:#eed9b4;
+    --danger:#a23535;--danger-soft:#fdf0f0;--danger-line:#e6b9b9;
+    --input-bg:#fcfdfe;--input-border:#c6d2da;
+    --pre-bg:#f6f9fb;--pre-ink:#3b4b56;--code-bg:#f1f5f7;
+    --grid-dot:rgba(17,101,121,.17);
+    --hud-bg:rgba(255,255,255,.95);
+    --socket-in:#75848f;--socket-out:#116579;--wire:#3f7a86;--wire-alt:#0d7f72;
+    --shadow:0 8px 22px rgba(18,34,46,.08);
+    --topbar-1:#0f2c3a;--topbar-2:#123c4d;--topbar-3:#14495c;--topbar-line:#2d8b99;
+    --topbar-ink:#ffffff;--topbar-sub:#b9ced6;--brand-frame:#76c2c6;--brand-ink:#bce5e3;
+    --badge-bg:var(--accent-soft);--badge-border:#bcd4db;--badge-ink:var(--accent-dark);
+    --state-bg:#f4f7f9;--state-border:#d2dbe1;--state-ink:#57646e;
+    --rank-bg:#fdf6e8;--rank-border:#e6d3ae;--rank-ink:#7a4a10;
+    --result-hover:#6ea4b1;
+    --quote-bg:#f3f9fa;--quote-ink:#33434d;--quote-line:#63a3ac;
+    --insight-bg:#f8fbfc;
+    --chip-bg:#edf3f6;--chip-border:#d6e2e7;--chip-ink:#384c58;
+    --his-a:#123c4d;--his-b:#1b586d;--his-sub:#c2d7de;
+    --empty-bg:rgba(255,255,255,.55);--empty-border:#b7c6ce;
+    --source-bg:#fafcfd;
+    --fs-body:15px;--fs-label:13.5px;--fs-input:15px;--fs-code:14px;
+    --fs-hint:12.5px;--fs-map:12px;--fs-node-title:14px;--fs-badge:11.5px;
+  }
+  html[data-theme="dark"]{
+    color-scheme:dark;
+    --ink:#e4ecf2;--muted:#a3b1bc;--faint:#7f8f9a;
+    --line:#2a3841;--line-soft:#202c34;
+    --paper:#0d1317;--panel:#151e24;--canvas:#101a20;--node-head:#1a242b;
+    --accent:#3fa7bd;--accent-dark:#8ad6e2;--accent-soft:#17303a;--accent-ink:#04171d;
+    --teal:#4dc9b2;--teal-soft:#152c29;
+    --warn:#e5b878;--warn-soft:#2c2418;--warn-line:#4a3a22;
+    --danger:#ec9a9a;--danger-soft:#301c1c;--danger-line:#543030;
+    --input-bg:#111b21;--input-border:#31424d;
+    --pre-bg:#111a20;--pre-ink:#c4d2dc;--code-bg:#0f181d;
+    --grid-dot:rgba(255,255,255,.09);
+    --hud-bg:rgba(21,30,36,.95);
+    --socket-in:#8fa2ae;--socket-out:#4fb1c6;--wire:#69adb9;--wire-alt:#4dc9b2;
+    --shadow:0 8px 24px rgba(0,0,0,.45);
+    --topbar-1:#070d10;--topbar-2:#0c161c;--topbar-3:#102028;--topbar-line:#2d6d7c;
+    --topbar-ink:#e8f2f6;--topbar-sub:#93a9b3;--brand-frame:#3f7c85;--brand-ink:#a8d6d8;
+    --badge-bg:#17303a;--badge-border:#2f5560;--badge-ink:#9dd7e3;
+    --state-bg:#1b262d;--state-border:#33424c;--state-ink:#a9b7c1;
+    --rank-bg:#2a2418;--rank-border:#4b3f26;--rank-ink:#e6c78a;
+    --result-hover:#4f96a4;
+    --quote-bg:#132229;--quote-ink:#c3d6de;--quote-line:#3d7d88;
+    --insight-bg:#172128;
+    --chip-bg:#1c282f;--chip-border:#2f3f49;--chip-ink:#b6c6d0;
+    --his-a:#0b1a20;--his-b:#123039;--his-sub:#9fbcc5;
+    --empty-bg:rgba(255,255,255,.03);--empty-border:#334550;
+    --source-bg:#141d23;
+  }
+  html[data-theme="warm"]{
+    color-scheme:light;
+    --ink:#2b2118;--muted:#6f6153;--faint:#9a8a79;
+    --line:#e3d7c6;--line-soft:#f1eade;
+    --paper:#f7f1e7;--panel:#fffdf8;--canvas:#f2e9db;--node-head:#fdf8f0;
+    --accent:#a05f16;--accent-dark:#7c490f;--accent-soft:#fbf1e0;--accent-ink:#fffdf8;
+    --teal:#0d7f6a;--teal-soft:#eef8f3;
+    --warn:#8a5310;--warn-soft:#fdf3e0;--warn-line:#e8d3ac;
+    --danger:#9c3a2f;--danger-soft:#fbf0ee;--danger-line:#e5bdb7;
+    --input-bg:#fffcf7;--input-border:#d8c9b5;
+    --pre-bg:#fbf6ec;--pre-ink:#4a3c2e;--code-bg:#f6efe2;
+    --grid-dot:rgba(160,95,22,.16);
+    --hud-bg:rgba(255,253,248,.95);
+    --socket-in:#8a7a68;--socket-out:#a05f16;--wire:#9a6b34;--wire-alt:#0d7f6a;
+    --shadow:0 8px 22px rgba(72,49,20,.12);
+    --topbar-1:#3a2412;--topbar-2:#4d3018;--topbar-3:#5c3a1d;--topbar-line:#a06a30;
+    --topbar-ink:#fff8ee;--topbar-sub:#e0c9ae;--brand-frame:#c99b5e;--brand-ink:#f0d6b4;
+    --badge-bg:#fbf1e0;--badge-border:#e0c9a4;--badge-ink:#7c490f;
+    --state-bg:#f6f0e6;--state-border:#dfd2bf;--state-ink:#6a5a48;
+    --rank-bg:#fbf0d8;--rank-border:#e2c894;--rank-ink:#7a4a10;
+    --result-hover:#c08a4a;
+    --quote-bg:#fbf5ea;--quote-ink:#3f3225;--quote-line:#c39a63;
+    --insight-bg:#fdf9f2;
+    --chip-bg:#f4ece0;--chip-border:#e0d3c0;--chip-ink:#5a4a38;
+    --his-a:#4d3018;--his-b:#6b4522;--his-sub:#e6d2b8;
+    --empty-bg:rgba(255,253,248,.6);--empty-border:#d6c7b2;
+    --source-bg:#fdfaf4;
+  }
+  html[data-theme="indigo"]{
+    color-scheme:light;
+    --ink:#1b2334;--muted:#5c6a86;--faint:#8794ad;
+    --line:#d8dfee;--line-soft:#eaeff8;
+    --paper:#eef1f8;--panel:#ffffff;--canvas:#e6ebf6;--node-head:#f5f7fd;
+    --accent:#3d4fa6;--accent-dark:#2f3d85;--accent-soft:#ecf0fb;--accent-ink:#ffffff;
+    --teal:#0f7f8c;--teal-soft:#ebf8fa;
+    --warn:#8a5310;--warn-soft:#fff8ea;--warn-line:#ecd8b6;
+    --danger:#a23535;--danger-soft:#fdf0f0;--danger-line:#e5baba;
+    --input-bg:#fcfdff;--input-border:#c9d2e4;
+    --pre-bg:#f6f8fd;--pre-ink:#3d4760;--code-bg:#f1f4fb;
+    --grid-dot:rgba(61,79,166,.16);
+    --hud-bg:rgba(255,255,255,.95);
+    --socket-in:#7b88a3;--socket-out:#3d4fa6;--wire:#5a6cad;--wire-alt:#0f7f8c;
+    --shadow:0 8px 22px rgba(28,40,80,.10);
+    --topbar-1:#151b33;--topbar-2:#1d2647;--topbar-3:#253159;--topbar-line:#4b5f9e;
+    --topbar-ink:#ffffff;--topbar-sub:#bcc7e0;--brand-frame:#7d8fd0;--brand-ink:#ccd7f2;
+    --badge-bg:#ecf0fb;--badge-border:#c9d3ee;--badge-ink:#2f3d85;
+    --state-bg:#f4f6fc;--state-border:#d7dded;--state-ink:#5a6480;
+    --rank-bg:#fdf6e8;--rank-border:#e6d3ae;--rank-ink:#7a4a10;
+    --result-hover:#8698c9;
+    --quote-bg:#f3f6fd;--quote-ink:#333f58;--quote-line:#7c8fc4;
+    --insight-bg:#f8faff;
+    --chip-bg:#eef2fa;--chip-border:#d8e0f0;--chip-ink:#3c4a66;
+    --his-a:#1d2647;--his-b:#2a3768;--his-sub:#c6d0e8;
+    --empty-bg:rgba(255,255,255,.6);--empty-border:#c8d2e6;
+    --source-bg:#fafbff;
   }
   *{box-sizing:border-box}
   [hidden]{display:none!important}
   html{scroll-behavior:smooth}
-  body{margin:0;color:var(--ink);background:var(--paper);font:13.5px/1.55 "Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
+  body{margin:0;color:var(--ink);background:var(--paper);font:var(--fs-body)/1.6 "Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
   button,input,textarea,select{font:inherit}
   button{cursor:pointer}
-  .topbar{background:linear-gradient(135deg,#0f2c3a 0%,#123c4d 60%,#14495c 100%);color:#fff;border-bottom:3px solid #2d8b99}
-  .topbar-inner{max-width:1820px;margin:0 auto;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;gap:18px}
+  .topbar{background:linear-gradient(135deg,var(--topbar-1) 0%,var(--topbar-2) 60%,var(--topbar-3) 100%);color:var(--topbar-ink);border-bottom:3px solid var(--topbar-line)}
+  .topbar-inner{max-width:1860px;margin:0 auto;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;gap:18px}
   .brand{display:flex;align-items:center;gap:12px}
-  .brand-mark{width:42px;height:36px;display:grid;place-items:center;border:1px solid #76c2c6;color:#bce5e3;font-weight:700;letter-spacing:1px;border-radius:8px;font-size:11px}
-  .brand strong{display:block;font-size:16px}
-  .brand span,.status{color:#b9ced6;font-size:11.5px}
+  .brand-mark{width:44px;height:38px;display:grid;place-items:center;border:1px solid var(--brand-frame);color:var(--brand-ink);font-weight:700;letter-spacing:1px;border-radius:8px;font-size:11.5px}
+  .brand strong{display:block;font-size:17px}
+  .brand span,.status{color:var(--topbar-sub);font-size:12px}
   .status{text-align:right}
-  .status-dot{width:8px;height:8px;border-radius:50%;background:#6cdbac;display:inline-block;margin-right:7px}
-  .app{max-width:1820px;margin:0 auto;padding:12px 16px 30px;display:flex;flex-direction:column;gap:12px}
-  .topstrip{position:sticky;top:0;z-index:60;background:linear-gradient(var(--paper) 85%,rgba(238,242,245,0));padding:2px 0 6px}
-  .toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;background:#fff;border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:8px 12px}
+  .status-dot{width:8px;height:8px;border-radius:50%;background:#5fd6a4;display:inline-block;margin-right:7px}
+  .app{max-width:1860px;margin:0 auto;padding:12px 16px 30px;display:flex;flex-direction:column;gap:12px}
+  .topstrip{position:sticky;top:0;z-index:60;background:var(--paper);padding:4px 0 6px}
+  .toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:9px 13px}
   .toolbar-left{display:flex;align-items:center;gap:12px;min-width:260px;flex:1}
-  .toolbar h1{margin:0;font-size:14px;white-space:nowrap}
-  .toolbar-note{color:var(--muted);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:640px}
+  .toolbar h1{margin:0;font-size:15px;white-space:nowrap}
+  .toolbar-note{color:var(--muted);font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:640px}
   .toolbar-actions{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
   .node-nav{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px;padding:0 2px}
-  .node-chip{border:1px solid var(--line);background:#fff;color:#46535e;border-radius:999px;padding:4px 10px;font-size:11px;display:inline-flex;align-items:center;gap:6px;box-shadow:0 1px 2px rgba(18,34,46,.04)}
-  .node-chip b{color:var(--accent-dark);font-size:10px}
-  .node-chip:hover,.node-chip.active{border-color:#71a9b5;background:var(--accent-soft);color:var(--accent-dark)}
-  .primary{border:0;border-radius:7px;padding:9px 15px;background:var(--accent);color:#fff;font-weight:700;letter-spacing:.3px;white-space:nowrap}
+  .node-chip{border:1px solid var(--line);background:var(--panel);color:var(--muted);border-radius:999px;padding:4px 11px;font-size:12px;display:inline-flex;align-items:center;gap:6px;box-shadow:0 1px 2px rgba(18,34,46,.04)}
+  .node-chip b{color:var(--accent-dark);font-size:11px}
+  .node-chip:hover,.node-chip.active{border-color:var(--result-hover);background:var(--accent-soft);color:var(--accent-dark)}
+  .primary{border:0;border-radius:7px;padding:9px 16px;background:var(--accent);color:var(--accent-ink);font-weight:700;letter-spacing:.3px;white-space:nowrap;font-size:13.5px}
   .primary:hover{background:var(--accent-dark)}
   .primary:disabled{opacity:.55;cursor:wait}
-  .secondary{border:1px solid #b9c8cf;color:var(--accent-dark);background:#fff;border-radius:7px;padding:5px 10px;white-space:nowrap;font-size:11.5px}
-  .secondary:hover{background:#f0f7f8}
+  .secondary{border:1px solid var(--input-border);color:var(--accent-dark);background:var(--panel);border-radius:7px;padding:6px 11px;white-space:nowrap;font-size:12.5px}
+  .secondary:hover{background:var(--accent-soft)}
   .secondary:disabled{opacity:.55;cursor:wait}
+  .backend-warning{flex-basis:100%;color:var(--warn);background:var(--warn-soft);border:1px solid var(--warn-line);border-radius:6px;padding:6px 10px;margin:0;font-size:12.5px}
+  .theme-wrap{display:inline-flex;align-items:center;gap:6px;margin:0;font-weight:500;white-space:nowrap}
+  .theme-label{font-size:12px;color:var(--muted);white-space:nowrap}
+  .theme-select{border:1px solid var(--input-border);background:var(--input-bg);color:var(--ink);border-radius:7px;padding:5px 8px;font-size:12.5px;width:auto}
   /* ---------- ComfyUI 式缩放画布 ---------- */
   .viewport{position:relative;height:clamp(540px,66vh,820px);min-height:420px;resize:vertical;overflow:hidden;border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);background:var(--canvas);
-    background-image:radial-gradient(rgba(17,101,121,.16) 1px,transparent 1px);background-size:22px 22px;touch-action:none;cursor:grab}
+    background-image:radial-gradient(var(--grid-dot) 1px,transparent 1px);background-size:22px 22px;touch-action:none;cursor:grab}
   .viewport.panning{cursor:grabbing}
-  .world{position:absolute;left:0;top:0;width:1700px;height:1340px;transform-origin:0 0;will-change:transform}
+  .world{position:absolute;left:0;top:0;width:1640px;height:1520px;transform-origin:0 0;will-change:transform}
   #wires{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:0;overflow:visible}
-  .node{position:absolute;display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:0 6px 18px rgba(18,34,46,.1);overflow:hidden;z-index:2;min-width:240px;min-height:150px}
-  .node.active{border-color:#5c9fab;box-shadow:0 0 0 2px rgba(17,101,121,.16),0 8px 22px rgba(18,34,46,.12)}
+  .node{position:absolute;display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:0 6px 18px rgba(18,34,46,.10);overflow:hidden;z-index:2;min-width:260px;min-height:160px}
+  .node.active{border-color:var(--result-hover);box-shadow:0 0 0 2px var(--accent-soft),0 8px 22px rgba(18,34,46,.12)}
   .node.dragging{box-shadow:0 14px 30px rgba(18,34,46,.2)}
-  .node-head{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:8px 10px;background:var(--node-head);border-bottom:1px solid var(--line);cursor:move;user-select:none;flex:none}
-  .node-head h3{margin:0;font-size:12px;display:flex;gap:7px;align-items:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .node-index{display:inline-grid;place-items:center;width:19px;height:19px;border-radius:5px;background:var(--accent);color:#fff;font-size:10.5px;font-weight:700;flex:none}
-  .node-badge{font-size:9.5px;padding:1px 6px;border-radius:999px;border:1px solid #d4dbe0;color:#5c6470;background:#f5f7f8;white-space:nowrap;flex:none}
-  .node-badge.ready{border-color:#b7d9cc;color:#176a59;background:var(--teal-soft)}
-  .node-badge.running{border-color:#e3cc9e;color:#82541a;background:#fff8e9}
-  .node-badge.done{border-color:#8fc6bb;color:#0b6b5f;background:#e7f7f2}
-  .node-badge.error{border-color:#e2b4b4;color:var(--danger);background:var(--danger-soft)}
-  .node-body{padding:9px 10px 10px;display:grid;gap:7px;overflow:auto;flex:1;min-height:0;align-content:start}
-  .node-foot{padding:6px 10px;border-top:1px dashed var(--line);color:var(--muted);font-size:10.5px;display:flex;justify-content:space-between;gap:8px;align-items:center;flex:none}
-  .node-resize{position:absolute;right:0;bottom:0;width:16px;height:16px;cursor:nwse-resize;z-index:6;background:linear-gradient(135deg,transparent 50%,#b7c7ce 50%,#b7c7ce 62%,transparent 62%,transparent 72%,#b7c7ce 72%,#b7c7ce 84%,transparent 84%)}
-  .port-row{display:flex;align-items:center;gap:7px;font-size:11px;color:#4a5863}
+  .node-head{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:9px 11px;background:var(--node-head);border-bottom:1px solid var(--line);cursor:move;user-select:none;flex:none}
+  .node-head h3{margin:0;font-size:var(--fs-node-title);display:flex;gap:7px;align-items:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .node-index{display:inline-grid;place-items:center;width:21px;height:21px;border-radius:5px;background:var(--accent);color:var(--accent-ink);font-size:11px;font-weight:700;flex:none}
+  .node-badge{font-size:var(--fs-badge);padding:1px 7px;border-radius:999px;border:1px solid var(--state-border);color:var(--state-ink);background:var(--state-bg);white-space:nowrap;flex:none}
+  .node-badge.ready{border-color:var(--badge-border);color:var(--badge-ink);background:var(--badge-bg)}
+  .node-badge.running{border-color:var(--warn-line);color:var(--warn);background:var(--warn-soft)}
+  .node-badge.done{border-color:var(--badge-border);color:var(--teal);background:var(--teal-soft)}
+  .node-badge.error{border-color:var(--danger-line);color:var(--danger);background:var(--danger-soft)}
+  .node-body{padding:10px 11px 11px;display:grid;gap:8px;overflow:auto;flex:1;min-height:0;align-content:start}
+  .node-foot{padding:7px 11px;border-top:1px dashed var(--line);color:var(--muted);font-size:11px;display:flex;justify-content:space-between;gap:8px;align-items:center;flex:none}
+  .node-resize{position:absolute;right:0;bottom:0;width:18px;height:18px;cursor:nwse-resize;z-index:6;background:linear-gradient(135deg,transparent 50%,var(--faint) 50%,var(--faint) 62%,transparent 62%,transparent 72%,var(--faint) 72%,var(--faint) 84%,transparent 84%)}
+  .port-row{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted)}
   .port-row.out{justify-content:flex-end}
-  .socket{width:11px;height:11px;border-radius:50%;border:2px solid var(--socket-in);background:#fff;flex:none;box-shadow:0 0 0 2px rgba(255,255,255,.8)}
+  .socket{width:12px;height:12px;border-radius:50%;border:2px solid var(--socket-in);background:var(--panel);flex:none;box-shadow:0 0 0 2px var(--panel)}
   .socket.out{border-color:var(--socket-out);background:var(--accent-soft)}
   .socket.linked{border-color:var(--teal);background:var(--teal)}
-  .ports{display:grid;gap:4px;margin-top:1px}
-  .ports .label{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10.5px;color:#54636e}
-  label{display:block;color:#46535e;font-size:11px;font-weight:650;margin-bottom:4px}
-  textarea,input[type=text],input[type=date],input[type=number],select{width:100%;border:1px solid #cbd5dc;background:#fbfcfd;color:var(--ink);padding:6px 8px;outline:0;border-radius:6px;transition:border .15s,box-shadow .15s;font-size:12px}
-  textarea{min-height:64px;resize:none;font-family:inherit}
-  textarea.code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;line-height:1.45;min-height:74px}
-  textarea:focus,input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(17,101,121,.12)}
+  .ports{display:grid;gap:5px;margin-top:1px}
+  .ports .label{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;color:var(--muted)}
+  label{display:block;color:var(--ink);font-size:var(--fs-label);font-weight:650;margin-bottom:5px}
+  textarea,input[type=text],input[type=date],input[type=number],select{width:100%;border:1px solid var(--input-border);background:var(--input-bg);color:var(--ink);padding:7px 9px;outline:0;border-radius:6px;transition:border .15s,box-shadow .15s;font-size:var(--fs-input)}
+  textarea{min-height:78px;resize:none;font-family:inherit;line-height:1.55}
+  textarea.code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:var(--fs-code);line-height:1.5;min-height:96px}
+  textarea:focus,input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
   .field{margin:0}
-  .hint{color:var(--muted);font-size:10.5px;line-height:1.45}
+  .hint{color:var(--muted);font-size:var(--fs-hint);line-height:1.55}
   .row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
   .row.inline{grid-template-columns:1fr auto}
-  .check{display:flex;align-items:center;gap:6px;color:#4e5b65;font-size:11.5px}
+  .check{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:12.5px}
   .check input{accent-color:var(--accent)}
-  .check-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px 8px}
-  .mini-pre{max-height:none;overflow:auto;white-space:pre-wrap;word-break:break-word;font:10.5px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;color:#40515c;background:#f7fafb;border:1px solid var(--line-soft);border-radius:6px;padding:7px 8px;margin:0;min-height:60px}
-  .field-map{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10px;color:#6b7a85;background:#f2f6f8;border:1px solid var(--line-soft);border-radius:5px;padding:3px 6px;word-break:break-all}
-  .req-body{display:grid;grid-template-columns:250px minmax(0,1fr);gap:12px;overflow:auto}
-  .req-side{display:flex;flex-direction:column;gap:6px;min-width:0}
+  .check-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 8px}
+  .mini-pre{max-height:none;overflow:auto;white-space:pre-wrap;word-break:break-word;font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--pre-ink);background:var(--pre-bg);border:1px solid var(--line-soft);border-radius:6px;padding:8px 9px;margin:0;min-height:64px}
+  .field-map{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:var(--fs-map);color:var(--muted);background:var(--code-bg);border:1px solid var(--line-soft);border-radius:5px;padding:4px 7px;word-break:break-all;line-height:1.5}
+  .mapping-table{max-height:132px;overflow:auto;border:1px solid var(--line-soft);border-radius:6px;background:var(--pre-bg)}
+  .mapping-table table{border-collapse:collapse;width:100%;font-size:11px}
+  .mapping-table th,.mapping-table td{border-bottom:1px solid var(--line-soft);padding:4px 6px;text-align:left;vertical-align:top;line-height:1.45}
+  .mapping-table th{color:var(--muted);font-weight:600;background:var(--code-bg);position:sticky;top:0}
+  .mapping-table td{color:var(--pre-ink);word-break:break-word}
+  .mapping-row-note{color:var(--muted);font-size:11px;margin-top:4px}
+  .req-body{display:grid;grid-template-columns:280px minmax(0,1fr);gap:12px;overflow:auto}
+  .req-side{display:flex;flex-direction:column;gap:7px;min-width:0}
   .req-preview{display:flex;flex-direction:column;gap:4px;min-height:0}
-  .req-preview pre{flex:1;max-height:230px}
-  .zoom-hud{position:absolute;left:12px;bottom:12px;z-index:30;display:flex;align-items:center;gap:4px;background:rgba(255,255,255,.94);border:1px solid var(--line);border-radius:8px;padding:4px 6px;box-shadow:0 4px 12px rgba(18,34,46,.12)}
-  .zoom-hud button{border:1px solid transparent;background:transparent;color:var(--accent-dark);border-radius:5px;padding:2px 7px;font-size:12px}
-  .zoom-hud button:hover{background:var(--accent-soft);border-color:#c9dde2}
-  .zoom-label{min-width:46px;text-align:center;font-size:11px;color:#46535e;font-variant-numeric:tabular-nums}
-  .canvas-hint{position:absolute;right:12px;bottom:12px;z-index:30;color:#5b6b78;font-size:10.5px;background:rgba(255,255,255,.85);border:1px solid var(--line);border-radius:7px;padding:4px 8px;pointer-events:none}
+  .req-preview pre{flex:1;max-height:240px}
+  .zoom-hud{position:absolute;left:12px;bottom:12px;z-index:30;display:flex;align-items:center;gap:4px;background:var(--hud-bg);border:1px solid var(--line);border-radius:8px;padding:4px 6px;box-shadow:0 4px 12px rgba(18,34,46,.12)}
+  .zoom-hud button{border:1px solid transparent;background:transparent;color:var(--accent-dark);border-radius:5px;padding:2px 8px;font-size:13px}
+  .zoom-hud button:hover{background:var(--accent-soft);border-color:var(--badge-border)}
+  .zoom-label{min-width:48px;text-align:center;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .canvas-hint{position:absolute;right:12px;bottom:12px;z-index:30;color:var(--muted);font-size:11px;background:var(--hud-bg);border:1px solid var(--line);border-radius:7px;padding:4px 9px;pointer-events:none}
   /* ---------- 底部信息区 ---------- */
   .bottom-strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
-  .panel{background:#fff;border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
-  .panel-head{padding:9px 12px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:8px;background:var(--node-head)}
-  .panel-head h2{margin:0;font-size:12px}
-  .panel-body{padding:10px 12px}
-  .panel-body.tight{padding:8px 10px}
-  .inspector h4{margin:8px 0 4px;font-size:11px;color:#3d4c57}
-  .inspector p{margin:3px 0;font-size:11px;color:#53616c}
-  .inspector ul{margin:4px 0 0;padding-left:15px;font-size:11px;color:#53616c}
-  .badge{display:inline-flex;align-items:center;border:1px solid #bed2d8;color:var(--accent-dark);background:var(--accent-soft);padding:1px 8px;border-radius:999px;font-size:10.5px;white-space:nowrap}
-  .badge.warn{color:#82541a;border-color:#e3cc9e;background:#fff8e9}
-  .badge.state{color:#5c6470;border-color:#d4dbe0;background:#f5f7f8}
-  .badge.rank{color:#7a4a10;border-color:#e6d3ae;background:#fdf6e8;font-weight:700}
-  .result-panel.flash{box-shadow:0 0 0 2px rgba(17,101,121,.18)}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+  .panel-head{padding:10px 13px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:8px;background:var(--node-head)}
+  .panel-head h2{margin:0;font-size:13px}
+  .panel-body{padding:11px 13px}
+  .panel-body.tight{padding:9px 11px}
+  .inspector h4{margin:9px 0 5px;font-size:12px;color:var(--ink)}
+  .inspector p{margin:3px 0;font-size:12px;color:var(--muted)}
+  .inspector ul{margin:5px 0 0;padding-left:16px;font-size:12px;color:var(--muted)}
+  .badge{display:inline-flex;align-items:center;border:1px solid var(--badge-border);color:var(--badge-ink);background:var(--badge-bg);padding:1px 8px;border-radius:999px;font-size:var(--fs-badge);white-space:nowrap}
+  .badge.warn{color:var(--warn);border-color:var(--warn-line);background:var(--warn-soft)}
+  .badge.state{color:var(--state-ink);border-color:var(--state-border);background:var(--state-bg)}
+  .badge.rank{color:var(--rank-ink);border-color:var(--rank-border);background:var(--rank-bg);font-weight:700}
+  .result-panel.flash{box-shadow:0 0 0 2px var(--badge-border)}
   .result-panel{display:grid;grid-template-columns:minmax(0,1.3fr) 420px;gap:12px;align-items:start}
   .metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:10px}
-  .metric{background:#fbfcfd;border:1px solid var(--line);border-radius:8px;padding:8px 10px}
-  .metric small{color:var(--muted);display:block;font-size:10px}
-  .metric strong{display:block;font-size:18px;margin-top:1px;color:var(--accent-dark)}
-  .warnings{padding:8px 11px;background:var(--warn-soft);border:1px solid #efd9b8;color:var(--warn);font-size:11.5px;border-radius:7px;margin-bottom:10px}
+  .metric{background:var(--source-bg);border:1px solid var(--line);border-radius:8px;padding:9px 11px}
+  .metric small{color:var(--muted);display:block;font-size:11px}
+  .metric strong{display:block;font-size:20px;margin-top:1px;color:var(--accent-dark)}
+  .warnings{padding:9px 12px;background:var(--warn-soft);border:1px solid var(--warn-line);color:var(--warn);font-size:12.5px;border-radius:7px;margin-bottom:10px;line-height:1.55}
   .result-list{display:grid;gap:7px}
   .result-list.inline{gap:5px}
   .result-list.inline .result{padding:7px 9px;border-radius:6px}
-  .result-list.inline .result h3{font-size:11.5px;margin-bottom:2px}
-  .result-list.inline .result p{-webkit-line-clamp:1;font-size:10.5px}
-  .result-list.inline .result-meta{font-size:10px;gap:7px;margin-top:4px}
+  .result-list.inline .result h3{font-size:12.5px;margin-bottom:2px}
+  .result-list.inline .result p{-webkit-line-clamp:1;font-size:11.5px}
+  .result-list.inline .result-meta{font-size:10.5px;gap:7px;margin-top:4px}
   .result-list.inline .source-section{margin-bottom:7px}
   .result-list.inline .source-head{margin-bottom:4px}
-  .source-link{font-size:10px;color:var(--accent-dark);background:none;border:0;padding:0;text-decoration:underline;cursor:pointer}
-  .result{width:100%;text-align:left;background:#fff;border:1px solid var(--line);border-radius:8px;padding:10px 12px}
-  .result:hover,.result.active{border-color:#71a9b5;box-shadow:0 3px 12px rgba(17,101,121,.11)}
+  .citation-id{font:12px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--accent-dark);word-break:break-all}
+  .copy-btn{padding:1px 8px;font-size:11px}
+  .source-link{font-size:11px;color:var(--accent-dark);background:none;border:0;padding:0;text-decoration:underline;cursor:pointer}
+  .result{width:100%;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:11px 13px;color:var(--ink)}
+  .result:hover,.result.active{border-color:var(--result-hover);box-shadow:0 3px 12px rgba(17,101,121,.11)}
   .result-top{display:flex;justify-content:space-between;gap:12px;align-items:start}
-  .result h3{margin:0 0 3px;font-size:12.5px;line-height:1.45}
-  .result p{margin:0;color:#53616c;font-size:11px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-  .result-meta{margin-top:6px;color:var(--muted);display:flex;gap:9px;flex-wrap:wrap;font-size:10.5px}
-  .empty{border:1px dashed #b9c8cf;color:var(--muted);background:rgba(255,255,255,.55);padding:24px 16px;text-align:center;border-radius:8px;font-size:12px}
-  .detail-title{font-size:14px;line-height:1.45;margin:0 0 8px}
-  .detail-quote{border-left:3px solid #66a6af;padding:8px 10px;background:#f4f9fa;color:#34444e;margin:10px 0;border-radius:0 6px 6px 0;font-size:11.5px}
-  .key-sentence{border:1px solid #b7d9cc;border-left:3px solid var(--teal);background:var(--teal-soft);padding:7px 9px;border-radius:0 6px 6px 0;margin-top:6px;font-size:11.5px}
-  .key-sentence-meta{margin-top:3px;color:#5e7772;font-size:10px}
+  .result-badges{display:flex;flex-direction:column;gap:4px;align-items:flex-end;flex:none}
+  .result h3{margin:0 0 4px;font-size:13.5px;line-height:1.45;color:var(--ink)}
+  .result p{margin:0;color:var(--muted);font-size:12px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.55}
+  .result-meta{margin-top:6px;color:var(--muted);display:flex;gap:9px;flex-wrap:wrap;font-size:11px}
+  .empty{border:1px dashed var(--empty-border);color:var(--muted);background:var(--empty-bg);padding:24px 16px;text-align:center;border-radius:8px;font-size:12.5px;line-height:1.6}
+  .detail-title{font-size:15px;line-height:1.45;margin:0 0 8px;color:var(--ink)}
+  .detail-quote{border-left:3px solid var(--quote-line);padding:9px 11px;background:var(--quote-bg);color:var(--quote-ink);margin:10px 0;border-radius:0 6px 6px 0;font-size:12.5px;line-height:1.6}
+  .key-sentence{border:1px solid var(--badge-border);border-left:3px solid var(--teal);background:var(--teal-soft);padding:8px 10px;border-radius:0 6px 6px 0;margin-top:6px;font-size:12px;line-height:1.55}
+  .key-sentence-meta{margin-top:3px;color:var(--muted);font-size:11px}
   .detail-list{margin:0;padding:0;list-style:none}
-  .detail-list li{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid var(--line-soft);font-size:11px}
+  .detail-list li{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--line-soft);font-size:12px}
   .detail-list span:first-child{color:var(--muted);flex:none}
-  .detail-list span:last-child{text-align:right;color:#2c3b45;word-break:break-word;max-width:70%}
+  .detail-list span:last-child{text-align:right;color:var(--ink);word-break:break-word;max-width:70%}
   .insight{margin-bottom:10px;border:1px solid var(--line);border-radius:8px;overflow:hidden}
-  .insight-head{display:flex;justify-content:space-between;align-items:center;padding:8px 11px;border-bottom:1px solid var(--line);background:#fafcfd;gap:8px}
-  .insight-head h3{margin:0;font-size:11.5px}
-  .insight-body{padding:9px 11px;font-size:11.5px}
+  .insight-head{display:flex;justify-content:space-between;align-items:center;padding:9px 11px;border-bottom:1px solid var(--line);background:var(--insight-bg);gap:8px}
+  .insight-head h3{margin:0;font-size:12.5px}
+  .insight-body{padding:10px 11px;font-size:12px;line-height:1.6}
   .quota-grid{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px}
-  .quota{border:1px solid var(--line);border-radius:7px;padding:4px 8px;font-size:10.5px;color:#42525e;background:#fbfcfd}
+  .quota{border:1px solid var(--line);border-radius:7px;padding:4px 9px;font-size:11.5px;color:var(--muted);background:var(--source-bg)}
   .quota b{color:var(--accent-dark)}
-  .quota.preferred{border-color:#b7d9cc;background:var(--teal-soft)}
-  .review-list{margin:0;padding:0;list-style:none;display:grid;gap:4px}
-  .review-item{display:flex;gap:6px;align-items:baseline;font-size:11px;color:#4d5d68}
+  .quota.preferred{border-color:var(--badge-border);background:var(--teal-soft)}
+  .review-list{margin:0;padding:0;list-style:none;display:grid;gap:5px}
+  .review-item{display:flex;gap:6px;align-items:baseline;font-size:12px;color:var(--muted)}
   .review-item .ok{color:var(--teal);font-weight:700;flex:none}
   .review-item .find{color:var(--warn);font-weight:700;flex:none}
-  .review-finding{border:1px solid #efd9b8;background:var(--warn-soft);color:var(--warn);border-radius:7px;padding:6px 9px;font-size:11px;margin-top:5px}
+  .review-finding{border:1px solid var(--warn-line);background:var(--warn-soft);color:var(--warn);border-radius:7px;padding:7px 10px;font-size:12px;margin-top:5px;line-height:1.55}
   .source-section{margin-bottom:12px}
   .source-head{display:flex;align-items:center;gap:8px;margin:0 0 6px}
-  .source-head h3{margin:0;font-size:11.5px}
-  .source-count{color:var(--faint);font-size:10.5px}
-  .his-card{border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fff}
-  .his-head{display:flex;align-items:center;gap:10px;padding:10px 12px;background:linear-gradient(135deg,#123c4d,#1b586d);color:#fff}
-  .his-avatar{width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.35);display:grid;place-items:center;font-weight:700;font-size:12px;flex:none}
-  .his-id{font-weight:700;font-size:12.5px}
-  .his-sub{color:#c2d7de;font-size:10.5px;margin-top:1px}
+  .source-head h3{margin:0;font-size:12.5px}
+  .source-count{color:var(--faint);font-size:11px}
+  .his-card{border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--panel)}
+  .his-head{display:flex;align-items:center;gap:10px;padding:10px 12px;background:linear-gradient(135deg,var(--his-a),var(--his-b));color:#fff}
+  .his-avatar{width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.35);display:grid;place-items:center;font-weight:700;font-size:12.5px;flex:none}
+  .his-id{font-weight:700;font-size:13px}
+  .his-sub{color:var(--his-sub);font-size:11px;margin-top:1px}
   .his-chips{display:flex;gap:5px;flex-wrap:wrap;padding:8px 12px 0}
-  .his-chip{font-size:10px;color:#39505c;background:#eef4f6;border:1px solid #d8e4e8;border-radius:999px;padding:1px 8px}
-  .his-chip.suppressed{color:#82541a;background:#fff8e9;border-color:#e3cc9e}
+  .his-chip{font-size:11px;color:var(--chip-ink);background:var(--chip-bg);border:1px solid var(--chip-border);border-radius:999px;padding:1px 8px}
+  .his-chip.role-chip{padding:0 7px;font-size:10.5px}
+  .his-chip.suppressed{color:var(--warn);background:var(--warn-soft);border-color:var(--warn-line)}
   .his-body{padding:4px 12px 10px}
   .his-group{margin-top:8px}
-  .his-group-title{display:flex;align-items:center;gap:6px;font-size:10.5px;font-weight:700;color:#42525e;margin-bottom:4px}
+  .his-group-title{display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;color:var(--muted);margin-bottom:4px}
   .his-dot{width:7px;height:7px;border-radius:50%;flex:none}
-  .his-fact{display:flex;gap:8px;align-items:baseline;padding:5px 8px;border:1px solid var(--line-soft);border-radius:6px;background:#fcfdfe;margin-bottom:4px}
-  .his-fact-time{color:var(--faint);font-size:10px;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .his-fact{display:flex;gap:8px;align-items:baseline;padding:6px 9px;border:1px solid var(--line-soft);border-radius:6px;background:var(--source-bg);margin-bottom:5px}
+  .his-fact-time{color:var(--faint);font-size:11px;white-space:nowrap;font-variant-numeric:tabular-nums}
   .his-fact-main{flex:1;min-width:0}
-  .his-fact-text{font-size:11.5px;color:#2f3f49;word-break:break-word}
-  .his-fact-meta{font-size:9.5px;color:var(--faint);margin-top:1px;word-break:break-all}
-  .his-fact-score{font-size:10px;color:var(--accent-dark);background:var(--accent-soft);border-radius:999px;padding:0 7px;flex:none}
+  .his-fact-text{font-size:12.5px;color:var(--ink);word-break:break-word;line-height:1.5}
+  .his-fact-meta{font-size:10.5px;color:var(--faint);margin-top:1px;word-break:break-all}
+  .his-fact-score{font-size:11px;color:var(--accent-dark);background:var(--accent-soft);border-radius:999px;padding:0 7px;flex:none}
   .claim-list{margin:8px 0 0;padding:0;list-style:none;border-top:1px solid var(--line)}
-  .claim-list li{padding:6px 0;border-bottom:1px solid var(--line-soft);color:#4d5d68;font-size:11px}
-  .claim-status{display:inline-block;min-width:118px;color:var(--accent-dark);font-weight:650}
-  .spinner{width:12px;height:12px;border:2px solid #b6d4da;border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;display:inline-block}
+  .claim-list li{padding:7px 0;border-bottom:1px solid var(--line-soft);color:var(--muted);font-size:12px}
+  .claim-status{display:inline-block;min-width:124px;color:var(--accent-dark);font-weight:650}
+  .spinner{width:13px;height:13px;border:2px solid var(--badge-border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;display:inline-block}
   @keyframes spin{to{transform:rotate(360deg)}}
-  .loading{color:var(--accent);display:inline-flex;align-items:center;gap:6px;font-size:11px}
-  .api-log{display:grid;gap:3px;max-height:180px;overflow:auto;font:10.5px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace}
-  .api-row{display:flex;gap:6px;justify-content:space-between;border-bottom:1px solid var(--line-soft);padding:2px 0;color:#4d5d68}
+  .loading{color:var(--accent-dark);display:inline-flex;align-items:center;gap:6px;font-size:12px}
+  .api-log{display:grid;gap:3px;max-height:190px;overflow:auto;font:11.5px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace}
+  .api-row{display:flex;gap:6px;justify-content:space-between;border-bottom:1px solid var(--line-soft);padding:3px 0;color:var(--muted)}
   .api-row .ok{color:var(--teal);font-weight:700}
   .api-row .err{color:var(--danger);font-weight:700}
-  details summary{cursor:pointer;font-size:11px;color:var(--accent-dark);margin:4px 0}
+  details summary{cursor:pointer;font-size:12px;color:var(--accent-dark);margin:5px 0}
   details pre{max-height:220px}
-  .source-item{border:1px solid var(--line);border-radius:7px;padding:6px 8px;font-size:11px;background:#fbfcfd;margin-bottom:5px}
-  .source-item b{display:block;color:var(--accent-dark);font-size:11px}
-  .source-item span{color:var(--muted);font-size:10.5px}
+  .source-item{border:1px solid var(--line);border-radius:7px;padding:7px 9px;font-size:11.5px;background:var(--source-bg);margin-bottom:5px}
+  .source-item b{display:block;color:var(--accent-dark);font-size:12px}
+  .source-item span{color:var(--muted);font-size:11px}
   @media(max-width:1400px){.bottom-strip{grid-template-columns:repeat(2,minmax(0,1fr))}.result-panel{grid-template-columns:1fr}}
   @media(max-width:900px){.bottom-strip{grid-template-columns:1fr}.toolbar-note{display:none}.viewport{height:560px}.node-nav{max-height:96px;overflow:auto}}
+  /* ---------- v6.6.5 固定工作台 ---------- */
+  .workspace{max-width:1860px;margin:0 auto;width:100%;padding:0 2px}
+  .workgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:start}
+  .workcol{display:flex;flex-direction:column;gap:16px;min-width:0}
+  .workgrid .node{position:relative!important;left:auto!important;top:auto!important;width:auto!important;height:auto!important;min-width:0;min-height:0;border-radius:14px;border:1px solid var(--line);border-top:3px solid var(--accent);box-shadow:0 10px 26px rgba(18,34,46,.08);overflow:hidden}
+  .workgrid .node:hover{box-shadow:0 14px 32px rgba(18,34,46,.12)}
+  .workgrid .node.active{border-color:var(--result-hover);box-shadow:0 0 0 2px var(--accent-soft),0 14px 32px rgba(18,34,46,.12)}
+  .workgrid .node-head{cursor:default;user-select:auto;padding:13px 15px;background:linear-gradient(180deg,var(--node-head),var(--panel))}
+  .workgrid .node-head h3{font-size:15px;white-space:normal;line-height:1.35}
+  .workgrid .node-body{overflow:visible;padding:14px 15px 16px;gap:11px}
+  .workgrid .node-foot{padding:9px 15px;font-size:11.5px;background:var(--source-bg)}
+  .workgrid .node-resize,.workgrid .ports{display:none!important}
+  #node-case,#node-question,#node-terms{grid-column:span 4}
+  #node-scope,#node-method{grid-column:span 3}
+  #node-request{grid-column:span 6}
+  #node-run,#node-results,#node-audit{grid-column:span 4}
+  .workflow-strip{display:flex;align-items:center;gap:7px;flex-wrap:wrap;padding:2px 2px 0;color:var(--muted);font-size:12px}
+  .workflow-strip a{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border:1px solid var(--line);border-radius:999px;background:var(--panel);color:var(--accent-dark);text-decoration:none;font-weight:650}
+  .workflow-strip a:hover{border-color:var(--accent);background:var(--accent-soft)}
+  .workflow-strip .arrow{color:var(--faint)}
+  .intro-banner{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:16px 18px;border:1px solid var(--line);border-radius:14px;background:linear-gradient(120deg,var(--panel),var(--accent-soft));box-shadow:var(--shadow)}
+  .intro-banner strong{display:block;font-size:16px;margin-bottom:3px}
+  .intro-banner p{margin:0;color:var(--muted);font-size:12.5px;line-height:1.6;max-width:900px}
+  .intro-badges{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}
+  .intro-badges span{padding:4px 9px;border:1px solid var(--badge-border);border-radius:999px;background:var(--badge-bg);color:var(--badge-ink);font-size:11.5px;white-space:nowrap}
+  .toolbar h1{font-size:16px;letter-spacing:.2px}
+  button.primary{background:linear-gradient(135deg,var(--accent),var(--accent-dark));color:var(--accent-ink);border:1px solid var(--accent-dark);box-shadow:0 5px 14px rgba(17,101,121,.22)}
+  button.primary:hover{filter:brightness(1.05);transform:translateY(-1px)}
+  .result-panel{grid-template-columns:minmax(0,1.35fr) 420px}
+  .panel{border-radius:14px}
+  .panel-head{background:linear-gradient(180deg,var(--node-head),var(--panel))}
+  @media(max-width:1400px){
+    .workgrid{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .workgrid .node{grid-column:span 1!important}
+    .result-panel{grid-template-columns:1fr}
+  }
+  @media(max-width:900px){
+    .workgrid{grid-template-columns:1fr}
+    .workflow-strip{flex-wrap:nowrap;overflow:auto;padding-bottom:4px}
+    .intro-banner{flex-direction:column;align-items:flex-start}
+    .intro-badges{justify-content:flex-start}
+    .toolbar-note{display:none}
+  }
 </style>
 </head>
 <body>
 <header class="topbar"><div class="topbar-inner">
-  <div class="brand"><div class="brand-mark">NEO<br>RAG</div><div><strong>ChinaLLM · 新生儿证据检索工作流</strong><span>Neonatal Evidence Workflow · 节点式只读管线 · 真实后端 <b id="backendVersion">—</b></span></div></div>
-  <div class="status"><i class="status-dot"></i><span id="serviceStatus">正在检查服务与演示档案</span></div>
+  <div class="brand"><div class="brand-mark">NEO<br>RAG</div><div><strong>ChinaLLM · 新生儿证据检索工作流</strong><span>Neonatal Evidence Workflow · 固定分区 · 只读证据检索 · 后端 <b id="backendVersion">—</b></span></div></div>
+  <div class="status"><i class="status-dot"></i><span id="serviceStatus">正在检查服务与病例档案</span></div>
 </div></header>
 
 <div class="app">
   <div class="topstrip">
     <div class="toolbar">
       <div class="toolbar-left">
-        <h1>节点画布</h1>
+        <h1>检索配置</h1>
         <div class="toolbar-note" id="requestNote">请求尚未组装：先选择或手填快照。</div>
       </div>
-      <div class="hint" id="backendWarning" hidden style="flex-basis:100%;color:#8f5610;background:#fff8ec;border:1px solid #efd9b8;border-radius:6px;padding:5px 9px"></div>
+      <div class="hint backend-warning" id="backendWarning" hidden></div>
       <div class="toolbar-actions">
+        <label class="theme-wrap" title="配色主题">
+          <span class="theme-label">主题</span>
+          <select class="theme-select" id="themeSelect" aria-label="配色主题">
+            <option value="light">浅色</option>
+            <option value="dark">深色</option>
+            <option value="warm">暖色</option>
+            <option value="indigo">靛蓝</option>
+            <option value="auto">跟随系统</option>
+          </select>
+        </label>
         <button class="secondary" id="backendCheck" type="button">后端自检</button>
         <button class="secondary" id="blankRequest" type="button">空白请求</button>
-        <button class="secondary" id="resetLayout" type="button">重置布局</button>
-        <button class="secondary" id="jumpCanvas" type="button">回到画布</button>
         <button class="secondary" id="jumpResults" type="button">查看结果</button>
         <span id="loading" class="loading" hidden><span class="spinner"></span>正在检索</span>
-        <button class="primary" id="runButton" type="button">▶ 执行检索（Queue）</button>
+        <button class="primary" id="runButton" type="button">▶ 执行检索</button>
       </div>
     </div>
-    <div class="node-nav" id="railBody"></div>
+    <div class="workflow-strip" id="workflowStrip" aria-label="检索步骤">
+      <a href="#node-case">01 输入</a><span class="arrow">→</span>
+      <a href="#node-question">02 问题</a><span class="arrow">→</span>
+      <a href="#node-terms">03 术语</a><span class="arrow">→</span>
+      <a href="#node-scope">04 范围</a><span class="arrow">→</span>
+      <a href="#node-method">05 方法</a><span class="arrow">→</span>
+      <a href="#node-request">06 请求</a><span class="arrow">→</span>
+      <a href="#node-run">07 执行</a><span class="arrow">→</span>
+      <a href="#node-results">08 结果</a><span class="arrow">→</span>
+      <a href="#node-audit">09 审计</a>
+    </div>
   </div>
 
-  <main class="viewport" id="viewport">
-    <div class="world" id="graph">
-      <svg id="wires" aria-hidden="true"></svg>
+  <section class="intro-banner">
+    <div>
+      <strong>固定工作台：按 01–09 顺序填写，所有分区固定排列。</strong>
+      <p>病例与患者事实来自调用方快照；检索只读，不写回病历、不生成诊疗结论。外部来源只接收审核术语，不接收患者标识或原始病历。</p>
+    </div>
+    <div class="intro-badges"><span>只读</span><span>来源分离</span><span>不生成回答</span><span>真实 /api/retrieve</span></div>
+  </section>
+
+  <main class="workspace" id="workspace">
+    <div class="workgrid" id="graph">
+      <div class="workcol" data-col="input">
 
       <!-- 01 病例与快照 -->
-      <section class="node" id="node-case" data-node="case" style="left:40px;top:40px;width:300px;height:560px">
+      <section class="node" id="node-case" data-node="case" style="left:20px;top:22px;width:300px;height:690px">
         <div class="node-head"><h3><span class="node-index">01</span>病例与快照</h3><span class="node-badge" id="badge-case">待载入</span></div>
         <div class="node-body">
-          <div class="field"><label for="demoCase">合成病例（后端 GET /api/demo/cases）</label><select id="demoCase"></select></div>
+          <div class="field"><label for="demoCase">病例选择</label><select id="demoCase"></select></div>
           <div class="field"><label for="patientRef">patient_ref</label><input id="patientRef" type="text" readonly></div>
           <div class="field"><label for="asOf">as_of</label><input id="asOf" type="date"></div>
           <div class="row inline"><button class="secondary" id="loadSnapshot" type="button">载入快照</button><span class="badge state" id="snapshotState">未载入</span></div>
@@ -237,15 +429,15 @@
           </div>
           <details id="snapshotDetails"><summary>快照 JSON（可直接编辑后载入）</summary><textarea class="code" id="snapshotJson" spellcheck="false"></textarea></details>
           <label class="check"><input type="checkbox" id="manualSnapshot"> 手填/编辑快照（不跟随病例下拉覆盖）</label>
-          <div class="hint">快照由调用方组装后经真实接口 POST /api/his/snapshot 过滤回显，再随 /api/retrieve 发送。演示病例是合成数据，但走的是真实 RAG 代码路径。</div>
+          <div class="hint">快照经 /api/his/snapshot 过滤回显后随 /api/retrieve 发送；病例为合成数据，走真实检索路径。</div>
           <div class="field"><label>最近一次快照回显</label><pre class="mini-pre" id="snapshotPreview">尚未载入</pre></div>
         </div>
-        <div class="node-foot"><span>病例档案 neonatal_demo_v1</span><span id="caseSynthetic">synthetic</span></div>
+        <div class="node-foot"><span>病例库</span><span id="caseSynthetic">合成数据</span></div>
         <div class="node-resize" data-resize="case"></div>
       </section>
 
       <!-- 02 问题与意图 -->
-      <section class="node" id="node-question" data-node="question" style="left:370px;top:40px;width:300px;height:560px">
+      <section class="node" id="node-question" data-node="question" style="left:334px;top:22px;width:300px;height:690px">
         <div class="node-head"><h3><span class="node-index">02</span>问题与意图</h3><span class="node-badge" id="badge-question">待填写</span></div>
         <div class="node-body">
           <div class="field"><label for="question">question（中文原始问题）</label><textarea id="question" required></textarea></div>
@@ -265,26 +457,27 @@
       </section>
 
       <!-- 03 术语与映射 -->
-      <section class="node" id="node-terms" data-node="terms" style="left:700px;top:40px;width:300px;height:560px">
+      <section class="node" id="node-terms" data-node="terms" style="left:648px;top:22px;width:300px;height:690px">
         <div class="node-head"><h3><span class="node-index">03</span>术语与映射</h3><span class="node-badge" id="badge-terms">待填写</span></div>
         <div class="node-body">
           <div class="field"><label for="patientTerms">patient_terms（人工审核最小术语）</label><input id="patientTerms" type="text" placeholder="逗号分隔"></div>
-          <div class="field"><label for="englishTerms">english_terms（人工审核英文）</label><input id="englishTerms" type="text" placeholder="逗号分隔"></div>
-          <div class="field"><label for="meshTerms">mesh_terms（人工审核 MeSH）</label><input id="meshTerms" type="text" placeholder="逗号分隔"></div>
-          <div class="field"><label for="userTerms">user_terms（JSON：中文概念 → 英文数组）</label><textarea class="code" id="userTerms" spellcheck="false">{}</textarea></div>
+          <div class="field"><label for="termMapping">term_mapping（映射表 JSON：概念 → english / mesh / aliases）</label><textarea class="code" id="termMapping" spellcheck="false">[]</textarea></div>
+          <div class="field"><label>映射表预览（概念—英文—MeSH 绑定）</label><div id="termMappingPreview" class="mapping-table"><div class="hint">尚无可展开的映射行。</div></div></div>
           <div class="field"><label for="facets">facets（JSON：问题槽位）</label><textarea class="code" id="facets" spellcheck="false">{}</textarea></div>
-          <p class="field-map">patient_terms / english_terms / mesh_terms / user_terms / facets</p>
+          <p class="field-map">patient_terms / term_mapping / facets</p>
           <div class="ports">
-            <div class="port-row out"><span class="label">reviewed terms</span><i class="socket out" id="sock-terms" data-socket="terms:out:terms"></i></div>
+            <div class="port-row out"><span class="label">reviewed term mapping</span><i class="socket out" id="sock-terms" data-socket="terms:out:terms"></i></div>
           </div>
-          <div class="hint">user_terms 只在键出现在问题/患者术语原文时展开；JSON 解析失败会阻止执行并显示错误。</div>
+          <div class="hint">term_mapping 只在概念/别名命中时展开；英文与 MeSH 必须来自同一映射行；工作台只发送 term_mapping（展开记录为 reviewed_term_mapping）。</div>
         </div>
         <div class="node-foot"><span>审核术语可追溯</span><span>不自动翻译</span></div>
         <div class="node-resize" data-resize="terms"></div>
       </section>
 
+      </div>
+      <div class="workcol" data-col="config">
       <!-- 04 范围与过滤 -->
-      <section class="node" id="node-scope" data-node="scope" style="left:1030px;top:40px;width:300px;height:560px">
+      <section class="node" id="node-scope" data-node="scope" style="left:962px;top:22px;width:300px;height:690px">
         <div class="node-head"><h3><span class="node-index">04</span>范围与过滤</h3><span class="node-badge" id="badge-scope">待配置</span></div>
         <div class="node-body">
           <div class="row">
@@ -293,18 +486,18 @@
           </div>
           <div class="field"><label>source_kinds</label><div class="check-grid"><label class="check"><input type="checkbox" value="guideline" data-kind checked>guideline</label><label class="check"><input type="checkbox" value="pubmed" data-kind checked>pubmed</label></div></div>
           <div class="field"><label for="filters">filters（JSON，例如 guideline_version）</label><textarea class="code" id="filters" spellcheck="false">{}</textarea></div>
-          <p class="field-map">source_mode / source_kinds / filters / top_k / as_of（来自节点 01）</p>
+          <p class="field-map">source_mode / source_kinds / filters / top_k / as_of（来自步骤 01）</p>
           <div class="ports">
             <div class="port-row out"><span class="label">scope</span><i class="socket out" id="sock-scope" data-socket="scope:out:scope"></i></div>
           </div>
-          <div class="hint">演示库属于 custom 来源；未加载时 custom 检索会显式报错（不会返回空结果冒充“没有证据”）。</div>
+          <div class="hint">custom 来源库需先加载；未加载时会显式报错，不返回空结果冒充“没有证据”。</div>
         </div>
         <div class="node-foot"><span>as_of 同时约束患者事实与文献</span><span>不内置语料</span></div>
         <div class="node-resize" data-resize="scope"></div>
       </section>
 
       <!-- 05 检索方法 -->
-      <section class="node" id="node-method" data-node="method" style="left:1360px;top:40px;width:300px;height:560px">
+      <section class="node" id="node-method" data-node="method" style="left:1276px;top:22px;width:300px;height:690px">
         <div class="node-head"><h3><span class="node-index">05</span>检索方法与门控</h3><span class="node-badge" id="badge-method">待配置</span></div>
         <div class="node-body">
           <div class="field"><label for="retrievalMethod">retrieval_method</label><select id="retrievalMethod">
@@ -330,11 +523,11 @@
       </section>
 
       <!-- 06 请求组装 -->
-      <section class="node" id="node-request" data-node="request" style="left:40px;top:630px;width:1620px;height:320px">
+      <section class="node" id="node-request" data-node="request" style="left:20px;top:736px;width:1600px;height:330px">
         <div class="node-head"><h3><span class="node-index">06</span>RetrievalRequest</h3><span class="node-badge" id="badge-request">组装中</span></div>
         <div class="node-body req-body">
           <div class="req-side">
-            <p class="hint">本节点只组装、不发送。字段与 <code>RetrievalRequest.from_dict()</code> 一一对应；<code>request_id</code> 由执行时生成。</p>
+            <p class="hint">本区只预览请求，不发送；字段与 <code>RetrievalRequest.from_dict()</code> 一一对应，<code>request_id</code> 执行时生成。</p>
             <div class="ports">
               <div class="port-row"><i class="socket" id="sock-request-snapshot" data-socket="request:in:snapshot"></i><span class="label">patient_snapshot</span></div>
               <div class="port-row"><i class="socket" id="sock-request-question" data-socket="request:in:question"></i><span class="label">question</span></div>
@@ -346,7 +539,7 @@
             <div class="ports"><div class="port-row out"><span class="label">request</span><i class="socket out" id="sock-request-out" data-socket="request:out:request"></i></div></div>
           </div>
           <div class="req-preview">
-            <label for="requestPreview">将发送的 JSON（实时，来自节点 01–05）</label>
+            <label for="requestPreview">将发送的 JSON（实时，来自步骤 01–05）</label>
             <pre class="mini-pre" id="requestPreview">尚未组装</pre>
           </div>
         </div>
@@ -354,8 +547,10 @@
         <div class="node-resize" data-resize="request"></div>
       </section>
 
+      </div>
+      <div class="workcol" data-col="execute">
       <!-- 07 执行检索 -->
-      <section class="node" id="node-run" data-node="run" style="left:40px;top:980px;width:300px;height:320px">
+      <section class="node" id="node-run" data-node="run" style="left:20px;top:1096px;width:300px;height:404px">
         <div class="node-head"><h3><span class="node-index">07</span>执行检索</h3><span class="node-badge" id="badge-run">待执行</span></div>
         <div class="node-body">
           <div class="ports">
@@ -370,11 +565,11 @@
       </section>
 
       <!-- 08 证据结果 -->
-      <section class="node" id="node-results" data-node="results" style="left:370px;top:980px;width:620px;height:320px">
+      <section class="node" id="node-results" data-node="results" style="left:334px;top:1096px;width:600px;height:404px">
         <div class="node-head"><h3><span class="node-index">08</span>证据结果</h3><span class="node-badge" id="badge-results">未检索</span></div>
         <div class="node-body">
           <div class="ports"><div class="port-row"><i class="socket" id="sock-results-in" data-socket="results:in:package"></i><span class="label">EvidencePackage</span></div></div>
-          <div class="field"><label>结果列表（点击卡片查看引文详情；完整面板在画布下方）</label><div id="resultListInline" class="result-list inline"><div class="hint">尚未检索。</div></div></div>
+          <div class="field"><label>结果列表（点击卡片查看引文详情；完整结果面板在下方）</label><div id="resultListInline" class="result-list inline"><div class="hint">尚未检索。</div></div></div>
           <details><summary>包摘要</summary><pre class="mini-pre" id="packagePreview">尚未检索</pre></details>
           <details><summary>原始响应 JSON（后端真实返回）</summary><pre class="mini-pre" id="rawResponse">尚未检索</pre></details>
           <div class="ports"><div class="port-row out"><span class="label">citation_id</span><i class="socket out" id="sock-results-cit" data-socket="results:out:citation"></i></div></div>
@@ -384,7 +579,7 @@
       </section>
 
       <!-- 09 引用与审计 -->
-      <section class="node" id="node-audit" data-node="audit" style="left:1020px;top:980px;width:640px;height:320px">
+      <section class="node" id="node-audit" data-node="audit" style="left:948px;top:1096px;width:672px;height:404px">
         <div class="node-head"><h3><span class="node-index">09</span>引用与审计</h3><span class="node-badge" id="badge-audit">待审计</span></div>
         <div class="node-body">
           <div class="ports">
@@ -396,47 +591,39 @@
           <p class="field-map">POST /api/citation · POST /api/audit</p>
           <div id="auditOutput"></div>
         </div>
-        <div class="node-foot"><span>引用结构审计；语义支持未测量 → not_checked</span><span id="auditHint">需要先检索</span></div>
+        <div class="node-foot"><span>只做引用结构审计；语义支持未测量（not_checked）</span><span id="auditHint">需要先检索</span></div>
         <div class="node-resize" data-resize="audit"></div>
       </section>
+      </div>
     </div>
-
-    <div class="zoom-hud">
-      <button id="zoomOut" type="button" title="缩小">−</button>
-      <span class="zoom-label" id="zoomLabel">100%</span>
-      <button id="zoomIn" type="button" title="放大">+</button>
-      <button id="zoomFit" type="button" title="适应画布">适应</button>
-      <button id="zoomReset" type="button" title="100%">1:1</button>
-    </div>
-    <div class="canvas-hint">滚轮缩放 · 拖拽空白平移 · 拖节点标题移动 · 右下角缩放节点</div>
   </main>
 
   <div class="bottom-strip">
     <section class="panel inspector" id="inspector">
       <div class="panel-head"><h2>后端与契约</h2><span class="badge state" id="inspectorBadge">RetrievalRequest</span></div>
       <div class="panel-body">
-        <p id="profileLine">neonatal_demo_v1 · 合成数据</p>
+        <p id="profileLine">病例库 · 合成数据</p>
         <p id="backendInfo">正在读取 /api/health…</p>
-        <p class="hint">演示主题：新生儿呼吸窘迫综合征（RDS）、新生儿感染性肺炎、TTN、黄疸、PPHN、BPD、低血糖、母体GBS定植。病例数据 synthetic，但检索走真实 <code>/api/retrieve</code>。</p>
-        <h4>字段 → 节点对照</h4>
+        <p class="hint">覆盖新生儿呼吸窘迫综合征（RDS）、感染性肺炎、TTN、黄疸、PPHN、BPD、低血糖与母体 GBS；病例为合成数据，检索走真实 <code>/api/retrieve</code>。</p>
+        <h4>字段 → 步骤对照</h4>
         <ul>
           <li><b>01</b> patient_snapshot、as_of</li>
           <li><b>02</b> question、task、query_language、clinical_intent</li>
-          <li><b>03</b> patient_terms、english_terms、mesh_terms、user_terms、facets</li>
+          <li><b>03</b> patient_terms、term_mapping（概念→english/mesh/aliases）、facets</li>
           <li><b>04</b> source_mode、source_kinds、filters、top_k</li>
           <li><b>05</b> retrieval_method、rerank、fidelity_gate</li>
           <li><b>06</b> request_id（执行时生成）+ 以上全部</li>
         </ul>
-        <p class="hint">服务不内置任何本地语料；演示库需显式加载。病例默认使用 <code>live</code>（真实联网指南/全文），不使用演示块。分数只表示检索相关性，不是证据质量。</p>
+        <p class="hint">服务不内置任何本地语料；来源库需显式加载。病例默认 <code>live</code>；分数只表示检索相关性，不是证据质量。</p>
       </div>
     </section>
 
     <section class="panel">
-      <div class="panel-head"><h2>演示来源</h2><span class="badge state" id="demoSourceBadge">未加载</span></div>
+      <div class="panel-head"><h2>来源库</h2><span class="badge state" id="demoSourceBadge">未加载</span></div>
       <div class="panel-body tight">
-        <div id="demoGuidelineList" class="hint">正在读取 /api/demo/guidelines…</div>
-        <div class="row inline" style="margin-top:7px"><button class="secondary" id="loadDemoGuidelines" type="button">加载新生儿演示指南库</button><button class="secondary" id="clearSources" type="button">清空自定义来源</button></div>
-        <p class="hint" style="margin-top:6px">演示块只在显式加载后用于 <code>custom</code> 模式；病例默认走 <code>live</code>，直接检索真实指南与开放获取正文。未加载时 custom 检索会显式报错。</p>
+        <div id="demoGuidelineList" class="hint">正在读取来源库…</div>
+        <div class="row inline" style="margin-top:7px"><button class="secondary" id="loadDemoGuidelines" type="button">加载来源库</button><button class="secondary" id="clearSources" type="button">清空自定义来源</button></div>
+        <p class="hint" style="margin-top:6px">来源库条目只在显式加载后用于 <code>custom</code> 模式；病例默认走 <code>live</code>，直接检索真实指南与开放获取正文。未加载时 custom 检索会显式报错。</p>
       </div>
     </section>
 
@@ -461,8 +648,9 @@
         <div id="fidelityBox"></div>
         <div id="jointBox"></div>
         <div id="patientFacts"></div>
+        <div id="applicabilityBox"></div>
         <div id="sourceGroups" class="hint" style="margin-bottom:8px">evidence_groups：尚未检索</div>
-        <div id="resultList" class="result-list"><div class="empty">选择合成病例或手填快照 → 载入快照 → 执行检索。结果将按指南 / PubMed 分源显示，患者事实单独列出。</div></div>
+        <div id="resultList" class="result-list"><div class="empty">选择病例或手填快照 → 载入快照 → 执行检索。结果将按指南 / PubMed 分源显示，患者事实单独列出。</div></div>
       </div>
     </section>
     <aside class="panel">
@@ -473,10 +661,11 @@
 </div>
 <script>
 const $=id=>document.getElementById(id);
-const WORLD={w:1700,h:1340};
+const WORLD={w:1640,h:1520};
 const state={cases:[],case:null,snapshot:null,pkg:null,selectedIndex:null,activeNode:'case',view:{x:18,y:16,scale:0.8},apiLog:[],registeredSources:0};
 const collectionLabels={birth:'出生/成熟度',maternal:'母体（主体=mother）',diagnoses:'诊断',postnatal:'生后时点',respiratory_support:'呼吸支持',vitals:'生命体征',blood_gas:'血气',labs:'检验',imaging:'影像',medications:'用药',therapies:'治疗',feeding:'喂养',risk_factors:'风险因素',reports:'记录'};
 const kindLabels={guideline:'指南',pubmed:'PubMed',drug:'药品',clinical_trial:'临床试验',local_knowledge:'本地知识'};
+const sourceLabels={'neonatal-guideline-metadata':'指南元数据','neonatal-guideline-synthetic':'合成指南','neonatal-literature-synthetic':'合成文献'};
 const caseColors={birth:'#2563a8',maternal:'#7c4dad',diagnoses:'#b04545',postnatal:'#0d7f72',respiratory_support:'#116579',vitals:'#b06a0a',blood_gas:'#1a7f5a',labs:'#b06a0a',imaging:'#2563a8',medications:'#1a7f5a',therapies:'#7c4dad',feeding:'#0d7f72',risk_factors:'#a23535',reports:'#5b6b78'};
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function listValue(id){return $(id).value.split(',').map(x=>x.trim()).filter(Boolean);}
@@ -496,13 +685,14 @@ async function requestJson(url,options={}){
 }
 function jsonPreview(id,value){$(id).textContent=JSON.stringify(value,null,2);}
 
-/* ---------- 画布：缩放 / 平移 / 节点拖拽 / 节点缩放 ---------- */
+/* ---------- 画布交互已停用：v6.6.5 使用固定工作台布局 ---------- */
+if(false){
 const viewport=$('viewport'),world=$('graph');
 function clamp(v,min,max){return Math.min(max,Math.max(min,v));}
 function applyView(){world.style.transform=`translate(${state.view.x}px, ${state.view.y}px) scale(${state.view.scale})`;$('zoomLabel').textContent=Math.round(state.view.scale*100)+'%';requestAnimationFrame(drawWires);}
 function setZoom(next,mx,my){next=clamp(next,0.35,2.2);const old=state.view.scale;const vx=mx==null?viewport.clientWidth/2:mx;const vy=my==null?viewport.clientHeight/2:my;const wx=(vx-state.view.x)/old,wy=(vy-state.view.y)/old;state.view.x=vx-wx*next;state.view.y=vy-wy*next;state.view.scale=next;applyView();saveLayout();}
 function fitView(){const vw=viewport.clientWidth,vh=viewport.clientHeight;const scale=clamp(Math.min(vw/WORLD.w,vh/WORLD.h)*0.98,0.45,2.2);state.view={x:(vw-WORLD.w*scale)/2,y:10,scale};applyView();saveLayout();}
-function fitWidth(){const vw=viewport.clientWidth;const scale=clamp((vw-34)/WORLD.w,0.42,1.05);state.view={x:(vw-WORLD.w*scale)/2,y:14,scale};applyView();}
+function fitWidth(){const vw=viewport.clientWidth;const scale=clamp((vw-26)/WORLD.w,0.66,1.2);state.view={x:(vw-WORLD.w*scale)/2,y:14,scale};applyView();}
 function centerNode(id){const node=document.querySelector(`.node[data-node="${id}"]`);if(!node)return;const scale=Math.max(state.view.scale,0.75);state.view.scale=scale;state.view.x=viewport.clientWidth/2-(node.offsetLeft+node.offsetWidth/2)*scale;state.view.y=viewport.clientHeight/2-(node.offsetTop+node.offsetHeight/2)*scale;applyView();saveLayout();}
 viewport.addEventListener('wheel',event=>{event.preventDefault();const rect=viewport.getBoundingClientRect();const factor=Math.exp(-event.deltaY*0.0014);setZoom(state.view.scale*factor,event.clientX-rect.left,event.clientY-rect.top);},{passive:false});
 viewport.addEventListener('mousedown',event=>{if(event.button!==0)return;if(event.target.closest('.node'))return;if(event.target.closest('.zoom-hud'))return;event.preventDefault();const start={x:event.clientX,y:event.clientY,vx:state.view.x,vy:state.view.y};viewport.classList.add('panning');const move=ev=>{state.view.x=start.vx+(ev.clientX-start.x);state.view.y=start.vy+(ev.clientY-start.y);applyView();};const up=()=>{viewport.classList.remove('panning');window.removeEventListener('mousemove',move);window.removeEventListener('mouseup',up);saveLayout();};window.addEventListener('mousemove',move);window.addEventListener('mouseup',up);});
@@ -546,7 +736,8 @@ function scrollToResults(){const panel=$('resultPanel');if(!panel)return;panel.s
 /* ---------- 连线：世界坐标，随缩放/拖拽/滚动实时重算 ---------- */
 const LINKS=[['case:out:snapshot','request:in:snapshot'],['question:out:query','request:in:question'],['terms:out:terms','request:in:terms'],['scope:out:scope','request:in:scope'],['method:out:method','request:in:method'],['request:out:request','run:in:request'],['run:out:package','results:in:package'],['run:out:retrieval_id','audit:in:retrieval_id'],['results:out:citation','audit:in:citation']];
 function socketCenter(el){const wr=world.getBoundingClientRect();const r=el.getBoundingClientRect();const scale=state.view.scale;return {x:(r.left+r.width/2-wr.left)/scale,y:(r.top+r.height/2-wr.top)/scale};}
-function drawWires(){const svg=$('wires');if(!svg)return;svg.setAttribute('viewBox',`0 0 ${WORLD.w} ${WORLD.h}`);const parts=[];LINKS.forEach(([from,to],index)=>{const a=document.querySelector(`[data-socket="${from}"]`);const b=document.querySelector(`[data-socket="${to}"]`);if(!a||!b)return;const p1=socketCenter(a),p2=socketCenter(b);const cyan=index>=6;const color=cyan?'#0d7f72':'#3f7a86';let d;if(p2.x<p1.x-12){const dy=Math.max(70,Math.abs(p2.y-p1.y)*0.55);d=`M ${p1.x.toFixed(1)} ${p1.y.toFixed(1)} C ${p1.x.toFixed(1)} ${(p1.y+dy).toFixed(1)}, ${p2.x.toFixed(1)} ${(p2.y-dy).toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;}else{const dx=Math.max(46,Math.abs(p2.x-p1.x)*0.45);d=`M ${p1.x.toFixed(1)} ${p1.y.toFixed(1)} C ${(p1.x+dx).toFixed(1)} ${p1.y.toFixed(1)}, ${(p2.x-dx).toFixed(1)} ${p2.y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;}parts.push(`<path d="${d}" fill="none" stroke="${color}" stroke-width="2.6" stroke-linecap="round" vector-effect="non-scaling-stroke" stroke-dasharray="${cyan?'8 5':'none'}" opacity=".96" marker-end="url(#arrow-${cyan?'cyan':'blue'})"/>`);a.classList.add('linked');b.classList.add('linked');});svg.innerHTML=`<defs><marker id="arrow-blue" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#3f7a86"/></marker><marker id="arrow-cyan" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#0d7f72"/></marker></defs>`+parts.join('');}
+function themeColor(name,fallback){const value=getComputedStyle(document.documentElement).getPropertyValue(name).trim();return value||fallback;}
+function drawWires(){const svg=$('wires');if(!svg)return;svg.setAttribute('viewBox',`0 0 ${WORLD.w} ${WORLD.h}`);const wireMain=themeColor('--wire','#3f7a86');const wireAlt=themeColor('--wire-alt','#0d7f72');const parts=[];LINKS.forEach(([from,to],index)=>{const a=document.querySelector(`[data-socket="${from}"]`);const b=document.querySelector(`[data-socket="${to}"]`);if(!a||!b)return;const p1=socketCenter(a),p2=socketCenter(b);const cyan=index>=6;const color=cyan?wireAlt:wireMain;let d;if(p2.x<p1.x-12){const dy=Math.max(70,Math.abs(p2.y-p1.y)*0.55);d=`M ${p1.x.toFixed(1)} ${p1.y.toFixed(1)} C ${p1.x.toFixed(1)} ${(p1.y+dy).toFixed(1)}, ${p2.x.toFixed(1)} ${(p2.y-dy).toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;}else{const dx=Math.max(46,Math.abs(p2.x-p1.x)*0.45);d=`M ${p1.x.toFixed(1)} ${p1.y.toFixed(1)} C ${(p1.x+dx).toFixed(1)} ${p1.y.toFixed(1)}, ${(p2.x-dx).toFixed(1)} ${p2.y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;}parts.push(`<path d="${d}" fill="none" stroke="${color}" stroke-width="2.6" stroke-linecap="round" vector-effect="non-scaling-stroke" stroke-dasharray="${cyan?'8 5':'none'}" opacity=".96" marker-end="url(#arrow-${cyan?'cyan':'blue'})"/>`);a.classList.add('linked');b.classList.add('linked');});svg.innerHTML=`<defs><marker id="arrow-blue" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="${wireMain}"/></marker><marker id="arrow-cyan" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="${wireAlt}"/></marker></defs>`+parts.join('');}
 world.addEventListener('scroll',()=>drawWires(),true);
 document.querySelectorAll('.node-body').forEach(body=>body.addEventListener('scroll',()=>drawWires()));
 
@@ -554,51 +745,62 @@ document.querySelectorAll('.node-body').forEach(body=>body.addEventListener('scr
 const railNodes=[['case','01 病例与快照'],['question','02 问题与意图'],['terms','03 术语与映射'],['scope','04 范围与过滤'],['method','05 检索方法与门控'],['request','06 RetrievalRequest'],['run','07 执行检索'],['results','08 证据结果'],['audit','09 引用与审计']];
 function renderRail(){$('railBody').innerHTML=railNodes.map(([id,label])=>`<button class="node-chip ${state.activeNode===id?'active':''}" data-node="${id}" type="button"><b>${esc(label.slice(0,2))}</b>${esc(label.slice(3))}</button>`).join('');document.querySelectorAll('.node-chip').forEach(chip=>chip.addEventListener('click',()=>{setNodeActive(chip.dataset.node);centerNode(chip.dataset.node);}));}
 
+}
+function drawWires(){}
+function saveLayout(){}
+function loadLayout(){return false;}
+function renderRail(){}
+function fitWidth(){}
+function scrollToResults(){const panel=$('resultPanel');if(!panel)return;panel.scrollIntoView({behavior:'smooth',block:'start'});panel.classList.add('flash');setTimeout(()=>panel.classList.remove('flash'),900);}
+$('jumpResults').addEventListener('click',()=>scrollToResults());
+
 /* ---------- 病例与快照（真实后端） ---------- */
-async function loadCases(){try{const data=await requestJson('/api/demo/cases');state.cases=data.cases||[];$('demoCase').innerHTML=state.cases.map(c=>`<option value="${esc(c.case_id)}">${esc(c.label)}</option>`).join('');const sets=data.case_sets||{};const setText=sets.generated_his?`（精选 ${sets.curated} + HIS 生成 ${sets.generated_his}）`:'';$('profileLine').textContent=`${data.profile} · ${state.cases.length} 例合成病例${setText} · 全部 synthetic=true`;if(state.cases.length)applyCase(state.cases[0].case_id);}catch(e){$('demoGuidelineList').textContent=`病例档案读取失败：${e.message}`;const warning=$('backendWarning');warning.hidden=false;warning.textContent=`无法读取 /api/demo/cases：${e.message}。本页面需要 v6.6.4 后端（在仓库根目录执行 python3 -m rag.server）。`;}}
-function applyCase(caseId){const c=state.cases.find(x=>x.case_id===caseId);if(!c)return;state.case=c;const p=c.preset||{};$('patientRef').value=c.snapshot.patient_ref||'';$('asOf').value=c.snapshot.as_of||'';$('snapshotJson').value=JSON.stringify(c.snapshot,null,2);$('manualSnapshot').checked=false;$('question').value=p.question||'';$('task').value=p.task||'clinical_question';$('queryLanguage').value=p.query_language||'zh';$('clinicalIntent').value=p.clinical_intent||'';$('patientTerms').value=(p.patient_terms||[]).join(', ');$('englishTerms').value=(p.english_terms||[]).join(', ');$('meshTerms').value=(p.mesh_terms||[]).join(', ');$('userTerms').value=JSON.stringify(p.user_terms||{},null,2);$('facets').value=JSON.stringify(p.facets||{},null,2);$('filters').value=JSON.stringify(p.filters||{},null,2);$('sourceMode').value=p.source_mode||'custom';$('topK').value=String(p.top_k||6);document.querySelectorAll('[data-kind]').forEach(cb=>cb.checked=(p.source_kinds||['guideline','pubmed']).includes(cb.value));$('retrievalMethod').value=p.retrieval_method||'';$('rerankToggle').checked=Boolean(p.rerank);$('fidelityGate').value=p.fidelity_gate||'off';state.snapshot=null;$('snapshotState').textContent='未载入';$('snapshotPreview').textContent='尚未载入';setBadge('badge-case','待载入','');setBadge('badge-question',p.question?'已填写':'待填写',p.question?'ready':'');setBadge('badge-terms','待填写','');setBadge('badge-scope','待配置','');setBadge('badge-method','待配置','');updateRequestPreview();drawWires();}
+async function loadCases(){try{const data=await requestJson('/api/demo/cases');state.cases=data.cases||[];$('demoCase').innerHTML=state.cases.map(c=>`<option value="${esc(c.case_id)}">${esc(c.label)}</option>`).join('');const sets=data.case_sets||{};const setText=sets.generated_his?`（精选 ${sets.curated} + HIS 生成 ${sets.generated_his}）`:'';$('profileLine').textContent=`病例库 · ${state.cases.length} 例合成病例${setText}`;if(state.cases.length)applyCase(state.cases[0].case_id);}catch(e){$('demoGuidelineList').textContent=`病例档案读取失败：${e.message}`;const warning=$('backendWarning');warning.hidden=false;warning.textContent=`无法读取 /api/demo/cases：${e.message}。本页面需要 v6.6.5 后端（PYTHONPATH=. python3 -m rag.server）。`;}}
+function applyCase(caseId){const c=state.cases.find(x=>x.case_id===caseId);if(!c)return;state.case=c;const p=c.preset||{};$('patientRef').value=c.snapshot.patient_ref||'';$('asOf').value=c.snapshot.as_of||'';$('snapshotJson').value=JSON.stringify(c.snapshot,null,2);$('manualSnapshot').checked=false;$('question').value=p.question||'';$('task').value=p.task||'clinical_question';$('queryLanguage').value=p.query_language||'zh';$('clinicalIntent').value=p.clinical_intent||'';$('patientTerms').value=(p.patient_terms||[]).join(', ');$('termMapping').value=JSON.stringify(p.term_mapping||[],null,2);$('facets').value=JSON.stringify(p.facets||{},null,2);$('filters').value=JSON.stringify(p.filters||{},null,2);$('sourceMode').value=p.source_mode||'custom';$('topK').value=String(p.top_k||6);document.querySelectorAll('[data-kind]').forEach(cb=>cb.checked=(p.source_kinds||['guideline','pubmed']).includes(cb.value));$('retrievalMethod').value=p.retrieval_method||'';$('rerankToggle').checked=Boolean(p.rerank);$('fidelityGate').value=p.fidelity_gate||'off';state.snapshot=null;$('snapshotState').textContent='未载入';$('snapshotPreview').textContent='尚未载入';setBadge('badge-case','待载入','');setBadge('badge-question',p.question?'已填写':'待填写',p.question?'ready':'');setBadge('badge-terms','待填写','');setBadge('badge-scope','待配置','');setBadge('badge-method','待配置','');updateRequestPreview();drawWires();}
 $('demoCase').addEventListener('change',()=>applyCase($('demoCase').value));
 $('loadSnapshot').addEventListener('click',async()=>{const b=$('loadSnapshot');b.disabled=true;b.textContent='载入中…';try{const parsed=JSON.parse($('snapshotJson').value||'{}');if(!$('manualSnapshot').checked){parsed.as_of=$('asOf').value||parsed.as_of;}const response=await requestJson('/api/his/snapshot',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({patient_snapshot:parsed})});state.snapshot=response.data;$('asOf').value=response.data.as_of||$('asOf').value;jsonPreview('snapshotPreview',{patient_ref:response.data.patient_ref,as_of:response.data.as_of,visible_facts:response.data.facts.length,suppressed_future:response.data.suppressed_future});$('snapshotState').textContent=`${response.data.facts.length} 条可见事实`;setBadge('badge-case','快照就绪','done');$('patientFacts').innerHTML=renderPatientPanel(response.data);updateRequestPreview();}catch(e){state.snapshot=null;$('snapshotState').textContent='载入失败';setBadge('badge-case','失败','error');$('snapshotPreview').textContent=e.message;}finally{b.disabled=false;b.textContent='载入快照';}});
 
 /* ---------- 请求组装 ---------- */
 function parseJsonField(id){const raw=$(id).value.trim();if(!raw)return {};try{const value=JSON.parse(raw);if(value===null||typeof value!=='object'||Array.isArray(value))throw new Error('必须是 JSON 对象');return value;}catch(e){throw new Error(`${id} JSON 无效：${e.message}`);}}
-function currentRequest(){const request={question:$('question').value.trim(),task:$('task').value,query_language:$('queryLanguage').value,clinical_intent:$('clinicalIntent').value||null,as_of:$('asOf').value||null,patient_terms:listValue('patientTerms'),english_terms:listValue('englishTerms'),mesh_terms:listValue('meshTerms'),user_terms:parseJsonField('userTerms'),facets:parseJsonField('facets'),filters:parseJsonField('filters'),source_kinds:[...document.querySelectorAll('[data-kind]:checked')].map(x=>x.value),source_mode:$('sourceMode').value,retrieval_method:$('retrievalMethod').value||null,rerank:$('rerankToggle').checked,fidelity_gate:$('fidelityGate').value,top_k:Number($('topK').value)||6};if(state.snapshot)request.patient_snapshot=state.snapshot;return request;}
-function updateRequestPreview(){try{const request=currentRequest();jsonPreview('requestPreview',request);$('requestNote').textContent=`请求已组装：${request.question?request.question.slice(0,34)+(request.question.length>34?'…':''):'（缺少 question）'} · source_mode=${request.source_mode} · top_k=${request.top_k}`;setBadge('badge-request','可执行','ready');setBadge('badge-terms','已组装','ready');setBadge('badge-scope','已配置','ready');setBadge('badge-method','已配置','ready');return request;}catch(e){$('requestPreview').textContent=e.message;setBadge('badge-request','JSON 错误','error');return null;}}
-['question','task','queryLanguage','clinicalIntent','asOf','patientTerms','englishTerms','meshTerms','userTerms','facets','filters','sourceMode','topK','retrievalMethod','rerankToggle','fidelityGate'].forEach(id=>{const el=$(id);el.addEventListener('input',updateRequestPreview);el.addEventListener('change',updateRequestPreview);});
+function parseTermMapping(){const raw=$('termMapping').value.trim();if(!raw)return [];let value;try{value=JSON.parse(raw);}catch(e){throw new Error(`termMapping JSON 无效：${e.message}`);}if(value===null)return [];if(Array.isArray(value)){value.forEach((row,i)=>{if(!row||typeof row!=='object'||Array.isArray(row))throw new Error(`termMapping[${i}] 必须是对象`);});return value;}if(typeof value==='object'){return Object.entries(value).map(([concept,payload])=>({concept,...(Array.isArray(payload)?{english:payload}:payload)}));}throw new Error('termMapping 必须是数组或对象');}
+function renderTermMappingPreview(){const box=$('termMappingPreview');try{const rows=parseTermMapping();if(!rows.length){box.innerHTML='<div class="hint">尚无可展开的映射行。</div>';return;}const body=rows.map(row=>`<tr><td>${esc(row.concept||'')}</td><td>${esc((row.english||[]).join(' · '))}</td><td>${esc((row.mesh||[]).join(' · '))}</td><td>${esc((row.aliases||[]).join(' · '))}</td></tr>`).join('');box.innerHTML=`<table><thead><tr><th>中文概念</th><th>English</th><th>MeSH</th><th>别名</th></tr></thead><tbody>${body}</tbody></table>`;}catch(e){box.innerHTML=`<div class="hint">${esc(e.message)}</div>`;}}
+function currentRequest(){const request={question:$('question').value.trim(),task:$('task').value,query_language:$('queryLanguage').value,clinical_intent:$('clinicalIntent').value||null,as_of:$('asOf').value||null,patient_terms:listValue('patientTerms'),term_mapping:parseTermMapping(),facets:parseJsonField('facets'),filters:parseJsonField('filters'),source_kinds:[...document.querySelectorAll('[data-kind]:checked')].map(x=>x.value),source_mode:$('sourceMode').value,retrieval_method:$('retrievalMethod').value||null,rerank:$('rerankToggle').checked,fidelity_gate:$('fidelityGate').value,top_k:Number($('topK').value)||6};if(state.snapshot)request.patient_snapshot=state.snapshot;return request;}
+function updateRequestPreview(){renderTermMappingPreview();try{const request=currentRequest();jsonPreview('requestPreview',request);$('requestNote').textContent=`请求已组装：${request.question?request.question.slice(0,34)+(request.question.length>34?'…':''):'（缺少 question）'} · source_mode=${request.source_mode} · top_k=${request.top_k}`;setBadge('badge-request','可执行','ready');setBadge('badge-terms','已组装','ready');setBadge('badge-scope','已配置','ready');setBadge('badge-method','已配置','ready');return request;}catch(e){$('requestPreview').textContent=e.message;setBadge('badge-request','JSON 错误','error');return null;}}
+['question','task','queryLanguage','clinicalIntent','asOf','patientTerms','termMapping','facets','filters','sourceMode','topK','retrievalMethod','rerankToggle','fidelityGate'].forEach(id=>{const el=$(id);el.addEventListener('input',updateRequestPreview);el.addEventListener('change',updateRequestPreview);});
 document.querySelectorAll('[data-kind]').forEach(cb=>cb.addEventListener('change',updateRequestPreview));
 
 /* ---------- 空白请求 ---------- */
-$('blankRequest').addEventListener('click',()=>{state.case=null;state.snapshot=null;state.pkg=null;$('patientRef').value='';$('asOf').value='';$('snapshotJson').value='{\n  "patient_ref": "",\n  "as_of": "",\n  "facts": []\n}';$('manualSnapshot').checked=true;$('question').value='';$('task').value='clinical_question';$('queryLanguage').value='zh';$('clinicalIntent').value='';$('patientTerms').value='';$('englishTerms').value='';$('meshTerms').value='';$('userTerms').value='{}';$('facets').value='{}';$('filters').value='{}';$('sourceMode').value='custom';$('topK').value='6';document.querySelectorAll('[data-kind]').forEach(cb=>cb.checked=true);$('retrievalMethod').value='';$('rerankToggle').checked=false;$('fidelityGate').value='off';$('snapshotState').textContent='未载入';$('snapshotPreview').textContent='尚未载入';setBadge('badge-case','待载入','');setBadge('badge-question','待填写','');setBadge('badge-terms','待填写','');setBadge('badge-scope','待配置','');setBadge('badge-method','待配置','');updateRequestPreview();});
+$('blankRequest').addEventListener('click',()=>{state.case=null;state.snapshot=null;state.pkg=null;$('patientRef').value='';$('asOf').value='';$('snapshotJson').value='{\n  "patient_ref": "",\n  "as_of": "",\n  "facts": []\n}';$('manualSnapshot').checked=true;$('question').value='';$('task').value='clinical_question';$('queryLanguage').value='zh';$('clinicalIntent').value='';$('patientTerms').value='';$('termMapping').value='[]';$('facets').value='{}';$('filters').value='{}';$('sourceMode').value='custom';$('topK').value='6';document.querySelectorAll('[data-kind]').forEach(cb=>cb.checked=true);$('retrievalMethod').value='';$('rerankToggle').checked=false;$('fidelityGate').value='off';$('snapshotState').textContent='未载入';$('snapshotPreview').textContent='尚未载入';setBadge('badge-case','待载入','');setBadge('badge-question','待填写','');setBadge('badge-terms','待填写','');setBadge('badge-scope','待配置','');setBadge('badge-method','待配置','');updateRequestPreview();});
 
 /* ---------- 执行与结果 ---------- */
 $('runButton').addEventListener('click',async()=>{
   const request=updateRequestPreview();
   if(!request)return;
-  if(!request.question){$('requestPreview').textContent='question 不能为空';setBadge('badge-request','缺少问题','error');$('resultList').innerHTML='<div class="empty"><b>检索未执行</b><br>节点 02 的 question（中文原始问题）为空。可先选择演示病例自动填充，或点“空白请求”自行填写。</div>';return;}
+  if(!request.question){$('requestPreview').textContent='question 不能为空';setBadge('badge-request','缺少问题','error');$('resultList').innerHTML='<div class="empty"><b>检索未执行</b><br>步骤 02 的 question（中文原始问题）为空。可先选择病例自动填充，或点“空白请求”自行填写。</div>';return;}
   const b=$('runButton');b.disabled=true;$('loading').hidden=false;setBadge('badge-run','执行中','running');
   try{
     // custom 模式但没有注册来源时：先显式加载演示库（真实 POST），再检索；不伪造结果。
     if(request.source_mode==='custom'&&state.registeredSources===0){
-      $('resultNote').textContent='custom 模式尚无来源，正在加载新生儿演示指南库…';
+      $('resultNote').textContent='custom 模式尚无来源，正在加载来源库…';
       await requestJson('/api/demo/guidelines/load',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
       await refreshDemoGuidelines();await refreshSources();
-      $('resultNote').textContent='演示指南库已加载，继续检索…';
+      $('resultNote').textContent='来源库已加载，继续检索…';
     }
     const pkg=await requestJson('/api/retrieve',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...request,request_id:`gui-${Date.now()}`})});
     renderPkg(pkg);setBadge('badge-run','完成','done');setBadge('badge-results','已返回','done');
   }catch(e){
     setBadge('badge-run','失败','error');
     const hint=/no custom sources registered/.test(e.message)
-      ? 'custom 模式没有已注册来源。点击下方按钮加载演示指南库，或切换到 live 模式后重试。'
+      ? 'custom 模式没有已注册来源。点击下方按钮加载来源库，或切换到 live 模式后重试。'
       : '请查看下方 API 调用日志中的状态码与错误信息。';
-    $('resultList').innerHTML=`<div class="empty"><b>检索失败</b><br>${esc(e.message)}<div class="hint" style="margin-top:8px">${esc(hint)}</div>${/no custom sources registered/.test(e.message)?'<button class="secondary" style="margin-top:8px" type="button" id="retryAfterLoad">加载演示库并重试</button>':''}</div>`;
+    $('resultList').innerHTML=`<div class="empty"><b>检索失败</b><br>${esc(e.message)}<div class="hint" style="margin-top:8px">${esc(hint)}</div>${/no custom sources registered/.test(e.message)?'<button class="secondary" style="margin-top:8px" type="button" id="retryAfterLoad">加载来源库并重试</button>':''}</div>`;
     const retry=$('retryAfterLoad');
-    if(retry){retry.addEventListener('click',async()=>{retry.disabled=true;try{await requestJson('/api/demo/guidelines/load',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});await refreshDemoGuidelines();await refreshSources();retry.textContent='已加载，正在重试…';$('runButton').click();}catch(err){$('resultList').innerHTML=`<div class="empty"><b>加载失败</b><br>${esc(err.message)}</div>`;retry.disabled=false;retry.textContent='加载演示库并重试';}});}
+    if(retry){retry.addEventListener('click',async()=>{retry.disabled=true;try{await requestJson('/api/demo/guidelines/load',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});await refreshDemoGuidelines();await refreshSources();retry.textContent='已加载，正在重试…';$('runButton').click();}catch(err){$('resultList').innerHTML=`<div class="empty"><b>加载失败</b><br>${esc(err.message)}</div>`;retry.disabled=false;retry.textContent='加载来源库并重试';}});}
     await refreshSources();
   }finally{b.disabled=false;$('loading').hidden=true;}
 });
 
-function renderPatientPanel(snapshot){if(!snapshot){return '';}const facts=snapshot.facts||[];const groups={};facts.forEach(f=>{const key=f.collection||'other';if(!groups[key])groups[key]=[];groups[key].push(f);});const initials=String(snapshot.patient_ref||'?').replace(/^neo-/,'').slice(0,4).toUpperCase();const suppressed=Number(snapshot.suppressed_future||0);const chips=`<span class="his-chip">as_of ${esc(snapshot.as_of)}</span><span class="his-chip">可见事实 ${facts.length} 条</span>${suppressed?`<span class="his-chip suppressed">已抑制未来记录 ${suppressed} 条</span>`:''}<span class="his-chip">来源 ${esc(snapshot.source||'synthetic_neonatal_chart')}</span>`;const sections=Object.keys(groups).map(key=>{const color=caseColors[key]||'#5b6b78';const label=collectionLabels[key]||key;const items=groups[key].map(f=>{const fv=f.fields||{};const main=Object.entries(fv).filter(([k])=>!['text','free_text','narrative','note','history'].includes(k)).map(([k,v])=>`${esc(k)}=${esc(v)}`).join(' · ')||esc(f.event_type||'记录');const time=esc(f.time||f.start||'—');const role=fv.subject_role?`<span class="his-chip" style="padding:0 6px;font-size:9.5px">${esc(fv.subject_role)}</span>`:'';return `<div class="his-fact"><span class="his-fact-time">${time}</span><div class="his-fact-main"><div class="his-fact-text">${main} ${role}</div><div class="his-fact-meta">${esc(f.record_path)} · ${esc(f.field_path)}${f.end?` · 至 ${esc(f.end)}`:''}</div></div></div>`;}).join('');return `<div class="his-group"><div class="his-group-title"><span class="his-dot" style="background:${color}"></span>${esc(label)}<span class="source-count">${groups[key].length} 条</span></div>${items}</div>`;}).join('');return `<section class="panel" style="margin-bottom:12px"><div class="panel-head"><h2>患者快照（只读 HIS · 合成）</h2><span class="badge state">原始病历不发送外部来源</span></div><div class="panel-body" style="padding:0"><div class="his-card" style="border:0;border-radius:0"><div class="his-head"><div class="his-avatar">${esc(initials)}</div><div><div class="his-id">${esc(snapshot.patient_ref)}</div><div class="his-sub">合成新生儿病例 · 按 as_of 截止 · record_path/field_path 可回溯</div></div></div><div class="his-chips">${chips}</div><div class="his-body">${sections||'<div class="empty">快照中没有可见事实。</div>'}</div></div></div></section>`;}
+function renderPatientPanel(snapshot){if(!snapshot){return '';}const facts=snapshot.facts||[];const groups={};facts.forEach(f=>{const key=f.collection||'other';if(!groups[key])groups[key]=[];groups[key].push(f);});const initials=String(snapshot.patient_ref||'?').replace(/^neo-/,'').slice(0,4).toUpperCase();const suppressed=Number(snapshot.suppressed_future||0);const chips=`<span class="his-chip">as_of ${esc(snapshot.as_of)}</span><span class="his-chip">可见事实 ${facts.length} 条</span>${suppressed?`<span class="his-chip suppressed">已抑制未来记录 ${suppressed} 条</span>`:''}<span class="his-chip">来源 ${esc(String(snapshot.source||'').includes('synthetic')?'合成数据':(snapshot.source||'快照'))}</span>`;const sections=Object.keys(groups).map(key=>{const color=caseColors[key]||'#5b6b78';const label=collectionLabels[key]||key;const items=groups[key].map(f=>{const fv=f.fields||{};const main=Object.entries(fv).filter(([k])=>!['text','free_text','narrative','note','history'].includes(k)).map(([k,v])=>`${esc(k)}=${esc(v)}`).join(' · ')||esc(f.event_type||'记录');const time=esc(f.time||f.start||'—');const role=fv.subject_role?`<span class="his-chip role-chip">${esc(fv.subject_role)}</span>`:'';return `<div class="his-fact"><span class="his-fact-time">${time}</span><div class="his-fact-main"><div class="his-fact-text">${main} ${role}</div><div class="his-fact-meta">${esc(f.record_path)} · ${esc(f.field_path)}${f.end?` · 至 ${esc(f.end)}`:''}</div></div></div>`;}).join('');return `<div class="his-group"><div class="his-group-title"><span class="his-dot" style="background:${color}"></span>${esc(label)}<span class="source-count">${groups[key].length} 条</span></div>${items}</div>`;}).join('');return `<section class="panel" style="margin-bottom:12px"><div class="panel-head"><h2>患者快照（只读 HIS · 合成数据）</h2><span class="badge state">原始病历不发送外部来源</span></div><div class="panel-body" style="padding:0"><div class="his-card" style="border:0;border-radius:0"><div class="his-head"><div class="his-avatar">${esc(initials)}</div><div><div class="his-id">${esc(snapshot.patient_ref)}</div><div class="his-sub">合成病例 · 按 as_of 截止 · record_path/field_path 可回溯</div></div></div><div class="his-chips">${chips}</div><div class="his-body">${sections||'<div class="empty">快照中没有可见事实。</div>'}</div></div></div></section>`;}
 
 function renderPatientHits(pkg){const hits=pkg.patient_hits||[];if(!hits.length)return '';const rows=hits.map(h=>`<div class="his-fact"><span class="his-fact-time">${esc(h.time||h.start||'—')}</span><div class="his-fact-main"><div class="his-fact-text">${esc(h.evidence_text)}</div><div class="his-fact-meta">${esc(h.record_path)} · ${esc(h.field_path)} · 命中：${esc((h.matched_terms||[]).join('、'))}</div></div><span class="his-fact-score">${Number(h.score).toFixed(3)}</span></div>`).join('');return `<section class="panel" style="margin-bottom:12px"><div class="panel-head"><h2>患者事实命中（本地检索）</h2><span class="badge state">${hits.length} 条</span></div><div class="panel-body">${rows}<div class="hint">患者事实与外部证据是不同来源；命中分数只表示本地词面匹配。</div></div></section>`;}
 
@@ -608,7 +810,8 @@ function renderQueryReview(pkg){const review=pkg.trace?.query_review;if(!review)
 
 function renderFidelity(pkg){const f=pkg.trace?.query_fidelity;if(!f||!f.applied)return '';const decisions=(f.decisions||[]).map(d=>{const cls=d.action==='reject'||d.action==='downweight'?'find':'ok';return `<li class="review-item"><span class="${cls}">${esc(d.action)}</span><span><b>${esc(d.route)}</b> · ${esc(d.level)} · ${esc(d.reason||'')}</span></li>`;}).join('');const report=f.report||{};const routes=(report.routes||[]).map(r=>{const findings=(r.findings||[]).filter(x=>x.level!=='L0');const items=findings.length?findings.map(x=>`<div class="review-finding">[${esc(x.level)}/${esc(x.verdict)}] ${esc(x.evidence||'')}</div>`).join(''):`<div class="hint">无分级问题（status=${esc(r.status)}）。</div>`;return `<div class="hint" style="margin-top:5px"><b>${esc(r.route)}</b>（status=${esc(r.status)}，level=${esc(r.level)}）</div>${items}`;}).join('');const badge=f.policy==='off'?'<span class="badge">未启用</span>':'<span class="badge warn">已应用</span>';return `<div class="insight"><div class="insight-head"><h3>查询保真审计与门控</h3>${badge}</div><div class="insight-body"><div class="hint">策略：${esc(f.policy)}</div><ul class="review-list">${decisions}</ul>${routes}<div class="hint" style="margin-top:6px">自动判定是确定性词面基线的假设（suspected_*/unverifiable），不是临床结论。</div></div></div>`;}
 
-function renderPkg(pkg){state.pkg=pkg;state.selectedIndex=pkg.citations?.length?0:null;const trace=pkg.trace||{};$('patientFacts').innerHTML=renderPatientHits(pkg);$('sourceGroups').textContent=`evidence_groups：${Object.keys(pkg.evidence_groups||{}).join('、')||'无'} · source separation：${pkg.source_separation?.status||'unknown'}`;$('candidateCount').textContent=trace.candidate_count??0;$('selectedCount').textContent=trace.selected_count??0;$('guidelineCount').textContent=(pkg.ranked_documents||[]).filter(x=>x.document.kind==='guideline').length;$('sourceCount').textContent=(trace.connector_trace||[]).filter(x=>x.status==='ok').length;$('modeBadge').textContent=pkg.trace?.source_mode||'—';const methodLabel=trace.retrieval_method||'bm25';const methodStates=(trace.method_trace||[]).map(m=>`${m.method}:${m.status}`).join('、')||methodLabel;$('resultNote').textContent=`${pkg.request_id} · 方法 ${methodLabel}`;const warnings=pkg.warnings||[];$('warnings').hidden=!warnings.length;$('warnings').innerHTML=warnings.map(x=>`⚠ ${esc(x)}`).join('<br>');$('queryReviewBox').innerHTML=renderQueryReview(pkg);$('jointBox').innerHTML=renderJoint(pkg);$('fidelityBox').innerHTML=renderFidelity(pkg);jsonPreview('runPreview',{retrieval_id:pkg.retrieval_id,request_id:pkg.request_id,candidate_count:trace.candidate_count,selected_count:trace.selected_count,warnings:warnings.length});jsonPreview('packagePreview',{retrieval_id:pkg.retrieval_id,groups:Object.keys(pkg.evidence_groups||{}),citations:(pkg.citations||[]).length,source_separation:pkg.source_separation});$('rawResponse').textContent=JSON.stringify(pkg,null,2);setBadge('badge-audit','待审计','');const list=$('resultList');const inlineList=$('resultListInline');if(!pkg.ranked_documents.length){const emptyHtml='<div class="empty">没有满足当前时间、版本、状态和查询相关度条件的证据。</div>';list.innerHTML=emptyHtml;inlineList.innerHTML=emptyHtml;renderDetail(null);return;}const groups=pkg.evidence_groups||{},order=Object.keys(groups);const indexByCit=new Map();(pkg.ranked_documents||[]).forEach((item,i)=>{if(item.citation_id)indexByCit.set(item.citation_id,i);});const listHtml=order.map(kind=>{const items=groups[kind]||[];const rows=items.map((item,innerIndex)=>{const globalIndex=item.citation_id&&indexByCit.has(item.citation_id)?indexByCit.get(item.citation_id):-1;const d=item.document;return `<button class="result ${globalIndex===state.selectedIndex?'active':''}" data-index="${globalIndex}" type="button"><div class="result-top"><div><h3>${esc(d.title)}</h3><p>${esc(d.text)}</p></div><div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end"><span class="badge">${esc(kindLabels[d.kind]||d.kind)}</span><span class="badge rank">来源内 #${innerIndex+1}</span></div></div><div class="result-meta">${globalIndex>=0?`<span>总排名 ${globalIndex+1}</span>`:'<span>总排名 —</span>'}<span>来源内分数 ${Number(item.score).toFixed(3)}</span><span>${esc(item.evidence_status)}</span>${d.pmid?`<span>PMID ${esc(d.pmid)}</span>`:''}${d.version_id?`<span>版本 ${esc(d.version_id)}</span>`:''}${d.recommendation_id?`<span>推荐 ${esc(d.recommendation_id)}</span>`:''}<span>引用 ${esc(item.citation_id||'—')}</span></div></button>`;}).join('');return `<div class="source-section"><div class="source-head"><h3>${esc(kindLabels[kind]||kind)}</h3><span class="source-count">${items.length} 条</span></div>${rows}</div>`;}).join('');
+function renderApplicability(pkg){const rows=pkg.applicability||[];if(!rows.length)return '';const labels={possible_match:'可能匹配',mismatch:'条件不符',unknown:'信息不足',not_assessed:'未评估'};const cls={possible_match:'',mismatch:'warn',unknown:'warn',not_assessed:'state'};const items=rows.map(row=>{const criteria=(row.criteria||[]).map(c=>`<div class="review-finding"><b>${esc(c.label||c.criterion_id)}</b> · ${esc(c.field)} ${esc(c.operator)} ${esc((c.expected||[]).join(', '))} → <b>${esc(c.status)}</b>${c.observed_value?`（观测：${esc(c.observed_value)}）`:''}<div class="hint">${esc(c.reason||'')}${(c.patient_record_paths||[]).length?` · ${esc(c.patient_record_paths.join('、'))}`:''}</div></div>`).join('');return `<div class="insight"><div class="insight-head"><h3>${esc(row.document_id)}</h3><span class="badge ${cls[row.status]||'state'}">${esc(labels[row.status]||row.status)}</span></div><div class="insight-body"><div class="hint">${esc(row.reason||'')}</div>${criteria||'<div class="hint">指南未提供结构化适用条件。</div>'}<div class="hint" style="margin-top:6px">字段核对不等于临床适用性结论；未记录/待回报不写成阴性。</div></div></div>`;}).join('');return `<section class="panel" style="margin-bottom:12px"><div class="panel-head"><h2>指南适用性（结构化条件核对）</h2><span class="badge state">${rows.length} 条指南</span></div><div class="panel-body">${items}</div></section>`;}
+function renderPkg(pkg){state.pkg=pkg;state.selectedIndex=pkg.citations?.length?0:null;const trace=pkg.trace||{};$('patientFacts').innerHTML=renderPatientHits(pkg);$('applicabilityBox').innerHTML=renderApplicability(pkg);$('sourceGroups').textContent=`evidence_groups：${Object.keys(pkg.evidence_groups||{}).join('、')||'无'} · source separation：${pkg.source_separation?.status||'unknown'}`;$('candidateCount').textContent=trace.candidate_count??0;$('selectedCount').textContent=trace.selected_count??0;$('guidelineCount').textContent=(pkg.ranked_documents||[]).filter(x=>x.document.kind==='guideline').length;$('sourceCount').textContent=(trace.connector_trace||[]).filter(x=>x.status==='ok').length;$('modeBadge').textContent=pkg.trace?.source_mode||'—';const methodLabel=trace.retrieval_method||'bm25';const methodStates=(trace.method_trace||[]).map(m=>`${m.method}:${m.status}`).join('、')||methodLabel;$('resultNote').textContent=`${pkg.request_id} · 方法 ${methodLabel}`;const warnings=pkg.warnings||[];$('warnings').hidden=!warnings.length;$('warnings').innerHTML=warnings.map(x=>`⚠ ${esc(x)}`).join('<br>');$('queryReviewBox').innerHTML=renderQueryReview(pkg);$('jointBox').innerHTML=renderJoint(pkg);$('fidelityBox').innerHTML=renderFidelity(pkg);jsonPreview('runPreview',{retrieval_id:pkg.retrieval_id,request_id:pkg.request_id,candidate_count:trace.candidate_count,selected_count:trace.selected_count,warnings:warnings.length});jsonPreview('packagePreview',{retrieval_id:pkg.retrieval_id,groups:Object.keys(pkg.evidence_groups||{}),citations:(pkg.citations||[]).length,source_separation:pkg.source_separation});$('rawResponse').textContent=JSON.stringify(pkg,null,2);setBadge('badge-audit','待审计','');const list=$('resultList');const inlineList=$('resultListInline');if(!pkg.ranked_documents.length){const emptyHtml='<div class="empty">没有满足当前时间、版本、状态和查询相关度条件的证据。</div>';list.innerHTML=emptyHtml;inlineList.innerHTML=emptyHtml;renderDetail(null);return;}const groups=pkg.evidence_groups||{},order=Object.keys(groups);const indexByCit=new Map();(pkg.ranked_documents||[]).forEach((item,i)=>{if(item.citation_id)indexByCit.set(item.citation_id,i);});const listHtml=order.map(kind=>{const items=groups[kind]||[];const rows=items.map((item,innerIndex)=>{const globalIndex=item.citation_id&&indexByCit.has(item.citation_id)?indexByCit.get(item.citation_id):-1;const d=item.document;return `<button class="result ${globalIndex===state.selectedIndex?'active':''}" data-index="${globalIndex}" type="button"><div class="result-top"><div><h3>${esc(d.title)}</h3><p>${esc(d.text)}</p></div><div class="result-badges"><span class="badge">${esc(kindLabels[d.kind]||d.kind)}</span><span class="badge rank">来源内 #${innerIndex+1}</span></div></div><div class="result-meta">${globalIndex>=0?`<span>总排名 ${globalIndex+1}</span>`:'<span>总排名 —</span>'}<span>来源内分数 ${Number(item.score).toFixed(3)}</span><span>${esc(item.evidence_status)}</span>${d.pmid?`<span>PMID ${esc(d.pmid)}</span>`:''}${d.version_id?`<span>版本 ${esc(d.version_id)}</span>`:''}${d.recommendation_id?`<span>推荐 ${esc(d.recommendation_id)}</span>`:''}<span>引用 ${esc(item.citation_id||'—')}</span></div></button>`;}).join('');return `<div class="source-section"><div class="source-head"><h3>${esc(kindLabels[kind]||kind)}</h3><span class="source-count">${items.length} 条</span></div>${rows}</div>`;}).join('');
   list.innerHTML=listHtml;inlineList.innerHTML=listHtml;
   const bindResultClicks=root=>root.querySelectorAll('.result').forEach(b=>b.addEventListener('click',()=>{state.selectedIndex=Number(b.dataset.index);renderPkgSelection();scrollToResults();}));
   bindResultClicks(list);bindResultClicks(inlineList);
@@ -620,26 +823,33 @@ function renderPkg(pkg){state.pkg=pkg;state.selectedIndex=pkg.citations?.length?
 
 function renderPkgSelection(){const list=$('resultList');list.querySelectorAll('.result').forEach(b=>b.classList.toggle('active',Number(b.dataset.index)===state.selectedIndex));renderDetail(state.selectedIndex);}
 function findCitation(rankedDoc){if(!rankedDoc||!rankedDoc.citation_id)return null;return (state.pkg.citations||[]).find(c=>c.citation_id===rankedDoc.citation_id)||null;}
-function renderDetail(index){if(!state.pkg||index===null||!state.pkg.ranked_documents[index]){$('detailKind').textContent='未选择';$('detailBody').innerHTML='<div class="empty">选择一条证据查看摘录、关键证据句、版本与来源定位。</div>';return;}const ranked=state.pkg.ranked_documents[index],citation=findCitation(ranked)||state.pkg.citations[index],doc=ranked.document;$('detailKind').textContent=kindLabels[doc.kind]||doc.kind;const sentences=(citation.key_evidence_sentences||[]).map(s=>`<div class="key-sentence"><div>${esc(s.text)}</div><div class="key-sentence-meta">${esc(s.locator)} · 匹配度 ${Number(s.score).toFixed(3)}${s.matched_terms?.length?` · ${esc(s.matched_terms.join('、'))}`:''}</div></div>`).join('');const sentenceSection=sentences?`<div style="margin:10px 0"><strong>关键证据句</strong>${sentences}<div class="hint">句子定位用于人工核对，不等于主张支持验证。</div></div>`:'<div class="hint">本条没有匹配到直接证据句，请核对完整摘录。</div>';$('detailBody').innerHTML=`<h3 class="detail-title">${esc(doc.title)}</h3><div class="detail-quote">“${esc(citation.quote)}”</div>${sentenceSection}<ul class="detail-list"><li><span>引用 ID</span><span><code style="font:10.5px/1.4 ui-monospace,monospace;color:#0d4f60">${esc(citation.citation_id)}</code> <button class="secondary" type="button" id="copyCitationId" style="padding:1px 7px;font-size:10px">复制</button></span></li><li><span>证据状态</span><span>${esc(ranked.evidence_status)}</span></li><li><span>来源</span><span>${esc(doc.source_id)}</span></li><li><span>指南版本</span><span>${esc(doc.version_id||'不适用')}</span></li><li><span>推荐编号</span><span>${esc(doc.recommendation_id||'未提供')}</span></li><li><span>适用人群</span><span>${esc(doc.population||'未提供')}</span></li><li><span>原文定位</span><span>${esc(citation.locator||'未提供')}</span></li><li><span>标识符</span><span>${esc(doc.pmid?`PMID ${doc.pmid}`:(doc.doi||doc.document_id))}</span></li><li><span>排序依据</span><span>${(ranked.rank_explanation||[]).map(esc).join(' · ')}</span></li></ul><button class="secondary" style="margin-top:10px;width:100%" type="button" id="openCitation">↗ 打开本次检索的引文</button><div class="hint" id="citationResult"></div>`;const copyBtn=$('copyCitationId');if(copyBtn){copyBtn.addEventListener('click',async()=>{const id=citation.citation_id;try{await navigator.clipboard.writeText(id);copyBtn.textContent='已复制';}catch(_){copyBtn.textContent=id;}setTimeout(()=>{copyBtn.textContent='复制';},1500);});}$('openCitation').addEventListener('click',async()=>{const b=$('openCitation');b.disabled=true;b.textContent='正在打开…';try{const o=await requestJson('/api/citation',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({retrieval_id:state.pkg.retrieval_id,citation_id:citation.citation_id})});$('citationResult').innerHTML=`<b>引用已锁定：</b>${esc(o.citation.title)} · ${esc(o.citation.locator||'定位已返回')}`;setBadge('badge-audit','引用已打开','ready');}catch(e){$('citationResult').textContent=e.message;}finally{b.disabled=false;b.textContent='↗ 打开本次检索的引文';}});}
+function renderDetail(index){if(!state.pkg||index===null||!state.pkg.ranked_documents[index]){$('detailKind').textContent='未选择';$('detailBody').innerHTML='<div class="empty">选择一条证据查看摘录、关键证据句、版本与来源定位。</div>';return;}const ranked=state.pkg.ranked_documents[index],citation=findCitation(ranked)||state.pkg.citations[index],doc=ranked.document;$('detailKind').textContent=kindLabels[doc.kind]||doc.kind;const sentences=(citation.key_evidence_sentences||[]).map(s=>`<div class="key-sentence"><div>${esc(s.text)}</div><div class="key-sentence-meta">${esc(s.locator)} · 匹配度 ${Number(s.score).toFixed(3)}${s.matched_terms?.length?` · ${esc(s.matched_terms.join('、'))}`:''}</div></div>`).join('');const sentenceSection=sentences?`<div style="margin:10px 0"><strong>关键证据句</strong>${sentences}<div class="hint">句子定位用于人工核对，不等于主张支持验证。</div></div>`:'<div class="hint">本条没有匹配到直接证据句，请核对完整摘录。</div>';$('detailBody').innerHTML=`<h3 class="detail-title">${esc(doc.title)}</h3><div class="detail-quote">“${esc(citation.quote)}”</div>${sentenceSection}<ul class="detail-list"><li><span>引用 ID</span><span><code class="citation-id">${esc(citation.citation_id)}</code> <button class="secondary copy-btn" type="button" id="copyCitationId">复制</button></span></li><li><span>证据状态</span><span>${esc(ranked.evidence_status)}</span></li><li><span>来源</span><span>${esc(doc.source_id)}</span></li><li><span>指南版本</span><span>${esc(doc.version_id||'不适用')}</span></li><li><span>推荐编号</span><span>${esc(doc.recommendation_id||'未提供')}</span></li><li><span>适用人群</span><span>${esc(doc.population||'未提供')}</span></li><li><span>原文定位</span><span>${esc(citation.locator||'未提供')}</span></li><li><span>标识符</span><span>${esc(doc.pmid?`PMID ${doc.pmid}`:(doc.doi||doc.document_id))}</span></li><li><span>排序依据</span><span>${(ranked.rank_explanation||[]).map(esc).join(' · ')}</span></li></ul><button class="secondary" style="margin-top:10px;width:100%" type="button" id="openCitation">↗ 打开本次检索的引文</button><div class="hint" id="citationResult"></div>`;const copyBtn=$('copyCitationId');if(copyBtn){copyBtn.addEventListener('click',async()=>{const id=citation.citation_id;try{await navigator.clipboard.writeText(id);copyBtn.textContent='已复制';}catch(_){copyBtn.textContent=id;}setTimeout(()=>{copyBtn.textContent='复制';},1500);});}$('openCitation').addEventListener('click',async()=>{const b=$('openCitation');b.disabled=true;b.textContent='正在打开…';try{const o=await requestJson('/api/citation',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({retrieval_id:state.pkg.retrieval_id,citation_id:citation.citation_id})});$('citationResult').innerHTML=`<b>引用已锁定：</b>${esc(o.citation.title)} · ${esc(o.citation.locator||'定位已返回')}`;setBadge('badge-audit','引用已打开','ready');}catch(e){$('citationResult').textContent=e.message;}finally{b.disabled=false;b.textContent='↗ 打开本次检索的引文';}});}
 
 $('auditTemplate').addEventListener('click',()=>{if(!state.pkg||!state.pkg.citations?.length){$('auditHint').textContent='请先完成一次检索。';return;}const first=state.pkg.citations[0].citation_id;const input=$('auditAnswer');input.value=`依据本次检索证据，该患儿…[${first}]。`;input.focus();$('auditHint').textContent='已插入模板；方括号内是本次检索的 citation_id。';});
 $('auditButton').addEventListener('click',async()=>{if(!state.pkg){$('auditHint').textContent='请先完成检索。';return;}const answer=$('auditAnswer').value.trim();if(!answer){$('auditHint').textContent='请输入待审计回答。';return;}const b=$('auditButton');b.disabled=true;b.textContent='正在审计…';try{const a=await requestJson('/api/audit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({retrieval_id:state.pkg.retrieval_id,answer})});renderAudit(a);setBadge('badge-audit',a.verifier?.available?'已校验':(a.verifier?.mode==='structural_only'?'结构审计':'未校验'),'ready');}catch(e){$('auditHint').textContent=e.message;}finally{b.disabled=false;b.textContent='审计回答';}});
 function renderAudit(a){if(!a)return;const m=a.alce_like||{};$('auditHint').textContent=`校验器：${a.verifier?.name||'unknown'}`;const claims=(a.claims||[]).map(c=>`<li><span class="claim-status">${esc(c.ragtruth_label)}</span>${esc(c.claim)}</li>`).join('');const warnings=(a.warnings||[]).map(x=>`<li>${esc(x)}</li>`).join('');$('auditOutput').innerHTML=`<div class="hint" style="margin-top:8px"><b>引用完整性：</b>${m.citation_completeness==null?'未测量':(m.citation_completeness*100).toFixed(1)+'%'} · <b>支持精确率：</b>${m.citation_precision==null?'未测量':(m.citation_precision*100).toFixed(1)+'%'}</div>${warnings?`<ul class="claim-list">${warnings}</ul>`:''}${claims?`<ul class="claim-list">${claims}</ul>`:''}`;}
 
 /* ---------- 演示来源（真实后端） ---------- */
-async function refreshDemoGuidelines(){try{const data=await requestJson('/api/demo/guidelines');const rows=(data.guidelines||[]).map(g=>`<div class="source-item"><b>${esc(g.source_id)}</b><span>${esc(g.description||'')}</span><span>${g.document_count} 条 · ${g.synthetic?'全部 synthetic':'含真实书目元数据'}</span></div>`).join('');const registered=(data.registered||[]).map(r=>r.source_id).join('、');$('demoGuidelineList').innerHTML=(rows||'<div class="hint">未读取到演示来源。</div>')+`<div class="hint" style="margin-top:5px">已注册：${esc(registered||'未加载')}</div>`;state.registeredSources=(data.registered||[]).length;$('demoSourceBadge').textContent=state.registeredSources?`已加载 ${state.registeredSources} 个`:'未加载';}catch(e){$('demoGuidelineList').textContent=e.message;}}
-$('loadDemoGuidelines').addEventListener('click',async()=>{const b=$('loadDemoGuidelines');b.disabled=true;b.textContent='加载中…';try{await requestJson('/api/demo/guidelines/load',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});await refreshDemoGuidelines();await refreshSources();}catch(e){$('demoGuidelineList').textContent=e.message;}finally{b.disabled=false;b.textContent='加载新生儿演示指南库';}});
+async function refreshDemoGuidelines(){try{const data=await requestJson('/api/demo/guidelines');const rows=(data.guidelines||[]).map(g=>`<div class="source-item"><b>${esc(sourceLabels[g.source_id]||g.source_id)}</b><span>${esc(g.description||'')}</span><span>${g.document_count} 条 · ${g.synthetic?'合成来源':'含真实书目元数据'}</span></div>`).join('');const registered=(data.registered||[]).map(r=>r.source_id).join('、');$('demoGuidelineList').innerHTML=(rows||'<div class="hint">未读取到来源库。</div>')+`<div class="hint" style="margin-top:5px">已注册：${esc(registered||'未加载')}</div>`;state.registeredSources=(data.registered||[]).length;$('demoSourceBadge').textContent=state.registeredSources?`已加载 ${state.registeredSources} 个`:'未加载';}catch(e){$('demoGuidelineList').textContent=e.message;}}
+$('loadDemoGuidelines').addEventListener('click',async()=>{const b=$('loadDemoGuidelines');b.disabled=true;b.textContent='加载中…';try{await requestJson('/api/demo/guidelines/load',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});await refreshDemoGuidelines();await refreshSources();}catch(e){$('demoGuidelineList').textContent=e.message;}finally{b.disabled=false;b.textContent='加载来源库';}});
 $('clearSources').addEventListener('click',async()=>{const b=$('clearSources');b.disabled=true;try{await requestJson('/api/sources/custom/clear',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});await refreshDemoGuidelines();await refreshSources();}catch(e){$('demoGuidelineList').textContent=e.message;}finally{b.disabled=false;}});
 async function refreshSources(){try{const s=await requestJson('/api/sources');const regs=(s.custom&&s.custom.registered)||[];state.registeredSources=regs.length;$('modeBadge').textContent=regs.length?`custom · ${regs.length} 个来源`:'custom · 未注册来源';$('demoSourceBadge').textContent=regs.length?`已加载 ${regs.length} 个`:'未加载';return regs;}catch(_){return [];}}
 
+/* ---------- 主题（浅色/深色/暖色/靛蓝/跟随系统），持久化 ---------- */
+const THEME_KEY='neo-workbench-theme';
+const systemDark=()=>window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;
+function applyTheme(choice){const theme=choice==='auto'?(systemDark()?'dark':'light'):choice;document.documentElement.setAttribute('data-theme',theme);try{localStorage.setItem(THEME_KEY,choice);}catch(_){}const select=$('themeSelect');if(select&&select.value!==choice)select.value=choice;requestAnimationFrame(drawWires);}
+function initTheme(){let saved='light';try{saved=new URLSearchParams(location.search).get('theme')||localStorage.getItem(THEME_KEY)||'light';}catch(_){}if(!['light','dark','warm','indigo','auto'].includes(saved))saved='light';applyTheme(saved);$('themeSelect').value=saved;$('themeSelect').addEventListener('change',()=>applyTheme($('themeSelect').value));if(window.matchMedia){const query=window.matchMedia('(prefers-color-scheme: dark)');query.addEventListener?.('change',()=>{if(($('themeSelect').value||'light')==='auto')applyTheme('auto');});}}
+initTheme();
+
 /* ---------- 后端自检 ---------- */
-async function backendCheck(){try{const [health,tools,sources]=await Promise.all([requestJson('/api/health'),requestJson('/api/tools'),requestJson('/api/sources')]);const warning=$('backendWarning');const expected='6.6.4';if(health.rag_version!==expected){warning.hidden=false;warning.textContent=`当前后端版本 ${health.rag_version}，本页面需要 v${expected}（/api/demo/* 等接口）。请在仓库根目录执行 python3 -m rag.server 启动服务。`;}else{warning.hidden=true;}const methods=health.retrieval_methods||{};const ready=Object.entries(methods).filter(([k,v])=>v.available).map(([k])=>k);const notReady=Object.entries(methods).filter(([k,v])=>!v.available).map(([k])=>k);$('backendVersion').textContent=`v${health.rag_version}`;$('serviceStatus').textContent=`后端 v${health.rag_version} · ${health.demo_profile} · ${ready.join('/')||'bm25'}`;$('backendInfo').innerHTML=`真实后端 <b>v${esc(health.rag_version)}</b> · 模式 ${esc(health.active_mode)} · 工具 ${tools.tools.length} 个 · 已注册来源 ${((sources.custom&&sources.custom.registered)||[]).length} 个`;$('methodList').innerHTML=`就绪：${ready.join('、')||'bm25'}<br>未就绪：${notReady.join('、')||'无'}`;$('methodBadge').textContent=`${ready.length} 项就绪`;$('methodHint').textContent=`就绪 ${ready.length} 项`;setBadge('badge-method','已读取','ready');}catch(e){$('serviceStatus').textContent='后端自检失败：'+e.message;const warning=$('backendWarning');warning.hidden=false;warning.textContent=`后端自检失败：${e.message}。请确认服务已用 v6.6.4 启动，且端口与页面一致。`;}}
+async function backendCheck(){try{const [health,tools,sources]=await Promise.all([requestJson('/api/health'),requestJson('/api/tools'),requestJson('/api/sources')]);const warning=$('backendWarning');const expected='6.6.5';if(health.rag_version!==expected){warning.hidden=false;warning.textContent=`当前后端版本 ${health.rag_version}，本页面需要 v${expected}（/api/demo/* 等接口）。请用 PYTHONPATH=. python3 -m rag.server 启动服务。`;}else{warning.hidden=true;}const methods=health.retrieval_methods||{};const ready=Object.entries(methods).filter(([k,v])=>v.available).map(([k])=>k);const notReady=Object.entries(methods).filter(([k,v])=>!v.available).map(([k])=>k);$('backendVersion').textContent=`v${health.rag_version}`;$('serviceStatus').textContent=`后端 v${health.rag_version} · ${ready.join('/')||'bm25'}`;$('backendInfo').innerHTML=`真实后端 <b>v${esc(health.rag_version)}</b> · 模式 ${esc(health.active_mode)} · 工具 ${tools.tools.length} 个 · 已注册来源 ${((sources.custom&&sources.custom.registered)||[]).length} 个`;$('methodList').innerHTML=`就绪：${ready.join('、')||'bm25'}<br>未就绪：${notReady.join('、')||'无'}`;$('methodBadge').textContent=`${ready.length} 项就绪`;$('methodHint').textContent=`就绪 ${ready.length} 项`;setBadge('badge-method','已读取','ready');}catch(e){$('serviceStatus').textContent='后端自检失败：'+e.message;const warning=$('backendWarning');warning.hidden=false;warning.textContent=`后端自检失败：${e.message}。请确认服务已用本仓库根目录启动，且端口与页面一致。`;}}
 $('backendCheck').addEventListener('click',backendCheck);
 
 /* ---------- 启动 ---------- */
 renderRail();
-window.__layoutLoaded=loadLayout();if(!window.__layoutLoaded)fitView();
-loadCases().then(()=>{backendCheck();refreshDemoGuidelines();refreshSources();setTimeout(()=>{if(!window.__layoutLoaded)fitView();},120);});
+window.__layoutLoaded=loadLayout();if(!window.__layoutLoaded)fitWidth();
+loadCases().then(()=>{backendCheck();refreshDemoGuidelines();refreshSources();setTimeout(()=>{if(!window.__layoutLoaded)fitWidth();},120);});
 window.addEventListener('load',()=>setTimeout(()=>{drawWires();},250));
 </script>
 </body>

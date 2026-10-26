@@ -26,7 +26,7 @@ RAG
 
 RAG 不应该拥有一个可以自行读取真实 HIS 的隐式连接器。Agent 先读取 HIS，再显式传入快照，便于权限、审计和测试。
 
-v6.6.4 的 live 指南注册表**只含新生儿指南元数据**（肺炎 2025、RDS 2025 更新版、RDS 中文解读）；成人指南不再注册。live 模式还注册 `guideline-fulltext-live`：检索时实时查询 Europe PMC，仅对 `isOpenAccess=Y` 的记录抓取 JATS 全文并按章节分块；非 OA 记录只返回书目/摘要与链接（`full_text_allowed=false`）。全文不落盘、不缓存、不再分发，调用方负责在复用前核对 `license`。
+v6.6.5 的 live 指南注册表**只含新生儿指南元数据**（肺炎 2025、RDS 2025 更新版、RDS 中文解读）；成人指南不再注册。live 模式还注册 `guideline-fulltext-live`：检索时实时查询 Europe PMC，仅对 `isOpenAccess=Y` 的记录抓取 JATS 全文并按章节分块；非 OA 记录只返回书目/摘要与链接（`full_text_allowed=false`）。全文不落盘、不缓存、不再分发，调用方负责在复用前核对 `license`。
 
 ## 2. 推荐调用顺序
 
@@ -158,12 +158,16 @@ Content-Type: application/json
 
 ## 5. 适用性状态解释
 
-`applicability` 只表示结构化字段匹配提示：
+`applicability` 只表示结构化条件与可见患者事实的核对提示：
 
-- `possible_match`：患者事实与指南结构化条件存在匹配，需要人工核对；
-- `mismatch`：没有找到指南要求的条件，不等于临床上一定不适用；
-- `unknown`：部分条件找到，部分条件缺失；
+- `possible_match`：必需条件均匹配，需要人工核对；
+- `mismatch`：至少一项必需条件与可见事实不符，不等于临床上一定不适用；
+- `unknown`：部分必需条件缺少可用记录（未记录/待回报/不可用/假设或单位不一致）；
 - `not_assessed`：指南没有结构化条件，或没有提供患者快照。
+
+每个条目的 `criteria[]` 给出逐条结果：`criterion_id`、`field`、`operator`、`expected`、`status`（`match`/`mismatch`/`unknown`）、`observed_value`、`patient_record_paths`、`reason`。`not_recorded`/`pending`/`unavailable`/`hypothesis` 永远不会被写成 `mismatch` 或阴性。
+
+条件必须带 `review_status`：只有 `reviewed` 与 `synthetic_fixture` 参与核对；`draft`/`scope_only`/`not_structurable` 只展示并返回 `unknown`。参与核对的条件还必须有 `source`（`locator`/`quote`），否则返回 `unknown`。支持 `{"logic":"all_of"|"any_of","criteria":[...]}` 包装；`any_of` 下任一必需条件匹配即 `possible_match`，全部不符才 `mismatch`。
 
 这些状态不是诊断、治疗建议、指南符合性证明或临床决策。
 
@@ -190,9 +194,10 @@ Content-Type: application/json
 | `question` | 中文（可夹英文药名/缩写） | Agent | **中文临床原始问题，原样保留、不做翻译**；作为精确查询参与词面检索，并用于结果审计（`query_plan.original_question`） | 非空；不要把原始病历粘贴进来 |
 | `as_of` | ISO 日期 | Agent | 证据与患者事实的可见截止边界 | 未来记录/文献、撤回文献、被替代指南在边界外被排除 |
 | `patient_terms` | 中英皆可 | Agent | 人工审核的最小化患者相关术语，作为检索概念参与匹配 | 不得放患者标识或自由文本病史 |
-| `user_terms` | 键=中文概念，值=英文术语 | Agent（人工审核） | **中文概念→英文术语的唯一展开通道**：仅当键出现在问题/患者术语文本中才生效，展开记录到 `query_plan.expansion_trace`（`source=reviewed_user_terms`） | 不调用自动翻译/同义词服务；未提供映射的中文概念不会生成英文查询词 |
-| `english_terms` | 英文 | Agent（人工审核） | 审核过的英文医学术语/缩写（如 `respiratory distress syndrome`、`pulmonary surfactant`、`CPAP`），**优先参与**英文来源检索与实时 PubMed 查询 | 请填审核后的词；系统不做同义词扩展 |
-| `mesh_terms` | 英文（MeSH） | Agent（人工审核） | 审核过的 MeSH 主题词（如 `Respiratory Distress Syndrome, Newborn`） | 同上 |
+| `term_mapping` | 键=中文概念，值=英文/MeSH/别名 | Agent（人工审核） | **推荐输入**：概念绑定映射表。数组行 `{"concept","aliases","english","mesh"}` 或对象 `{概念: {english, mesh, aliases}}`；仅当概念/别名出现在问题、患者术语、审核外部术语或 facets 时展开。展开与未命中记录到 `query_plan.mapping_trace`；映射路径按概念生成查询变体，PubMed 使用 `[tiab]`/`[MeSH Terms]` | 英文与 MeSH 必须与概念绑定；不自动翻译；未命中概念不展开 |
+| `user_terms` | 键=中文概念，值=英文术语 | Agent（人工审核） | **兼容字段（旧调用方）**：中文概念→英文映射；新调用方请用 `term_mapping` 以同时绑定 MeSH。展开记录到 `query_plan.expansion_trace`（`source=reviewed_user_terms`） | 不调用自动翻译/同义词服务；未提供映射的中文概念不会生成英文查询词 |
+| `english_terms` | 英文 | Agent（人工审核） | **兼容字段（旧调用方）**：审核英文术语列表，参与英文来源检索与实时 PubMed 查询 | 新调用方应放入 `term_mapping` 对应概念行，以保留概念—术语绑定 |
+| `mesh_terms` | 英文（MeSH） | Agent（人工审核） | **兼容字段（旧调用方）**：审核 MeSH 列表，参与英文来源检索与实时 PubMed 查询 | 新调用方应放入 `term_mapping` 对应概念行 |
 | `facets` | 中英皆可 | Agent | 结构化问题槽位（population/outcome 等），取值作为检索概念参与匹配 | 避免把人群、结局压成不可审计长句 |
 | `filters` | 任意 | Agent | 结构化过滤，如 `{"guideline_version": "2025"}` | 版本过滤只匹配来源明确提供的版本字段 |
 | `retrieval_method` | — | Agent | 底层检索方法：`bm25`（默认）/`ql`/`rm3`/`dense`（MedCPT，英文域）/`xlingual`（multilingual-e5，中文问题直接编码跨语言）/`m3`（BGE-M3）/`translate`（zh→en 机器译文附加查询变体）/`splade`/`colbert`/`query2doc`，或 `"bm25,xlingual"`/`["bm25","rm3","dense"]` 多路 RRF 融合 | 未指定时为 bm25；未知方法名请求直接 400；神经方法不可用时该方法标 `not_configured`（trace/warnings），不静默降级；零分路线不参与 RRF |
@@ -207,9 +212,12 @@ Content-Type: application/json
 | `query_plan.original_question` | 中文 | 原问题的原样记录（审计：确认没有用英文查询替换原问题） |
 | `query_plan.question_english_terms` | 英文 | **系统从问题中自动提取的英文词**（≥2 字符、含字母、过滤常见功能词与纯数值），直接参与英文检索与实时 PubMed 查询 |
 | `query_plan.concepts` | 中英 | 从问题、患者术语、facets 提取的概念；中文为连续片段，匹配时按 CJK 二元组切分 |
-| `query_plan.variants` | 中英 | 实际参与词面打分的查询变体：原问题 / 概念 / 概念+英文 / 英文+MeSH |
-| `query_plan.english_terms` | 英文 | 审核英文术语 + `user_terms` 展开结果的合集（只读视图） |
-| `query_plan.expansion_trace` | 中英 | 术语展开轨迹，`source` 取值：`question_ascii`（问题英文词自动提取）、`reviewed_user_terms`（审核映射展开）、`pseudo_relevance_feedback`（RM3 伪相关反馈）、`query2doc_pseudo_document`（Query2doc 伪文档扩展，仅 `retrieval_method=query2doc` 时出现）、`machine_translation_zh_en`（zh→en 机器译文变体，仅 `retrieval_method=translate` 时出现） |
+| `query_plan.variants` | 中英 | 实际参与词面打分的查询变体。映射路径按概念分组：原问题 / 中文概念 / 概念英文 / 概念 MeSH / 概念组合 / 全局英文 / 全局 MeSH / 全局组合；未走映射时仍是原问题 / 概念 / 概念+英文 / 英文+MeSH |
+| `query_plan.english_terms` | 英文 | 审核英文术语（映射表展开在前，兼容 `english_terms` 与 `user_terms` 展开在后） |
+| `query_plan.term_mapping` | 中英 | 本次请求提供的映射表原样记录 |
+| `query_plan.mapping_trace` | 中英 | 映射表逐行轨迹：`expanded` / `not_matched`、`matched_surface`、`matched_in`、英文/MeSH 产物 |
+| `query_plan.variant_trace` | 中英 | 查询变体角色（仅映射路径生成），用于审计每个变体来自哪个概念 |
+| `query_plan.expansion_trace` | 中英 | 术语展开轨迹，`source` 取值：`question_ascii`（问题英文词自动提取）、`reviewed_term_mapping`（映射表展开）、`reviewed_user_terms`（旧式审核映射展开）、`pseudo_relevance_feedback`（RM3 伪相关反馈）、`query2doc_pseudo_document`（Query2doc 伪文档扩展）、`machine_translation_zh_en`（zh→en 机器译文变体） |
 | `trace.external_terms` | 英文/必要中文 | **实际发往外部检索的术语合集** = `english_terms` + `question_english_terms`；患者快照内容绝不在其中 |
 | `trace.method_trace` | — | 每个所选检索方法的执行状态（`ok`/`not_configured`/`error`/`fallback`/`unknown`）与 retriever_id；`trace.retrieval_method` 是最终生效的方法串；`trace.rerank_trace` 是重排状态 |
 
@@ -217,26 +225,36 @@ Content-Type: application/json
 
 可直接运行的完整示例文件见 `examples/`：`agent_joint_retrieval_request.json`（RDS）、`agent_joint_retrieval_request_pneumonia.json`（肺炎，含 `user_terms` 审核映射）、`agent_joint_retrieval_request_question_english.json`（问题内英文词自动参与）、`agent_joint_retrieval_response.json`（响应字段）与 `agent_error_response.json`（错误）。
 
-问题：`"该患儿 surfactant 治疗新生儿呼吸窘迫综合征的近期证据？"`，Agent 另提供 `user_terms={"新生儿呼吸窘迫综合征": ["neonatal respiratory distress syndrome"]}`。
+问题：`"该患儿 surfactant 治疗新生儿呼吸窘迫综合征的近期证据？"`，Agent 提供映射表：
+
+```json
+"term_mapping": [
+  {"concept": "新生儿呼吸窘迫综合征",
+   "aliases": ["NRDS"],
+   "english": ["neonatal respiratory distress syndrome"],
+   "mesh": ["Respiratory Distress Syndrome, Newborn"]}
+]
+```
 
 - `question`：中文原样保留 → 参与词面检索与审计；
 - `question_english_terms`：系统自动得到 `["surfactant"]`（常见功能词已过滤）；
-- `user_terms` 展开：`新生儿呼吸窘迫综合征` 出现在问题中 → 英文追加 `neonatal respiratory distress syndrome`，记入 `expansion_trace`；
-- 若 Agent 还提供 `english_terms=["respiratory distress syndrome","pulmonary surfactant"]`、`mesh_terms=["Respiratory Distress Syndrome, Newborn"]`，则实时 PubMed 收到的查询词为 审核英文 + 问题英文词 + MeSH 的并集（去重后最多 12 个，AND 连接）；
-- 如果问题换成 `"该患儿黄疸的光疗阈值是什么？"` 且不提供任何英文术语：中文片段按 CJK 二元组直接匹配中文来源（如中文指南）；英文来源若无词命中则不会强行返回。
+- `term_mapping` 展开：`新生儿呼吸窘迫综合征` 出现在问题中 → 英文追加 `neonatal respiratory distress syndrome`、MeSH 追加 `Respiratory Distress Syndrome, Newborn`，记入 `mapping_trace`（`status=expanded`）与 `expansion_trace`（`source=reviewed_term_mapping`）；每个概念还生成独立的英文/MeSH/组合变体；
+- 实时 PubMed 查询使用 `"neonatal respiratory distress syndrome"[tiab] OR "Respiratory Distress Syndrome, Newborn"[MeSH Terms]`，再按需 AND 人群条件；不再把所有术语压成一个无字段标签的 OR 串；
+- 如果问题换成 `"该患儿黄疸的光疗阈值是什么？"` 且映射表没有命中概念：不展开任何映射术语，`mapping_trace` 记 `not_matched`；中文片段仍按 CJK 二元组匹配中文来源。
 
 ### 7.4 中文/英文参与检索的完整规则
 
 - **中文→中文**：中文片段以 CJK 二元组（“新生儿黄疸” → 新生/生儿/儿黄/黄疸）参与词面匹配，可直接命中中文来源；纯数字 token（年份、序号）不参与匹配。
-- **英文字段→英文来源**：`english_terms` / `mesh_terms` / `user_terms` 展开 / 问题内英文词，按上述规则进入英文检索；四者都可追溯。
+- **英文字段→英文来源**：`term_mapping` 展开 / 兼容 `english_terms` / `mesh_terms` / `user_terms` 展开 / 问题内英文词，按上述规则进入英文检索；每一路都可追溯（`mapping_trace` / `expansion_trace`）。
+- **概念绑定**：`term_mapping` 的英文与 MeSH 只在同一概念命中时一起生效；未命中的概念不会只展开英文或只展开 MeSH。
 - **不自动翻译**：中文概念绝不会被自动翻译成英文；英文查询词只能来自上面的显式来源。
-- **实时模式**：没有任何英文词时，实时 PubMed 优先退回概念中的 ASCII 词，其次才是中文片段；实时失败显式报错，不回退到任何其它数据（服务无内置语料）。
+- **实时模式**：没有任何英文词时，实时 PubMed 优先退回概念中的 ASCII 词，其次才是中文片段；实时失败显式报错，不回退到任何其它数据（服务无内置语料）。映射路径使用 `[tiab]`/`[MeSH Terms]` 字段标签，词面路径仍使用带引号的 OR 串。
 
 ## 8. 来源模式：live 与 custom（仅这两种）
 
 `source_mode` 只有两个合法值；**服务不内置任何本地语料，也没有 offline/simulated 模式**：
 
-- `live`（默认）：实时 NCBI PubMed + **新生儿指南元数据**/链接。需要 `config.allow_live_pubmed` 与 `config.allow_live_guidelines` 同时为 `True`（默认如此）；实时失败显式报错，**不自动回退**到任何其它数据。实时 PubMed 连接器只接收审核后的 `english_terms`/`mesh_terms` 与问题内英文词，绝不发送患者快照。新生儿指南首期是 `metadata_only`，未确认全文许可时只返回官方 URL、稳定 ID、许可声明和定位。
+- `live`（默认）：实时 NCBI PubMed + **新生儿指南元数据**/链接。需要 `config.allow_live_pubmed` 与 `config.allow_live_guidelines` 同时为 `True`（默认如此）；实时失败显式报错，**不自动回退**到任何其它数据。实时 PubMed 连接器只接收审核后的 `term_mapping` 产物（或兼容 `english_terms`/`mesh_terms`）与问题内英文词，绝不发送患者快照。新生儿指南首期是 `metadata_only`，未确认全文许可时只返回官方 URL、稳定 ID、许可声明和定位。
 - `custom`：调用方传入的自有知识库（例如医院指南库、自备文献快照）。库为空时检索**显式报错**，不返回空结果冒充"没有证据"。
 
 ### 8.1 custom 来源接口（定义）
@@ -263,7 +281,18 @@ Content-Type: application/json
       "population": "早产儿",
       "locator": "第1章 推荐1.1",
       "published_at": "2026-06-01",
-      "status": "current"
+      "status": "current",
+      "metadata": {
+        "applicability_criteria": [
+          {"criterion_id": "preterm", "field": "ga_days", "operator": "lt", "value": 259,
+           "unit": "days", "required": true, "review_status": "reviewed",
+           "label": "早产儿（胎龄 < 37 周）",
+           "source": {"locator": "适用人群", "quote": "早产儿"}},
+          {"criterion_id": "dx", "field": "diagnosis", "operator": "contains_any",
+           "value": ["呼吸窘迫综合征", "RDS"], "required": true, "review_status": "reviewed",
+           "source": {"locator": "标题", "quote": "呼吸窘迫综合征"}}
+        ]
+      }
     }
   ]
 }
@@ -273,6 +302,7 @@ Content-Type: application/json
 - 文档归属固定为来源的 `source_id`：显式写了不同值会报错（避免悄悄改写归属）；省略则继承。
 - `kinds` 省略时按 `documents[].kind` 推断；显式声明必须覆盖全部文档 kind。
 - 未知字段进入 `metadata` 保留，不丢弃（与内置文档同规则）。
+- `metadata.applicability_criteria` 是可选的结构化适用条件（字段/操作符/期望值/单位/`subject_role`/`required`/`review_status`/来源定位）；检索时逐条与可见患者事实核对，结果写入 `applicability[].criteria`。只有 `review_status=reviewed/synthetic_fixture` 且带 `source` 的条件参与核对；不解析正文自由文本，不自动生成阈值。
 - `version` 是调用方库快照标签；**缺失时每次检索都会带出审计警告**（结果不标记 caller 库版本）。
 
 **其它端点**：
@@ -339,7 +369,7 @@ POST /api/demo/guidelines/load     显式登记演示指南库（写入 custom �
 
 `fidelity_gate` 字段（默认 `off`，保持基线语义）可选：`off/audit/warn/downweight/reject`。
 
-- **审计对象**：中文问题→英文检索计划的转换产物——审核术语映射（`english_terms`/`mesh_terms`）、
+- **审计对象**：中文问题→英文检索计划的转换产物——审核术语映射（`term_mapping` 展开 / 兼容 `english_terms`/`mesh_terms`/`user_terms`）、
   机器译文变体（`translate`）、多语言编码的显式输入词。逐槽位检查：实体覆盖、数值保留、
   否定/时间表达、词表实体串换（`unexpected_entity`）。
 - **判定名**：`suspected_drop` / `unexpected_entity` / `numeric_loss` / `numeric_added` /
@@ -370,10 +400,10 @@ POST /api/demo/guidelines/load     显式登记演示指南库（写入 custom �
 8. **neo-hypoglycemia**：胎龄 not_recorded、出生体重 2100 g、血糖 2.1 mmol/L。
 9. **neo-gbs**：母体 GBS 阳性、胎膜早破20小时、新生儿无症状。
 
-注：纯数字查询 token（如“2月龄”的“2”、“2026年”的“2026”）不参与词面匹配，避免误串年份或序号；时间语境由 `as_of` 与过滤器表达。演示病例的 `english_terms` 必须人工审核后写入 `preset`，GUI 不自动翻译。
+注：纯数字查询 token（如“2月龄”的“2”、“2026年”的“2026”）不参与词面匹配，避免误串年份或序号；时间语境由 `as_of` 与过滤器表达。演示病例的 `term_mapping`（或兼容 `english_terms`）必须人工审核后写入 `preset`，GUI 不自动翻译。
 
 **问题参与检索（中英文规则）：**
 - 问题中的英文词（≥2 字符、含字母、过滤常见功能词与纯数值）自动加入英文检索词，记录在 `trace.query_plan.question_english_terms`，并随 `trace.external_terms` 发往实时 PubMed；
 - 问题中的中文片段通过 CJK 二元组参与匹配（可直接命中中文来源），分词与 `patient_retrieval`/`evidence` 一致；
-- 中文概念展开为英文仅使用调用方审核的 `user_terms` 映射，不自动翻译；未提供映射的中文概念不会生成英文查询词；
+- 中文概念展开为英文仅使用调用方审核的 `term_mapping`（或兼容 `user_terms`）映射，不自动翻译；未命中映射的中文概念不会生成英文查询词；
 - 实时 PubMed 在没有任何英文词时，优先退回概念中的 ASCII 词，其次才是中文片段。

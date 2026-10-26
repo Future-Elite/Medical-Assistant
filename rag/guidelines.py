@@ -1,6 +1,6 @@
 """Guideline source adapters with explicit metadata/license boundaries.
 
-Neonatal scope (v6.6.4): the live registry contains **only neonatal guideline
+Neonatal scope (v6.6.5): the live registry contains **only neonatal guideline
 metadata records** verified against their official bibliographic pages.  The
 adult WHO hypertension/diabetes records registered in v6.6.3 are deliberately
 not carried over: a neonatal assistant must never let an adult guideline enter
@@ -157,6 +157,20 @@ def neonatal_pneumonia_metadata() -> SourceDocument:
             "content_mode": "metadata_only", "live_source": True, "language": "zh",
             "mesh_terms": "Pneumonia; Infant, Newborn",
             "keywords": "neonatal infectious pneumonia diagnosis imaging differential referral",
+            "applicability_criteria": [
+                {
+                    "criterion_id": "neonatal_period", "field": "pna_hours", "operator": "le",
+                    "value": 672, "unit": "hours", "required": True, "review_status": "scope_only",
+                    "label": "新生儿期（生后 ≤ 28 天）",
+                    "source": {"locator": "指南标题/适用人群", "quote": "新生儿感染性肺炎"},
+                },
+                {
+                    "criterion_id": "pneumonia_diagnosis", "field": "diagnosis", "operator": "contains_any",
+                    "value": ["肺炎", "pneumonia"], "required": True, "review_status": "scope_only",
+                    "label": "诊断包含肺炎",
+                    "source": {"locator": "指南标题", "quote": "新生儿感染性肺炎"},
+                },
+            ],
         },
     )
 
@@ -187,6 +201,20 @@ def neonatal_rds_metadata() -> SourceDocument:
             "version_label": "2025 update (7th edition)",
             "mesh_terms": "Respiratory Distress Syndrome, Newborn; Pulmonary Surfactants",
             "keywords": "respiratory distress syndrome RDS preterm surfactant CPAP",
+            "applicability_criteria": [
+                {
+                    "criterion_id": "preterm_infant", "field": "ga_days", "operator": "lt",
+                    "value": 259, "unit": "days", "required": True, "review_status": "scope_only",
+                    "label": "早产儿（出生胎龄 < 37 周）",
+                    "source": {"locator": "指南标题/适用人群", "quote": "preterm infants"},
+                },
+                {
+                    "criterion_id": "rds_diagnosis", "field": "diagnosis", "operator": "contains_any",
+                    "value": ["呼吸窘迫综合征", "RDS", "respiratory distress syndrome"], "required": True, "review_status": "scope_only",
+                    "label": "诊断包含呼吸窘迫综合征",
+                    "source": {"locator": "指南标题", "quote": "Respiratory Distress Syndrome"},
+                },
+            ],
         },
     )
 
@@ -216,6 +244,20 @@ def neonatal_rds_chinese_interpretation_metadata() -> SourceDocument:
             "content_mode": "metadata_only", "live_source": True, "language": "zh",
             "mesh_terms": "Respiratory Distress Syndrome, Newborn",
             "keywords": "RDS 指南解读 新生儿呼吸窘迫综合征",
+            "applicability_criteria": [
+                {
+                    "criterion_id": "preterm_infant", "field": "ga_days", "operator": "lt",
+                    "value": 259, "unit": "days", "required": True, "review_status": "scope_only",
+                    "label": "早产儿（出生胎龄 < 37 周）",
+                    "source": {"locator": "指南标题/适用人群", "quote": "早产儿呼吸窘迫综合征"},
+                },
+                {
+                    "criterion_id": "rds_diagnosis", "field": "diagnosis", "operator": "contains_any",
+                    "value": ["呼吸窘迫综合征", "RDS", "respiratory distress syndrome"], "required": True, "review_status": "scope_only",
+                    "label": "诊断包含呼吸窘迫综合征",
+                    "source": {"locator": "指南标题", "quote": "呼吸窘迫综合征"},
+                },
+            ],
         },
     )
 

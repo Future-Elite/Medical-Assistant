@@ -6,7 +6,7 @@ mapping — and deliberately do NOT assert on medical correctness beyond the
 lexicon/suffix rules the baseline implements (quality vs human annotation is
 an experiment; see the paper's experiment protocol).
 
-Entity set is neonatal-only (v6.6.4): 新生儿呼吸窘迫综合征 / 氨茶碱 /
+Entity set is neonatal-only (v6.6.5): 新生儿呼吸窘迫综合征 / 氨茶碱 /
 新生儿黄疸 / 新生儿肺炎.  The mechanism itself is unchanged from v6.6.3.
 """
 import unittest

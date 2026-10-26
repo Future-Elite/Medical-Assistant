@@ -47,6 +47,7 @@ class GeneratedNeonatalHISCaseTests(unittest.TestCase):
             self.assertTrue({"birth", "maternal"} & collections, case_id)
             self.assertEqual(case["preset"]["query_language"], "zh", case_id)
             self.assertTrue(case["preset"]["english_terms"], case_id)
+            self.assertTrue(case["preset"]["term_mapping"], case_id)
             self.assertEqual(sorted(set(case["preset"]) - PRESET_FIELDS), [], case_id)
             self.assertNotIn("request_id", case["preset"], case_id)
             self.assertNotIn("patient_snapshot", case["preset"], case_id)

@@ -56,6 +56,8 @@ case = payload["cases"][0]
 request = RetrievalRequest.from_dict({**case["preset"], "patient_snapshot": case["snapshot"]})
 ```
 
+每个 `preset` 含 `term_mapping`（概念→英文/MeSH），并保留旧 `english_terms`/`mesh_terms`/`user_terms` 作为兼容对照。
+
 默认 `GET /api/demo/cases` 与工作台已自动合并本目录的 30 例（精选 9 + 生成 30 = 39），
 无需复制；响应中的 `case_sets` 字段区分两组。显式 `load_demo_cases(<本目录>)`
 仍只读这 30 例。

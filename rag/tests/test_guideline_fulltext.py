@@ -10,6 +10,7 @@ from rag.guideline_fulltext import (
     LiveGuidelineFullTextConnector,
     _chunk_text,
     _parse_jats,
+    _result_metadata,
 )
 from rag.models import QueryPlan, RetrievalRequest
 from rag.pipeline import EvidenceRetrievalPipeline
@@ -221,6 +222,13 @@ class LiveGuidelineFullTextTests(unittest.TestCase):
         raw = b'<?xml version="1.0"?><!DOCTYPE article PUBLIC "-//NLM//DTD JATS//EN" "https://example.invalid/jats.dtd">' + FULLTEXT_XML.split(b"?>", 1)[1]
         documents, _ = _parse_jats(raw, {}, ("CPAP",), 5, 500)
         self.assertTrue(documents)
+
+    def test_result_title_unescapes_and_strips_inline_markup(self):
+        metadata = _result_metadata({
+            "title": "&lt;b&gt;Guideline&lt;/b&gt; on neonatal RDS &amp; CPAP",
+            "pubYear": "2026",
+        })
+        self.assertEqual(metadata["title"], "Guideline on neonatal RDS & CPAP")
 
     def test_pipeline_consumes_fulltext_chunks(self):
         registry = ConnectorRegistry()

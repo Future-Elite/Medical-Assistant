@@ -31,7 +31,7 @@ GENERATED_CASES_FILE = Path("his_generated_30") / CASES_FILE
 # and ``patient_snapshot`` are workflow outputs, never preset inputs.
 PRESET_FIELDS = frozenset({
     "question", "task", "query_language", "clinical_intent", "as_of",
-    "patient_terms", "english_terms", "mesh_terms", "user_terms", "facets",
+    "patient_terms", "term_mapping", "english_terms", "mesh_terms", "user_terms", "facets",
     "filters", "source_kinds", "source_mode", "retrieval_method", "rerank",
     "fidelity_gate", "top_k",
 })

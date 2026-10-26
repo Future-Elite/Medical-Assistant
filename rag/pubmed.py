@@ -19,7 +19,15 @@ from typing import Any, Callable, Mapping
 from .config import get_config
 from .connectors import KnowledgeConnector
 from .models import QueryPlan, SearchResult, SourceDocument
-from .query import is_generic_population, is_unit_term, population_clause, primary_topic
+from .query import (
+    expanded_mapping_entries,
+    is_generic_population,
+    is_unit_term,
+    mapping_active,
+    population_clause,
+    primary_mapping_entry,
+    primary_topic,
+)
 
 
 class PubMedError(RuntimeError):
@@ -63,7 +71,7 @@ class PubMedConnector(KnowledgeConnector):
         ids = self._esearch_ids(params, query)
         if not ids:
             # 主词过窄时退回同义词组，但单位词永远不会进入查询。
-            fallback = _fallback_term(plan)
+            fallback = _mapped_fallback_term(plan) if mapping_active(plan) else _fallback_term(plan)
             if fallback and fallback != query:
                 self.last_query = fallback
                 ids = self._esearch_ids(params, fallback)
@@ -125,7 +133,15 @@ def _safe_term(plan: QueryPlan) -> str:
     The first reviewed topic term is the disease anchor; synonyms are only a
     fallback when the anchor returns no PMIDs. Units such as ``mmol/L`` are
     removed because numeric conditions are not indexed as text.
+
+    When a reviewed mapping table supplied the terms, the query keeps the
+    concept binding and uses PubMed field tags (``[tiab]`` for English,
+    ``[MeSH Terms]`` for MeSH) instead of one undifferentiated quoted list.
     """
+    if mapping_active(plan):
+        mapped = _mapped_safe_term(plan)
+        if mapped:
+            return mapped
     primary = primary_topic(plan)
     if primary:
         # The disease anchor, plus at most two non-unit English words that
@@ -144,6 +160,115 @@ def _safe_term(plan: QueryPlan) -> str:
             query += f" AND ({population})"
         return query
     return _fallback_term(plan)
+
+
+def _mapped_safe_term(plan: QueryPlan) -> str:
+    """PubMed query for the reviewed mapping path (concept first, then tags)."""
+    entry = primary_mapping_entry(plan)
+    if entry is None:
+        return ""
+    clauses: list[str] = []
+    for term in entry.english:
+        cleaned = str(term).strip()
+        if not cleaned or is_unit_term(cleaned) or is_generic_population(cleaned):
+            continue
+        clause = f"{_quoted(cleaned)}[tiab]"
+        if clause not in clauses:
+            clauses.append(clause)
+    for term in entry.mesh:
+        cleaned = str(term).strip()
+        if not cleaned or is_unit_term(cleaned):
+            continue
+        clause = f"{_quoted(cleaned)}[MeSH Terms]"
+        if clause not in clauses:
+            clauses.append(clause)
+    # Question English words still participate, but only as a bounded recall
+    # extension; they never displace the reviewed concept anchor.
+    for term in plan.question_english_terms:
+        cleaned = str(term).strip()
+        if len(cleaned) < 4 or is_unit_term(cleaned) or is_generic_population(cleaned):
+            continue
+        clause = f"{_quoted(cleaned)}[tiab]"
+        if clause not in clauses:
+            clauses.append(clause)
+        if len(clauses) >= 5:
+            break
+    if not clauses:
+        return ""
+    query = "(" + " OR ".join(clauses) + ")"
+    population = _mapped_population_clause(plan)
+    if population:
+        query += f" AND ({population})"
+    return query
+
+
+def _mapped_population_clause(plan: QueryPlan) -> str:
+    """Population restriction derived from the mapping table when available.
+
+    A population row (for example ``早产儿``) keeps its reviewed English/MeSH
+    products; otherwise the legacy keyword heuristic is tagged with ``[tiab]``.
+    """
+    clauses: list[str] = []
+    population_markers = ("新生儿", "早产", "婴儿", "newborn", "neonat", "infant", "preterm")
+    for entry in expanded_mapping_entries(plan):
+        english = [str(term).strip() for term in entry.english if str(term).strip() and not is_unit_term(term)]
+        # Only a row made up entirely of generic population terms is a
+        # population row.  A disease row may legitimately carry one population
+        # synonym (e.g. ``preterm infant``) without becoming the population
+        # filter for the whole query.
+        is_population = bool(english) and all(is_generic_population(term) for term in english)
+        if not is_population and not english:
+            is_population = any(marker in entry.concept.lower() for marker in population_markers)
+        if not is_population:
+            continue
+        for term in english:
+            clause = f"{_quoted(term)}[tiab]"
+            if clause not in clauses:
+                clauses.append(clause)
+        for term in entry.mesh:
+            cleaned = str(term).strip()
+            if not cleaned or is_unit_term(cleaned):
+                continue
+            clause = f"{_quoted(cleaned)}[MeSH Terms]"
+            if clause not in clauses:
+                clauses.append(clause)
+    if clauses:
+        return " OR ".join(clauses)
+    legacy = population_clause(plan)
+    if not legacy:
+        return ""
+    return " OR ".join(f"{_quoted(token.strip())}[tiab]" for token in legacy.split(" OR ") if token.strip())
+
+
+def _mapped_fallback_term(plan: QueryPlan) -> str:
+    """Broad OR fallback that keeps mapping concept products tagged."""
+    clauses: list[str] = []
+    for entry in expanded_mapping_entries(plan):
+        for term in entry.english:
+            cleaned = str(term).strip()
+            if cleaned and not is_unit_term(cleaned):
+                clause = f"{_quoted(cleaned)}[tiab]"
+                if clause not in clauses:
+                    clauses.append(clause)
+        for term in entry.mesh:
+            cleaned = str(term).strip()
+            if cleaned and not is_unit_term(cleaned):
+                clause = f"{_quoted(cleaned)}[MeSH Terms]"
+                if clause not in clauses:
+                    clauses.append(clause)
+    for term in (*plan.question_english_terms, *plan.english_terms, *plan.mesh_terms):
+        cleaned = str(term).strip()
+        if cleaned and not is_unit_term(cleaned):
+            clause = f"{_quoted(cleaned)}[tiab]"
+            if clause not in clauses:
+                clauses.append(clause)
+    if not clauses:
+        return _fallback_term(plan)
+    expression = "(" + " OR ".join(clauses[:12]) + ")"
+    population = _mapped_population_clause(plan)
+    if population:
+        expression += f" AND ({population})"
+    return expression
 
 
 def _fallback_term(plan: QueryPlan) -> str:

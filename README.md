@@ -165,7 +165,7 @@ Medical-Assistant/
 
 | 层 | 位置 | 当前值 |
 |---|---|---|
-| RAG 包 | `rag/__init__.py` 的 `__version__` | `6.6.4`（新生儿专科化） |
+| RAG 包 | `rag/__init__.py` 的 `__version__` | `6.6.5`（新生儿专科化 + 术语映射表 + 指南适用性） |
 | HIS | `his/backend/pom.xml` 的 `<version>` | `1.0.0`（随 subtree 同步） |
 | HIS × RAG 接口契约 | `contracts/his_rag.md` 的 `contract_version` | `0.2.0` |
 | 组合版本（release） | git tag `medassist-<x.y.z>` | 暂无（真实 HIS 联调通过后打 `medassist-0.1.0`） |
@@ -180,6 +180,8 @@ Medical-Assistant/
 | 引用打开、关键证据句定位、回答主张审计 | 已有（定位/审计是辅助口径，不是临床正确性） |
 | 可切换检索方法（bm25/ql/rm3 + 可选神经方法、RRF 融合） | 已有；神经方法未配置时显式 `not_configured` |
 | 查询保真审计与分级门控（研究特性，默认 `off`） | 已有（确定性词面基线；见 §8 边界） |
+| 审核术语映射表（`term_mapping`）与指南结构化适用性（`applicability_criteria`） | 已有：概念绑定英文/MeSH、未命中不展开；逐条核对患者事实，`not_recorded`/`pending` 不写成阴性；真实指南条件需审核后标 `reviewed` |
+| 固定分区工作台（01–09） | 已有：不再提供画布缩放/拖拽/连线 |
 | HIS 演示系统（Spring Boot + Vue，合成数据） | 已有，HIS 维护者负责，subtree 同步 |
 | HIS → Agent → RAG 只读快照打通 | 已有：Agent 侧参考实现 + 载荷契约 + 跨组件测试；真实 HIS 联调待本地执行 |
 | Medical Agent 只读 HIS 编排 + RAG 调用 | 已有（`agent/`，来自 Agent 维护线的集成分支）：用 `contracts/agent_his_adapter.py` 的 `AgentHisClient` 读 HIS、把载荷交给 RAG，并按契约移除被拒的转换路线；运行需 Agent 侧环境（Qwen/MiniCheck/Gradio），本仓库不代跑 |
@@ -206,6 +208,7 @@ Medical-Assistant/
 - **判定口径**：关键词匹配、排序分数、关键证据句、引用存在性、查询保真判定与 MiniCheck/ALCE 风格指标都**不是**临床正确性、指南符合性或医生审核结论；未测量不写成零错误率。
 - **公开集结果**（PubMedQA/BioASQ 等）只支持对应数据与任务下的结论，不代表中国患者或 HIS 场景评测。
 - **查询保真层是研究特性**：默认 `off`；审计器是确定性词面基线（单位族/否定/时间启发式），判定名（`suspected_*`/`unverifiable`）是对人工标注量的假设，质量需由实验测量。
+- **指南适用性**：只核对 `metadata.applicability_criteria` 中已审核的结构化条件（`review_status` 仅 `reviewed`/`synthetic_fixture` 参与，且必须有 `source` 定位）；不解析指南正文自由文本，不生成治疗阈值；`mismatch` 不是临床不适用，`unknown` 不是阴性。
 - **发布纪律**：[CONTRIBUTING.md](CONTRIBUTING.md) 规定不得提交凭据、真实患者数据、构建产物；不 force-push `main`/`rag`。
 
 ## 9. 规划中的模块（研究路线）

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import math
 from collections import Counter
+from dataclasses import replace
 from typing import Iterable, Mapping
 
 from .bm25 import BM25Score, score_documents, tokenize
@@ -163,20 +164,9 @@ def score_documents_rm3(
     if not expansion_tokens:
         return first_pass
     expanded_variant = " ".join((*plan.variants, *expansion_tokens))
-    expanded_plan = plan.__class__(
-        original_question=plan.original_question,
+    expanded_plan = replace(
+        plan,
         variants=(expanded_variant, *plan.variants),
-        concepts=plan.concepts,
-        source_order=plan.source_order,
-        filters=plan.filters,
-        rationale=plan.rationale,
-        query_language=plan.query_language,
-        clinical_intent=plan.clinical_intent,
-        facets=plan.facets,
-        english_terms=plan.english_terms,
-        mesh_terms=plan.mesh_terms,
         expansion_trace=(*plan.expansion_trace, {"concept": "rm3", "terms": list(expansion_tokens), "source": "pseudo_relevance_feedback"}),
-        question_english_terms=plan.question_english_terms,
-        machine_translations=plan.machine_translations,
     )
     return score_documents(expanded_plan, docs, field_weights=weights)

@@ -9,9 +9,10 @@ identifiers (trace ``rag_version``, ``/api/health``) read it instead of
 hard-coding any version string.
 """
 
-__version__ = "6.6.4"
+__version__ = "6.6.5"
 
 from .agent import EvidenceSessionStore, EvidenceRAG
+from .applicability import assess_applicability
 from .audit import ClaimVerifier, GroundedAnswerAuditor
 from .connectors import (
     CallableConnector,
@@ -43,10 +44,13 @@ from .fidelity import (
 from .gate import FidelityGate, GateDecision, GATE_POLICIES
 from .models import (
     ApplicabilityAssessment,
+    ApplicabilityCriterionResult,
     EvidencePackage,
     PatientHit,
     RetrievalRequest,
     SourceDocument,
+    TermMappingEntry,
+    parse_term_mapping,
 )
 from .pipeline import EvidenceRetrievalPipeline
 from .retrieval_adapters import (
@@ -58,6 +62,10 @@ from .retrieval_adapters import (
 
 __all__ = [
     "ApplicabilityAssessment",
+    "ApplicabilityCriterionResult",
+    "TermMappingEntry",
+    "parse_term_mapping",
+    "assess_applicability",
     "CustomSource",
     "CustomSourceConnector",
     "CustomSourceLibrary",

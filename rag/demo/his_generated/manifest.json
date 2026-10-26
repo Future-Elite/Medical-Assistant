@@ -14,7 +14,7 @@
   "files": {
     "cases": {
       "name": "neonatal_cases.json",
-      "sha256": "1320d56f36e768352e53dcd31010f0acf915568805d54a510fe388430ebc6ecd"
+      "sha256": "ba0baf389b79cb81dbdd02d045c3141501fa5360c68f632e4ac4ad71be40f620"
     },
     "snapshots": {
       "name": "snapshots.json",
@@ -22,7 +22,7 @@
     },
     "requests": {
       "name": "requests.json",
-      "sha256": "ed2ab6f640f72e3d1237dedb4dd88651a0ef769fc30120dd6438f762e65efd6a"
+      "sha256": "25974ac5b285750bac0724de1579fcf212686912ce9aa2407128632dbbbb283d"
     },
     "tables": [
       "体征.csv",

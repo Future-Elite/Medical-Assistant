@@ -188,7 +188,33 @@
         "rerank": false,
         "fidelity_gate": "off",
         "top_k": 6,
-        "as_of": "2026-04-07"
+        "as_of": "2026-04-07",
+        "term_mapping": [
+          {
+            "concept": "新生儿低血糖",
+            "english": [
+              "neonatal hypoglycemia"
+            ],
+            "mesh": [
+              "Hypoglycemia",
+              "Infant, Newborn"
+            ]
+          },
+          {
+            "concept": "血糖",
+            "english": [
+              "blood glucose"
+            ],
+            "mesh": []
+          },
+          {
+            "concept": "低出生体重儿",
+            "english": [
+              "low birth weight infant"
+            ],
+            "mesh": []
+          }
+        ]
       }
     },
     {
@@ -358,7 +384,33 @@
         "rerank": false,
         "fidelity_gate": "off",
         "top_k": 6,
-        "as_of": "2026-04-28"
+        "as_of": "2026-04-28",
+        "term_mapping": [
+          {
+            "concept": "新生儿低血糖",
+            "english": [
+              "neonatal hypoglycemia"
+            ],
+            "mesh": [
+              "Hypoglycemia",
+              "Infant, Newborn"
+            ]
+          },
+          {
+            "concept": "血糖",
+            "english": [
+              "blood glucose"
+            ],
+            "mesh": []
+          },
+          {
+            "concept": "低出生体重儿",
+            "english": [
+              "low birth weight infant"
+            ],
+            "mesh": []
+          }
+        ]
       }
     },
     {
@@ -543,7 +595,36 @@
         "rerank": false,
         "fidelity_gate": "off",
         "top_k": 6,
-        "as_of": "2026-10-06"
+        "as_of": "2026-10-06",
+        "term_mapping": [
+          {
+            "concept": "B族链球菌",
+            "english": [
+              "group B streptococcus",
+              "asymptomatic",
+              "blood culture"
+            ],
+            "mesh": [
+              "Streptococcal Infections",
+              "Infant, Newborn",
+              "Sepsis"
+            ]
+          },
+          {
+            "concept": "胎膜早破",
+            "english": [
+              "premature rupture of membranes"
+            ],
+            "mesh": []
+          },
+          {
+            "concept": "早期感染",
+            "english": [
+              "early-onset sepsis"
+            ],
+            "mesh": []
+          }
+        ]
       }
     },
     {
@@ -814,7 +895,35 @@
         "rerank": false,
         "fidelity_gate": "audit",
         "top_k": 6,
-        "as_of": "2026-04-29"
+        "as_of": "2026-04-29",
+        "term_mapping": [
+          {
+            "concept": "新生儿呼吸窘迫综合征",
+            "english": [
+              "respiratory distress syndrome",
+              "preterm infant"
+            ],
+            "mesh": [
+              "Respiratory Distress Syndrome, Newborn",
+              "Pulmonary Surfactants",
+              "Respiration, Artificial"
+            ]
+          },
+          {
+            "concept": "肺表面活性物质",
+            "english": [
+              "pulmonary surfactant"
+            ],
+            "mesh": []
+          },
+          {
+            "concept": "机械通气",
+            "english": [
+              "mechanical ventilation"
+            ],
+            "mesh": []
+          }
+        ]
       }
     },
     {
@@ -984,7 +1093,33 @@
         "rerank": false,
         "fidelity_gate": "off",
         "top_k": 6,
-        "as_of": "2026-04-15"
+        "as_of": "2026-04-15",
+        "term_mapping": [
+          {
+            "concept": "新生儿低血糖",
+            "english": [
+              "neonatal hypoglycemia"
+            ],
+            "mesh": [
+              "Hypoglycemia",
+              "Infant, Newborn"
+            ]
+          },
+          {
+            "concept": "血糖",
+            "english": [
+              "blood glucose"
+            ],
+            "mesh": []
+          },
+          {
+            "concept": "低出生体重儿",
+            "english": [
+              "low birth weight infant"
+            ],
+            "mesh": []
+          }
+        ]
       }
     },
     {
@@ -1154,7 +1289,33 @@
         "rerank": false,
         "fidelity_gate": "off",
         "top_k": 6,
-        "as_of": "2026-04-16"
+        "as_of": "2026-04-16",
+        "term_mapping": [
+          {
+            "concept": "新生儿低血糖",
+            "english": [
+              "neonatal hypoglycemia"
+            ],
+            "mesh": [
+              "Hypoglycemia",
+              "Infant, Newborn"
+            ]
+          },
+          {
+            "concept": "血糖",
+            "english": [
+              "blood glucose"
+            ],
+            "mesh": []
+          },
+          {
+            "concept": "低出生体重儿",
+            "english": [
+              "low birth weight infant"
+            ],
+            "mesh": []
+          }
+        ]
       }
     },
     {
@@ -1323,7 +1484,26 @@
         "rerank": false,
         "fidelity_gate": "off",
         "top_k": 6,
-        "as_of": "2026-09-19"
+        "as_of": "2026-09-19",
+        "term_mapping": [
+          {
+            "concept": "暂时性呼吸增快",
+            "english": [
+              "transient tachypnea of the newborn",
+              "tachypnea"
+            ],
+            "mesh": [
+              "Transient Tachypnea of the Newborn"
+            ]
+          },
+          {
+            "concept": "湿肺",
+            "english": [
+              "TTN"
+            ],
+            "mesh": []
+          }
+        ]
       }
     },
     {
@@ -1594,7 +1774,35 @@
         "rerank": false,
         "fidelity_gate": "audit",
         "top_k": 6,
-        "as_of": "2026-05-16"
+        "as_of": "2026-05-16",
+        "term_mapping": [
+          {
+            "concept": "新生儿呼吸窘迫综合征",
+            "english": [
+              "respiratory distress syndrome",
+              "preterm infant"
+            ],
+            "mesh": [
+              "Respiratory Distress Syndrome, Newborn",
+              "Pulmonary Surfactants",
+              "Respiration, Artificial"
+            ]
+          },
+          {
+            "concept": "肺表面活性物质",
+            "english": [
+              "pulmonary surfactant"
+            ],
+            "mesh": []
+          },
+          {
+            "concept": "机械通气",
+            "english": [
+              "mechanical ventilation"
+            ],
+            "mesh": []
+          }
+        ]
       }
     },
     {
@@ -1764,7 +1972,33 @@
         "rerank": false,
         "fidelity_gate": "off",
         "top_k": 6,
-        "as_of": "2026-05-02"
+        "as_of": "2026-05-02",
+        "term_mapping": [
+          {
+            "concept": "新生儿低血糖",
+            "english": [
+              "neonatal hypoglycemia"
+            ],
+            "mesh": [
+              "Hypoglycemia",
+              "Infant, Newborn"
+            ]
+          },
+          {
+            "concept": "血糖",
+            "english": [
+              "blood glucose"
+            ],
+            "mesh": []
+          },
+          {
+            "concept": "低出生体重儿",
+            "english": [
+              "low birth weight infant"
+            ],
+            "mesh": []
+          }
+        ]
       }
     },
     {
@@ -1934,7 +2168,33 @@
         "rerank": false,
         "fidelity_gate": "off",
         "top_k": 6,
-        "as_of": "2026-04-16"
+        "as_of": "2026-04-16",
+        "term_mapping": [
+          {
+            "concept": "新生儿低血糖",
+            "english": [
+              "neonatal hypoglycemia"
+            ],
+            "mesh": [
+              "Hypoglycemia",
+              "Infant, Newborn"
+            ]
+          },
+          {
+            "concept": "血糖",
+            "english": [
+              "blood glucose"
+            ],
+            "mesh": []
+          },
+          {
+            "concept": "低出生体重儿",
+            "english": [
+              "low birth weight infant"
+            ],
+            "mesh": []
+          }
+        ]
       }
     },
     {
@@ -2199,7 +2459,35 @@
         "rerank": false,
         "fidelity_gate": "audit",
         "top_k": 6,
-        "as_of": "2026-03-15"
+        "as_of": "2026-03-15",
+        "term_mapping": [
+          {
+            "concept": "新生儿呼吸窘迫综合征",
+            "english": [
+              "respiratory distress syndrome",
+              "CPAP",
+              "preterm infant"
+            ],
+            "mesh": [
+              "Respiratory Distress Syndrome, Newborn",
+              "Pulmonary Surfactants"
+            ]
+          },
+          {
+            "concept": "肺表面活性物质",
+            "english": [
+              "pulmonary surfactant"
+            ],
+            "mesh": []
+          },
+          {
+            "concept": "呼吸支持",
+            "english": [
+              "respiratory support"
+            ],
+            "mesh": []
+          }
+        ]
       }
     },
     {
@@ -2384,7 +2672,36 @@
         "rerank": false,
         "fidelity_gate": "off",
         "top_k": 6,
-        "as_of": "2026-10-09"
+        "as_of": "2026-10-09",
+        "term_mapping": [
+          {
+            "concept": "B族链球菌",
+            "english": [
+              "group B streptococcus",
+              "asymptomatic",
+              "blood culture"
+            ],
+            "mesh": [
+              "Streptococcal Infections",
+              "Infant, Newborn",
+              "Sepsis"
+            ]
+          },
+          {
+            "concept": "胎膜早破",
+            "english": [
+              "premature rupture of membranes"
+            ],
+            "mesh": []
+          },
+          {
+            "concept": "早期感染",
+            "english": [
+              "early-onset sepsis"
+            ],
+            "mesh": []
+          }
+        ]
       }
     },
     {
@@ -2605,7 +2922,34 @@
         "rerank": false,
         "fidelity_gate": "off",
         "top_k": 6,
-        "as_of": "2026-11-23"
+        "as_of": "2026-11-23",
+        "term_mapping": [
+          {
+            "concept": "早产儿呼吸暂停",
+            "english": [
+              "apnea of prematurity"
+            ],
+            "mesh": [
+              "Apnea",
+              "Infant, Premature",
+              "Caffeine"
+            ]
+          },
+          {
+            "concept": "咖啡因",
+            "english": [
+              "caffeine citrate"
+            ],
+            "mesh": []
+          },
+          {
+            "concept": "呼吸监测",
+            "english": [
+              "respiratory monitoring"
+            ],
+            "mesh": []
+          }
+        ]
       }
     },
     {
@@ -2876,7 +3220,35 @@
         "rerank": false,
         "fidelity_gate": "audit",
         "top_k": 6,
-        "as_of": "2026-04-29"
+        "as_of": "2026-04-29",
+        "term_mapping": [
+          {
+            "concept": "新生儿呼吸窘迫综合征",
+            "english": [
+              "respiratory distress syndrome",
+              "preterm infant"
+            ],
+            "mesh": [
+              "Respiratory Distress Syndrome, Newborn",
+              "Pulmonary Surfactants",
+              "Respiration, Artificial"
+            ]
+          },
+          {
+            "concept": "肺表面活性物质",
+            "english": [
+              "pulmonary surfactant"
+            ],
+            "mesh": []
+          },
+          {
+            "concept": "机械通气",
+            "english": [
+              "mechanical ventilation"
+            ],
+            "mesh": []
+          }
+        ]
       }
     },
     {
@@ -3147,7 +3519,35 @@
         "rerank": false,
         "fidelity_gate": "audit",
         "top_k": 6,
-        "as_of": "2026-04-24"
+        "as_of": "2026-04-24",
+        "term_mapping": [
+          {
+            "concept": "新生儿呼吸窘迫综合征",
+            "english": [
+              "respiratory distress syndrome",
+              "preterm infant"
+            ],
+            "mesh": [
+              "Respiratory Distress Syndrome, Newborn",
+              "Pulmonary Surfactants",
+              "Respiration, Artificial"
+            ]
+          },
+          {
+            "concept": "肺表面活性物质",
+            "english": [
+              "pulmonary surfactant"
+            ],
+            "mesh": []
+          },
+          {
+            "concept": "机械通气",
+            "english": [
+              "mechanical ventilation"
+            ],
+            "mesh": []
+          }
+        ]
       }
     },
     {
@@ -3330,7 +3730,34 @@
         "rerank": false,
         "fidelity_gate": "off",
         "top_k": 6,
-        "as_of": "2026-07-29"
+        "as_of": "2026-07-29",
+        "term_mapping": [
+          {
+            "concept": "新生儿黄疸",
+            "english": [
+              "neonatal jaundice",
+              "hyperbilirubinemia"
+            ],
+            "mesh": [
+              "Jaundice, Neonatal",
+              "Phototherapy"
+            ]
+          },
+          {
+            "concept": "光疗",
+            "english": [
+              "phototherapy"
+            ],
+            "mesh": []
+          },
+          {
+            "concept": "总胆红素",
+            "english": [
+              "total bilirubin"
+            ],
+            "mesh": []
+          }
+        ]
       }
     },
     {
@@ -3595,7 +4022,35 @@
         "rerank": false,
         "fidelity_gate": "off",
         "top_k": 6,
-        "as_of": "2026-02-25"
+        "as_of": "2026-02-25",
+        "term_mapping": [
+          {
+            "concept": "新生儿呼吸窘迫综合征",
+            "english": [
+              "respiratory distress syndrome",
+              "CPAP",
+              "preterm infant"
+            ],
+            "mesh": [
+              "Respiratory Distress Syndrome, Newborn",
+              "Pulmonary Surfactants"
+            ]
+          },
+          {
+            "concept": "肺表面活性物质",
+            "english": [
+              "pulmonary surfactant"
+            ],
+            "mesh": []
+          },
+          {
+            "concept": "呼吸支持",
+            "english": [
+              "respiratory support"
+            ],
+            "mesh": []
+          }
+        ]
       }
     },
     {
@@ -3778,7 +4233,34 @@
         "rerank": false,
         "fidelity_gate": "off",
         "top_k": 6,
-        "as_of": "2026-07-30"
+        "as_of": "2026-07-30",
+        "term_mapping": [
+          {
+            "concept": "新生儿黄疸",
+            "english": [
+              "neonatal jaundice",
+              "hyperbilirubinemia"
+            ],
+            "mesh": [
+              "Jaundice, Neonatal",
+              "Phototherapy"
+            ]
+          },
+          {
+            "concept": "光疗",
+            "english": [
+              "phototherapy"
+            ],
+            "mesh": []
+          },
+          {
+            "concept": "总胆红素",
+            "english": [
+              "total bilirubin"
+            ],
+            "mesh": []
+          }
+        ]
       }
     },
     {
@@ -4043,7 +4525,35 @@
         "rerank": false,
         "fidelity_gate": "audit",
         "top_k": 6,
-        "as_of": "2026-04-07"
+        "as_of": "2026-04-07",
+        "term_mapping": [
+          {
+            "concept": "新生儿呼吸窘迫综合征",
+            "english": [
+              "respiratory distress syndrome",
+              "CPAP",
+              "preterm infant"
+            ],
+            "mesh": [
+              "Respiratory Distress Syndrome, Newborn",
+              "Pulmonary Surfactants"
+            ]
+          },
+          {
+            "concept": "肺表面活性物质",
+            "english": [
+              "pulmonary surfactant"
+            ],
+            "mesh": []
+          },
+          {
+            "concept": "呼吸支持",
+            "english": [
+              "respiratory support"
+            ],
+            "mesh": []
+          }
+        ]
       }
     },
     {
@@ -4212,7 +4722,26 @@
         "rerank": false,
         "fidelity_gate": "off",
         "top_k": 6,
-        "as_of": "2026-08-22"
+        "as_of": "2026-08-22",
+        "term_mapping": [
+          {
+            "concept": "暂时性呼吸增快",
+            "english": [
+              "transient tachypnea of the newborn",
+              "tachypnea"
+            ],
+            "mesh": [
+              "Transient Tachypnea of the Newborn"
+            ]
+          },
+          {
+            "concept": "湿肺",
+            "english": [
+              "TTN"
+            ],
+            "mesh": []
+          }
+        ]
       }
     },
     {
@@ -4440,7 +4969,29 @@
         "rerank": false,
         "fidelity_gate": "audit",
         "top_k": 6,
-        "as_of": "2026-10-01"
+        "as_of": "2026-10-01",
+        "term_mapping": [
+          {
+            "concept": "新生儿感染性肺炎",
+            "english": [
+              "neonatal infectious pneumonia",
+              "neonatal pneumonia",
+              "chest radiograph",
+              "C-reactive protein"
+            ],
+            "mesh": [
+              "Pneumonia, Bacterial",
+              "Infant, Newborn"
+            ]
+          },
+          {
+            "concept": "影像检查",
+            "english": [
+              "imaging"
+            ],
+            "mesh": []
+          }
+        ]
       }
     },
     {
@@ -4705,7 +5256,35 @@
         "rerank": false,
         "fidelity_gate": "off",
         "top_k": 6,
-        "as_of": "2026-02-25"
+        "as_of": "2026-02-25",
+        "term_mapping": [
+          {
+            "concept": "新生儿呼吸窘迫综合征",
+            "english": [
+              "respiratory distress syndrome",
+              "CPAP",
+              "preterm infant"
+            ],
+            "mesh": [
+              "Respiratory Distress Syndrome, Newborn",
+              "Pulmonary Surfactants"
+            ]
+          },
+          {
+            "concept": "肺表面活性物质",
+            "english": [
+              "pulmonary surfactant"
+            ],
+            "mesh": []
+          },
+          {
+            "concept": "呼吸支持",
+            "english": [
+              "respiratory support"
+            ],
+            "mesh": []
+          }
+        ]
       }
     },
     {
@@ -4888,7 +5467,34 @@
         "rerank": false,
         "fidelity_gate": "off",
         "top_k": 6,
-        "as_of": "2026-08-04"
+        "as_of": "2026-08-04",
+        "term_mapping": [
+          {
+            "concept": "新生儿黄疸",
+            "english": [
+              "neonatal jaundice",
+              "hyperbilirubinemia"
+            ],
+            "mesh": [
+              "Jaundice, Neonatal",
+              "Phototherapy"
+            ]
+          },
+          {
+            "concept": "光疗",
+            "english": [
+              "phototherapy"
+            ],
+            "mesh": []
+          },
+          {
+            "concept": "总胆红素",
+            "english": [
+              "total bilirubin"
+            ],
+            "mesh": []
+          }
+        ]
       }
     },
     {
@@ -5153,7 +5759,35 @@
         "rerank": false,
         "fidelity_gate": "audit",
         "top_k": 6,
-        "as_of": "2026-04-08"
+        "as_of": "2026-04-08",
+        "term_mapping": [
+          {
+            "concept": "新生儿呼吸窘迫综合征",
+            "english": [
+              "respiratory distress syndrome",
+              "CPAP",
+              "preterm infant"
+            ],
+            "mesh": [
+              "Respiratory Distress Syndrome, Newborn",
+              "Pulmonary Surfactants"
+            ]
+          },
+          {
+            "concept": "肺表面活性物质",
+            "english": [
+              "pulmonary surfactant"
+            ],
+            "mesh": []
+          },
+          {
+            "concept": "呼吸支持",
+            "english": [
+              "respiratory support"
+            ],
+            "mesh": []
+          }
+        ]
       }
     },
     {
@@ -5433,7 +6067,34 @@
         "rerank": false,
         "fidelity_gate": "off",
         "top_k": 6,
-        "as_of": "2026-06-24"
+        "as_of": "2026-06-24",
+        "term_mapping": [
+          {
+            "concept": "持续性肺动脉高压",
+            "english": [
+              "persistent pulmonary hypertension of the newborn",
+              "PPHN"
+            ],
+            "mesh": [
+              "Persistent Fetal Circulation Syndrome",
+              "Nitric Oxide"
+            ]
+          },
+          {
+            "concept": "一氧化氮",
+            "english": [
+              "inhaled nitric oxide"
+            ],
+            "mesh": []
+          },
+          {
+            "concept": "胎粪吸入综合征",
+            "english": [
+              "meconium aspiration syndrome"
+            ],
+            "mesh": []
+          }
+        ]
       }
     },
     {
@@ -5602,7 +6263,26 @@
         "rerank": false,
         "fidelity_gate": "off",
         "top_k": 6,
-        "as_of": "2026-09-02"
+        "as_of": "2026-09-02",
+        "term_mapping": [
+          {
+            "concept": "暂时性呼吸增快",
+            "english": [
+              "transient tachypnea of the newborn",
+              "tachypnea"
+            ],
+            "mesh": [
+              "Transient Tachypnea of the Newborn"
+            ]
+          },
+          {
+            "concept": "湿肺",
+            "english": [
+              "TTN"
+            ],
+            "mesh": []
+          }
+        ]
       }
     },
     {
@@ -5867,7 +6547,35 @@
         "rerank": false,
         "fidelity_gate": "audit",
         "top_k": 6,
-        "as_of": "2026-04-06"
+        "as_of": "2026-04-06",
+        "term_mapping": [
+          {
+            "concept": "新生儿呼吸窘迫综合征",
+            "english": [
+              "respiratory distress syndrome",
+              "CPAP",
+              "preterm infant"
+            ],
+            "mesh": [
+              "Respiratory Distress Syndrome, Newborn",
+              "Pulmonary Surfactants"
+            ]
+          },
+          {
+            "concept": "肺表面活性物质",
+            "english": [
+              "pulmonary surfactant"
+            ],
+            "mesh": []
+          },
+          {
+            "concept": "呼吸支持",
+            "english": [
+              "respiratory support"
+            ],
+            "mesh": []
+          }
+        ]
       }
     },
     {
@@ -6100,7 +6808,34 @@
         "rerank": false,
         "fidelity_gate": "off",
         "top_k": 6,
-        "as_of": "2026-06-05"
+        "as_of": "2026-06-05",
+        "term_mapping": [
+          {
+            "concept": "支气管肺发育不良",
+            "english": [
+              "bronchopulmonary dysplasia",
+              "BPD"
+            ],
+            "mesh": [
+              "Bronchopulmonary Dysplasia",
+              "Infant, Premature"
+            ]
+          },
+          {
+            "concept": "经后年龄",
+            "english": [
+              "postmenstrual age"
+            ],
+            "mesh": []
+          },
+          {
+            "concept": "早产儿",
+            "english": [
+              "preterm infant"
+            ],
+            "mesh": []
+          }
+        ]
       }
     },
     {
@@ -6285,7 +7020,36 @@
         "rerank": false,
         "fidelity_gate": "off",
         "top_k": 6,
-        "as_of": "2026-10-17"
+        "as_of": "2026-10-17",
+        "term_mapping": [
+          {
+            "concept": "B族链球菌",
+            "english": [
+              "group B streptococcus",
+              "asymptomatic",
+              "blood culture"
+            ],
+            "mesh": [
+              "Streptococcal Infections",
+              "Infant, Newborn",
+              "Sepsis"
+            ]
+          },
+          {
+            "concept": "胎膜早破",
+            "english": [
+              "premature rupture of membranes"
+            ],
+            "mesh": []
+          },
+          {
+            "concept": "早期感染",
+            "english": [
+              "early-onset sepsis"
+            ],
+            "mesh": []
+          }
+        ]
       }
     },
     {
@@ -6556,7 +7320,35 @@
         "rerank": false,
         "fidelity_gate": "audit",
         "top_k": 6,
-        "as_of": "2026-04-26"
+        "as_of": "2026-04-26",
+        "term_mapping": [
+          {
+            "concept": "新生儿呼吸窘迫综合征",
+            "english": [
+              "respiratory distress syndrome",
+              "preterm infant"
+            ],
+            "mesh": [
+              "Respiratory Distress Syndrome, Newborn",
+              "Pulmonary Surfactants",
+              "Respiration, Artificial"
+            ]
+          },
+          {
+            "concept": "肺表面活性物质",
+            "english": [
+              "pulmonary surfactant"
+            ],
+            "mesh": []
+          },
+          {
+            "concept": "机械通气",
+            "english": [
+              "mechanical ventilation"
+            ],
+            "mesh": []
+          }
+        ]
       }
     }
   ]

@@ -3,10 +3,11 @@ from __future__ import annotations
 
 import re
 from collections.abc import Mapping
+from dataclasses import dataclass
 from typing import Any
 
 from .his import PatientSnapshot, minimize_patient_snapshot
-from .models import QueryPlan, RetrievalRequest
+from .models import QueryPlan, RetrievalRequest, TermMappingEntry
 
 DEFAULT_SOURCE_ORDER = ("guideline", "pubmed", "drug", "clinical_trial", "local_knowledge")
 _RECOMMENDATION_MARKERS = ("指南", "推荐", "建议", "应当", "适应证", "禁忌", "剂量", "治疗", "guideline", "recommend")
@@ -22,29 +23,50 @@ _QUESTION_EN_STOPWORDS = frozenset(
 )
 
 
+@dataclass(frozen=True)
+class _MappingExpansion:
+    entries: tuple[TermMappingEntry, ...] = ()
+    concepts: tuple[str, ...] = ()
+    english: tuple[str, ...] = ()
+    mesh: tuple[str, ...] = ()
+    trace: tuple[Mapping[str, Any], ...] = ()
+    unmatched: tuple[str, ...] = ()
+
+
 def build_query_plan(request: RetrievalRequest, known_sources: list[dict[str, object]]) -> QueryPlan:
     reviewed_external = minimize_patient_snapshot(request.patient_snapshot) if isinstance(request.patient_snapshot, PatientSnapshot) else ()
+    segments = _input_segments(request, reviewed_external)
     extracted = (*_extract_terms(request.question), *request.patient_terms, *reviewed_external, *_facet_values(request.facets))
-    request_text = " ".join((request.question, *request.patient_terms, *reviewed_external, *_facet_values(request.facets))).lower()
+    request_text = " ".join(text for _, text in segments).lower()
+    mapping = _expand_term_mapping(request.term_mapping, segments)
     reviewed_concepts = tuple(
         key for key in request.user_terms
         if str(key).strip() and str(key).lower() in request_text
     )
-    concepts = _unique((*extracted, *reviewed_concepts))
-    english: list[str] = list(request.english_terms)
-    mesh: list[str] = list(request.mesh_terms)
+    concepts = _unique((*extracted, *mapping.concepts, *reviewed_concepts))
+    english: list[str] = [*mapping.english, *request.english_terms]
+    mesh: list[str] = [*mapping.mesh, *request.mesh_terms]
     question_english = _question_english_terms(request.question)
-    expansion_trace: list[Mapping[str, Any]] = []
+    expansion_trace: list[Mapping[str, Any]] = list(mapping.trace)
     if question_english:
         expansion_trace.append({"concept": "question", "terms": list(question_english), "source": "question_ascii"})
+    mapped_concepts = {entry.concept.casefold() for entry in mapping.entries if entry.english}
     for concept in concepts:
+        if concept.casefold() in mapped_concepts:
+            continue
         mapped = tuple(_strings(request.user_terms.get(concept, ())))
         if mapped:
             english.extend(mapped)
             expansion_trace.append({"concept": concept, "terms": list(mapped), "source": "reviewed_user_terms"})
     english = list(_unique(english))
     mesh = list(_unique(mesh))
-    variants = _unique((request.question, " ".join(concepts), " ".join((*concepts, *english)), " ".join((*english, *mesh))))
+    if mapping.entries:
+        variants, variant_trace = _mapping_query_variants(
+            request.question, concepts, english, mesh, mapping.entries,
+        )
+    else:
+        variants = _unique((request.question, " ".join(concepts), " ".join((*concepts, *english)), " ".join((*english, *mesh))))
+        variant_trace = ()
 
     requested = request.source_kinds or DEFAULT_SOURCE_ORDER
     source_order: list[str] = []
@@ -70,6 +92,13 @@ def build_query_plan(request: RetrievalRequest, known_sources: list[dict[str, ob
     if question_english:
         rationale.append("问题中的英文词已直接加入英文检索词（已过滤常见功能词与纯数值）。")
     rationale.append("问题中的中文片段用于中文来源匹配；中文概念展开为英文仅使用已审核的术语映射，不自动翻译。")
+    if mapping.entries:
+        rationale.append(
+            f"审核术语映射表命中 {len(mapping.entries)} 个概念；英文与 MeSH 由同一映射条目派生，未命中概念不展开。"
+        )
+        rationale.append("查询变体按概念分组生成（原始问题/中文概念/概念英文/概念 MeSH/概念组合/全局组合），保留概念—术语绑定。")
+    elif request.term_mapping:
+        rationale.append("提供了 term_mapping，但没有任何概念出现在问题/术语文本中；未展开映射术语。")
     if recommendation:
         rationale.append("问题含推荐/指南线索，优先路由指南来源；这不是绝对正确性排序。")
     if update:
@@ -94,8 +123,128 @@ def build_query_plan(request: RetrievalRequest, known_sources: list[dict[str, ob
         english_terms=tuple(english),
         mesh_terms=tuple(mesh),
         expansion_trace=tuple(expansion_trace),
+        term_mapping=request.term_mapping,
+        mapping_trace=mapping.trace,
+        variant_trace=variant_trace,
         question_english_terms=question_english,
     )
+
+
+def _input_segments(request: RetrievalRequest, reviewed_external: tuple[str, ...]) -> tuple[tuple[str, str], ...]:
+    segments: list[tuple[str, str]] = [("question", request.question)]
+    segments.extend(("patient_terms", item) for item in request.patient_terms)
+    segments.extend(("reviewed_external_terms", item) for item in reviewed_external)
+    for key, value in request.facets.items():
+        segments.extend((f"facets.{key}", item) for item in _strings(value))
+    return tuple((source, text) for source, text in segments if str(text).strip())
+
+
+def _expand_term_mapping(
+    entries: tuple[TermMappingEntry, ...],
+    segments: tuple[tuple[str, str], ...],
+) -> _MappingExpansion:
+    expanded: list[TermMappingEntry] = []
+    concepts: list[str] = []
+    english: list[str] = []
+    mesh: list[str] = []
+    trace: list[Mapping[str, Any]] = []
+    unmatched: list[str] = []
+    for entry in entries:
+        hit = _first_surface_match(entry.surfaces(), segments)
+        if hit is None:
+            unmatched.append(entry.concept)
+            trace.append({
+                "concept": entry.concept, "status": "not_matched",
+                "english": list(entry.english), "mesh": list(entry.mesh),
+                "aliases": list(entry.aliases),
+            })
+            continue
+        surface, source = hit
+        expanded.append(entry)
+        concepts.append(entry.concept)
+        english.extend(entry.english)
+        mesh.extend(entry.mesh)
+        trace.append({
+            "concept": entry.concept, "status": "expanded",
+            "matched_surface": surface, "matched_in": source,
+            "terms": list(entry.english), "mesh_terms": list(entry.mesh),
+            "aliases": list(entry.aliases), "source": "reviewed_term_mapping",
+        })
+    return _MappingExpansion(
+        entries=tuple(expanded), concepts=tuple(concepts),
+        english=tuple(english), mesh=tuple(mesh),
+        trace=tuple(trace), unmatched=tuple(unmatched),
+    )
+
+
+def _first_surface_match(
+    surfaces: tuple[str, ...], segments: tuple[tuple[str, str], ...],
+) -> tuple[str, str] | None:
+    for surface in surfaces:
+        for source, text in segments:
+            if _contains_surface(surface, text):
+                return surface, source
+    return None
+
+
+def _contains_surface(surface: str, text: str) -> bool:
+    """Concept presence check.
+
+    CJK surfaces use substring matching; ASCII surfaces use token boundaries so
+    an alias such as ``RDS`` does not match inside ``NRDS``.
+    """
+    needle = str(surface or "").strip()
+    haystack = str(text or "")
+    if not needle or not haystack:
+        return False
+    if needle.isascii():
+        pattern = r"(?<![A-Za-z0-9])" + re.escape(needle) + r"(?![A-Za-z0-9])"
+        return re.search(pattern, haystack, re.IGNORECASE) is not None
+    return needle.lower() in haystack.lower()
+
+
+def _mapping_query_variants(
+    question: str,
+    concepts: tuple[str, ...],
+    english: tuple[str, ...],
+    mesh: tuple[str, ...],
+    entries: tuple[TermMappingEntry, ...],
+) -> tuple[tuple[str, ...], tuple[Mapping[str, Any], ...]]:
+    """Build concept-scoped query variants for the reviewed mapping path.
+
+    Keeping a variant per concept (and its English/MeSH products) preserves the
+    concept-term binding; BM25 still takes the best variant per document, so a
+    concept variant cannot lower an existing document's score.
+    """
+    variants: list[str] = []
+    trace: list[Mapping[str, Any]] = []
+    seen: set[str] = set()
+
+    def add(role: str, text: str, concept: str | None = None) -> None:
+        cleaned = " ".join(str(text or "").split()).strip()
+        if not cleaned:
+            return
+        key = cleaned.casefold()
+        if key in seen:
+            return
+        seen.add(key)
+        variants.append(cleaned)
+        entry: dict[str, Any] = {"role": role, "text": cleaned}
+        if concept:
+            entry["concept"] = concept
+        trace.append(entry)
+
+    add("original_question", question)
+    add("zh_concepts", " ".join(concepts))
+    for entry in entries:
+        add("mapping_english", " ".join(entry.english), entry.concept)
+        add("mapping_mesh", " ".join(entry.mesh), entry.concept)
+        add("mapping_combined", " ".join((*entry.english, *entry.mesh)), entry.concept)
+    add("english_terms", " ".join(english))
+    add("mesh_terms", " ".join(mesh))
+    add("english_and_mesh", " ".join((*english, *mesh)))
+    add("concepts_and_terms", " ".join((*concepts, *english, *mesh)))
+    return tuple(variants), tuple(trace)
 
 
 def _infer_intent(question: str) -> str:
@@ -160,11 +309,29 @@ def review_query_plan(plan: QueryPlan, *, english_source_present: bool) -> dict[
         "status": "ok",
         "detail": "；".join(mapped_sources) or "未发生术语展开。",
     })
-    if english_source_present and not plan.english_terms and not plan.question_english_terms and not plan.machine_translations and "reviewed_user_terms" not in mapped_sources:
+    if english_source_present and not plan.english_terms and not plan.question_english_terms and not plan.machine_translations and "reviewed_user_terms" not in mapped_sources and "reviewed_term_mapping" not in mapped_sources:
         findings.append(
-            "审核映射未展开：user_terms 的键必须与问题/患者术语原文一致（含大小写）才会生效；"
+            "审核映射未展开：user_terms/term_mapping 的键必须与问题/患者术语原文一致（含大小写）才会生效；"
             "请核对键的写法，或直接提供 english_terms。"
         )
+
+    # 2b) 映射表覆盖：未命中的概念不展开，必须显式列出而不是静默丢弃。
+    mapping_trace = tuple(getattr(plan, "mapping_trace", ()) or ())
+    if mapping_trace:
+        expanded = [str(entry.get("concept")) for entry in mapping_trace if entry.get("status") == "expanded"]
+        unmatched = [str(entry.get("concept")) for entry in mapping_trace if entry.get("status") != "expanded"]
+        checks.append({
+            "item": "term_mapping_coverage",
+            "status": "review_needed" if unmatched else "ok",
+            "detail": f"映射表概念：命中 {len(expanded)}，未命中 {len(unmatched)}"
+                      + (f"（未命中：{', '.join(unmatched)}）" if unmatched else ""),
+        })
+        if unmatched:
+            findings.append(
+                "术语映射表中以下概念未出现在问题/患者术语/facets 中，未展开："
+                + ", ".join(unmatched)
+                + "；若这是有意提供的备选概念可忽略，否则请核对键的写法。"
+            )
 
     # 3) 数值一致性：问题中的数值必须有英文表述承载（否则年龄/剂量/阈值会丢失）。
     numbers = _NUMERIC_RE.findall(question)
@@ -319,6 +486,33 @@ def population_clause(plan: QueryPlan) -> str:
     if any(token in text for token in ("neonat", "newborn", "infant", "preterm", "新生儿", "早产儿", "婴儿")):
         return "neonatal OR newborn OR infant OR preterm"
     return ""
+
+
+def mapping_active(plan: QueryPlan) -> bool:
+    """True when at least one reviewed mapping concept matched the request."""
+    return any(
+        isinstance(entry, Mapping) and entry.get("status") == "expanded"
+        and entry.get("source") == "reviewed_term_mapping"
+        for entry in (plan.mapping_trace or ())
+    )
+
+
+def expanded_mapping_entries(plan: QueryPlan) -> tuple[TermMappingEntry, ...]:
+    expanded = {
+        str(entry.get("concept") or "").casefold()
+        for entry in (plan.mapping_trace or ())
+        if isinstance(entry, Mapping) and entry.get("status") == "expanded"
+    }
+    return tuple(
+        entry for entry in (plan.term_mapping or ())
+        if entry.concept.casefold() in expanded and (entry.english or entry.mesh)
+    )
+
+
+def primary_mapping_entry(plan: QueryPlan) -> TermMappingEntry | None:
+    """The first expanded mapping row with an English or MeSH product."""
+    entries = expanded_mapping_entries(plan)
+    return entries[0] if entries else None
 
 
 def _strings(value: Any) -> list[str]:

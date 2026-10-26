@@ -264,7 +264,35 @@
               "time": "2026-03-15"
             }
           ]
-        }
+        },
+        "term_mapping": [
+          {
+            "concept": "新生儿呼吸窘迫综合征",
+            "english": [
+              "respiratory distress syndrome",
+              "CPAP",
+              "preterm infant"
+            ],
+            "mesh": [
+              "Respiratory Distress Syndrome, Newborn",
+              "Pulmonary Surfactants"
+            ]
+          },
+          {
+            "concept": "肺表面活性物质",
+            "english": [
+              "pulmonary surfactant"
+            ],
+            "mesh": []
+          },
+          {
+            "concept": "呼吸支持",
+            "english": [
+              "respiratory support"
+            ],
+            "mesh": []
+          }
+        ]
       }
     },
     {
@@ -534,7 +562,35 @@
               "time": "2026-04-27"
             }
           ]
-        }
+        },
+        "term_mapping": [
+          {
+            "concept": "新生儿呼吸窘迫综合征",
+            "english": [
+              "respiratory distress syndrome",
+              "preterm infant"
+            ],
+            "mesh": [
+              "Respiratory Distress Syndrome, Newborn",
+              "Pulmonary Surfactants",
+              "Respiration, Artificial"
+            ]
+          },
+          {
+            "concept": "肺表面活性物质",
+            "english": [
+              "pulmonary surfactant"
+            ],
+            "mesh": []
+          },
+          {
+            "concept": "机械通气",
+            "english": [
+              "mechanical ventilation"
+            ],
+            "mesh": []
+          }
+        ]
       }
     },
     {
@@ -798,7 +854,35 @@
               "time": "2026-03-02"
             }
           ]
-        }
+        },
+        "term_mapping": [
+          {
+            "concept": "新生儿呼吸窘迫综合征",
+            "english": [
+              "respiratory distress syndrome",
+              "CPAP",
+              "preterm infant"
+            ],
+            "mesh": [
+              "Respiratory Distress Syndrome, Newborn",
+              "Pulmonary Surfactants"
+            ]
+          },
+          {
+            "concept": "肺表面活性物质",
+            "english": [
+              "pulmonary surfactant"
+            ],
+            "mesh": []
+          },
+          {
+            "concept": "呼吸支持",
+            "english": [
+              "respiratory support"
+            ],
+            "mesh": []
+          }
+        ]
       }
     },
     {
@@ -1025,7 +1109,29 @@
               "time": "2026-09-17"
             }
           ]
-        }
+        },
+        "term_mapping": [
+          {
+            "concept": "新生儿感染性肺炎",
+            "english": [
+              "neonatal infectious pneumonia",
+              "neonatal pneumonia",
+              "chest radiograph",
+              "C-reactive protein"
+            ],
+            "mesh": [
+              "Pneumonia, Bacterial",
+              "Infant, Newborn"
+            ]
+          },
+          {
+            "concept": "影像检查",
+            "english": [
+              "imaging"
+            ],
+            "mesh": []
+          }
+        ]
       }
     },
     {
@@ -1193,7 +1299,26 @@
               "time": "2026-08-25"
             }
           ]
-        }
+        },
+        "term_mapping": [
+          {
+            "concept": "暂时性呼吸增快",
+            "english": [
+              "transient tachypnea of the newborn",
+              "tachypnea"
+            ],
+            "mesh": [
+              "Transient Tachypnea of the Newborn"
+            ]
+          },
+          {
+            "concept": "湿肺",
+            "english": [
+              "TTN"
+            ],
+            "mesh": []
+          }
+        ]
       }
     },
     {
@@ -1375,7 +1500,34 @@
               "time": "2026-07-23"
             }
           ]
-        }
+        },
+        "term_mapping": [
+          {
+            "concept": "新生儿黄疸",
+            "english": [
+              "neonatal jaundice",
+              "hyperbilirubinemia"
+            ],
+            "mesh": [
+              "Jaundice, Neonatal",
+              "Phototherapy"
+            ]
+          },
+          {
+            "concept": "光疗",
+            "english": [
+              "phototherapy"
+            ],
+            "mesh": []
+          },
+          {
+            "concept": "总胆红素",
+            "english": [
+              "total bilirubin"
+            ],
+            "mesh": []
+          }
+        ]
       }
     },
     {
@@ -1654,7 +1806,34 @@
               "time": "2026-06-17"
             }
           ]
-        }
+        },
+        "term_mapping": [
+          {
+            "concept": "持续性肺动脉高压",
+            "english": [
+              "persistent pulmonary hypertension of the newborn",
+              "PPHN"
+            ],
+            "mesh": [
+              "Persistent Fetal Circulation Syndrome",
+              "Nitric Oxide"
+            ]
+          },
+          {
+            "concept": "一氧化氮",
+            "english": [
+              "inhaled nitric oxide"
+            ],
+            "mesh": []
+          },
+          {
+            "concept": "胎粪吸入综合征",
+            "english": [
+              "meconium aspiration syndrome"
+            ],
+            "mesh": []
+          }
+        ]
       }
     },
     {
@@ -1886,7 +2065,34 @@
               "time": "2026-05-25"
             }
           ]
-        }
+        },
+        "term_mapping": [
+          {
+            "concept": "支气管肺发育不良",
+            "english": [
+              "bronchopulmonary dysplasia",
+              "BPD"
+            ],
+            "mesh": [
+              "Bronchopulmonary Dysplasia",
+              "Infant, Premature"
+            ]
+          },
+          {
+            "concept": "经后年龄",
+            "english": [
+              "postmenstrual age"
+            ],
+            "mesh": []
+          },
+          {
+            "concept": "早产儿",
+            "english": [
+              "preterm infant"
+            ],
+            "mesh": []
+          }
+        ]
       }
     },
     {
@@ -2055,7 +2261,33 @@
               "time": "2026-04-10"
             }
           ]
-        }
+        },
+        "term_mapping": [
+          {
+            "concept": "新生儿低血糖",
+            "english": [
+              "neonatal hypoglycemia"
+            ],
+            "mesh": [
+              "Hypoglycemia",
+              "Infant, Newborn"
+            ]
+          },
+          {
+            "concept": "血糖",
+            "english": [
+              "blood glucose"
+            ],
+            "mesh": []
+          },
+          {
+            "concept": "低出生体重儿",
+            "english": [
+              "low birth weight infant"
+            ],
+            "mesh": []
+          }
+        ]
       }
     },
     {
@@ -2239,7 +2471,36 @@
               "time": "2026-10-07"
             }
           ]
-        }
+        },
+        "term_mapping": [
+          {
+            "concept": "B族链球菌",
+            "english": [
+              "group B streptococcus",
+              "asymptomatic",
+              "blood culture"
+            ],
+            "mesh": [
+              "Streptococcal Infections",
+              "Infant, Newborn",
+              "Sepsis"
+            ]
+          },
+          {
+            "concept": "胎膜早破",
+            "english": [
+              "premature rupture of membranes"
+            ],
+            "mesh": []
+          },
+          {
+            "concept": "早期感染",
+            "english": [
+              "early-onset sepsis"
+            ],
+            "mesh": []
+          }
+        ]
       }
     },
     {
@@ -2459,7 +2720,34 @@
               "time": "2026-11-13"
             }
           ]
-        }
+        },
+        "term_mapping": [
+          {
+            "concept": "早产儿呼吸暂停",
+            "english": [
+              "apnea of prematurity"
+            ],
+            "mesh": [
+              "Apnea",
+              "Infant, Premature",
+              "Caffeine"
+            ]
+          },
+          {
+            "concept": "咖啡因",
+            "english": [
+              "caffeine citrate"
+            ],
+            "mesh": []
+          },
+          {
+            "concept": "呼吸监测",
+            "english": [
+              "respiratory monitoring"
+            ],
+            "mesh": []
+          }
+        ]
       }
     }
   ]

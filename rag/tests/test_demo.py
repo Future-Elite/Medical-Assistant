@@ -51,6 +51,11 @@ class DemoCaseTests(unittest.TestCase):
             self.assertEqual(request.source_mode, "live")
             self.assertIn(request.top_k, range(1, 51))
             self.assertTrue(request.english_terms, case["case_id"])
+            self.assertTrue(request.term_mapping, case["case_id"])
+            self.assertTrue(
+                any(entry.english or entry.mesh for entry in request.term_mapping),
+                case["case_id"],
+            )
             snapshot = request.patient_snapshot
             self.assertTrue(snapshot.patient_ref)
             self.assertTrue(snapshot.facts)

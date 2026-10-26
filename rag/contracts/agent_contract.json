@@ -2,10 +2,10 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://example.invalid/chinallm/rag/agent-contract.json",
   "title": "ChinaLLM RAG Agent/HIS/RAG Contract",
-  "description": "Agent 与只读检索层的对接契约：Agent 先获取带 as_of 的 HIS 快照，再调用 RAG 完成患者事实 + PubMed + 版本化指南的联合检索。检索分三层执行：按来源收集 → 分源独立排序（各自词表内 IDF/RRF/相关度门，跨来源分数不比较）→ 联合选择（来源可见性保证 + 意图配额 + 来源内排名轮转补齐 + 按来源内排名交错）。v6.6.4 的 live 指南注册表只含新生儿指南元数据（成人 WHO 条目已移除）；新生儿演示档案（rag/demo/）是调用方库，需经 POST /api/demo/guidelines/load 显式加载。中英文字段语义见 language_rules：中文原始问题原样保留，英文相关字段（english_terms/mesh_terms/user_terms/question_english_terms）分别定义。",
+  "description": "Agent 与只读检索层的对接契约：Agent 先获取带 as_of 的 HIS 快照，再调用 RAG 完成患者事实 + PubMed + 版本化指南的联合检索。检索分三层执行：按来源收集 → 分源独立排序（各自词表内 IDF/RRF/相关度门，跨来源分数不比较）→ 联合选择（来源可见性保证 + 意图配额 + 来源内排名轮转补齐 + 按来源内排名交错）。v6.6.5 的 live 指南注册表只含新生儿指南元数据（成人 WHO 条目已移除）；新生儿演示档案（rag/demo/）是调用方库，需经 POST /api/demo/guidelines/load 显式加载。中英文字段语义见 language_rules：中文原始问题原样保留，审核术语优先使用 term_mapping（概念→english/mesh/aliases），english_terms/mesh_terms/user_terms 为兼容字段；question_english_terms 为系统自动提取。",
   "contract_metadata": {
     "contract_id": "chinallm.rag.agent",
-    "contract_version": "6.6.4",
+    "contract_version": "6.6.5",
     "status": "experimental"
   },
   "scope_and_safety": {
@@ -19,19 +19,22 @@
     "server_has_builtin_corpus": false,
     "fidelity_gate": "门控只改变被判定路线的检索信号（降权/退出融合），不修改查询计划本身；每次处置写入 trace.query_fidelity 与 warnings；未配置词表时不做静默推断。",
     "neonatal_scope": "live 指南元数据注册表只含新生儿指南；成人指南不得因来源配额进入临床证据包。演示病例与合成指南块全部 synthetic=true，不是临床证据。",
-    "demo_profile": "neonatal_demo_v1：9 例合成新生儿病例 + 两个调用方指南库（元数据库 synthetic=false 仅书目；合成块库 synthetic=true）。演示库不是第三种来源模式，加载后按 custom 检索。"
+    "demo_profile": "neonatal_demo_v1：9 例合成新生儿病例 + 两个调用方指南库（元数据库 synthetic=false 仅书目；合成块库 synthetic=true）。演示库不是第三种来源模式，加载后按 custom 检索。",
+    "applicability": "applicability 是结构化条件核对：只评估指南 metadata.applicability_criteria 中已显式给出的字段、操作符与期望值；not_recorded/pending/unavailable/hypothesis 不会转成阴性；mismatch 表示必需条件与可见事实不符，不是临床不适用结论。"
   },
   "language_rules": {
     "original_question": "question 是中文临床原始问题，原样保留（不翻译、不改写），既作为精确查询参与词面检索，也用于结果审计。",
     "question_english_terms": "问题中直接出现的英文词（≥2 字符、含字母、过滤常见功能词与纯数值）由系统自动提取并加入英文检索词；调用方不得手工填写。记录在 EvidencePackage.query_plan.question_english_terms 和 trace.external_terms。",
     "machine_translations": "translate 路线在来源召回前生成的英文候选查询，独立于审核术语。原问题保留；保真 reject 路线不会发送到外部来源。候选与检查记录在 query_plan.machine_translations、trace.machine_queries、trace.recall_query_fidelity；实际 PubMed 查询式记录在 connector_trace.query。",
-    "reviewed_english_terms": "english_terms 与 mesh_terms 是人工审核的英文术语/缩写与 MeSH 主题词，直接参与英文来源检索与实时 PubMed 查询（优先级高于自动提取）。",
-    "reviewed_mapping": "user_terms 是人工审核的中文概念→英文术语映射；仅当键出现在问题/患者术语文本中才生效，展开记录在 query_plan.expansion_trace（source=reviewed_user_terms）。不调用自动翻译或不受控同义词服务。",
+    "reviewed_english_terms": "兼容字段：english_terms 与 mesh_terms 是旧调用方直接提供的英文/MeSH 列表；新调用方应使用 term_mapping，把英文与 MeSH 绑定到同一概念行。两种输入同时存在时，映射行先展开、直接列表仍保留并去重。",
+    "reviewed_mapping": "兼容字段：user_terms 是旧式中文概念→英文映射；新调用方应使用 term_mapping（可同时绑定 MeSH）。user_terms 仅在键出现在问题/患者术语文本中才生效，展开记录在 expansion_trace（source=reviewed_user_terms）。",
     "cjk_matching": "中文片段以 CJK 二元组分词参与词面匹配，可直接命中中文来源（source 文档语言为中文时无需英文术语）；纯数字 token（年份/序号）不参与匹配。",
     "live_fallback": "实时 PubMed 在没有任何英文词时，优先退回概念中的 ASCII 词，其次才是中文片段；绝不发送患者快照内容。",
     "fidelity_gate": "查询保真门控审计对象是'中文问题→英文检索计划'的转换产物（审核术语映射/机器译文/多语言编码显式输入）。v0 为确定性词面基线：实体覆盖（期望英文是否出现）、数值保留、否定/时间表达、词表实体串换检测。自动判定使用 suspected_*/unverifiable 等名称，与人工标注标签刻意区分；无词表时串换检测记为不可检测。",
     "neonatal_age_terms": "新生儿年龄语义：ga_days（出生胎龄总天数）+ ga_text（原始“周+天”）+ pna_hours（生后小时）+ 派生的 PMA 必须分开记录；不得从出生体重反推胎龄，不得把生后小时/经后周数/矫正年龄互相替换。RAG 只读快照字段，不自行推导年龄。",
-    "data_status": "数据状态词表：observed_positive / observed_negative / not_recorded / pending / unavailable / hypothesis。“培养待回报(pending)”“未记录(not_recorded)”“阴性(observed_negative)”不得互相转译；母体事实用 subject_role=mother 与患儿事实分开。"
+    "data_status": "数据状态词表：observed_positive / observed_negative / not_recorded / pending / unavailable / hypothesis。“培养待回报(pending)”“未记录(not_recorded)”“阴性(observed_negative)”不得互相转译；母体事实用 subject_role=mother 与患儿事实分开。",
+    "reviewed_term_mapping": "term_mapping 是人工审核的概念→术语映射表：每个概念行绑定 english 与 mesh，可带 aliases。仅当概念或别名出现在问题、患者术语、reviewed_external_terms 或 facets 时展开；英文/MeSH 不脱离概念单独生效。展开记录在 query_plan.mapping_trace（status=expanded/not_matched）与 expansion_trace（source=reviewed_term_mapping）；映射路径的查询变体按概念分组，实时 PubMed 使用 [tiab]/[MeSH Terms] 字段标签。",
+    "applicability_criteria": "指南 metadata.applicability_criteria 是人工审核的结构化条件；支持平铺数组（all_of）或带 logic=all_of/any_of 的包装对象。每条条件必须有 review_status（reviewed/synthetic_fixture 才参与）与 source 定位；draft/scope_only/not_structurable 返回 unknown。不解析指南正文自由文本，不自动生成治疗阈值。"
   },
   "tools": {
     "retrieve_evidence": {
@@ -144,21 +147,21 @@
               "type": "string"
             }
           },
-          "description": "人工审核的中文概念→英文术语映射，例如 {\"新生儿呼吸窘迫综合征\": [\"respiratory distress syndrome\"]}。仅当键出现在问题/患者术语文本中才展开，过程记录在 query_plan.expansion_trace；不自动翻译。"
+          "description": "兼容字段（旧调用方）：中文概念→英文映射；新调用方请用 term_mapping 以同时绑定 MeSH。仅当键出现在问题/患者术语文本中才展开。"
         },
         "english_terms": {
           "type": "array",
           "items": {
             "type": "string"
           },
-          "description": "人工审核的英文医学术语/缩写（如 \"respiratory distress syndrome\"、\"pulmonary surfactant\"），直接参与英文来源检索与实时 PubMed 查询。"
+          "description": "兼容字段（旧调用方）：审核英文术语列表；新调用方应放入 term_mapping 对应概念行，以保留概念—术语绑定。"
         },
         "mesh_terms": {
           "type": "array",
           "items": {
             "type": "string"
           },
-          "description": "人工审核的 MeSH 主题词（如 \"Diabetes Mellitus, Type 2\"），参与英文检索与实时 PubMed 查询。"
+          "description": "兼容字段（旧调用方）：审核 MeSH 列表；新调用方应放入 term_mapping 对应概念行。"
         },
         "facets": {
           "type": "object",
@@ -232,6 +235,53 @@
           ],
           "default": "off",
           "description": "查询保真门控（ 研究层，默认 off=基线版 语义）。audit=审计并记录、不改信号；warn=审计+显式警告；downweight=按错误级别对受影响转换路线降权（penalty 默认 0.5）后参与融合；reject=按错误级别将受影响路线退出检索融合。审计与处置全过程写入 trace.query_fidelity；查询计划不被静默改写（被拒绝的译文变体只从打分输入移除，事实显式记录）。"
+        },
+        "term_mapping": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/schemas/TermMappingEntry"
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": {
+                "oneOf": [
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "english": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "mesh": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "aliases": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          ],
+          "description": "人工审核的术语映射表（推荐数组行）：概念→english/mesh/aliases。英文与 MeSH 必须与概念绑定，仅当概念/别名命中问题、患者术语或 facets 时展开；未命中概念在 query_plan.mapping_trace 列出。映射路径会生成按概念分组的查询变体，并让实时 PubMed 使用 [tiab]/[MeSH Terms] 字段标签。"
         }
       }
     },
@@ -345,7 +395,7 @@
           "items": {
             "type": "string"
           },
-          "description": "参与词面打分的查询变体：原问题 / 概念 / 概念+英文 / 英文+MeSH。"
+          "description": "参与词面打分的查询变体。映射表路径按概念分组：原问题 / 中文概念 / 概念英文 / 概念 MeSH / 概念组合 / 全局英文 / 全局 MeSH / 全局组合。"
         },
         "concepts": {
           "type": "array",
@@ -396,7 +446,7 @@
           "items": {
             "type": "string"
           },
-          "description": "人工审核英文术语（含 user_terms 展开结果）。"
+          "description": "审核英文术语（映射表展开结果在前，兼容 english_terms 在后）。"
         },
         "question_english_terms": {
           "type": "array",
@@ -435,14 +485,90 @@
               "source": {
                 "enum": [
                   "reviewed_user_terms",
+                  "reviewed_term_mapping",
                   "question_ascii",
                   "pseudo_relevance_feedback",
-                  "query2doc_pseudo_document"
+                  "query2doc_pseudo_document",
+                  "machine_translation_zh_en"
                 ]
               }
             }
           },
-          "description": "术语展开轨迹：问题英文词提取（question_ascii）、审核映射展开（reviewed_user_terms）、RM3 伪相关反馈（pseudo_relevance_feedback）、Query2doc 伪文档扩展（query2doc_pseudo_document）。"
+          "description": "术语展开轨迹：映射表（reviewed_term_mapping）、旧式 user_terms（reviewed_user_terms）、问题英文词、RM3、Query2doc 与机器译文。"
+        },
+        "term_mapping": {
+          "type": "array",
+          "items": {
+            "$ref": "#/schemas/TermMappingEntry"
+          },
+          "description": "本次请求提供的审核映射表（原样记录）。"
+        },
+        "mapping_trace": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "concept": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "expanded",
+                  "not_matched"
+                ]
+              },
+              "matched_surface": {
+                "type": "string"
+              },
+              "matched_in": {
+                "type": "string"
+              },
+              "terms": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "mesh_terms": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "aliases": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "source": {
+                "type": "string",
+                "enum": [
+                  "reviewed_term_mapping"
+                ]
+              }
+            }
+          },
+          "description": "映射表逐行使用轨迹：命中/未命中、命中表面与文本来源。"
+        },
+        "variant_trace": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "role": {
+                "type": "string"
+              },
+              "text": {
+                "type": "string"
+              },
+              "concept": {
+                "type": "string"
+              }
+            }
+          },
+          "description": "查询变体的角色（original_question/zh_concepts/mapping_english/mapping_mesh/mapping_combined/english_terms/mesh_terms/english_and_mesh/concepts_and_terms）。"
         }
       }
     },
@@ -601,9 +727,16 @@
         },
         "patient_record_paths": {
           "type": "array"
+        },
+        "criteria": {
+          "type": "array",
+          "items": {
+            "$ref": "#/schemas/ApplicabilityCriterionResult"
+          },
+          "description": "逐条条件核对结果；空数组表示指南未提供结构化条件或使用旧式 population_criteria。"
         }
       },
-      "description": "结构化适用性提示；不是诊断、治疗建议或指南符合性证明。"
+      "description": "指南结构化条件与患者事实的适用性提示；不是诊断、治疗建议或指南符合性证明。possible_match=必需条件均匹配；mismatch=至少一项必需条件与可见事实不符；unknown=部分必需条件缺少可用记录，或条件未经审核/缺少原文定位；not_assessed=无快照或无结构化条件。只有 review_status=reviewed/synthetic_fixture 的条件参与核对。"
     },
     "EvidencePackage": {
       "type": "object",
@@ -834,7 +967,7 @@
         },
         "metadata": {
           "type": "object",
-          "description": "未知字段与附加字段（mesh_terms/keywords/full_text_allowed 等）保留在这里。"
+          "description": "未知字段与附加字段（mesh_terms/keywords/full_text_allowed 等）保留在这里。指南可提供 applicability_criteria：数组，或 {\"logic\":\"all_of\"|\"any_of\",\"criteria\":[...]}。每条条件含 field/operator/value/unit/subject_role/required/review_status/source；review_status 只有 reviewed 或 synthetic_fixture 参与核对，且必须有 source.locator/quote。"
         }
       }
     },
@@ -927,6 +1060,152 @@
           ]
         }
       }
+    },
+    "TermMappingEntry": {
+      "type": "object",
+      "required": [
+        "concept"
+      ],
+      "description": "一条审核映射行：中文概念（或别名）+ 绑定的英文与 MeSH 产物。",
+      "properties": {
+        "concept": {
+          "type": "string",
+          "description": "中文概念；只在它或别名出现在问题/患者术语/facets 时展开。"
+        },
+        "aliases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "可选别名；ASCII 别名按词边界匹配。"
+        },
+        "english": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "审核英文术语；与 concept 绑定。"
+        },
+        "mesh": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "审核 MeSH 主题词；与 concept 绑定。"
+        },
+        "notes": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "english"
+          ]
+        },
+        {
+          "required": [
+            "mesh"
+          ]
+        }
+      ]
+    },
+    "ApplicabilityCriterionResult": {
+      "type": "object",
+      "required": [
+        "criterion_id",
+        "field",
+        "operator",
+        "status"
+      ],
+      "description": "一条指南结构化条件与可见患者事实的核对结果。",
+      "properties": {
+        "criterion_id": {
+          "type": "string"
+        },
+        "field": {
+          "type": "string",
+          "description": "患者事实字段；支持 collection.field（如 respiratory_support.fio2）与 diagnosis 别名。"
+        },
+        "operator": {
+          "type": "string",
+          "enum": [
+            "exists",
+            "eq",
+            "ne",
+            "in",
+            "not_in",
+            "gt",
+            "ge",
+            "lt",
+            "le",
+            "between",
+            "contains",
+            "contains_any",
+            "contains_all"
+          ]
+        },
+        "expected": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "match",
+            "mismatch",
+            "unknown"
+          ]
+        },
+        "observed_value": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "patient_record_paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "reason": {
+          "type": "string"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "label": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source_locator": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "原文定位；参与核对的条件必须提供 source.locator/quote，否则返回 unknown。"
+        },
+        "review_status": {
+          "type": "string",
+          "enum": [
+            "reviewed",
+            "synthetic_fixture",
+            "draft",
+            "scope_only",
+            "not_structurable"
+          ],
+          "default": "draft",
+          "description": "审核状态。只有 reviewed 与 synthetic_fixture 参与核对；draft/scope_only/not_structurable 只展示并返回 unknown。"
+        }
+      }
     }
   },
   "correlation_and_scope": {
@@ -954,8 +1233,11 @@
     "Candidates with zero lexical and zero semantic relevance are excluded before scoring; authority/freshness never backfill unrelated source entries.",
     "Chinese concepts are never auto-translated: English expansion comes only from reviewed user_terms/english_terms/mesh_terms or English words written in the question.",
     "CJK matching uses bigram tokenization; pure-digit tokens (years, ordinal numbers) do not participate in matching.",
-    "v6.6.4 live 指南注册表只含新生儿指南元数据（肺炎 2025、RDS 2025 更新版、RDS 中文解读）；不包含任何成人指南。元数据条目 content_mode=metadata_only，不提供推荐原文。",
+    "v6.6.5 live 指南注册表只含新生儿指南元数据（肺炎 2025、RDS 2025 更新版、RDS 中文解读）；不包含任何成人指南。元数据条目 content_mode=metadata_only，不提供推荐原文。",
     "演示档案（neonatal_demo_v1）的病例全部为合成数据；指南库分两类：经书目核验的元数据（synthetic=false，仅书目）与合成指南块（synthetic=true，不是真实推荐）。两者都不得作为临床证据。",
-    "年龄语义（ga_days/ga_text、pna_hours、PMA、矫正年龄）与数据状态（observed_positive/observed_negative/not_recorded/pending/unavailable/hypothesis）必须在 Agent 侧构造快照时显式标注；RAG 不推导年龄、不把 pending 或 not_recorded 解释为阴性。"
+    "年龄语义（ga_days/ga_text、pna_hours、PMA、矫正年龄）与数据状态（observed_positive/observed_negative/not_recorded/pending/unavailable/hypothesis）必须在 Agent 侧构造快照时显式标注；RAG 不推导年龄、不把 pending 或 not_recorded 解释为阴性。",
+    "term_mapping 的英文/MeSH 必须经人工审核；映射未命中的概念不会展开，也不会被自动翻译或推断。",
+    "applicability_criteria 只核对已结构化的条件；指南正文中的自由文本推荐不会被自动解析成条件。",
+    "applicability_criteria 的 review_status 只允许 reviewed 或 synthetic_fixture 参与核对；条件必须有原文定位，缺少定位时返回 unknown。"
   ]
 }

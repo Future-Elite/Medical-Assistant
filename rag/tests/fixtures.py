@@ -3,7 +3,7 @@
 These records are produced inside the test package and are never registered by
 the server or any product code path; they are not clinical evidence.
 
-Scope (v6.6.4): every fixture is neonatal. Adult scenarios from v6.6.3
+Scope (v6.6.5): every fixture is neonatal. Adult scenarios from v6.6.3
 (hypertension / type 2 diabetes / amlodipine) are deliberately removed so that
 no test can accidentally re-introduce an adult evidence path into the demo.
 

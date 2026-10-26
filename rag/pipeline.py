@@ -36,12 +36,13 @@ from datetime import datetime, timezone
 from uuid import uuid4
 
 from . import __version__
+from .applicability import assess_applicability
 from .connectors import ConnectorRegistry
 from .evidence import extract_key_evidence_sentences
 from .fidelity import FidelityLexicon, QueryFidelityAuditor, ROUTE_LABELS
 from .gate import FidelityGate
 from .his import PatientSnapshot
-from .models import ApplicabilityAssessment, Citation, EvidencePackage, RetrievalRequest
+from .models import Citation, EvidencePackage, RetrievalRequest
 from .patient_retrieval import retrieve_patient_facts
 from .query import build_query_plan, review_query_plan
 from .ranking import deduplicate_documents, merge_joint_selection, rank_documents
@@ -410,7 +411,18 @@ class EvidenceRetrievalPipeline:
                 "semantic_trace": semantic_trace, "reranker": getattr(self.reranker, "reranker_id", None) if self.reranker else None,
                 "rerank_trace": rerank_trace,
                 "generation_performed": False, "clinical_decision_performed": False,
-                "query_plan": {"language": plan.query_language, "intent": plan.clinical_intent, "english_terms": list(plan.english_terms), "question_english_terms": list(plan.question_english_terms), "mesh_terms": list(plan.mesh_terms)},
+                "query_plan": {
+                    "language": plan.query_language, "intent": plan.clinical_intent,
+                    "english_terms": list(plan.english_terms),
+                    "question_english_terms": list(plan.question_english_terms),
+                    "mesh_terms": list(plan.mesh_terms),
+                    "term_mapping": {
+                        "provided": len(plan.term_mapping),
+                        "expanded": sum(1 for entry in plan.mapping_trace if entry.get("status") == "expanded"),
+                        "unmatched": [str(entry.get("concept")) for entry in plan.mapping_trace if entry.get("status") != "expanded"],
+                    },
+                    "variant_roles": [str(entry.get("role")) for entry in plan.variant_trace],
+                },
                 "patient_context": {
                     "received": snapshot is not None,
                     "context_id": patient_trace.get("patient_context_id"),
@@ -454,21 +466,11 @@ def _with_pseudo_documents(plan, pseudo_docs: tuple[str, ...]):
     """
     expanded_variants = tuple(dict.fromkeys((*pseudo_docs, *plan.variants)))
     trace_entry = {"concept": "query2doc", "terms": [doc[:200] for doc in pseudo_docs], "source": "query2doc_pseudo_document"}
-    return plan.__class__(
-        original_question=plan.original_question,
+    return replace(
+        plan,
         variants=expanded_variants,
-        concepts=plan.concepts,
-        source_order=plan.source_order,
-        filters=plan.filters,
         rationale=(*plan.rationale, "query2doc：已生成伪文档并加入查询变体。"),
-        query_language=plan.query_language,
-        clinical_intent=plan.clinical_intent,
-        facets=plan.facets,
-        english_terms=plan.english_terms,
-        mesh_terms=plan.mesh_terms,
         expansion_trace=(*plan.expansion_trace, trace_entry),
-        question_english_terms=plan.question_english_terms,
-        machine_translations=plan.machine_translations,
     )
 
 
@@ -480,20 +482,11 @@ def _with_translations(plan, translations: tuple[str, ...]):
     """
     expanded_variants = tuple(dict.fromkeys((*plan.variants, *translations)))
     trace_entry = {"concept": "translate", "terms": [text[:200] for text in translations], "source": "machine_translation_zh_en"}
-    return plan.__class__(
-        original_question=plan.original_question,
+    return replace(
+        plan,
         variants=expanded_variants,
-        concepts=plan.concepts,
-        source_order=plan.source_order,
-        filters=plan.filters,
         rationale=(*plan.rationale, "translate：中文原问题的英文机器译文已加入查询变体（不替换原问题）。"),
-        query_language=plan.query_language,
-        clinical_intent=plan.clinical_intent,
-        facets=plan.facets,
-        english_terms=plan.english_terms,
-        mesh_terms=plan.mesh_terms,
         expansion_trace=(*plan.expansion_trace, trace_entry),
-        question_english_terms=plan.question_english_terms,
         machine_translations=tuple(dict.fromkeys((*plan.machine_translations, *translations))),
     )
 
@@ -520,20 +513,11 @@ def _without_translations(plan, translations: tuple[str, ...]):
          if isinstance(entry, dict) and entry.get("source") == "machine_translation_zh_en" else entry)
         for entry in plan.expansion_trace
     )
-    return plan.__class__(
-        original_question=plan.original_question,
+    return replace(
+        plan,
         variants=remaining_variants,
-        concepts=plan.concepts,
-        source_order=plan.source_order,
-        filters=plan.filters,
         rationale=(*plan.rationale, "查询保真门控：translate 路线的机器译文已从检索打分输入中移除（审计记录保留在 expansion_trace）。"),
-        query_language=plan.query_language,
-        clinical_intent=plan.clinical_intent,
-        facets=plan.facets,
-        english_terms=plan.english_terms,
-        mesh_terms=plan.mesh_terms,
         expansion_trace=marked_entries,
-        question_english_terms=plan.question_english_terms,
         machine_translations=tuple(text for text in plan.machine_translations if text not in translated),
     )
 
@@ -589,30 +573,6 @@ def _patient_hit_model(hit) -> "PatientHit":
     )
 
 
-def _assess_applicability(document, snapshot, patient_hits) -> ApplicabilityAssessment:
-    if snapshot is None:
-        return ApplicabilityAssessment(document.document_id, "not_assessed", "未提供患者快照。")
-    criteria = document.metadata.get("population_criteria")
-    if not isinstance(criteria, dict):
-        return ApplicabilityAssessment(document.document_id, "not_assessed", "指南未提供结构化适用人群条件；仅展示原文人群字段。")
-    matched: list[str] = []
-    missing: list[str] = []
-    paths: list[str] = []
-    visible_text = " ".join(fact.searchable_text().lower() for fact in snapshot.visible_facts())
-    for field, expected in criteria.items():
-        values = expected if isinstance(expected, (list, tuple, set)) else (expected,)
-        if any(str(value).lower() in visible_text for value in values):
-            matched.append(str(field))
-            paths.extend(hit.record_path for hit in patient_hits if any(str(value).lower() in hit.evidence_text.lower() for value in values))
-        else:
-            missing.append(str(field))
-    if missing and matched:
-        status = "unknown"
-        reason = "部分适用条件可在患者事实中找到，部分条件缺少结构化记录。"
-    elif missing:
-        status = "mismatch"
-        reason = "未在当前患者事实中找到指南要求的适用条件；这不是临床不适用结论。"
-    else:
-        status = "possible_match"
-        reason = "结构化条件与当前患者事实存在词面匹配；仍需人工核对原文和临床条件。"
-    return ApplicabilityAssessment(document.document_id, status, reason, tuple(sorted(set(matched))), tuple(sorted(set(missing))), tuple(sorted(set(paths))))
+def _assess_applicability(document, snapshot, patient_hits):
+    """Delegate to the structured-criteria evaluator (legacy map preserved)."""
+    return assess_applicability(document, snapshot, patient_hits)

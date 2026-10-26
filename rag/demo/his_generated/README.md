@@ -1,7 +1,7 @@
 # HIS 风格新生儿合成数据（his_generated）
 
 本目录由研发侧工具 `generate_neonatal_his.py` 确定性生成（该工具不随本分支发布），
-是**独立于 `rag/demo/neonatal_cases.json` 的第二个演示档案**。它复用 v6.6.4 的真实
+是**独立于 `rag/demo/neonatal_cases.json` 的第二个演示档案**。它复用 v6.6.5 的真实
 `PatientSnapshot` / `RetrievalRequest` 契约，但不改动精选的 9 例病例，也不注册任何来源。
 
 全部记录均为合成数据：不是真实患者，不是指南，不构成诊断或治疗建议。
@@ -33,7 +33,7 @@ PYTHONPATH=. python3 tools/generate_neonatal_his.py \
 | `--seed` | 确定性种子；同种子 + 同脚本 = 字节级相同输出 |
 | `--variants N` | 每个场景生成 N 例（默认 1）；`case_id` 追加 `-v02` 等后缀 |
 | `--output DIR` | 输出目录；默认本目录 |
-| `--no-validate` | 跳过 `rag` 契约与检索冒烟校验（只在没有 v6.6.4 环境时使用） |
+| `--no-validate` | 跳过 `rag` 契约与检索冒烟校验（只在没有 v6.6.5 环境时使用） |
 
 生成后脚本会自动做三层校验：
 
@@ -58,9 +58,10 @@ PYTHONPATH=. python3 tools/generate_neonatal_his.py \
 | `neo-his-apnea` | 早产儿呼吸暂停 | 咖啡因与呼吸监测 |
 
 每个病例的 `preset` 只含 `RetrievalRequest` 字段；`request_id` 与 `patient_snapshot`
-由调用方在请求时生成/注入，不写进 preset。
+由调用方在请求时生成/注入，不写进 preset。生成器同时写入 `term_mapping`（概念→英文/MeSH），
+旧 `english_terms`/`mesh_terms`/`user_terms` 保留用于兼容与对照。
 
-## 4. 在 v6.6.4 中使用
+## 4. 在 v6.6.5 中使用
 
 ### 4.1 Python
 
@@ -107,7 +108,7 @@ curl -s http://127.0.0.1:8798/api/retrieve \
 
 ## 6. 表口径与边界
 
-- `tables/` 是给 HIS 侧对照用的关系表，**不是 v6.6.4 的输入**；v6.6.4 只读
+- `tables/` 是给 HIS 侧对照用的关系表，**不是 v6.6.5 的输入**；v6.6.5 只读
   `neonatal_cases.json` / `snapshots.json` / `requests.json`。
 - `医嘱_药品.数量/单价/金额` 留空而不是填 0：这批数据没有建模包装数量与费用，
   空值表示「未测量/未建模」，不是「免费」。

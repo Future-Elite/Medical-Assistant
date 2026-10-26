@@ -68,8 +68,10 @@ class EvidenceRAG:
                     "数据状态用 observed_positive/observed_negative/not_recorded/pending/unavailable/hypothesis，母体事实用 subject_role=mother 标注；pending 与 not_recorded 不得当作阴性。"
                     "引用关联：ranked_documents[].citation_id 与 citations[].citation_id 是同一稳定外键（evidence_groups 中同值），用外键关联引用，不要按下标配对；审计回答用 [<citation_id>] 标注。"
                     "中英文规则：question 为中文原始问题，原样保留不翻译；问题中直接出现的英文词由系统自动提取进 question_english_terms 并参与英文检索（调用方不要手工填该字段）；"
-                    "english_terms/mesh_terms 是人工审核的英文术语与 MeSH 词，优先参与英文检索与实时 PubMed 查询；user_terms 是人工审核的中文概念→英文映射，只对问题/患者术语中出现的键展开，不自动翻译；"
-                    "中文片段以 CJK 二元组参与匹配，可直接命中中文来源。返回 EvidencePackage，其中 query_plan 可审计实际使用的全部术语。"
+                    "term_mapping 是人工审核的映射表（中文概念→english/mesh/aliases）：英文与 MeSH 由同一条映射行派生，仅在概念或别名出现在问题/患者术语/facets 时展开；"
+                    "展开记录在 query_plan.mapping_trace 与 expansion_trace（source=reviewed_term_mapping），未命中概念也会列出；"
+                    "english_terms/mesh_terms/user_terms 保留为兼容字段（旧调用方仍可用），新调用方应优先使用 term_mapping；"
+                    "中文片段以 CJK 二元组参与匹配，可直接命中中文来源。返回 EvidencePackage，其中 query_plan 可审计实际使用的全部术语；applicability 给出指南结构化条件与患者事实的逐条核对结果。"
                 ),
                 "parameters": {
                     "type": "object",
@@ -82,9 +84,10 @@ class EvidenceRAG:
                         "patient_terms": {"type": "array", "items": {"type": "string"}, "description": "人工审核的最小化患者相关术语（中英皆可，新生儿场景可用“新生儿呼吸窘迫综合征”等），作为检索概念参与匹配；不得放原始病历、患者标识或自由文本病史。"},
                         "patient_snapshot": {"type": "object", "description": "Agent 从只读 HIS 获取的结构化、按 as_of 截止的患者快照（patient_ref/as_of/facts/reviewed_external_terms）；不得包含真实标识或未授权自由文本。"},
                         "source_kinds": {"type": "array", "items": {"type": "string", "enum": ["pubmed", "guideline", "drug", "clinical_trial", "local_knowledge"]}, "description": "来源种类过滤；不填表示按默认顺序检索已注册来源。"},
-                        "user_terms": {"type": "object", "additionalProperties": {"type": "array", "items": {"type": "string"}}, "description": "人工审核的中文概念→英文术语映射，如 {\"新生儿呼吸窘迫综合征\": [\"respiratory distress syndrome\"]}；仅当键出现在问题/患者术语文本中才展开，展开记录在 query_plan.expansion_trace，不自动翻译。"},
-                        "english_terms": {"type": "array", "items": {"type": "string"}, "description": "人工审核的英文医学术语/缩写（如 \"respiratory distress syndrome\"、\"pulmonary surfactant\"），直接参与英文检索与实时 PubMed 查询。"},
-                        "mesh_terms": {"type": "array", "items": {"type": "string"}, "description": "人工审核的 MeSH 主题词（如 \"Diabetes Mellitus, Type 2\"），参与英文检索与实时 PubMed 查询。"},
+                        "term_mapping": {"type": ["array", "object"], "description": "人工审核的术语映射表。推荐数组行：[{\"concept\":\"新生儿呼吸窘迫综合征\",\"aliases\":[\"NRDS\"],\"english\":[\"respiratory distress syndrome\"],\"mesh\":[\"Respiratory Distress Syndrome, Newborn\"]}]；也接受对象形式 {\"概念\": {\"english\":[...],\"mesh\":[...]}} 或旧式 {\"概念\": [\"english\"]}。英文与 MeSH 必须与概念绑定；仅当概念/别名出现在问题、患者术语或 facets 时展开。展开与未命中记录在 query_plan.mapping_trace。"},
+                        "user_terms": {"type": "object", "additionalProperties": {"type": "array", "items": {"type": "string"}}, "description": "兼容字段（旧调用方）：人工审核的中文概念→英文术语映射。新调用方请用 term_mapping，以便同时绑定 MeSH；仅当键出现在问题/患者术语文本中才展开，展开记录在 query_plan.expansion_trace（source=reviewed_user_terms），不自动翻译。"},
+                        "english_terms": {"type": "array", "items": {"type": "string"}, "description": "兼容字段（旧调用方）：人工审核的英文医学术语/缩写，直接参与英文检索与实时 PubMed 查询。新调用方请把英文放进 term_mapping 的对应概念行，以保留概念—术语绑定。"},
+                        "mesh_terms": {"type": "array", "items": {"type": "string"}, "description": "兼容字段（旧调用方）：人工审核的 MeSH 主题词，参与英文检索与实时 PubMed 查询。新调用方请把 MeSH 放进 term_mapping 的对应概念行。"},
                         "facets": {"type": "object", "additionalProperties": {"type": "array", "items": {"type": "string"}}, "description": "结构化临床问题槽位（population/outcome 等），取值作为检索概念参与匹配。"},
                         "filters": {"type": "object", "description": "结构化过滤项，如 {\"guideline_version\": \"2024\"} 限定指南版本。"},
                         "clinical_intent": {"type": "string", "description": "可选：guideline_recommendation / evidence_update / drug_safety / clinical_question；缺省时由问题文本推断。"},

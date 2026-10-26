@@ -34,22 +34,25 @@ def _snapshot_dict(snapshot):
 
 
 class GuiContractTests(unittest.TestCase):
-    """GUI 契约：节点式工作流，输入字段与 RetrievalRequest 一一对应。"""
+    """GUI 契约：固定分区工作台，输入字段与 RetrievalRequest 一一对应。"""
 
     REQUIRED = (
-        # 页面骨架与节点
-        "新生儿证据检索工作流", "id=\"graph\"", "id=\"wires\"", "data-node=\"case\"",
-        "data-node=\"question\"", "data-node=\"terms\"", "data-node=\"scope\"",
-        "data-node=\"method\"", "data-node=\"request\"", "data-node=\"run\"",
-        "data-node=\"results\"", "data-node=\"audit\"", "节点画布", "执行检索（Queue）",
+        # 页面骨架与固定分区
+        "新生儿证据检索工作流", "id=\"workspace\"", "workgrid", "workflow-strip",
+        "intro-banner", "固定工作台", "所有分区固定排列", "id=\"workflowStrip\"",
+        "data-node=\"case\"", "data-node=\"question\"", "data-node=\"terms\"",
+        "data-node=\"scope\"", "data-node=\"method\"", "data-node=\"request\"",
+        "data-node=\"run\"", "data-node=\"results\"", "data-node=\"audit\"",
+        "检索配置", "▶ 执行检索", "id=\"jumpResults\"",
         # 01 快照
         "/api/his/snapshot", "id=\"demoCase\"", "id=\"patientRef\"", "id=\"asOf\"",
         "id=\"loadSnapshot\"", "patient_snapshot", "synthetic",
         # 02 问题
         "id=\"question\"", "id=\"task\"", "id=\"queryLanguage\"", "id=\"clinicalIntent\"",
         # 03 术语
-        "id=\"patientTerms\"", "id=\"englishTerms\"", "id=\"meshTerms\"", "id=\"userTerms\"",
+        "id=\"patientTerms\"", "id=\"termMapping\"", "id=\"termMappingPreview\"",
         "id=\"facets\"", "question_english_terms", "不自动翻译",
+        "term_mapping", "reviewed_term_mapping",
         # 04 范围
         "id=\"sourceMode\"", "id=\"topK\"", "id=\"filters\"", "source_kinds",
         "value=\"custom\"", "value=\"live\"", "服务不内置任何本地语料",
@@ -64,20 +67,23 @@ class GuiContractTests(unittest.TestCase):
         "/api/citation", "/api/audit", "id=\"auditButton\"", "copyCitationId",
         "renderPatientPanel", "his-card", "joint_selection", "query_review",
         "query_fidelity", "id=\"fidelityBox\"", "id=\"jointBox\"", "id=\"queryReviewBox\"",
+        "id=\"applicabilityBox\"", "renderApplicability", "applicability", "criterion_id",
         # 演示与来源
         "/api/demo/cases", "/api/demo/guidelines", "/api/demo/guidelines/load",
         "/api/sources", "id=\"loadDemoGuidelines\"", "id=\"clearSources\"",
         "检索失败", "API 调用日志", "error_id", "exception_type", "backendWarning",
         # 新生儿内容
-        "新生儿", "呼吸窘迫综合征", "感染性肺炎", "neonatal_demo_v1",
-        # ComfyUI 式画布：缩放 / 平移 / 节点拖拽与缩放 / 布局持久化
-        "id=\"viewport\"", "id=\"zoomIn\"", "id=\"zoomOut\"", "id=\"zoomFit\"",
-        "id=\"zoomReset\"", "id=\"zoomLabel\"", "id=\"resetLayout\"", "node-resize",
-        "localStorage", "drawWires", "socketCenter", "applyView", "fitView",
+        "新生儿", "呼吸窘迫综合征", "感染性肺炎", "病例选择", "合成数据",
+        # 固定布局：不再暴露画布缩放/平移控件
+        "id=\"workspace\"", "workgrid", "workflowStrip",
         # 真实后端：可编辑快照、原始响应、API 调用日志、空白请求
         "id=\"snapshotJson\"", "id=\"manualSnapshot\"", "id=\"rawResponse\"",
         "id=\"apiLog\"", "id=\"blankRequest\"", "id=\"backendCheck\"",
         "requestJson", "performance.now",
+        # 配色主题：四套明暗主题 + 跟随系统 + 持久化
+        "id=\"themeSelect\"", "data-theme", "themeSelect", "localStorage",
+        "value=\"dark\"", "value=\"warm\"", "value=\"indigo\"", "value=\"auto\"",
+        "--fs-input", "--fs-label",
     )
 
     def test_formal_workbench_page_and_contract_fields(self):
@@ -86,6 +92,11 @@ class GuiContractTests(unittest.TestCase):
         page = page_path.read_text(encoding="utf-8")
         for text in self.REQUIRED:
             self.assertIn(text, page)
+        # 画布式交互已移除：不得再出现缩放/平移/连线控件
+        for removed in ("id=\"zoomIn\"", "id=\"zoomOut\"", "id=\"zoomFit\"",
+                        "id=\"zoomReset\"", "id=\"zoomLabel\"", "id=\"wires\"",
+                        "id=\"resetLayout\"", "节点画布", "回到画布"):
+            self.assertNotIn(removed, page)
         self.assertNotIn("generateSummary", page)
         self.assertNotIn("llm_summary", page)
         # 不得残留成人演示与旧来源模式
@@ -99,12 +110,18 @@ class GuiContractTests(unittest.TestCase):
             self.assertNotIn(legacy, page)
 
     def test_every_request_field_is_bound_in_the_page(self):
-        """RetrievalRequest 的每个可输入字段都必须在 GUI 里有对应控件或映射说明。"""
+        """RetrievalRequest 的可输入字段必须在 GUI 有对应控件或映射说明。
+
+        english_terms/mesh_terms/user_terms 是兼容字段，工作台统一用
+        term_mapping 表达，不再单独提供三个旧输入。
+        """
         from rag.demo import PRESET_FIELDS
         page = (Path(__file__).resolve().parents[1] / "evidence_retrieval_workbench.html").read_text(encoding="utf-8")
+        legacy_inputs = {"english_terms", "mesh_terms", "user_terms"}
         # request_id 由执行时生成，不在 GUI 手工输入。
-        for field in sorted(PRESET_FIELDS - {"request_id"}):
+        for field in sorted(PRESET_FIELDS - {"request_id"} - legacy_inputs):
             self.assertIn(field, page, f"GUI 缺少字段绑定：{field}")
+        self.assertIn("term_mapping", page)
 
     def test_page_has_no_client_side_fake_pipeline(self):
         """工作台不得用前端假数据代替后端：无内置快照/模拟检索结果。"""

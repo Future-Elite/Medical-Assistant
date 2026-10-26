@@ -29,6 +29,7 @@ Licensing rules:
 """
 from __future__ import annotations
 
+import html
 import json
 import re
 import socket
@@ -542,7 +543,7 @@ def _query_terms(plan: QueryPlan) -> list[str]:
 
 
 def _result_metadata(result: Mapping[str, Any]) -> dict[str, Any]:
-    title = str(result.get("title") or "").strip().rstrip(".")
+    title = _clean_title(result.get("title"))
     published = str(result.get("firstPublicationDate") or "").strip()
     if not published:
         year = str(result.get("pubYear") or "").strip()
@@ -560,6 +561,13 @@ def _result_metadata(result: Mapping[str, Any]) -> dict[str, Any]:
         "url": _article_url(result),
         "version_id": _version_id(title, result.get("pubYear")),
     }
+
+
+def _clean_title(value: Any) -> str:
+    """Europe PMC titles may contain HTML-escaped inline markup."""
+    text = html.unescape(str(value or ""))
+    text = re.sub(r"<[^>]+>", "", text)
+    return " ".join(text.split()).strip().rstrip(".")
 
 
 def _article_url(result: Mapping[str, Any]) -> str | None:
