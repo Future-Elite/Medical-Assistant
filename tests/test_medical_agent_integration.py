@@ -175,6 +175,24 @@ class MedicalAgentIntegrationTest(unittest.TestCase):
             audits[0]["claims"][1]["valid_citation_ids"],
         )
 
+    def test_current_retrieval_excludes_stale_history_from_answer_scope(self):
+        previous = {}
+
+        def initial():
+            draft = self.retrieve()
+            previous["citation_id"] = next(iter(ACTIVE_TURN.get().answer_citation_map))
+            return draft
+
+        def stale_answer_after_new_search():
+            self.retrieve(query="hypertension treatment evidence")
+            return f"Supported but stale[{previous['citation_id']}]"
+
+        controller = self.controller(ScriptedWorkflow([initial, stale_answer_after_new_search]))
+        self.assertEqual(controller.run_turn("hypertension treatment", "thread")["status"], "passed")
+        controller.audit_mode = "observe"
+        result = controller.run_turn("new evidence question", "thread")
+        self.assertEqual(result["status"], "invalid_citation")
+
     def test_two_retrievals_audited_in_their_own_packages(self):
         def draft():
             first = self.retrieve()

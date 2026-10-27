@@ -45,6 +45,32 @@ class StubRAG:
 
 
 class MedicalEvidenceRAGToolTest(unittest.TestCase):
+    def test_turn_summary_separates_current_answer_from_history(self):
+        historical = {
+            "retrieval_id": "retrieval-old",
+            "evidence": [{
+                "source_type": "pubmed", "source_id": "PMID:999", "title": "Old",
+                "content": "Old evidence", "date": "2020", "url": "",
+                "metadata": {"citation_id": "retrieval-old:cit-1", "document_id": "old"},
+            }],
+        }
+        session = MedicalSession(retrievals={"retrieval-old": historical})
+        turn = TurnContext(session, "Find current evidence", lambda event: None)
+        token = ACTIVE_TURN.set(turn)
+        try:
+            with patch("medrax.tools.rag_tool._get_rag", return_value=StubRAG()):
+                content, artifact = MedicalEvidenceRAGTool()._run(search_query="hypertension")
+        finally:
+            ACTIVE_TURN.reset(token)
+
+        summary = artifact["turn_retrieval_summary"]
+        self.assertEqual(summary["answer_evidence_scope"], "current_turn")
+        self.assertEqual(summary["current_answer_evidence_count"], 1)
+        self.assertEqual(summary["current_answer_usable_evidence_count"], 1)
+        self.assertEqual(summary["historical_candidate_count"], 1)
+        self.assertEqual(summary["current_answer_citation_ids"], ["retrieval-test:cit-1"])
+        self.assertNotIn("retrieval-old:cit-1", content)
+
     def test_turn_summary_keeps_earlier_results_after_an_empty_retry(self):
         rag = StubRAG()
         first = rag.retrieve_evidence({"question": "hypertension"})
@@ -169,6 +195,40 @@ class MedicalEvidenceRAGToolTest(unittest.TestCase):
         self.assertEqual(evidence["source_type"], "pubmed")
         self.assertEqual(evidence["source_id"], "PMID:12345678")
         self.assertEqual(evidence["metadata"]["citation_id"], "retrieval-test:cit-1")
+
+    def test_preserves_same_paper_fragments_and_emits_compact_applicability_cards(self):
+        rag = StubRAG()
+        package = rag.retrieve_evidence({"question": "neonatal pneumonia"})
+        first = package["ranked_documents"][0]
+        first["document"]["population"] = "newborn infants"
+        first["document"]["metadata"] = {"content_mode": "abstract"}
+        package["applicability"] = [{
+            "document_id": "pmid-12345678", "status": "possible_match",
+            "reason": "Population field matches the patient context.",
+        }]
+        package["ranked_documents"].append({
+            "score": 0.88, "citation_id": "retrieval-test:cit-2",
+            "document": {**first["document"], "document_id": "pmid-12345678-results",
+                         "text": "A distinct results passage."},
+        })
+        package["citations"].append({
+            "citation_id": "retrieval-test:cit-2", "document_id": "pmid-12345678-results",
+            "pmid": "12345678", "locator": "Results",
+        })
+        rag.retrieve_evidence = Mock(return_value=package)
+        with patch("medrax.tools.rag_tool._get_rag", return_value=rag):
+            content, artifact = MedicalEvidenceRAGTool()._run(search_query="neonatal pneumonia")
+
+        self.assertEqual(len(artifact["evidence"]), 2)
+        self.assertEqual([row["source_id"] for row in artifact["evidence"]],
+                         ["PMID:12345678", "PMID:12345678"])
+        metadata = artifact["evidence"][0]["metadata"]
+        self.assertEqual(metadata["question_relevance"], "selected_for_query")
+        self.assertEqual(metadata["population_applicability"], "possible_match")
+        self.assertIn("Evidence card 1", content)
+        self.assertIn("Population: newborn infants", content)
+        self.assertIn("Population applicability: possible_match", content)
+        self.assertNotIn('"score"', content)
 
     @patch("main.create_agent")
     @patch("main._create_qwen_model", return_value=Mock())

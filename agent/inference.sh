@@ -32,3 +32,4 @@ export HF_HUB_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
 
 exec "${MEDRAX_PYTHON:-python}" main.py
+#12345

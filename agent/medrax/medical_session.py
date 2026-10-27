@@ -23,6 +23,7 @@ class BudgetExceeded(RuntimeError):
 
 @dataclass
 class MedicalSession:
+    #跨多轮对话	当前患者、截止日期、病历快照、已获得的证据包
     patient_ref: str = ""
     as_of: str = ""
     generation: str = field(default_factory=lambda: uuid4().hex)
@@ -40,6 +41,7 @@ class MedicalSession:
 
 @dataclass
 class TurnContext:
+    #当前一个用户问题	原问题、调用次数、检索历史、错误和本轮缓存
     session: MedicalSession
     question: str
     emit: Callable[[dict], None]
@@ -58,6 +60,32 @@ class TurnContext:
         "model": 12,
     })
     _budget_lock: Any = field(default_factory=Lock, repr=False)
+
+    @property
+    def current_retrieval_ids(self) -> tuple[str, ...]:
+        return tuple(dict.fromkeys(
+            str(item.get("retrieval_id"))
+            for item in self.retrieval_history
+            if item.get("retrieval_id") in self.session.retrievals
+        ))
+
+    @property
+    def answer_retrievals(self) -> list[dict]:
+        """Use this turn's successful retrievals; reuse history only when no search ran."""
+        if self.retrieval_attempts:
+            return [self.session.retrievals[key] for key in self.current_retrieval_ids]
+        return list(self.session.retrievals.values())
+
+    @property
+    def answer_evidence(self) -> list[dict]:
+        return [record for package in self.answer_retrievals for record in package.get("evidence", [])]
+
+    @property
+    def answer_citation_map(self) -> dict[str, str]:
+        return {
+            record["metadata"]["citation_id"]: record["source_id"]
+            for record in self.answer_evidence
+        }
 
     def consume(self, name: str) -> None:
         with self._budget_lock:

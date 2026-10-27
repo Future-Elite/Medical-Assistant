@@ -104,22 +104,37 @@ def _publication_range(publication_from, publication_to):
 
 def _summarize_retrieval_history(turn):
     returned_by_source = {}
-    unique_selected = {}
     for attempt in turn.retrieval_history:
         for connector in attempt["connectors"]:
             source = connector.get("source_id") or "unknown"
             returned_by_source[source] = returned_by_source.get(source, 0) + int(connector.get("returned") or 0)
-        for record in attempt["selected_sources"]:
-            unique_selected[record["source_id"]] = record["source_type"]
-    unique_selected_by_source = {}
-    for kind in unique_selected.values():
-        unique_selected_by_source[kind] = unique_selected_by_source.get(kind, 0) + 1
+    answer_evidence = EvidenceAggregator.aggregate(turn.answer_evidence)
+    usable = [item for item in answer_evidence
+              if item.get("metadata", {}).get("content_mode") != "metadata_only"]
+    selected_by_source = {}
+    for record in answer_evidence:
+        kind = record.get("source_type") or "unknown"
+        selected_by_source[kind] = selected_by_source.get(kind, 0) + 1
+    current_ids = set(turn.current_retrieval_ids)
+    historical_candidates = EvidenceAggregator.aggregate([
+        record
+        for retrieval_id, package in turn.session.retrievals.items()
+        if retrieval_id not in current_ids
+        for record in package.get("evidence", [])
+    ]) if current_ids else []
     return {
         "attempt_count": len(turn.retrieval_history),
         "any_connector_results_returned": any(returned_by_source.values()),
         "returned_across_attempts_by_source": returned_by_source,
-        "unique_selected_count": len(unique_selected),
-        "unique_selected_by_source": unique_selected_by_source,
+        "answer_evidence_scope": "current_turn" if turn.retrieval_attempts else "session_history_reuse",
+        "current_answer_evidence_count": len(answer_evidence),
+        "current_answer_usable_evidence_count": len(usable),
+        "current_answer_by_source": selected_by_source,
+        "current_answer_citation_ids": list(turn.answer_citation_map),
+        "historical_candidate_count": len(historical_candidates),
+        # Backward-compatible aliases for existing logs and clients.
+        "unique_selected_count": len(answer_evidence),
+        "unique_selected_by_source": selected_by_source,
         "attempts": [dict(attempt) for attempt in turn.retrieval_history],
         "tool_call_budget": {
             "limit": turn.limits["retrieve_medical_evidence"],
@@ -143,7 +158,11 @@ def _record_retrieval_summary(turn, artifact):
         kind = record.get("source_type") or "unknown"
         selected_by_source[kind] = selected_by_source.get(kind, 0) + 1
         if record.get("source_id"):
-            selected_sources.append({"source_id": record["source_id"], "source_type": kind})
+            selected_sources.append({
+                "source_id": record["source_id"], "source_type": kind,
+                "citation_id": record.get("metadata", {}).get("citation_id"),
+                "content_mode": record.get("metadata", {}).get("content_mode", "substantive"),
+            })
     turn.retrieval_history.append({
         "attempt": turn.retrieval_attempts,
         "retrieval_id": artifact.get("retrieval_id"),
@@ -175,14 +194,11 @@ def _with_retrieval_summary(content, turn, summary=None):
         "and target one specific gap."
     )
     compact = {key: summary[key] for key in (
-        "any_connector_results_returned", "unique_selected_count", "unique_selected_by_source",
+        "any_connector_results_returned", "answer_evidence_scope",
+        "current_answer_evidence_count", "current_answer_usable_evidence_count",
+        "current_answer_by_source", "historical_candidate_count", "current_answer_citation_ids",
     )}
-    compact["usable_evidence_count"] = len({
-        record["source_id"]
-        for package in turn.session.retrievals.values()
-        for record in package.get("evidence", [])
-        if record.get("metadata", {}).get("content_mode") != "metadata_only"
-    })
+    compact["usable_evidence_count"] = summary["current_answer_usable_evidence_count"]
     return (
         "TURN RETRIEVAL SUMMARY (program-generated and authoritative; later empty attempts "
         "do not erase earlier results; internal context, do not narrate):\n" + json.dumps(compact, ensure_ascii=False) +
@@ -313,6 +329,11 @@ class MedicalEvidenceRAGTool(BaseTool):
             PUBMED_SEARCH_CACHE.reset(token)
 
         citations = {item["citation_id"]: item for item in package.get("citations", [])}
+        applicability = {
+            item.get("document_id"): item
+            for item in package.get("applicability", [])
+            if isinstance(item, dict) and item.get("document_id")
+        }
         records = []
         for ranked in package.get("ranked_documents", []):
             document = ranked["document"]
@@ -322,27 +343,37 @@ class MedicalEvidenceRAGTool(BaseTool):
                 raise ValueError("ranked document is missing its stable citation foreign key")
             pmid = str(document.get("pmid") or citation.get("pmid") or "")
             source_id = f"PMID:{pmid}" if pmid else f"RAG_CITATION:{citation_id}"
+            document_metadata = document.get("metadata") or {}
+            content_mode = document_metadata.get("content_mode", "substantive")
+            population_assessment = applicability.get(document["document_id"]) or {}
             records.append({
                 "source_type": document["kind"], "source_id": source_id,
                 "title": document["title"], "content": document.get("text") or citation.get("quote"),
                 "date": document.get("published_at"), "url": document.get("url"),
-                "metadata": {**(document.get("metadata") or {}),
+                "metadata": {**document_metadata,
                              "retrieval_id": package["retrieval_id"], "citation_id": citation_id,
                              "document_id": document["document_id"], "score": ranked.get("score"),
                              "version_id": citation.get("version_id"),
                              "evidence_status": citation.get("evidence_status"),
-                             "locator": citation.get("locator")},
+                             "locator": citation.get("locator"),
+                             "question_relevance": ("insufficient_content" if content_mode == "metadata_only"
+                                                    else "selected_for_query"),
+                             "population": document.get("population") or document_metadata.get("population"),
+                             "population_applicability": population_assessment.get("status", "not_assessed"),
+                             "population_applicability_reason": population_assessment.get("reason")},
             })
         evidence = EvidenceAggregator.aggregate(records)
         artifact = {**package, "query": request["question"], "count": len(evidence),
                     "evidence": evidence, "tool_args": tool_args,
                     "original_question": original, "search_query": effective, "cache_hit": False}
         if turn:
-            artifact["turn_retrieval_summary"] = _record_retrieval_summary(turn, artifact)
             turn.session.retrievals[package["retrieval_id"]] = artifact
+            artifact["turn_retrieval_summary"] = _record_retrieval_summary(turn, artifact)
             turn.emit({"event": "evidence_search", "artifact": artifact, "tool_name": self.name})
         view = [{**item, "metadata": {key: value for key, value in item["metadata"].items()
-                 if key in {"citation_id", "content_mode", "journal", "locator", "evidence_status"}}}
+                 if key in {"citation_id", "content_mode", "journal", "locator", "evidence_status",
+                            "question_relevance", "population", "population_applicability",
+                            "population_applicability_reason"}}}
                 for item in evidence]
         content = EvidenceAggregator.format_for_model(view) if view else "No citable external evidence found."
         content += "\nInternal guidance: answer the user's topic; do not narrate retrieval operations."

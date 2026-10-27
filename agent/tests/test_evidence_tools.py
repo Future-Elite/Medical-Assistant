@@ -9,21 +9,25 @@ from medrax.tools.openfda import OpenFDADrugLabelTool
 
 
 class EvidenceToolsTest(unittest.TestCase):
-    def test_aggregator_deduplicates_without_changing_rag_order(self):
+    def test_aggregator_deduplicates_fragments_without_collapsing_a_paper(self):
         base = {
             "source_type": "pubmed",
             "title": "Title",
             "content": "Content",
             "url": "https://example.test",
-            "metadata": {},
+            "metadata": {"document_id": "doc-1", "locator": "Abstract"},
         }
         result = EvidenceAggregator.aggregate([
             {**base, "source_id": "PMID:1", "date": "2020", "title": "First"},
-            {**base, "source_id": "PMID:2", "date": "2025"},
-            {**base, "source_id": "PMID:1", "date": "2026", "title": "Duplicate"},
+            {**base, "source_id": "PMID:2", "date": "2025",
+             "metadata": {"document_id": "doc-2", "locator": "Abstract"}},
+            {**base, "source_id": "PMID:1", "date": "2026", "title": "Different passage",
+             "content": "Different evidence", "metadata": {"document_id": "doc-1", "locator": "Results"}},
+            {**base, "source_id": "PMID:1", "date": "2026", "title": "Exact duplicate"},
         ])
-        self.assertEqual([item["source_id"] for item in result], ["PMID:1", "PMID:2"])
+        self.assertEqual([item["source_id"] for item in result], ["PMID:1", "PMID:2", "PMID:1"])
         self.assertEqual(result[0]["title"], "First")
+        self.assertEqual(result[2]["metadata"]["locator"], "Results")
 
     @patch("medrax.tools.openfda.requests.get")
     def test_openfda_returns_standard_evidence(self, get):
