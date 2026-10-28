@@ -12,6 +12,34 @@ class AuditLogTest(unittest.TestCase):
     def test_demo_builds_with_installed_gradio(self):
         self.assertIsNotNone(create_demo(object(), {}))
 
+    def test_medical_event_card_summarizes_sources_and_keeps_details(self):
+        title, content = ChatInterface._format_medical_event("evidence_search", {
+            "query": "成人高血压治疗",
+            "retrieval_id": "retrieval-test",
+            "evidence": [
+                {"source_type": "pubmed", "source_id": "PMID:12345678"},
+                {"source_type": "pubmed", "source_id": "PMID:23456789"},
+                {"source_type": "guideline", "source_id": "WHO:1"},
+            ],
+        })
+
+        self.assertEqual(title, "医学证据检索")
+        self.assertIn("共获得 3 条候选证据", content)
+        self.assertIn("PubMed 2", content)
+        self.assertIn("指南 1", content)
+        self.assertIn("成人高血压治疗", content)
+        self.assertIn("查看原始详情", content)
+        self.assertIn("PMID:12345678", content)
+
+    def test_his_error_card_is_explicit(self):
+        title, content = ChatInterface._format_medical_event(
+            "his_error", {"error": "HIS service unavailable"}
+        )
+
+        self.assertEqual(title, "HIS 连接异常")
+        self.assertIn("HIS service unavailable", content)
+        self.assertIn("medical-event-card--error", content)
+
     def test_extracts_and_validates_all_supported_citations(self):
         text = (
             "PMID: 32065842、29453021；"
