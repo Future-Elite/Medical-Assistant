@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import Mock, patch
 
-from medrax.tools.rag_tool import MedicalEvidenceRAGTool
+from medrax.tools.rag_tool import MedicalEvidenceRAGTool, _select_evidence_content
 from medrax.medical_session import ACTIVE_TURN, MedicalSession, TurnContext
 
 
@@ -45,6 +45,26 @@ class StubRAG:
 
 
 class MedicalEvidenceRAGToolTest(unittest.TestCase):
+    def test_evidence_content_prefers_key_sentences_then_quote_then_text_prefix(self):
+        document = {"text": "A" * 1000}
+        content, source = _select_evidence_content(document, {
+            "key_evidence_sentences": [
+                {"text": "  Relevant result one.  "},
+                {"text": "Relevant result two."},
+            ],
+            "quote": "Citation quote.",
+        })
+        self.assertEqual(content, "Relevant result one. Relevant result two.")
+        self.assertEqual(source, "key_evidence_sentences")
+
+        content, source = _select_evidence_content(document, {"quote": " Citation quote. "})
+        self.assertEqual(content, "Citation quote.")
+        self.assertEqual(source, "citation_quote")
+
+        content, source = _select_evidence_content(document, {})
+        self.assertEqual(content, "A" * 900 + "…")
+        self.assertEqual(source, "document_text_prefix")
+
     def test_turn_summary_separates_current_answer_from_history(self):
         historical = {
             "retrieval_id": "retrieval-old",
@@ -229,6 +249,35 @@ class MedicalEvidenceRAGToolTest(unittest.TestCase):
         self.assertIn("Population: newborn infants", content)
         self.assertIn("Population applicability: possible_match", content)
         self.assertNotIn('"score"', content)
+
+    def test_model_card_uses_query_matched_evidence_sentences(self):
+        rag = StubRAG()
+        package = rag.retrieve_evidence({"question": "neonatal pneumonia"})
+        package["ranked_documents"][0]["document"]["text"] = "Background " * 150
+        selected_sentence = (
+            "The treatment group required less respiratory support. "
+            + "Detailed evidence " * 60
+            + "END-OF-SELECTED-EVIDENCE"
+        )
+        package["citations"][0].update({
+            "quote": "A generic citation prefix.",
+            "key_evidence_sentences": [{
+                "text": selected_sentence,
+                "score": 0.9,
+            }],
+        })
+        rag.retrieve_evidence = Mock(return_value=package)
+
+        with patch("medrax.tools.rag_tool._get_rag", return_value=rag):
+            content, artifact = MedicalEvidenceRAGTool()._run(search_query="neonatal pneumonia")
+
+        self.assertIn("The treatment group required less respiratory support.", content)
+        self.assertIn("END-OF-SELECTED-EVIDENCE", content)
+        self.assertNotIn("A generic citation prefix.", content)
+        self.assertNotIn("Background Background", content)
+        evidence = artifact["evidence"][0]
+        self.assertEqual(evidence["content"], selected_sentence)
+        self.assertEqual(evidence["metadata"]["content_source"], "key_evidence_sentences")
 
     @patch("main.create_agent")
     @patch("main._create_qwen_model", return_value=Mock())

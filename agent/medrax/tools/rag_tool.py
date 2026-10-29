@@ -102,6 +102,28 @@ def _publication_range(publication_from, publication_to):
     return tuple(values)
 
 
+def _select_evidence_content(document, citation):
+    """Prefer query-matched evidence sentences over arbitrary text prefixes."""
+    excerpts = []
+    for sentence in citation.get("key_evidence_sentences") or []:
+        if not isinstance(sentence, dict):
+            continue
+        text = re.sub(r"\s+", " ", str(sentence.get("text") or "")).strip()
+        if text and text not in excerpts:
+            excerpts.append(text)
+    if excerpts:
+        return " ".join(excerpts), "key_evidence_sentences"
+
+    quote = re.sub(r"\s+", " ", str(citation.get("quote") or "")).strip()
+    if quote:
+        return quote, "citation_quote"
+
+    text = re.sub(r"\s+", " ", str(document.get("text") or "")).strip()
+    if len(text) > EvidenceAggregator.MODEL_EXCERPT_CHARS:
+        text = text[:EvidenceAggregator.MODEL_EXCERPT_CHARS].rstrip() + "…"
+    return text, "document_text_prefix"
+
+
 def _summarize_retrieval_history(turn):
     returned_by_source = {}
     for attempt in turn.retrieval_history:
@@ -346,13 +368,15 @@ class MedicalEvidenceRAGTool(BaseTool):
             document_metadata = document.get("metadata") or {}
             content_mode = document_metadata.get("content_mode", "substantive")
             population_assessment = applicability.get(document["document_id"]) or {}
+            content, content_source = _select_evidence_content(document, citation)
             records.append({
                 "source_type": document["kind"], "source_id": source_id,
-                "title": document["title"], "content": document.get("text") or citation.get("quote"),
+                "title": document["title"], "content": content,
                 "date": document.get("published_at"), "url": document.get("url"),
                 "metadata": {**document_metadata,
                              "retrieval_id": package["retrieval_id"], "citation_id": citation_id,
                              "document_id": document["document_id"], "score": ranked.get("score"),
+                             "content_source": content_source,
                              "version_id": citation.get("version_id"),
                              "evidence_status": citation.get("evidence_status"),
                              "locator": citation.get("locator"),
@@ -372,6 +396,7 @@ class MedicalEvidenceRAGTool(BaseTool):
             turn.emit({"event": "evidence_search", "artifact": artifact, "tool_name": self.name})
         view = [{**item, "metadata": {key: value for key, value in item["metadata"].items()
                  if key in {"citation_id", "content_mode", "journal", "locator", "evidence_status",
+                            "content_source",
                             "question_relevance", "population", "population_applicability",
                             "population_applicability_reason"}}}
                 for item in evidence]

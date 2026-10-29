@@ -50,7 +50,10 @@ class EvidenceAggregator:
         for index, item in enumerate(evidence, 1):
             metadata = item["metadata"]
             content = re.sub(r"\s+", " ", str(item["content"] or "")).strip()
-            if len(content) > EvidenceAggregator.MODEL_EXCERPT_CHARS:
+            selected_excerpt = metadata.get("content_source") in {
+                "key_evidence_sentences", "citation_quote",
+            }
+            if not selected_excerpt and len(content) > EvidenceAggregator.MODEL_EXCERPT_CHARS:
                 content = content[:EvidenceAggregator.MODEL_EXCERPT_CHARS].rstrip() + "…"
             cards.append(
                 f"Evidence card {index}\n"
