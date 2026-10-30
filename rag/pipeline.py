@@ -270,7 +270,9 @@ class EvidenceRetrievalPipeline:
             documents.extend(result.documents)
             warnings.extend(result.warnings)
             connector_trace.append({"source_id": result.source_id, "status": "ok", "returned": len(result.documents),
-                                    "kind": list(connector.kinds), "query": getattr(connector, "last_query", None)})
+                                    "kind": list(connector.kinds), "query": getattr(connector, "last_query", None),
+                                    "date_filter": getattr(connector, "last_date_filter", None),
+                                    "cache_hit": bool(getattr(connector, "last_cache_hit", False))})
         deduped, duplicate_count, conflicts = deduplicate_documents(documents)
         if duplicate_count:
             warnings.append(f"已按 DOI/PMID/标题跨来源去重 {duplicate_count} 条候选。")

@@ -12,6 +12,9 @@ class RAGConfig:
     openai_api_mode: str = "auto"
     ncbi_email: str = ""
     ncbi_api_key: str = ""
+    # 兼容字段（agent 侧仍读取）：MiniCheck 模型名与缓存目录；留空=不启用。
+    minicheck_model: str = ""
+    minicheck_cache_dir: str = ""
     request_timeout_seconds: float = 60.0
     server_host: str = "127.0.0.1"
     server_port: int = 8798

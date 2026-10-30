@@ -15,6 +15,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Mapping, Protocol, Sequence
 
+from .config import get_config
 from .models import EvidencePackage
 
 
@@ -32,6 +33,74 @@ class ClaimVerifier(Protocol):
     def name(self) -> str: ...
 
     def verify(self, pairs: Sequence[tuple[str, str]]) -> Sequence[tuple[bool, float | None]]: ...
+
+
+
+@dataclass
+class MiniCheckVerifier:
+    """Lazy adapter for the official ``minicheck`` Python package.
+
+    Install the package and fill ``minicheck_model`` in ``config.py`` before enabling
+    this adapter.  The official scorer may download model weights on first use;
+    that is intentionally not done at import time or as an implicit fallback.
+    """
+
+    model_name: str | None = None
+    cache_dir: str | None = None
+    _scorer: Any = None
+    _load_error: str | None = None
+
+    def __post_init__(self) -> None:
+        config = get_config()
+        if self.model_name is None:
+            self.model_name = config.minicheck_model or None
+        if self.cache_dir is None:
+            self.cache_dir = config.minicheck_cache_dir or None
+
+    @property
+    def name(self) -> str:
+        return "minicheck"
+
+    @property
+    def available(self) -> bool:
+        return bool(self.model_name) and self._ensure_loaded()
+
+    @property
+    def unavailable_reason(self) -> str:
+        if not self.model_name:
+            return "未在 config.py 中配置 minicheck_model；未执行主张级模型校验。"
+        self._ensure_loaded()
+        return self._load_error or "MiniCheck 当前不可用。"
+
+    def verify(self, pairs: Sequence[tuple[str, str]]) -> Sequence[tuple[bool, float | None]]:
+        if not pairs:
+            return []
+        if not self.available:
+            raise RuntimeError(self.unavailable_reason)
+        claims = [claim for claim, _ in pairs]
+        documents = [document for _, document in pairs]
+        try:
+            labels, probabilities, _, _ = self._scorer.score(docs=documents, claims=claims)
+        except Exception as exc:
+            raise RuntimeError(f"MiniCheck 推理失败：{type(exc).__name__}") from exc
+        return [(bool(label), _probability(probability)) for label, probability in zip(labels, probabilities)]
+
+    def _ensure_loaded(self) -> bool:
+        if self._scorer is not None:
+            return True
+        if self._load_error or not self.model_name:
+            return False
+        try:
+            from minicheck.minicheck import MiniCheck  # type: ignore[import-not-found]
+
+            kwargs: dict[str, Any] = {"model_name": self.model_name}
+            if self.cache_dir:
+                kwargs["cache_dir"] = self.cache_dir
+            self._scorer = MiniCheck(**kwargs)
+            return True
+        except Exception as exc:
+            self._load_error = f"MiniCheck 未就绪：{type(exc).__name__}。"
+            return False
 
 
 @dataclass

@@ -12,6 +12,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
+from contextvars import ContextVar
 from dataclasses import dataclass
 from datetime import date
 from typing import Any, Callable, Mapping
@@ -28,6 +29,8 @@ from .query import (
     primary_mapping_entry,
     primary_topic,
 )
+
+PUBMED_SEARCH_CACHE: ContextVar[dict | None] = ContextVar("pubmed_search_cache", default=None)
 
 
 class PubMedError(RuntimeError):
@@ -55,14 +58,31 @@ class PubMedConnector(KnowledgeConnector):
             raise ValueError("PubMed timeout must be positive")
         self.email = str(config.ncbi_email or "")
         self.api_key = str(config.ncbi_api_key or "")
+        self.last_date_filter: dict[str, str] = {}
+        self.last_cache_hit = False
 
     def search(self, plan: QueryPlan, *, limit: int) -> SearchResult:
+        limit = max(1, min(int(limit), self.max_results))
+        self.last_query = _safe_term(plan)
+        date_params, self.last_date_filter = _publication_date_params(plan)
+        cache = PUBMED_SEARCH_CACHE.get()
+        key = (id(self), self.last_query, limit, tuple(sorted(date_params.items())))
+        self.last_cache_hit = cache is not None and key in cache
+        if self.last_cache_hit:
+            return cache[key]
+        result = self._search(plan, limit=limit, date_params=date_params)
+        if cache is not None:
+            cache[key] = result
+        return result
+
+    def _search(self, plan: QueryPlan, *, limit: int, date_params: Mapping[str, str] | None = None) -> SearchResult:
         limit = max(1, min(int(limit), self.max_results))
         warnings: list[str] = []
         if not self.email:
             warnings.append("PubMed 请求未在 config.py 设置 ncbi_email；建议配置有效邮箱以符合 NCBI 使用规范。")
         params = self._base_params()
         params.update({"db": "pubmed", "retmode": "json", "retmax": str(limit), "sort": "relevance"})
+        params.update(date_params or {})
         query = _safe_term(plan)
         if not query:
             self.last_query = ""
@@ -83,6 +103,16 @@ class PubMedConnector(KnowledgeConnector):
         documents, skipped = _parse_efetch(xml, self.source_id)
         if skipped:
             warnings.append(f"PubMed 有 {skipped} 条记录缺少 PMID、标题或摘要，未加入证据列表。")
+        if date_params:
+            earliest = date.fromisoformat(date_params["mindate"].replace("/", "-")) if date_params.get("mindate") else None
+            latest = date.fromisoformat(date_params["maxdate"].replace("/", "-")) if date_params.get("maxdate") else None
+            before = len(documents)
+            documents = [document for document in documents if document.published_at and (
+                (earliest is None or date.fromisoformat(document.published_at) >= earliest) and
+                (latest is None or date.fromisoformat(document.published_at) <= latest)
+            )]
+            if before != len(documents):
+                warnings.append(f"已按规范化发表日期移除 {before - len(documents)} 条超出请求时间窗口或日期不明的 PubMed 记录。")
         return SearchResult(self.source_id, tuple(documents), tuple(warnings))
 
     def _esearch_ids(self, params: Mapping[str, str], query: str) -> list[str]:
@@ -125,6 +155,31 @@ class PubMedConnector(KnowledgeConnector):
             raise PubMedError("PubMed upstream HTTP error", stage=endpoint, status_code=exc.code, retryable=exc.code == 429 or exc.code >= 500) from exc
         except (urllib.error.URLError, TimeoutError, socket.timeout) as exc:
             raise PubMedError("PubMed network or timeout error", stage=endpoint, retryable=True) from exc
+
+
+def _publication_date_params(plan: QueryPlan) -> tuple[dict[str, str], dict[str, str]]:
+    raw_from = str(plan.filters.get("publication_from") or "").strip()
+    raw_to = str(plan.filters.get("publication_to") or "").strip()
+    parsed = {}
+    for key, value in (("mindate", raw_from), ("maxdate", raw_to)):
+        if not value:
+            continue
+        try:
+            parsed[key] = date.fromisoformat(value)
+        except ValueError as exc:
+            name = "publication_from" if key == "mindate" else "publication_to"
+            raise ValueError(f"{name} must use YYYY-MM-DD format") from exc
+    if parsed.get("mindate") and parsed.get("maxdate") and parsed["mindate"] > parsed["maxdate"]:
+        raise ValueError("publication_from must not be later than publication_to")
+    params = {key: value.strftime("%Y/%m/%d") for key, value in parsed.items()}
+    if params:
+        params["datetype"] = "pdat"
+    trace = {
+        key: value for key, value in (
+            ("publication_from", raw_from or None), ("publication_to", raw_to or None),
+        ) if value
+    }
+    return params, trace
 
 
 def _safe_term(plan: QueryPlan) -> str:
@@ -286,6 +341,8 @@ def _fallback_term(plan: QueryPlan) -> str:
     candidates = list(dict.fromkeys(str(term).strip() for term in candidates if str(term).strip()))[:8]
     dynamic = [text.strip() for text in plan.machine_translations if str(text).strip()][:3]
     if not candidates:
+        if len(dynamic) == 1:
+            return dynamic[0]
         return " OR ".join(f"({text})" for text in dynamic)
     expression = "(" + " OR ".join(_quoted(term) for term in candidates) + ")"
     population = population_clause(plan)

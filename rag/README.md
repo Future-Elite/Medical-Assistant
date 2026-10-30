@@ -954,7 +954,9 @@ python3 -m compileall -q rag
 
 测试使用合成或录制数据，不请求实时 PubMed、不请求 LLM、不下载模型、不加载神经模型。
 
-测试覆盖含查询保真审计与门控（`tests/test_fidelity.py`、`tests/test_gate.py`）、离线实验骨架的指标层（`tests/test_fidelity_metrics.py`），v6.6.5 的映射表与结构化适用性（`tests/test_query_mapping_applicability.py`：映射解析/展开/别名边界、概念分组变体、PubMed 字段标签、逐条条件核对、data_status 与 subject_role 语义、legacy 分支），v6.7.0 的重排池与 Qwen3 重排器（`tests/test_rerank_upgrade_670.py`：注入打分离线、池行为、legacy 路径不变）、通用术语映射库（`tests/test_term_mapping_library.py`：加载校验、库行展开与溯源、请求优先、构建器抽取）、规则路由（`tests/test_routing.py`：五条决策、无英文回退、请求来源过滤、off/shadow/active 模式、非法值），以及逐轮控制器（`tests/test_controller.py`：患者事实首轮、来源限制、无英文跳过、预算/轮数停止、回放与确定性）。当前全量 **346 tests：337 通过 + 9 跳过**（当次实跑；跳过项为不随发布分支分发的研发侧构建器测试）。跨组件契约测试在仓库根 `tests/`（HIS→Agent→RAG 链路，用 `contracts/examples/` 的合成样例，离线运行）：`python3 -m unittest discover -s tests -t . -p 'test_*.py'`。`rag/eval/run_fidelity_experiments.py --plan` 只打印实验臂矩阵与数据需求、不执行检索（实验前模式）。
+测试覆盖含查询保真审计与门控（`tests/test_fidelity.py`、`tests/test_gate.py`）、离线实验骨架的指标层（`tests/test_fidelity_metrics.py`），v6.6.5 的映射表与结构化适用性（`tests/test_query_mapping_applicability.py`：映射解析/展开/别名边界、概念分组变体、PubMed 字段标签、逐条条件核对、data_status 与 subject_role 语义、legacy 分支），v6.7.0 的重排池与 Qwen3 重排器（`tests/test_rerank_upgrade_670.py`：注入打分离线、池行为、legacy 路径不变）、通用术语映射库（`tests/test_term_mapping_library.py`：加载校验、库行展开与溯源、请求优先、构建器抽取）、规则路由（`tests/test_routing.py`：五条决策、无英文回退、请求来源过滤、off/shadow/active 模式、非法值），以及逐轮控制器（`tests/test_controller.py`：患者事实首轮、来源限制、无英文跳过、预算/轮数停止、回放与确定性）。当前全量 **352 tests：343 通过 + 9 跳过**（当次实跑；跳过项为不随发布分支分发的研发侧构建器测试）。
+
+**Agent 集成兼容面**：`main` 分支的 `agent/` 直接导入 `rag.audit.MiniCheckVerifier`、`rag.pubmed.PUBMED_SEARCH_CACHE` 与 `rag.guidelines.who_guideline_metadata_registry`，并读取 `trace.connector_trace[].date_filter` / `cache_hit`。这些接口作为兼容面保留：MiniCheck 默认未配置模型、主张标签保持 `not_checked`；PubMed 缓存由调用方按轮次通过 `ContextVar` 设置，未设置时不缓存，时间窗参数按 `publication_from`/`publication_to` 校验；WHO 成人元数据只作旧注册表助手，**不进入 live 新生儿注册表**。回归测试见 `tests/test_agent_compat.py`。跨组件契约测试在仓库根 `tests/`（HIS→Agent→RAG 链路，用 `contracts/examples/` 的合成样例，离线运行）：`python3 -m unittest discover -s tests -t . -p 'test_*.py'`。`rag/eval/run_fidelity_experiments.py --plan` 只打印实验臂矩阵与数据需求、不执行检索（实验前模式）。
 
 ## 16. 使用边界
 

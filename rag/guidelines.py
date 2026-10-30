@@ -36,6 +36,21 @@ _TOPIC_STOP_TOKENS = frozenset({
 })
 
 
+def matches_guideline_scope(document: SourceDocument, plan: QueryPlan) -> bool:
+    """Apply declared topic/population coverage before ranking or source quotas."""
+    scope = document.metadata.get("scope_terms")
+    if not scope:
+        return True
+    query = " ".join((plan.original_question, *plan.variants, *plan.english_terms,
+                      *plan.question_english_terms, *plan.mesh_terms, *plan.machine_translations)).lower()
+    if not any(re.search(r"(?<![a-z])" + re.escape(term.lower()) + r"(?![a-z])", query)
+               for term in scope):
+        return False
+    excluded = document.metadata.get("excluded_population_terms") or []
+    return not any(re.search(r"(?<![a-z])" + re.escape(term.lower()) + r"(?![a-z])", query)
+                   for term in excluded)
+
+
 def _matches_topic(document: SourceDocument, plan: QueryPlan) -> bool:
     """Keep registry metadata only when it shares a disease token with the query.
 
@@ -103,6 +118,7 @@ class GuidelineMetadataConnector(KnowledgeConnector):
         requested_version = plan.filters.get("guideline_version")
         if requested_version:
             selected = [doc for doc in selected if doc.version_id == str(requested_version)]
+        selected = [doc for doc in selected if matches_guideline_scope(doc, plan)]
         selected = [doc for doc in selected if _matches_topic(doc, plan)]
         warnings = [
             f"来源 {self.source_id} 仅提供官方元数据和链接；未将未确认许可的全文加入检索。"
@@ -285,6 +301,54 @@ def neonatal_guideline_metadata_registry() -> tuple[SourceDocument, ...]:
         neonatal_rds_metadata(),
         neonatal_rds_chinese_interpretation_metadata(),
     )
+
+
+
+def who_hypertension_metadata() -> SourceDocument:
+    return SourceDocument(
+        source_id="who-guideline-live", document_id="who:isbn:9789240033986", kind="guideline",
+        title="Guideline for the pharmacological treatment of hypertension in adults",
+        text="Official guideline metadata only; open the canonical WHO page for the authorized document. Hypertension pharmacological treatment in adults.",
+        url="https://www.who.int/publications/i/item/9789240033986",
+        published_at="2021-08-24", locator="WHO official publication page", authority="WHO",
+        version_id=None, status="unknown", metadata={
+            "publisher": "World Health Organization", "stable_id": "ISBN 978-92-4-003398-6",
+            "official": True, "license": "CC BY-NC-SA 3.0 IGO (page statement; verify for reuse)",
+            "license_url": "https://creativecommons.org/licenses/by-nc-sa/3.0/igo/",
+            "rights_basis": "source_page_requires_verification", "full_text_allowed": False,
+            "content_mode": "metadata_only", "live_source": True,
+            "mesh_terms": "Hypertension", "keywords": "hypertension pharmacological treatment adults",
+            "scope_terms": ["hypertension", "high blood pressure", "高血压"],
+            "excluded_population_terms": ["neonatal", "newborn", "infant", "pediatric", "paediatric", "新生儿", "婴儿", "儿童"],
+        },
+    )
+
+
+def who_diabetes_glucose_metadata() -> SourceDocument:
+    """WHO formal guideline (page label: 'Guideline'), 2018."""
+    return SourceDocument(
+        source_id="who-guideline-live", document_id="who:isbn:9789241550284", kind="guideline",
+        title="Guidelines on second- and third-line medicines and type of insulin for the control of blood glucose levels in non-pregnant adults with diabetes mellitus",
+        text="Official guideline metadata only; open the canonical WHO page for the authorized document. Blood glucose control with second- and third-line medicines and insulin in non-pregnant adults with diabetes mellitus.",
+        url="https://www.who.int/publications/i/item/9789241550284",
+        published_at="2018-04-21", locator="WHO official publication page", authority="WHO",
+        version_id=None, status="unknown", metadata={
+            "publisher": "World Health Organization", "stable_id": "ISBN 978-92-4-155028-4",
+            "official": True, "license": "CC BY-NC-SA 3.0 IGO (page statement; verify for reuse)",
+            "license_url": "https://creativecommons.org/licenses/by-nc-sa/3.0/igo/",
+            "rights_basis": "source_page_requires_verification", "full_text_allowed": False,
+            "content_mode": "metadata_only", "live_source": True,
+            "mesh_terms": "Diabetes Mellitus, Type 2; Hypoglycemic Agents; Insulin",
+            "keywords": "blood glucose control second-line third-line insulin diabetes",
+            "scope_terms": ["diabetes", "糖尿病"],
+            "excluded_population_terms": ["neonatal", "newborn", "infant", "pediatric", "paediatric", "pregnant", "pregnancy", "新生儿", "婴儿", "儿童", "孕妇", "妊娠"],
+        },
+    )
+
+
+def who_guideline_metadata_registry() -> tuple[SourceDocument, ...]:
+    """All registered WHO formal guideline metadata records (metadata_only)."""
+    return (who_hypertension_metadata(), who_diabetes_glucose_metadata())
 
 
 def describe_registry(records: Sequence[SourceDocument]) -> list[dict[str, object]]:
