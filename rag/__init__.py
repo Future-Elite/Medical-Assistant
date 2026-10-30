@@ -13,7 +13,7 @@ __version__ = "6.7.0"
 
 from .agent import EvidenceSessionStore, EvidenceRAG
 from .applicability import assess_applicability
-from .audit import ClaimVerifier, GroundedAnswerAuditor
+from .audit import ClaimVerifier, GroundedAnswerAuditor, MiniCheckVerifier
 from .connectors import (
     CallableConnector,
     ConnectorRegistry,
@@ -95,6 +95,7 @@ __all__ = [
     "InMemoryHISAdapter",
     "KnowledgeConnector",
     "ClaimVerifier",
+    "MiniCheckVerifier",
     "PatientFact",
     "PatientHit",
     "PatientSnapshot",
