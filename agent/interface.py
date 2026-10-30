@@ -1,6 +1,8 @@
 import ast
 import asyncio
 import base64
+from collections import Counter
+from html import escape
 import json
 import re
 import gradio as gr
@@ -14,6 +16,346 @@ from typing import AsyncGenerator, List, Optional, Tuple
 from gradio import ChatMessage
 
 from medrax.answer_audit import AnswerAuditModule
+
+
+MEDICAL_UI_CSS = r"""
+:root {
+    --med-primary: #087f8c;
+    --med-primary-strong: #075f69;
+    --med-primary-soft: #e9f7f6;
+    --med-navy: #173746;
+    --med-text: #203640;
+    --med-muted: #617680;
+    --med-bg: #f4f8f9;
+    --med-surface: #ffffff;
+    --med-border: #d7e4e7;
+    --med-focus: #0e8391;
+    --med-pubmed: #23689b;
+    --med-guideline: #28784a;
+    --med-his: #6f52a2;
+    --med-audit: #8a6414;
+    --med-error: #a43b3b;
+    --med-shadow: 0 12px 32px rgba(25, 65, 78, 0.08);
+}
+
+html, body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+.gradio-container {
+    width: 100%;
+    height: 100dvh !important;
+    min-height: 0 !important;
+    max-height: 100dvh !important;
+    max-width: none !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    background: var(--med-bg) !important;
+    color: var(--med-text);
+    font-family: Inter, "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+}
+
+#medical-sidebar {
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    overflow: visible !important;
+    background: #eef6f6 !important;
+    border-right: 1px solid var(--med-border) !important;
+    padding: 20px 16px !important;
+}
+
+#medical-sidebar .sidebar-content {
+    height: 100%;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.medical-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 2px 2px 22px;
+}
+
+.medical-brand-mark {
+    display: grid;
+    width: 40px;
+    height: 40px;
+    place-items: center;
+    border-radius: 12px;
+    background: var(--med-primary);
+    color: #ffffff;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    box-shadow: 0 6px 16px rgba(8, 127, 140, 0.18);
+}
+
+.medical-brand-title {
+    color: var(--med-navy);
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 1.25;
+}
+
+.medical-brand-subtitle,
+.medical-sidebar-note {
+    color: var(--med-muted);
+    font-size: 12px;
+    line-height: 1.55;
+}
+
+.medical-sidebar-section {
+    margin: 18px 2px 8px;
+    color: var(--med-muted);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.medical-session-item {
+    margin-bottom: 16px;
+    padding: 12px 13px;
+    border: 1px solid #c9dedf;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.72);
+    color: var(--med-navy);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.medical-session-item span {
+    display: block;
+    margin-top: 3px;
+    color: var(--med-muted);
+    font-size: 11px;
+    font-weight: 400;
+}
+
+#medical-sidebar button,
+#medical-composer button {
+    min-height: 44px;
+    cursor: pointer;
+}
+
+#medical-sidebar button.primary {
+    border-color: var(--med-primary) !important;
+    background: var(--med-primary) !important;
+    color: #ffffff !important;
+}
+
+#medical-sidebar label,
+#medical-sidebar .label-wrap {
+    color: var(--med-navy) !important;
+    font-weight: 600 !important;
+}
+
+#medical-sidebar input,
+#medical-sidebar textarea {
+    border-color: #c9dcdf !important;
+    background: rgba(255, 255, 255, 0.92) !important;
+}
+
+#medical-main {
+    display: flex !important;
+    flex-direction: column !important;
+    min-width: 0;
+    height: 100dvh !important;
+    min-height: 0;
+    max-height: 100dvh;
+    overflow: hidden;
+    gap: 0 !important;
+    background: var(--med-surface);
+}
+
+.medical-topbar {
+    display: flex;
+    flex: 0 0 auto;
+    min-height: 72px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 14px 28px;
+    border-bottom: 1px solid var(--med-border);
+    background: rgba(255, 255, 255, 0.96);
+}
+
+.medical-topbar h1 {
+    margin: 0;
+    color: var(--med-navy);
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.medical-topbar p {
+    margin: 3px 0 0;
+    color: var(--med-muted);
+    font-size: 12px;
+}
+
+.medical-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    flex-shrink: 0;
+    padding: 7px 10px;
+    border: 1px solid #b9dbd8;
+    border-radius: 999px;
+    background: var(--med-primary-soft);
+    color: var(--med-primary-strong);
+    font-size: 12px;
+    font-weight: 650;
+}
+
+.medical-status::before {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--med-primary);
+    content: "";
+}
+
+#medical-chatbot {
+    flex: 1 1 0;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: var(--med-surface) !important;
+}
+
+#medical-chatbot .message {
+    max-width: min(860px, calc(100% - 40px));
+    overflow-wrap: anywhere;
+    line-height: 1.7;
+}
+
+#medical-chatbot .message.user {
+    border: 1px solid #c6dddd;
+    background: #eef7f6 !important;
+    color: var(--med-text) !important;
+}
+
+#medical-composer {
+    position: relative;
+    z-index: 20;
+    flex: 0 0 auto;
+    margin: 0 !important;
+    padding: 12px max(24px, calc((100% - 900px) / 2)) 14px;
+    border: 0 !important;
+    border-top: 1px solid rgba(215, 228, 231, 0.9) !important;
+    border-radius: 0 !important;
+    background: rgba(250, 252, 252, 0.97) !important;
+    box-shadow: 0 -12px 28px rgba(33, 70, 82, 0.05);
+}
+
+#medical-input textarea {
+    min-height: 52px !important;
+    padding: 14px 16px !important;
+    border-color: #bdd2d6 !important;
+    border-radius: 16px !important;
+    background: #ffffff !important;
+    color: var(--med-text) !important;
+    font-size: 16px !important;
+    line-height: 1.5 !important;
+    box-shadow: var(--med-shadow);
+}
+
+#medical-input textarea:focus,
+#medical-sidebar input:focus,
+#medical-sidebar textarea:focus,
+#medical-sidebar button:focus-visible,
+#medical-composer button:focus-visible {
+    outline: 3px solid rgba(14, 131, 145, 0.3) !important;
+    outline-offset: 2px !important;
+}
+
+.medical-disclaimer {
+    margin: 8px 8px 0;
+    color: var(--med-muted);
+    font-size: 11px;
+    line-height: 1.45;
+    text-align: center;
+}
+
+.medical-event-card {
+    margin: 4px 0;
+    padding: 12px 14px;
+    border: 1px solid var(--med-border);
+    border-left: 4px solid var(--med-primary);
+    border-radius: 10px;
+    background: #f8fbfb;
+    color: var(--med-text);
+}
+
+.medical-event-card--his { border-left-color: var(--med-his); }
+.medical-event-card--error { border-left-color: var(--med-error); background: #fff7f7; }
+.medical-event-card--citation { border-left-color: var(--med-guideline); }
+
+.medical-event-summary { margin-bottom: 6px; font-weight: 650; }
+
+.medical-event-meta {
+    color: var(--med-muted);
+    font-size: 12px;
+    line-height: 1.55;
+}
+
+.medical-event-card details {
+    margin-top: 9px;
+    color: var(--med-muted);
+    font-size: 12px;
+}
+
+.medical-event-card summary { cursor: pointer; font-weight: 600; }
+
+.medical-event-card pre {
+    max-height: 260px;
+    margin-top: 8px;
+    overflow: auto;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.source-badge {
+    display: inline-block;
+    margin: 5px 6px 0 0;
+    padding: 3px 7px;
+    border-radius: 999px;
+    background: #e9eff1;
+    color: var(--med-navy);
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.source-badge--pubmed { background: #eaf3fb; color: var(--med-pubmed); }
+.source-badge--guideline { background: #eaf6ee; color: var(--med-guideline); }
+.source-badge--his { background: #f1ecf9; color: var(--med-his); }
+.source-badge--audit { background: #fff5d9; color: var(--med-audit); }
+
+@media (max-width: 768px) {
+    .medical-topbar { min-height: 64px; padding: 12px 16px; }
+    .medical-topbar p { display: none; }
+    #medical-chatbot .message { max-width: calc(100% - 20px); }
+    #medical-composer {
+        padding: 10px 12px max(12px, env(safe-area-inset-bottom));
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+    }
+}
+"""
 
 
 class ChatInterface:
@@ -128,6 +470,79 @@ class ChatInterface:
         if not isinstance(args, dict):
             return {}
         return json.loads(json.dumps(args, ensure_ascii=False, default=str))
+
+    @staticmethod
+    def _format_medical_event(kind: str, artifact: dict) -> tuple[str, str]:
+        """Render tool output as a concise card while preserving inspectable raw data."""
+        artifact = artifact if isinstance(artifact, dict) else {"result": artifact}
+        raw = escape(json.dumps(artifact, ensure_ascii=False, indent=2, default=str))
+        card_class = "medical-event-card"
+        title = "工具执行"
+        summary = "工具调用已完成。"
+        meta_lines = []
+        badges = []
+
+        if kind == "evidence_search":
+            title = "医学证据检索"
+            evidence = artifact.get("evidence") or []
+            source_counts = Counter(
+                str(item.get("source_type") or "unknown").lower()
+                for item in evidence
+                if isinstance(item, dict)
+            )
+            summary = f"检索完成，共获得 {len(evidence)} 条候选证据。"
+            query = artifact.get("query") or (artifact.get("tool_args") or {}).get("question")
+            if query:
+                meta_lines.append(f"检索问题：{escape(str(query))}")
+            if artifact.get("retrieval_id"):
+                meta_lines.append(f"检索批次：{escape(str(artifact['retrieval_id']))}")
+            badge_labels = {
+                "pubmed": ("PubMed", "pubmed"),
+                "guideline": ("指南", "guideline"),
+                "who": ("WHO 指南", "guideline"),
+            }
+            for source, count in sorted(source_counts.items()):
+                label, badge_class = badge_labels.get(source, (source.upper(), "audit"))
+                badges.append(
+                    f'<span class="source-badge source-badge--{badge_class}">'
+                    f"{escape(label)} {count}</span>"
+                )
+        elif kind == "citation_opened":
+            title = "引用详情"
+            card_class += " medical-event-card--citation"
+            summary = "已加载引用原文或详细元数据。"
+            citation_id = artifact.get("citation_id") or artifact.get("source_id")
+            if citation_id:
+                meta_lines.append(f"引用：{escape(str(citation_id))}")
+            badges.append('<span class="source-badge source-badge--guideline">引用</span>')
+        elif kind == "his_snapshot":
+            title = "HIS 患者快照"
+            card_class += " medical-event-card--his"
+            summary = "已读取当前患者的结构化临床记录。"
+            patient_ref = artifact.get("patient_ref") or artifact.get("patient_id")
+            if patient_ref:
+                meta_lines.append(f"患者标识：{escape(str(patient_ref))}")
+            badges.append('<span class="source-badge source-badge--his">HIS</span>')
+        elif kind == "his_error":
+            title = "HIS 连接异常"
+            card_class += " medical-event-card--error"
+            summary = escape(str(
+                artifact.get("error") or artifact.get("message") or "未能读取患者记录。"
+            ))
+            badges.append('<span class="source-badge source-badge--his">HIS</span>')
+
+        metadata = "<br>".join(meta_lines)
+        details = (
+            "<details><summary>查看原始详情</summary>"
+            f"<pre>{raw}</pre></details>"
+        )
+        content = (
+            f'<div class="{card_class}">'
+            f'<div class="medical-event-summary">{summary}</div>'
+            f'<div class="medical-event-meta">{metadata}</div>'
+            f'{"".join(badges)}{details}</div>'
+        )
+        return title, content
 
     def _append_audit(self, event: dict, thread_id: Optional[str] = None) -> None:
         self.audit_path.parent.mkdir(parents=True, exist_ok=True)
@@ -587,8 +1002,12 @@ class ChatInterface:
                 artifact = event.get("artifact") or {}
                 kind = event.get("event")
                 if kind in {"evidence_search", "citation_opened", "his_snapshot", "his_error"}:
-                    content = json.dumps(artifact, ensure_ascii=False, default=str)
-                    history.append(ChatMessage(role="assistant", content=content, metadata={"title": f"🔎 {event.get('tool_name', kind)}"}))
+                    title, content = self._format_medical_event(kind, artifact)
+                    history.append(ChatMessage(
+                        role="assistant",
+                        content=content,
+                        metadata={"title": title},
+                    ))
                 elif kind == "audit_stage":
                     progress.content = {
                         "translation_started": "语言处理：英文直接审计，仅中文主张需要翻译…",
@@ -623,58 +1042,119 @@ def create_demo(agent, tools_dict):
     interface = ChatInterface(agent, tools_dict)
     medical_mode = hasattr(agent, "run_turn")
 
-    with gr.Blocks() as demo:
-        with gr.Column():
-            gr.Markdown(
+    with gr.Blocks(
+        title="Medical Assistant",
+        css=MEDICAL_UI_CSS,
+        fill_height=True,
+        fill_width=True,
+    ) as demo:
+        with gr.Sidebar(
+            open=True,
+            width=292,
+            elem_id="medical-sidebar",
+        ):
+            gr.HTML(
                 """
-            # 🏥 Medical Assistant
-            A Medical Reasoning Agent with unified medical evidence RAG
-            """
+                <div class="medical-brand">
+                    <div class="medical-brand-mark" aria-hidden="true">MA</div>
+                    <div>
+                        <div class="medical-brand-title">Medical Assistant</div>
+                        <div class="medical-brand-subtitle">医学证据与患者信息协同助手</div>
+                    </div>
+                </div>
+                """
             )
+            new_thread_btn = gr.Button("新建对话", variant="primary")
+            gr.HTML(
+                """
+                <div class="medical-sidebar-section">当前对话</div>
+                <div class="medical-session-item">
+                    临时会话
+                    <span>会话历史数据库将在后续版本接入</span>
+                </div>
+                <div class="medical-sidebar-section">患者与证据范围</div>
+                """
+            )
+            patient_ref = gr.Textbox(
+                label="患者 ID（可留空）",
+                placeholder="例如 2001",
+                info="切换患者会隔离对话记忆与引用。",
+            )
+            as_of = gr.Textbox(
+                label="信息截止日期（可留空）",
+                placeholder="YYYY-MM-DD",
+                info="默认使用今天。",
+            )
+            clear_btn = gr.Button("清空当前对话", variant="secondary")
+            gr.HTML(
+                """
+                <p class="medical-sidebar-note">
+                    数据来源：HIS 患者记录、PubMed 与医学指南 RAG。工具详情可在对话卡片中展开查看。
+                </p>
+                """
+            )
+            image_display = gr.Image(
+                label="医学影像预览",
+                type="filepath",
+                height=260,
+                container=True,
+                visible=not medical_mode,
+            )
+            with gr.Row(visible=not medical_mode):
+                upload_button = gr.UploadButton(
+                    "上传 X-Ray",
+                    file_types=["image"],
+                )
+                dicom_upload = gr.UploadButton(
+                    "上传 DICOM",
+                    file_types=["file"],
+                )
 
-            with gr.Row():
-                with gr.Column(scale=3):
-                    chatbot = gr.Chatbot(
-                        [],
-                        height=800,
-                        container=True,
-                        show_label=True,
-                        elem_classes="chat-box",
-                        label="Agent",
-                        avatar_images=(
-                            None,
-                            "assets/medrax_logo.jpg",
-                        ),
-                    )
-                    with gr.Row():
-                        with gr.Column(scale=3):
-                            txt = gr.Textbox(
-                                show_label=False,
-                                placeholder="Ask a medical question...",
-                                container=False,
-                            )
-
-                with gr.Column(scale=3):
-                    image_display = gr.Image(
-                        label="Image", type="filepath", height=700, container=True,
-                        visible=not medical_mode,
-                    )
-                    with gr.Row():
-                        upload_button = gr.UploadButton(
-                            "📎 Upload X-Ray",
-                            file_types=["image"],
-                            visible=not medical_mode,
-                        )
-                        dicom_upload = gr.UploadButton(
-                            "📄 Upload DICOM",
-                            file_types=["file"],
-                            visible=not medical_mode,
-                        )
-                    with gr.Row():
-                        clear_btn = gr.Button("Clear Chat")
-                        new_thread_btn = gr.Button("New Thread")
-                    patient_ref = gr.Textbox(label="合成 HIS 患者 ID（可留空）", placeholder="例如 2001；切换患者会隔离对话记忆和引用")
-                    as_of = gr.Textbox(label="事实和证据截止日期（可留空，默认今天）", placeholder="YYYY-MM-DD")
+        with gr.Column(elem_id="medical-main"):
+            gr.HTML(
+                """
+                <header class="medical-topbar">
+                    <div>
+                        <h1>临床问题与证据对话</h1>
+                        <p>Agent 自主编排 HIS 与医学证据检索，工具详情全程可追溯</p>
+                    </div>
+                    <div class="medical-status" role="status">系统就绪</div>
+                </header>
+                """
+            )
+            chatbot = gr.Chatbot(
+                [],
+                height="100%",
+                min_height=0,
+                container=False,
+                show_label=False,
+                elem_id="medical-chatbot",
+                layout="bubble",
+                buttons=["copy"],
+                feedback_options=None,
+                avatar_images=(None, "assets/medrax_logo.jpg"),
+                placeholder=(
+                    "### 您好，我是 Medical Assistant\n"
+                    "请输入临床问题；如需结合患者信息，请先在左侧填写患者 ID。"
+                ),
+            )
+            with gr.Group(elem_id="medical-composer"):
+                txt = gr.Textbox(
+                    show_label=False,
+                    placeholder="输入医学问题，Enter 发送，Shift + Enter 换行",
+                    container=False,
+                    lines=1,
+                    max_lines=8,
+                    autofocus=True,
+                    submit_btn="发送",
+                    stop_btn="停止",
+                    elem_id="medical-input",
+                )
+                gr.HTML(
+                    '<p class="medical-disclaimer">'
+                    "回答用于医学信息辅助，不替代临床医生判断；患者相关回答应结合完整病历核验。"
+                    "</p>"
+                )
 
         thread_state = gr.State(value=interface._new_id())
 

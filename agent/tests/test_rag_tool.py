@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import Mock, patch
 
-from medrax.tools.rag_tool import MedicalEvidenceRAGTool
+from medrax.tools.rag_tool import MedicalEvidenceRAGTool, _select_evidence_content
 from medrax.medical_session import ACTIVE_TURN, MedicalSession, TurnContext
 
 
@@ -45,6 +45,52 @@ class StubRAG:
 
 
 class MedicalEvidenceRAGToolTest(unittest.TestCase):
+    def test_evidence_content_prefers_key_sentences_then_quote_then_text_prefix(self):
+        document = {"text": "A" * 1000}
+        content, source = _select_evidence_content(document, {
+            "key_evidence_sentences": [
+                {"text": "  Relevant result one.  "},
+                {"text": "Relevant result two."},
+            ],
+            "quote": "Citation quote.",
+        })
+        self.assertEqual(content, "Relevant result one. Relevant result two.")
+        self.assertEqual(source, "key_evidence_sentences")
+
+        content, source = _select_evidence_content(document, {"quote": " Citation quote. "})
+        self.assertEqual(content, "Citation quote.")
+        self.assertEqual(source, "citation_quote")
+
+        content, source = _select_evidence_content(document, {})
+        self.assertEqual(content, "A" * 900 + "…")
+        self.assertEqual(source, "document_text_prefix")
+
+    def test_turn_summary_separates_current_answer_from_history(self):
+        historical = {
+            "retrieval_id": "retrieval-old",
+            "evidence": [{
+                "source_type": "pubmed", "source_id": "PMID:999", "title": "Old",
+                "content": "Old evidence", "date": "2020", "url": "",
+                "metadata": {"citation_id": "retrieval-old:cit-1", "document_id": "old"},
+            }],
+        }
+        session = MedicalSession(retrievals={"retrieval-old": historical})
+        turn = TurnContext(session, "Find current evidence", lambda event: None)
+        token = ACTIVE_TURN.set(turn)
+        try:
+            with patch("medrax.tools.rag_tool._get_rag", return_value=StubRAG()):
+                content, artifact = MedicalEvidenceRAGTool()._run(search_query="hypertension")
+        finally:
+            ACTIVE_TURN.reset(token)
+
+        summary = artifact["turn_retrieval_summary"]
+        self.assertEqual(summary["answer_evidence_scope"], "current_turn")
+        self.assertEqual(summary["current_answer_evidence_count"], 1)
+        self.assertEqual(summary["current_answer_usable_evidence_count"], 1)
+        self.assertEqual(summary["historical_candidate_count"], 1)
+        self.assertEqual(summary["current_answer_citation_ids"], ["retrieval-test:cit-1"])
+        self.assertNotIn("retrieval-old:cit-1", content)
+
     def test_turn_summary_keeps_earlier_results_after_an_empty_retry(self):
         rag = StubRAG()
         first = rag.retrieve_evidence({"question": "hypertension"})
@@ -169,6 +215,69 @@ class MedicalEvidenceRAGToolTest(unittest.TestCase):
         self.assertEqual(evidence["source_type"], "pubmed")
         self.assertEqual(evidence["source_id"], "PMID:12345678")
         self.assertEqual(evidence["metadata"]["citation_id"], "retrieval-test:cit-1")
+
+    def test_preserves_same_paper_fragments_and_emits_compact_applicability_cards(self):
+        rag = StubRAG()
+        package = rag.retrieve_evidence({"question": "neonatal pneumonia"})
+        first = package["ranked_documents"][0]
+        first["document"]["population"] = "newborn infants"
+        first["document"]["metadata"] = {"content_mode": "abstract"}
+        package["applicability"] = [{
+            "document_id": "pmid-12345678", "status": "possible_match",
+            "reason": "Population field matches the patient context.",
+        }]
+        package["ranked_documents"].append({
+            "score": 0.88, "citation_id": "retrieval-test:cit-2",
+            "document": {**first["document"], "document_id": "pmid-12345678-results",
+                         "text": "A distinct results passage."},
+        })
+        package["citations"].append({
+            "citation_id": "retrieval-test:cit-2", "document_id": "pmid-12345678-results",
+            "pmid": "12345678", "locator": "Results",
+        })
+        rag.retrieve_evidence = Mock(return_value=package)
+        with patch("medrax.tools.rag_tool._get_rag", return_value=rag):
+            content, artifact = MedicalEvidenceRAGTool()._run(search_query="neonatal pneumonia")
+
+        self.assertEqual(len(artifact["evidence"]), 2)
+        self.assertEqual([row["source_id"] for row in artifact["evidence"]],
+                         ["PMID:12345678", "PMID:12345678"])
+        metadata = artifact["evidence"][0]["metadata"]
+        self.assertEqual(metadata["question_relevance"], "selected_for_query")
+        self.assertEqual(metadata["population_applicability"], "possible_match")
+        self.assertIn("Evidence card 1", content)
+        self.assertIn("Population: newborn infants", content)
+        self.assertIn("Population applicability: possible_match", content)
+        self.assertNotIn('"score"', content)
+
+    def test_model_card_uses_query_matched_evidence_sentences(self):
+        rag = StubRAG()
+        package = rag.retrieve_evidence({"question": "neonatal pneumonia"})
+        package["ranked_documents"][0]["document"]["text"] = "Background " * 150
+        selected_sentence = (
+            "The treatment group required less respiratory support. "
+            + "Detailed evidence " * 60
+            + "END-OF-SELECTED-EVIDENCE"
+        )
+        package["citations"][0].update({
+            "quote": "A generic citation prefix.",
+            "key_evidence_sentences": [{
+                "text": selected_sentence,
+                "score": 0.9,
+            }],
+        })
+        rag.retrieve_evidence = Mock(return_value=package)
+
+        with patch("medrax.tools.rag_tool._get_rag", return_value=rag):
+            content, artifact = MedicalEvidenceRAGTool()._run(search_query="neonatal pneumonia")
+
+        self.assertIn("The treatment group required less respiratory support.", content)
+        self.assertIn("END-OF-SELECTED-EVIDENCE", content)
+        self.assertNotIn("A generic citation prefix.", content)
+        self.assertNotIn("Background Background", content)
+        evidence = artifact["evidence"][0]
+        self.assertEqual(evidence["content"], selected_sentence)
+        self.assertEqual(evidence["metadata"]["content_source"], "key_evidence_sentences")
 
     @patch("main.create_agent")
     @patch("main._create_qwen_model", return_value=Mock())

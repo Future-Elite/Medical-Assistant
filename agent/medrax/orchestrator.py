@@ -189,12 +189,15 @@ class MedicalAgentOrchestrator:
                 ids = parse_citation_ids(draft)
                 if selected and patient_needed and session.snapshot is None and not ("?" in draft or "？" in draft):
                     return self._finish("信息不足：尚未获得所选患者的 HIS 快照，请检查 HIS 连接或补充患者信息。", turn, send, "missing_patient_facts")
-                unknown = set(ids) - set(session.citation_map)
+                citation_map = turn.answer_citation_map
+                answer_retrieval_ids = (turn.current_retrieval_ids if turn.retrieval_attempts
+                                        else tuple(session.retrievals))
+                unknown = set(ids) - set(citation_map)
                 if self.audit_mode == "observe":
-                    output = auditor.render_public_citations(draft, session.citation_map)
+                    output = auditor.render_public_citations(draft, citation_map)
                     from interface import ChatInterface
                     mentioned = ChatInterface._extract_citation_ids(output)
-                    allowed = ChatInterface._extract_citation_ids(" ".join(session.citation_map.values()))
+                    allowed = ChatInterface._extract_citation_ids(" ".join(citation_map.values()))
                     his_ids = {
                         item.strip()
                         for group in re.findall(r"\[\s*(his:[^\]]+)\]", draft)
@@ -205,8 +208,13 @@ class MedicalAgentOrchestrator:
                         send({"event": "citation_validation_failed", "unknown_internal": sorted(unknown),
                               "unknown_public": sorted(mentioned - allowed), "unknown_his": sorted(his_ids - allowed_his)})
                         return self._finish("⚠️ 回答包含未检索验证或不属于当前患者的引用，已拦截。", turn, send, "invalid_citation")
-                    retrieval_id = ids[0].rsplit(":", 1)[0] if ids else next(iter(session.retrievals), None)
+                    retrieval_id = ids[0].rsplit(":", 1)[0] if ids else next(iter(answer_retrieval_ids), None)
                     audit_session = deepcopy(session)
+                    audit_session.retrievals = {
+                        key: audit_session.retrievals[key]
+                        for key in answer_retrieval_ids
+                        if key in audit_session.retrievals
+                    }
                     background_auditor = AnswerAuditModule(
                         lambda *args, **kwargs: self._audit_scoped(audit_session, *args, **kwargs),
                         self.rag_tool.translate_claims, max_revisions=0,
@@ -226,7 +234,7 @@ class MedicalAgentOrchestrator:
                 if unknown:
                     result = {"passed": False, "status": "failed", "failure_reasons": ["Unknown or cross-patient citation IDs: " + ", ".join(sorted(unknown))]}
                 else:
-                    retrieval_id = ids[0].rsplit(":", 1)[0] if ids else (next(iter(session.retrievals), None))
+                    retrieval_id = ids[0].rsplit(":", 1)[0] if ids else next(iter(answer_retrieval_ids), None)
                     # A clarification with no cited claims may be returned without a
                     # grounding audit; this is not a citation-completeness validator.
                     if not ids and ("?" in draft or "？" in draft):
@@ -234,10 +242,10 @@ class MedicalAgentOrchestrator:
                     result = auditor.audit(draft, retrieval_id, lambda stage: send({"event": "audit_stage", "stage": stage}))
                 send({"event": "answer_audit", "attempt": revisions, **result})
                 if result.get("passed"):
-                    output = auditor.render_public_citations(draft, session.citation_map)
+                    output = auditor.render_public_citations(draft, citation_map)
                     from interface import ChatInterface
                     mentioned = ChatInterface._extract_citation_ids(output)
-                    allowed = ChatInterface._extract_citation_ids(" ".join(session.citation_map.values()))
+                    allowed = ChatInterface._extract_citation_ids(" ".join(citation_map.values()))
                     if mentioned - allowed:
                         return self._finish("⚠️ 回答包含未检索验证的公开引用，已拦截。", turn, send, "invalid_citation")
                     return self._finish(output, turn, send, "passed")
