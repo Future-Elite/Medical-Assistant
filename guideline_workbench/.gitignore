@@ -1,0 +1,13 @@
+.env
+.env.*
+!.env.example
+__pycache__/
+*.py[cod]
+data/guidelines/
+data/parsed_markdown/
+data/chunking_experiments/
+data/evaluation_reports/
+data/*chunks*.jsonl
+data/medical_assistant_guidelines.json
+data/pubmed_records.*
+logs/
