@@ -2,10 +2,10 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://example.invalid/chinallm/rag/agent-contract.json",
   "title": "ChinaLLM RAG Agent/HIS/RAG Contract",
-  "description": "Agent 与只读检索层的对接契约：Agent 先获取带 as_of 的 HIS 快照，再调用 RAG 完成患者事实 + PubMed + 版本化指南的联合检索。检索分三层执行：按来源收集 → 分源独立排序（各自词表内 IDF/RRF/相关度门，跨来源分数不比较）→ 联合选择（来源可见性保证 + 意图配额 + 来源内排名轮转补齐 + 按来源内排名交错）。v6.6.5 的 live 指南注册表只含新生儿指南元数据（成人 WHO 条目已移除）；新生儿演示档案（rag/demo/）是调用方库，需经 POST /api/demo/guidelines/load 显式加载。中英文字段语义见 language_rules：中文原始问题原样保留，审核术语优先使用 term_mapping（概念→english/mesh/aliases），english_terms/mesh_terms/user_terms 为兼容字段；question_english_terms 为系统自动提取。",
+  "description": "Agent 与只读检索层的对接契约：Agent 先获取带 as_of 的 HIS 快照，再调用 RAG 完成患者事实 + PubMed + 版本化指南的联合检索。检索分三层执行：按来源收集 → 分源独立排序（各自词表内 IDF/RRF/相关度门，跨来源分数不比较）→ 联合选择（来源可见性保证 + 意图配额 + 来源内排名轮转补齐 + 按来源内排名交错）。live 指南注册表只含新生儿指南元数据（成人 WHO 条目已移除）；新生儿演示档案（rag/demo/）是调用方库，需经 POST /api/demo/guidelines/load 显式加载。中英文字段语义见 language_rules：中文原始问题原样保留，审核术语优先使用 term_mapping（概念→english/mesh/aliases），english_terms/mesh_terms/user_terms 为兼容字段；question_english_terms 为系统自动提取。",
   "contract_metadata": {
     "contract_id": "chinallm.rag.agent",
-    "contract_version": "6.6.5",
+    "contract_version": "6.7.0",
     "status": "experimental"
   },
   "scope_and_safety": {
@@ -1233,7 +1233,7 @@
     "Candidates with zero lexical and zero semantic relevance are excluded before scoring; authority/freshness never backfill unrelated source entries.",
     "Chinese concepts are never auto-translated: English expansion comes only from reviewed user_terms/english_terms/mesh_terms or English words written in the question.",
     "CJK matching uses bigram tokenization; pure-digit tokens (years, ordinal numbers) do not participate in matching.",
-    "v6.6.5 live 指南注册表只含新生儿指南元数据（肺炎 2025、RDS 2025 更新版、RDS 中文解读）；不包含任何成人指南。元数据条目 content_mode=metadata_only，不提供推荐原文。",
+    "live 指南注册表只含新生儿指南元数据（肺炎 2025、RDS 2025 更新版、RDS 中文解读）；不包含任何成人指南。元数据条目 content_mode=metadata_only，不提供推荐原文。",
     "演示档案（neonatal_demo_v1）的病例全部为合成数据；指南库分两类：经书目核验的元数据（synthetic=false，仅书目）与合成指南块（synthetic=true，不是真实推荐）。两者都不得作为临床证据。",
     "年龄语义（ga_days/ga_text、pna_hours、PMA、矫正年龄）与数据状态（observed_positive/observed_negative/not_recorded/pending/unavailable/hypothesis）必须在 Agent 侧构造快照时显式标注；RAG 不推导年龄、不把 pending 或 not_recorded 解释为阴性。",
     "term_mapping 的英文/MeSH 必须经人工审核；映射未命中的概念不会展开，也不会被自动翻译或推断。",

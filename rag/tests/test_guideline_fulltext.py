@@ -104,7 +104,8 @@ def _plan(question="该患儿新生儿呼吸窘迫综合征的CPAP和肺表面�
 
 
 class LiveGuidelineFullTextTests(unittest.TestCase):
-    def test_open_access_fulltext_and_non_open_access_metadata(self):
+    def test_every_record_with_pmcid_is_fetched_as_fulltext(self):
+        """现行策略：isOpenAccess 只记录、不设闸门；有 PMCID 就抓全文。"""
         transport = FakeTransport()
         connector = LiveGuidelineFullTextConnector(transport=transport)
         result = connector.search(_plan(), limit=20)
@@ -115,24 +116,31 @@ class LiveGuidelineFullTextTests(unittest.TestCase):
 
         metadata_docs = [doc for doc in result.documents if doc.document_id.endswith("-metadata")]
         fulltext_docs = [doc for doc in result.documents if doc.metadata.get("content_mode") == "full_text"]
-        # OA records with a parsed full text are emitted as chunks only (no
-        # duplicate metadata row); the non-OA record keeps its metadata row.
-        self.assertEqual(len(metadata_docs), 1)
+        # Two records, both with a PMCID -> both become chunks, no metadata rows.
+        self.assertEqual(metadata_docs, [])
         self.assertTrue(fulltext_docs)
+        self.assertEqual(
+            {doc.metadata["pmcid"] for doc in fulltext_docs},
+            {"PMC13038240", "PMC99999998"},
+        )
 
         for doc in fulltext_docs:
             self.assertIsNone(doc.doi)
             self.assertIsNone(doc.pmid)
-            self.assertEqual(doc.metadata["rights_basis"], "open_access")
+            self.assertIn(doc.metadata["rights_basis"], {"open_access", "europe_pmc_pmcid"})
             self.assertTrue(doc.metadata["full_text_allowed"])
             self.assertEqual(doc.metadata["evidence_type"], "clinical_practice_guideline")
-            self.assertEqual(doc.metadata["doi"], "10.1159/000551062")
+            self.assertIn(
+                doc.metadata["doi"],
+                {"10.1159/000551062", "10.1000/non-oa-rds"},
+            )
             self.assertIn(doc.metadata["section"], {"Recommendations on CPAP", "Monitoring"})
 
-        non_open_access = next(doc for doc in metadata_docs if doc.pmid == "41802130")
-        self.assertEqual(non_open_access.metadata["rights_basis"], "not_open_access")
-        self.assertFalse(non_open_access.metadata["full_text_allowed"])
-        self.assertTrue(any("不是开放获取全文" in warning for warning in result.warnings))
+        # isOpenAccess=N 不再是闸门；许可状态仍逐条记录，供审计。
+        non_open_access = next(doc for doc in fulltext_docs if doc.metadata["pmcid"] == "PMC99999998")
+        self.assertEqual(non_open_access.metadata["rights_basis"], "europe_pmc_pmcid")
+        self.assertTrue(non_open_access.metadata["full_text_allowed"])
+        self.assertFalse(non_open_access.metadata["is_open_access"])
 
     def test_peer_reviewed_fallback_is_labelled(self):
         """When no OA guideline full text exists, real reviews are labelled as such."""
@@ -142,7 +150,6 @@ class LiveGuidelineFullTextTests(unittest.TestCase):
                     {
                         "id": "40962511",
                         "pmid": "40962511",
-                        "pmcid": "PMC12447934",
                         "doi": "10.7499/j.issn.1008-8830.2412164",
                         "title": "Guideline for neonatal infectious pneumonia (2025)",
                         "journalTitle": "Zhongguo Dang Dai Er Ke Za Zhi",
@@ -213,6 +220,13 @@ class LiveGuidelineFullTextTests(unittest.TestCase):
         self.assertEqual(len(chunks), 3)
         self.assertTrue(all(len(chunk) <= 1200 for chunk in chunks))
 
+    def test_result_title_unescapes_and_strips_inline_markup(self):
+        metadata = _result_metadata({
+            "title": "&lt;b&gt;Guideline&lt;/b&gt; on neonatal RDS &amp; CPAP",
+            "pubYear": "2026",
+        })
+        self.assertEqual(metadata["title"], "Guideline on neonatal RDS & CPAP")
+
     def test_parse_rejects_entity_declarations(self):
         raw = b'<?xml version="1.0"?><!DOCTYPE article [<!ENTITY x "y">]><article><body><sec><p>&x;</p></sec></body></article>'
         with self.assertRaises(GuidelineFullTextError):
@@ -222,13 +236,6 @@ class LiveGuidelineFullTextTests(unittest.TestCase):
         raw = b'<?xml version="1.0"?><!DOCTYPE article PUBLIC "-//NLM//DTD JATS//EN" "https://example.invalid/jats.dtd">' + FULLTEXT_XML.split(b"?>", 1)[1]
         documents, _ = _parse_jats(raw, {}, ("CPAP",), 5, 500)
         self.assertTrue(documents)
-
-    def test_result_title_unescapes_and_strips_inline_markup(self):
-        metadata = _result_metadata({
-            "title": "&lt;b&gt;Guideline&lt;/b&gt; on neonatal RDS &amp; CPAP",
-            "pubYear": "2026",
-        })
-        self.assertEqual(metadata["title"], "Guideline on neonatal RDS & CPAP")
 
     def test_pipeline_consumes_fulltext_chunks(self):
         registry = ConnectorRegistry()
@@ -248,7 +255,11 @@ class LiveGuidelineFullTextTests(unittest.TestCase):
             item.document.metadata.get("content_mode") == "full_text"
             for item in package.ranked_documents
         ))
-        self.assertTrue(any("不是开放获取全文" in warning for warning in package.warnings))
+        # 全文已取到；无 PMCID 的记录才退回书目/摘要
+        self.assertTrue(any(
+            item.document.metadata.get("content_mode") == "full_text"
+            for item in package.ranked_documents
+        ))
 
 
 class TopicSelectionTests(unittest.TestCase):

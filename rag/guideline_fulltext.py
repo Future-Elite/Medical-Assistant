@@ -8,24 +8,24 @@ Retrieval order:
 
 1. **Clinical practice guidelines** (``PUB_TYPE:"practice guideline"``,
    ``guideline``, ``consensus``, ``recommendation``) restricted to neonatal /
-   newborn / preterm records.  Open-access records are fetched as section
+   newborn / preterm records.  Any record with a PMCID is fetched as section
    chunks (``content_mode="full_text"``, ``evidence_type`` =
    ``clinical_practice_guideline``).
-2. If no open-access guideline full text is found for the query, the connector
-   falls back to **peer-reviewed full text** (systematic review / meta-analysis
-   / review) on the same topic.  These chunks are explicitly labelled
+2. If no guideline full text is found for the query, the connector falls back
+   to **peer-reviewed full text** (systematic review / meta-analysis / review)
+   on the same topic.  These chunks are explicitly labelled
    ``evidence_type="systematic_review"`` or ``"narrative_review"`` and carry a
    warning that they are not guideline recommendations.
 
-Licensing rules:
+Full-text policy:
 
-* ``isOpenAccess=Y`` + a PMCID -> fetch full text and emit section chunks with
-  ``content_mode="full_text"`` and ``rights_basis="open_access"``.
-* ``isOpenAccess=N`` -> return bibliographic metadata + abstract + link only,
-  with ``full_text_allowed=False`` and an explicit warning.  The connector never
-  scrapes or caches the non-open-access full text.
-* No disk cache; no redistribution.  The caller is responsible for checking the
-  parsed ``license`` before reusing the text outside the retrieval response.
+* A PMCID is the only requirement for fetching full text; ``isOpenAccess`` is
+  recorded for audit but no longer gates retrieval.
+* Records without a PMCID return bibliographic metadata + abstract + link only,
+  with an explicit warning.
+* No disk cache; no redistribution inside the repository.  The caller is
+  responsible for checking the parsed ``license`` before reusing the text
+  outside the retrieval response.
 """
 from __future__ import annotations
 
@@ -214,10 +214,12 @@ class LiveGuidelineFullTextConnector(KnowledgeConnector):
     ) -> list[SourceDocument]:
         is_open_access = str(result.get("isOpenAccess") or "").upper() == "Y"
         pmcid = str(result.get("pmcid") or "").strip()
-        if not is_open_access or not pmcid:
+        # 现行来源策略：只要 Europe PMC 有 PMCID 就抓全文，不按 isOpenAccess 设闸门；
+        # 许可状态只记录在 metadata（rights_basis/license）供审计。
+        if not pmcid:
             warnings.append(
-                f"指南《{metadata['title']}》不是开放获取全文（isOpenAccess=N 或无 PMCID）；"
-                "仅返回书目/摘要与链接，未抓取全文。"
+                f"指南《{metadata['title']}》没有 PMCID，无法从 Europe PMC 取全文；"
+                "仅返回书目/摘要与链接。"
             )
             return [_metadata_document(metadata, abstract_only=False, source_id=self.source_id)]
 
@@ -232,7 +234,7 @@ class LiveGuidelineFullTextConnector(KnowledgeConnector):
             metadata["license"] = "unknown"
             metadata["license_verified"] = False
             warnings.append(
-                f"指南《{metadata['title']}》标记为开放获取，但未解析到 license；"
+                f"指南《{metadata['title']}》未解析到 license；"
                 "全文仅用于本次检索，不缓存、不再分发。"
             )
         if not chunks:
@@ -598,9 +600,9 @@ def _metadata_document(
     abstract = str(metadata.get("abstract") or "").strip()
     content_mode = "abstract" if abstract else "metadata_only"
     text = abstract or (
-        "该指南不是开放获取全文；仅提供书目元数据与链接，未抓取或缓存全文。"
+        "该指南未能获取全文；仅提供书目元数据与链接。"
         if not metadata.get("is_open_access")
-        else "该开放获取指南未解析出摘要；全文分块见同源文档。"
+        else "该指南未解析出摘要；全文分块见同源文档。"
     )
     document_id = f"epmc-{metadata.get('pmcid') or metadata.get('pmid') or 'unknown'}-metadata"
     return SourceDocument(
@@ -704,12 +706,13 @@ def _parse_jats(
                 "content_mode": "full_text",
                 "evidence_type": "clinical_practice_guideline",
                 "full_text_allowed": True,
-                "rights_basis": "open_access",
+                # isOpenAccess 只作审计事实，不再是抓取闸门。
+                "rights_basis": "open_access" if metadata.get("is_open_access") else "europe_pmc_pmcid",
                 "license": license_text or "unknown",
                 "license_verified": bool(license_text),
                 "live_source": True,
                 "source": "Europe PMC",
-                "is_open_access": True,
+                "is_open_access": bool(metadata.get("is_open_access")),
                 "journal": metadata.get("journal"),
                 "pmcid": metadata.get("pmcid"),
                 "pmid": metadata.get("pmid"),

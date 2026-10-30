@@ -37,6 +37,7 @@ from rag import __version__
 from rag.agent import EvidenceRAG
 from rag.config import get_config
 from rag.connectors import ConnectorRegistry
+from rag.controller import ControllerPolicy, RetrievalController
 from rag.custom_sources import CustomSourceLibrary, SOURCE_MODES, load_custom_library
 from rag.demo import (
     load_demo_cases,
@@ -51,9 +52,10 @@ from rag.guidelines import (
     neonatal_guideline_metadata_registry,
 )
 from rag.guideline_fulltext import LiveGuidelineFullTextConnector
+from rag.guideline_pdf import GuidelinePdfError, LocalGuidelinePdfConnector
 from rag.his import PatientSnapshot
 from rag.models import RetrievalRequest
-from rag.neural_adapters import MedCPTReranker, build_neural_registry, cache_dir_hint, neural_dependencies_state
+from rag.neural_adapters import MedCPTReranker, Qwen3Reranker, build_neural_registry, cache_dir_hint, neural_dependencies_state
 from rag.pipeline import EvidenceRetrievalPipeline
 from rag.pubmed import PubMedConnector
 
@@ -62,12 +64,70 @@ MAX_BODY_BYTES = 1_000_000
 # HIS demos receive an explicit snapshot payload with the request; the server
 # holds no built-in patient data.
 HIS_MODE = "caller_supplied_snapshot"
+RERANKER_MODELS = ("medcpt", "qwen3")
+#: Workbench 的即时重排配置（进程内覆盖 env/config；重启后回到 env/config）。
+_RERANKER_RUNTIME: dict[str, object] = {"model": None, "rerank_pool": None}
+
+
+def _normalize_reranker_model(value: object) -> str:
+    choice = str(value or "").strip().lower().replace("_", "-")
+    if choice in {"qwen3-reranker", "qwen3-reranker-0.6b"}:
+        choice = "qwen3"
+    if choice not in RERANKER_MODELS:
+        raise ValueError("reranker_model must be one of: " + ", ".join(RERANKER_MODELS))
+    return choice
+
+
+def _reranker_model() -> str:
+    """当前生效的重排器：工作台运行时覆盖 > env > config > medcpt。"""
+    raw = _RERANKER_RUNTIME["model"] or os.environ.get("RAG_RERANKER_MODEL") or get_config().reranker_model or "medcpt"
+    return _normalize_reranker_model(raw)
+
+
+def _set_reranker_settings(payload: dict[str, object]) -> dict[str, object]:
+    """更新进程内重排配置；只校验，不加载模型。"""
+    model = payload.get("model")
+    pool = payload.get("rerank_pool")
+    if model is None and pool is None:
+        raise ValueError("reranker settings require 'model' and/or 'rerank_pool'")
+    if model is not None:
+        _RERANKER_RUNTIME["model"] = _normalize_reranker_model(model)
+    if pool is not None:
+        if isinstance(pool, bool):
+            raise ValueError("rerank_pool must be an integer >= 0")
+        try:
+            value = int(pool)
+        except (TypeError, ValueError):
+            raise ValueError("rerank_pool must be an integer >= 0") from None
+        if value < 0:
+            raise ValueError("rerank_pool must be an integer >= 0")
+        _RERANKER_RUNTIME["rerank_pool"] = value
+    return _reranker_status()
+
+
+def _reranker_status() -> dict[str, object]:
+    return {
+        "model": _reranker_model(),
+        "rerank_pool": _rerank_pool(),
+        "available_models": list(RERANKER_MODELS),
+        "runtime_override": bool(_RERANKER_RUNTIME["model"] or _RERANKER_RUNTIME["rerank_pool"] is not None),
+    }
 
 
 def _neural_parts():
-    """构建神经适配器（懒加载）与 cross-encoder 重排器；构造本身不加载模型。"""
+    """构建神经适配器（懒加载）与重排器；构造本身不加载模型。
+
+    重排器按当前配置选择：medcpt（MedCPT cross-encoder）|
+    qwen3（Qwen3-Reranker-0.6B，本地权重、多语言）。未知值显式报错。
+    """
     neural = build_neural_registry(cache_dir=cache_dir_hint())
-    reranker = neural.pop("cross_encoder", None) or MedCPTReranker(cache_dir=cache_dir_hint())
+    neural.pop("qwen3_reranker", None)
+    default_reranker = neural.pop("cross_encoder", None) or MedCPTReranker(cache_dir=cache_dir_hint())
+    choice = _reranker_model()
+    if choice == "medcpt":
+        reranker = default_reranker
+    else:
+        reranker = Qwen3Reranker(cache_dir=cache_dir_hint())
     return neural, reranker
 
 
@@ -80,7 +140,27 @@ def build_live_registry() -> ConnectorRegistry:
     registry.register(GuidelineMetadataConnector(NEONATAL_GUIDELINE_SOURCE_ID, neonatal_guideline_metadata_registry()))
     if config.allow_live_guideline_fulltext:
         registry.register(LiveGuidelineFullTextConnector())
+    pdf_connector = build_pdf_connector()
+    if pdf_connector is not None:
+        registry.register(pdf_connector)
     return registry
+
+
+def build_pdf_connector() -> LocalGuidelinePdfConnector | None:
+    """Caller-supplied guideline PDFs (outside the repo); absent when unset.
+
+    A missing directory or manifest is not an error for ``live`` mode: the
+    other guideline sources still work, and ``GET /api/sources`` reports why
+    this one is absent.
+    """
+    config = get_config()
+    directory = Path(str(config.guideline_pdf_dir or "")).expanduser()
+    if not str(config.guideline_pdf_dir or "").strip():
+        return None
+    try:
+        return LocalGuidelinePdfConnector(directory=directory)
+    except (ValueError, OSError):
+        return None
 
 
 def create_tool(source_mode: str = "live", *, custom_library: CustomSourceLibrary | None = None) -> EvidenceRAG:
@@ -102,7 +182,80 @@ def create_tool(source_mode: str = "live", *, custom_library: CustomSourceLibrar
     return EvidenceRAG(EvidenceRetrievalPipeline(
         registry, neural_retrievers=neural, reranker=reranker,
         fidelity_lexicon=lexicon, fidelity_default_policy=policy, fidelity_penalty=penalty,
+        rerank_pool=_rerank_pool(),
+        term_mapping_library=_term_mapping_library(),
+        applicability_preview=_applicability_preview(),
+        routing_mode=_routing_mode(),
     ))
+
+
+def _pdf_sources() -> list[dict[str, object]]:
+    """Describe caller-supplied guideline PDFs without parsing their text."""
+    connector = build_pdf_connector()
+    if connector is None:
+        return []
+    return connector.describe_entries()
+
+
+def _routing_mode() -> str:
+    """规则路由模式：env RAG_ROUTING_MODE 覆盖 config（off|shadow|active，默认 off）。"""
+    raw = str(os.environ.get("RAG_ROUTING_MODE") or get_config().routing_mode or "off").strip().lower()
+    if raw not in ("off", "shadow", "active"):
+        raise ValueError("RAG_ROUTING_MODE must be one of: off, shadow, active")
+    return raw
+
+
+def _applicability_preview() -> bool:
+    """适用性试算预览开关：env RAG_APPLICABILITY_PREVIEW 覆盖 config（默认关）。"""
+    raw = os.environ.get("RAG_APPLICABILITY_PREVIEW", "").strip().lower()
+    if raw:
+        return raw in {"1", "true", "yes", "on"}
+    return bool(get_config().applicability_preview)
+
+
+def _rerank_pool() -> int:
+    """重排候选池：工作台运行时覆盖 > env > config（默认 0=标准模式）。"""
+    override = _RERANKER_RUNTIME["rerank_pool"]
+    if override is not None:
+        return int(override)
+    raw = os.environ.get("RAG_RERANK_POOL", "").strip()
+    if raw:
+        try:
+            value = int(raw)
+        except ValueError:
+            raise ValueError(f"RAG_RERANK_POOL must be an integer >= 0, got {raw!r}") from None
+        if value < 0:
+            raise ValueError(f"RAG_RERANK_POOL must be an integer >= 0, got {raw!r}")
+        return value
+    return int(get_config().rerank_pool)
+
+
+def _term_mapping_library():
+    """可选术语映射库（通用机制）：路径缺失→None（legacy，请求级 term_mapping 之外不加行）。
+
+    文件缺失或损坏显式抛错——配置了库就不得静默当没配；环境变量
+    RAG_TERM_MAPPING_LIBRARY 覆盖 config.term_mapping_library_path。
+    """
+    import os
+    from rag.term_mapping_library import TermMappingLibrary
+    config = get_config()
+    path = str(os.environ.get("RAG_TERM_MAPPING_LIBRARY") or config.term_mapping_library_path or "").strip()
+    if not path:
+        return None
+    return TermMappingLibrary.from_json_file(path)
+
+
+def _term_mapping_library_status() -> dict:
+    """健康检查用的映射库摘要（配置状态 + 概念清单）；库文件坏了也不拖垮 health。"""
+    try:
+        library = _term_mapping_library()
+    except ValueError as exc:
+        return {"configured": True, "error": str(exc)[:200]}
+    if library is None:
+        return {"configured": False}
+    info = library.describe()
+    return {"configured": True, "source": info["source"], "rows": info["rows"],
+            "concepts": info["concepts"], "mesh_status": info.get("mesh_status", {})}
 
 
 def _fidelity_parts():
@@ -149,6 +302,7 @@ def _method_status() -> dict[str, dict[str, object]]:
         "colbert": {"available": bool(deps["torch"] and deps["transformers"] and cached("colbert-ir/colbertv2.0")), "kind": "neural", "dependency": "torch+transformers", "model_cached": cached("colbert-ir/colbertv2.0")},
         "query2doc": {"available": bool(deps["torch"] and deps["transformers"] and cached("google/flan-t5-small")), "kind": "neural", "dependency": "torch+transformers", "model_cached": cached("google/flan-t5-small")},
         "cross_encoder": {"available": bool(deps["torch"] and deps["transformers"] and cached("ncbi/MedCPT-Cross-Encoder")), "kind": "reranker", "dependency": "torch+transformers", "model_cached": cached("ncbi/MedCPT-Cross-Encoder")},
+        "qwen3_reranker": {"available": bool(deps["torch"] and deps["transformers"] and cached("Qwen/Qwen3-Reranker-0.6B")), "kind": "reranker", "dependency": "torch+transformers>=4.51", "model_cached": cached("Qwen/Qwen3-Reranker-0.6B"), "note": "Qwen3-Reranker-0.6B 多语言 pointwise 重排（中文问题可见）；由 config.reranker_model 选择"},
     }
 
 CUSTOM_LIBRARY = CustomSourceLibrary()
@@ -219,7 +373,11 @@ class RAGRequestHandler(BaseHTTPRequestHandler):
                 "clinical_decision_performed": False,
                 "audit_mode": _audit_mode(),
                 "retrieval_methods": _method_status(),
-                "message": "检索来源仅两种：live（实时 PubMed + 新生儿指南元数据 + 开放获取指南全文）与 custom（调用方注册的数据库）；服务不内置任何本地语料；新生儿演示指南库需显式加载。",
+                "term_mapping_library": _term_mapping_library_status(),
+                "reranker": _reranker_status(),
+                "routing": {"mode": _routing_mode()},
+                "controller": {"version": "controller-v1-trial", "default_enabled": False, "endpoint": "/api/controller/retrieve"},
+                "message": "检索来源仅两种：live（实时 PubMed + 指南元数据 + Europe PMC 指南全文 + 调用方 PDF 指南全文）与 custom（调用方注册的数据库）；服务不内置任何本地语料；新生儿演示指南库需显式加载。",
             })
             return
         if path == "/api/tools":
@@ -234,9 +392,12 @@ class RAGRequestHandler(BaseHTTPRequestHandler):
                     "sources": (
                         ["pubmed-live", NEONATAL_GUIDELINE_SOURCE_ID]
                         + (["guideline-fulltext-live"] if get_config().allow_live_guideline_fulltext else [])
+                        + (["guideline-pdf-local"] if _pdf_sources() else [])
                     ) if live_enabled else [],
                     "guideline_fulltext_enabled": bool(get_config().allow_live_guideline_fulltext),
                     "guideline_registry": describe_guideline_registry(neonatal_guideline_metadata_registry()),
+                    "guideline_pdf_dir": str(get_config().guideline_pdf_dir or ""),
+                    "guideline_pdf_sources": _pdf_sources(),
                 },
                 "custom": {"registered": CUSTOM_LIBRARY.describe(), "recent_events": CUSTOM_LIBRARY.events[-10:]},
             })
@@ -285,6 +446,28 @@ class RAGRequestHandler(BaseHTTPRequestHandler):
                 removed = CUSTOM_LIBRARY.clear()
                 self.tools.pop("custom", None)
                 self._send_json({"status": "ok", "removed_sources": removed})
+                return
+            if path == "/api/settings/reranker":
+                settings = _set_reranker_settings(payload)
+                type(self).tools.clear()  # 下一次检索按新配置重建；旧 retrieval_id 仍由 retrieval_tools 持有
+                self._send_json({
+                    "status": "ok",
+                    "reranker": settings,
+                    "message": "新检索将使用新配置；已打开的旧引用仍绑定原检索工具。",
+                })
+                return
+            if path == "/api/controller/retrieve":
+                mode = str(payload.get("source_mode") or self.source_mode)
+                tool = self._tool_for(mode)
+                raw = dict(payload)
+                policy_raw = raw.pop("controller_policy", None)
+                policy = None
+                if policy_raw is not None:
+                    if not isinstance(policy_raw, dict):
+                        raise ValueError("controller_policy must be an object")
+                    policy = ControllerPolicy(**policy_raw)
+                result = RetrievalController(tool.pipeline, policy=policy).run(RetrievalRequest.from_dict(raw))
+                self._send_json(result)
                 return
             if path == "/api/retrieve":
                 mode = str(payload.get("source_mode") or self.source_mode)
@@ -565,10 +748,12 @@ def serve(host: str | None = None, port: int | None = None, *, cleanup_stale: bo
         raise
     live_ok = bool(config.allow_live_pubmed and config.allow_live_guidelines)
     print(f"RAG workbench: http://{host}:{port}/")
-    fulltext = "开放获取指南全文" if config.allow_live_guideline_fulltext else "仅指南元数据（全文开关关闭）"
+    fulltext = "Europe PMC 指南全文" if config.allow_live_guideline_fulltext else "仅指南元数据（全文开关关闭）"
+    pdf_sources = _pdf_sources()
     print(f"  检索来源：live（{'可用' if live_ok else '未启用：config.allow_live_* 未同时为 True'}；{fulltext}）；custom（已注册来源 {len(CUSTOM_LIBRARY)} 个{('，启动预载 ' + str(loaded)) if loaded else ''}{('，演示指南库 ' + str(demo_loaded)) if demo_loaded else ''}）")
     print("  HIS：由调用方随请求传入 patient_snapshot（服务不内置患者数据）")
     print(f"  演示档案：{config.demo_profile}（病例 GET /api/demo/cases；演示来源需 POST /api/demo/guidelines/load 显式加载）")
+    print(f"  指南 PDF：{config.guideline_pdf_dir}（已登记 {len(pdf_sources)} 篇；检索时实时解析，不落盘）" if pdf_sources else f"  指南 PDF：{config.guideline_pdf_dir}（未登记，跳过 guideline-pdf-local）")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

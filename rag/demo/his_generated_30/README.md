@@ -1,6 +1,6 @@
 # HIS 风格新生儿批量数据（30 例）
 
-本目录由研发侧工具 `generate_neonatal_his30.py` 确定性生成（该工具不随本分支发布），
+本目录由 研发侧工具 `generate_neonatal_his30.py` 生成（该工具不随本分支发布），
 是**可直接放入 demo 的 30 例档案**。它与 `../his_generated/` 使用同一个
 `neonatal_demo_v1` profile，因此 `load_demo_cases(<本目录>)` 可直接读取。
 

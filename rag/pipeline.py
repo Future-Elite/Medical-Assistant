@@ -46,6 +46,7 @@ from .models import Citation, EvidencePackage, RetrievalRequest
 from .patient_retrieval import retrieve_patient_facts
 from .query import build_query_plan, review_query_plan
 from .ranking import deduplicate_documents, merge_joint_selection, rank_documents
+from .routing import ROUTING_MODES, decide_route
 
 NEURAL_METHOD_SET = ("dense", "xlingual", "m3", "splade", "colbert")
 MULTILINGUAL_METHOD_SET = ("xlingual", "m3")
@@ -56,7 +57,11 @@ class EvidenceRetrievalPipeline:
                  neural_retrievers: dict | None = None,
                  fidelity_lexicon: FidelityLexicon | None = None,
                  fidelity_default_policy: str = "off",
-                 fidelity_penalty: float = 0.5):
+                 fidelity_penalty: float = 0.5,
+                 rerank_pool: int = 0,
+                 term_mapping_library=None,
+                 applicability_preview: bool = False,
+                 routing_mode: str = "off"):
         """``neural_retrievers`` maps method name -> SemanticRetriever-style adapter
         for dense/xlingual/m3/splade/colbert/query2doc/translate. ``semantic_retriever``
         stays supported as the legacy single-dense slot; it is registered under
@@ -66,11 +71,30 @@ class EvidenceRetrievalPipeline:
         policy is ``off`` (frozen baseline semantics); a request can select
         ``audit`` / ``warn`` / ``downweight`` / ``reject`` per call via
         ``RetrievalRequest.fidelity_gate``. No lexicon is built in: callers pass
-        their own :class:`FidelityLexicon` (content licensing is the caller's)."""
+        their own :class:`FidelityLexicon` (content licensing is the caller's).
+
+        ``rerank_pool`` selects the rerank timing (default ``0`` = legacy): when
+        a request sets ``rerank=true`` and ``rerank_pool > 0``, per-source
+        ranking and joint selection collect up to ``max(top_k, rerank_pool)``
+        candidates, the reranker sees that whole pool, and the final list is
+        truncated to ``top_k`` afterwards. With ``0`` (or ``rerank=false``) the
+        pipeline behaves exactly as before: reranking only reorders the already
+        selected ``top_k``.
+
+        ``term_mapping_library`` (optional :class:`~rag.term_mapping_library.TermMappingLibrary`)
+        adds reusable mapping rows to every request's query planning; request
+        rows win on concept collision. ``None`` (default) keeps the
+        request-only mapping semantics."""
         self.registry = registry
         self.semantic_retriever = semantic_retriever
         self.reranker = reranker
         self.evidence_budget = evidence_budget
+        self.term_mapping_library = term_mapping_library
+        self.applicability_preview = bool(applicability_preview)
+        mode = str(routing_mode or "off").strip().lower()
+        if mode not in ROUTING_MODES:
+            raise ValueError("routing_mode must be one of: " + ", ".join(ROUTING_MODES))
+        self.routing_mode = mode
         self.neural_retrievers: dict = dict(neural_retrievers or {})
         if semantic_retriever is not None and "dense" not in self.neural_retrievers:
             self.neural_retrievers["dense"] = semantic_retriever
@@ -81,16 +105,61 @@ class EvidenceRetrievalPipeline:
         if self.fidelity_default_policy not in ("off", "audit", "warn", "downweight", "reject"):
             raise ValueError("unknown fidelity_default_policy: " + self.fidelity_default_policy)
         self.fidelity_penalty = float(fidelity_penalty)
+        try:
+            rerank_pool_value = int(rerank_pool)
+        except (TypeError, ValueError):
+            raise ValueError("rerank_pool must be an integer >= 0") from None
+        if rerank_pool_value < 0:
+            raise ValueError("rerank_pool must be an integer >= 0")
+        self.rerank_pool = rerank_pool_value
         self.fidelity_auditor = QueryFidelityAuditor(lexicon=fidelity_lexicon)
 
-    def retrieve(self, request: RetrievalRequest) -> EvidencePackage:
+    def retrieve(self, request: RetrievalRequest, *, only_source_ids: tuple[str, ...] | None = None) -> EvidencePackage:
+        """Run one retrieval.
+
+        ``only_source_ids`` is an experimental controller hook: when given, the
+        plan is still built normally but only connectors with those exact
+        ``source_id`` values run. ``None`` (default) keeps every selected
+        connector, so the legacy path is unchanged. It is deliberately separate
+        from ``request.source_kinds``: the latter also reaches connector-level
+        kind filters and cannot address one connector unambiguously.
+        """
         retrieval_id = f"retrieval-{uuid4().hex}"
         retrieved_at = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
         known_sources = self.registry.describe()
         snapshot = request.patient_snapshot if isinstance(request.patient_snapshot, PatientSnapshot) else None
         patient_hits, patient_trace = retrieve_patient_facts(snapshot, (request.question, *request.patient_terms, *request.english_terms, *request.mesh_terms), top_k=max(request.top_k * 2, 20)) if snapshot else ((), {"patient_context_id": None, "visible_fact_count": 0, "patient_hit_count": 0, "suppressed_future": 0, "warnings": []})
-        plan = build_query_plan(request, known_sources)
+        plan = build_query_plan(request, known_sources, library=self.term_mapping_library)
+        # --- 规则路由 v0（默认 off；shadow 只记录不改行为，active 收窄/重排来源） ------
+        route_trace: dict[str, object] | None = None
+        if self.routing_mode != "off":
+            known_kinds: list[str] = []
+            for source in known_sources:
+                for kind in source.get("kinds", ()):
+                    kind = str(kind)
+                    if kind not in known_kinds:
+                        known_kinds.append(kind)
+            english_coverage = bool(
+                plan.english_terms or plan.question_english_terms or plan.machine_translations
+            )
+            decision = decide_route(
+                clinical_intent=plan.clinical_intent,
+                english_coverage=english_coverage,
+                known_kinds=known_kinds,
+                requested_kinds=request.source_kinds,
+            )
+            route_trace = {**decision.to_dict(), "mode": self.routing_mode,
+                           "applied": self.routing_mode == "active",
+                           "clinical_intent": plan.clinical_intent,
+                           "english_coverage": english_coverage}
+            if self.routing_mode == "active":
+                request = replace(request, source_kinds=decision.selected_sources)
+                plan = build_query_plan(request, known_sources, library=self.term_mapping_library)
+                route_trace["source_order_after"] = list(plan.source_order)
         selected_connectors = self.registry.selected(plan.source_order)
+        if only_source_ids is not None:
+            allowed_ids = {str(source_id) for source_id in only_source_ids}
+            selected_connectors = [connector for connector in selected_connectors if connector.source_id in allowed_ids]
         english_source_present = any("pubmed" in set(connector.kinds) for connector in selected_connectors)
         documents = []
         warnings: list[str] = list(patient_trace.get("warnings", []))
@@ -312,6 +381,12 @@ class EvidenceRetrievalPipeline:
                 elif decision.action == "warn":
                     warnings.append(f"查询保真门控（警示）：{ROUTE_LABELS.get(decision.route, decision.route)} 路线发现查询保真风险——{decision.reason}")
 
+        # --- rerank pool（可选；默认 0 = legacy）---------------------------------
+        # rerank=true 且 rerank_pool>0 时，分源排序与联合选择按池大小收集候选，
+        # 重排后再截断到 top_k；其余情况（rerank=false / 池=0）与 v6.6.5 语义一致。
+        rerank_pool_enabled = bool(request.rerank and self.reranker is not None and self.rerank_pool > 0)
+        selection_top_k = max(request.top_k, self.rerank_pool) if rerank_pool_enabled else request.top_k
+
         # --- Stage 2: rank each source pool independently ---------------------------
         by_kind: dict[str, list] = defaultdict(list)
         for document in deduped:
@@ -331,7 +406,7 @@ class EvidenceRetrievalPipeline:
                 for method, scores in neural_scores.items()
             }
             ranked_kind, kind_warnings = rank_documents(
-                plan, pool, as_of=request.as_of, top_k=request.top_k,
+                plan, pool, as_of=request.as_of, top_k=selection_top_k,
                 methods=methods_tuple, neural_scores=subset_scores, source_label=_kind_label(kind),
                 variant_weights=fidelity_variant_weights or None,
             )
@@ -340,7 +415,7 @@ class EvidenceRetrievalPipeline:
 
         # --- Stage 3: joint selection (visibility guarantee + intent share + merit) --
         ranked, joint_trace, joint_warnings = merge_joint_selection(
-            per_source_ranked, top_k=request.top_k, intent=plan.clinical_intent, source_order=kind_order,
+            per_source_ranked, top_k=selection_top_k, intent=plan.clinical_intent, source_order=kind_order,
         )
         warnings.extend(joint_warnings)
         joint_trace["candidates_per_source"] = {kind: len(by_kind.get(kind) or []) for kind in kind_order}
@@ -367,11 +442,16 @@ class EvidenceRetrievalPipeline:
                 rerank_trace = {"requested": True, "status": "not_configured", "reranker_id": None}
             else:
                 try:
+                    reranked_seen = len(ranked)
                     ranked = list(self.reranker.rank(plan, ranked))[:request.top_k]
                     rerank_trace = {"requested": True, "status": "ok", "reranker_id": getattr(self.reranker, "reranker_id", type(self.reranker).__name__)}
+                    if rerank_pool_enabled:
+                        rerank_trace.update({"pool_enabled": True, "pool_size": selection_top_k, "reranked_count": reranked_seen})
                 except Exception as exc:
                     warnings.append(f"reranker 未完成：{type(exc).__name__}。")
                     rerank_trace = {"requested": True, "status": "error", "reranker_id": getattr(self.reranker, "reranker_id", None), "error_type": type(exc).__name__}
+        # 合同承诺：最终不超过 top_k 条（池模式下 rerank 失败/未配置时也要截断）。
+        ranked = ranked[:request.top_k]
         # 先在每条 ranked 上写 citation_id（稳定外键），再构造 citations：
         # 调用方按 citation_id 关联引用；下标同序只是巧合，不作为接口。
         ranked = [replace(item, citation_id=f"{retrieval_id}:cit-{index + 1}") for index, item in enumerate(ranked)]
@@ -382,8 +462,20 @@ class EvidenceRetrievalPipeline:
         evidence_groups: dict[str, tuple] = {}
         for kind in {item.document.kind for item in ranked}:
             evidence_groups[kind] = tuple(item for item in ranked if item.document.kind == kind)
-        applicability = tuple(_assess_applicability(item.document, snapshot, patient_hits) for item in ranked if item.document.kind == "guideline")
-        return EvidencePackage(
+        applicability = tuple(_assess_applicability(item.document, snapshot, patient_hits, preview=self.applicability_preview) for item in ranked if item.document.kind == "guideline")
+        term_mapping_summary: dict[str, object] = {
+            "provided": len(plan.term_mapping),
+            "expanded": sum(1 for entry in plan.mapping_trace if entry.get("status") == "expanded"),
+            "unmatched": [str(entry.get("concept")) for entry in plan.mapping_trace if entry.get("status") != "expanded"],
+        }
+        library_rows = sum(1 for entry in plan.mapping_trace if entry.get("origin") == "library")
+        if library_rows:
+            term_mapping_summary["library_rows"] = library_rows
+            term_mapping_summary["library_expanded"] = sum(
+                1 for entry in plan.mapping_trace
+                if entry.get("origin") == "library" and entry.get("status") == "expanded"
+            )
+        package = EvidencePackage(
             retrieval_id=retrieval_id, request_id=request.request_id, query_plan=plan,
             ranked_documents=tuple(ranked), citations=citations, warnings=tuple(dict.fromkeys(warnings)),
             patient_hits=tuple(_patient_hit_model(hit) for hit in patient_hits),
@@ -416,11 +508,7 @@ class EvidenceRetrievalPipeline:
                     "english_terms": list(plan.english_terms),
                     "question_english_terms": list(plan.question_english_terms),
                     "mesh_terms": list(plan.mesh_terms),
-                    "term_mapping": {
-                        "provided": len(plan.term_mapping),
-                        "expanded": sum(1 for entry in plan.mapping_trace if entry.get("status") == "expanded"),
-                        "unmatched": [str(entry.get("concept")) for entry in plan.mapping_trace if entry.get("status") != "expanded"],
-                    },
+                    "term_mapping": term_mapping_summary,
                     "variant_roles": [str(entry.get("role")) for entry in plan.variant_trace],
                 },
                 "patient_context": {
@@ -435,6 +523,9 @@ class EvidenceRetrievalPipeline:
                 "source_separation": {"status": "grouped", "groups": sorted(evidence_groups)},
             },
         )
+        if route_trace is not None:
+            package = replace(package, trace={**package.trace, "route_decision": route_trace})
+        return package
 
 
 def _assert_citation_linkage(ranked, citations) -> None:
@@ -573,6 +664,6 @@ def _patient_hit_model(hit) -> "PatientHit":
     )
 
 
-def _assess_applicability(document, snapshot, patient_hits):
+def _assess_applicability(document, snapshot, patient_hits, *, preview: bool = False):
     """Delegate to the structured-criteria evaluator (legacy map preserved)."""
-    return assess_applicability(document, snapshot, patient_hits)
+    return assess_applicability(document, snapshot, patient_hits, preview=preview)

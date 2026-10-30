@@ -85,13 +85,15 @@ config.demo_autoload_guidelines=True  # 运维在启动阶段预载（仍记一�
 { "sources": [ { "source_id": "...", "kinds": ["guideline"], "version": "...", "documents": [ ... ] } ] }
 ```
 
-v6.6.5 实例：
+v6.7.0 实例：
 
 | source_id | 内容 | `synthetic` | 许可/边界 |
 |---|---|---|---|
-| `neonatal-guideline-metadata` | 3 条经书目核验的元数据：新生儿感染性肺炎（2025，中文）、RDS 2025 更新版（Neonatology 2026）、RDS 中文解读 | `false` | `content_mode=metadata_only`、`full_text_allowed=false`、`rights_basis=source_page_requires_verification`；只作为来源定位 |
+| `neonatal-guideline-metadata` | **11 条经书目核验的元数据**：原有 3 条（新生儿感染性肺炎 2025、RDS 2025 更新版、RDS 中文解读）+ 新增 8 条（AAP 高胆红素血症 2022、RDS 2022 更新、肺表面活性物质 2014、PES 持续低血糖 2015、BPD 诊断 2019、ESPNIC POCUS 2020、VLBW 喂养 2015、晚期早产 2013） | `false` | `content_mode=metadata_only`、`full_text_allowed=false`、`rights_basis` 逐条记录（既有条目 `source_page_requires_verification`，新增条目 `open_access_cc_*`）；只作为来源定位 |
 | `neonatal-guideline-synthetic` | 10 个合成指南块（RDS×2、肺炎×2、黄疸、TTN、PPHN、BPD、低血糖、GBS） | `true` | 仅流程测试；`metadata.disclaimer` 写明不是真实推荐 |
 | `neonatal-literature-synthetic` | 9 条合成文献条目（按主题各 1 条，`kind=pubmed`，PMID 前缀 9000） | `true` | 让离线演示也能看到 PubMed 来源分组；不是真实研究 |
+
+**仓库外本地 PDF（2026-10-28 补强）**：`~/.chinallm/guideline_pdfs/guideline_pdfs.json` 另登记 4 份 CC BY PDF——ESPNIC POCUS 2020、VLBW 喂养 2015、EMBA 母乳强化 2019、Australasian 新生儿肠外营养 2012；由 `guideline-pdf-local` 连接器在请求时解析，不属于上面的 custom 演示库，也不进仓库。离线验证：POCUS 查询返回 1 条、VLBW 喂养查询返回 2 条、母乳强化查询返回 1 条、肠外营养查询返回 2 条，均为 `licensed_full_text` + 页级定位。
 
 ### 3.1 元数据条目硬约束
 
@@ -151,8 +153,8 @@ v6.6.5 实例：
   `requests.json` 是含快照的完整 `RetrievalRequest`，可直接 `POST /api/retrieve`。
 - `tables/*.csv` 是 HIS 风格关系表，仅供对照，不是 RAG 输入；数量/单价/金额留空
   表示未建模，不填 0。
-- 生成器：研发侧 `generate_neonatal_his.py`（11 例）与 `generate_neonatal_his30.py`（不随本分支发布）
-  （30 例）；同种子重跑字节级一致。
+- 生成器：研发侧 `generate_neonatal_his.py`（11 例）与 `generate_neonatal_his30.py`
+  （30 例，均不随本分支发布）；同种子重跑字节级一致。
 - 重新生成后必须跑 `tests/test_neonatal_his_generated.py` 与
   `tests/test_neonatal_his_generated_30.py`，并同步各自 `README.md` 与 `manifest.json`。
 - 该档案不是 Synthea/FHIR 产物，不声称来自 `origin/his` 或 `origin/hisdata`

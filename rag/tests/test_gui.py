@@ -34,12 +34,18 @@ def _snapshot_dict(snapshot):
 
 
 class GuiContractTests(unittest.TestCase):
-    """GUI 契约：固定分区工作台，输入字段与 RetrievalRequest 一一对应。"""
+    """GUI 契约：01–09 流程化工作台，输入字段与 RetrievalRequest 一一对应。
+
+    v6.7.0 重构后为“左侧流程导航 + 纵向流程卡 + 结果选项卡”布局；
+    所有既有输入选项必须保留，只允许改变组织方式。
+    """
 
     REQUIRED = (
-        # 页面骨架与固定分区
-        "新生儿证据检索工作流", "id=\"workspace\"", "workgrid", "workflow-strip",
-        "intro-banner", "固定工作台", "所有分区固定排列", "id=\"workflowStrip\"",
+        # 页面骨架与流程化布局
+        "新生儿证据检索工作流", "id=\"workspace\"", "stageflow", "flowrail",
+        "stage-card", "RAG 流程", "data-tabbar=\"results\"",
+        "data-tab=\"evidence\"", "data-panel=\"patient\"", "data-tabbar=\"rail\"",
+        "id=\"sourceTabs\"", "evidence-grid", "detail-panel",
         "data-node=\"case\"", "data-node=\"question\"", "data-node=\"terms\"",
         "data-node=\"scope\"", "data-node=\"method\"", "data-node=\"request\"",
         "data-node=\"run\"", "data-node=\"results\"", "data-node=\"audit\"",
@@ -51,6 +57,7 @@ class GuiContractTests(unittest.TestCase):
         "id=\"question\"", "id=\"task\"", "id=\"queryLanguage\"", "id=\"clinicalIntent\"",
         # 03 术语
         "id=\"patientTerms\"", "id=\"termMapping\"", "id=\"termMappingPreview\"",
+        "id=\"termMappingLibrary\"", "术语映射库", "needs_review",
         "id=\"facets\"", "question_english_terms", "不自动翻译",
         "term_mapping", "reviewed_term_mapping",
         # 04 范围
@@ -58,9 +65,15 @@ class GuiContractTests(unittest.TestCase):
         "value=\"custom\"", "value=\"live\"", "服务不内置任何本地语料",
         # 05 方法
         "id=\"retrievalMethod\"", "id=\"rerankToggle\"", "id=\"fidelityGate\"",
+        "id=\"rerankerModel\"", "id=\"rerankPool\"", "id=\"applyReranker\"",
+        "id=\"rerankerInfo\"", "重排器与候选池", "renderMappingSources",
         "value=\"downweight\"", "value=\"reject\"", "BGE-M3",
         # 06-07 请求与执行
         "id=\"requestPreview\"", "RetrievalRequest", "id=\"runButton\"", "/api/retrieve",
+        "id=\"runControllerInline\"", "/api/controller/retrieve", "id=\"controllerBox\"",
+        "id=\"controllerMaxRounds\"", "id=\"controllerMaxCost\"", "id=\"controllerMinEvidence\"",
+        "id=\"controllerMinCoverage\"", "data-tab=\"controller\"", "data-panel=\"controller\"",
+        "renderController",
         # 08-09 结果与审计
         "id=\"resultList\"", "id=\"detailBody\"", "id=\"sourceGroups\"", "evidence_groups",
         "key_evidence_sentences", "id=\"auditAnswer\"",
@@ -68,14 +81,15 @@ class GuiContractTests(unittest.TestCase):
         "renderPatientPanel", "his-card", "joint_selection", "query_review",
         "query_fidelity", "id=\"fidelityBox\"", "id=\"jointBox\"", "id=\"queryReviewBox\"",
         "id=\"applicabilityBox\"", "renderApplicability", "applicability", "criterion_id",
+        "试算预览", "病历实际", "对得上", "图例",
         # 演示与来源
         "/api/demo/cases", "/api/demo/guidelines", "/api/demo/guidelines/load",
         "/api/sources", "id=\"loadDemoGuidelines\"", "id=\"clearSources\"",
         "检索失败", "API 调用日志", "error_id", "exception_type", "backendWarning",
         # 新生儿内容
         "新生儿", "呼吸窘迫综合征", "感染性肺炎", "病例选择", "合成数据",
-        # 固定布局：不再暴露画布缩放/平移控件
-        "id=\"workspace\"", "workgrid", "workflowStrip",
+        # 流程化布局：沿用 01–09 数据流，不再使用三列固定分区
+        "stageflow", "flowrail", "stage-card", "data-tabbar=\"results\"",
         # 真实后端：可编辑快照、原始响应、API 调用日志、空白请求
         "id=\"snapshotJson\"", "id=\"manualSnapshot\"", "id=\"rawResponse\"",
         "id=\"apiLog\"", "id=\"blankRequest\"", "id=\"backendCheck\"",
@@ -97,6 +111,11 @@ class GuiContractTests(unittest.TestCase):
                         "id=\"zoomReset\"", "id=\"zoomLabel\"", "id=\"wires\"",
                         "id=\"resetLayout\"", "节点画布", "回到画布"):
             self.assertNotIn(removed, page)
+        # 旧的三列固定分区布局已被流程化布局取代
+        for removed_layout in ("workgrid", "workflow-strip", "intro-banner",
+                               "id=\"workflowStrip\"", "固定工作台",
+                               "所有分区固定排列"):
+            self.assertNotIn(removed_layout, page)
         self.assertNotIn("generateSummary", page)
         self.assertNotIn("llm_summary", page)
         # 不得残留成人演示与旧来源模式
@@ -122,6 +141,33 @@ class GuiContractTests(unittest.TestCase):
         for field in sorted(PRESET_FIELDS - {"request_id"} - legacy_inputs):
             self.assertIn(field, page, f"GUI 缺少字段绑定：{field}")
         self.assertIn("term_mapping", page)
+
+    def test_all_original_options_are_preserved(self):
+        """布局重构不得减少任何既有可选值（下拉选项、来源类型与主题）。"""
+        page = (Path(__file__).resolve().parents[1] / "evidence_retrieval_workbench.html").read_text(encoding="utf-8")
+        options = (
+            # task / query_language / clinical_intent
+            'value="clinical_question"', 'value="evidence_update"',
+            'value="zh"', 'value="en"',
+            'value="guideline_recommendation"', 'value="drug_safety"',
+            # fidelity_gate
+            'value="off"', 'value="audit"', 'value="warn"',
+            'value="downweight"', 'value="reject"',
+            # source_mode / source_kinds
+            'value="custom"', 'value="live"',
+            'value="guideline"', 'value="pubmed"',
+            # retrieval_method：单方法与 RRF 组合全部保留
+            'value="bm25"', 'value="ql"', 'value="rm3"', 'value="dense"',
+            'value="xlingual"', 'value="m3"', 'value="translate"',
+            'value="splade"', 'value="colbert"', 'value="query2doc"',
+            'value="bm25,ql"', 'value="bm25,xlingual"', 'value="bm25,m3"',
+            'value="bm25,dense"', 'value="bm25,translate"',
+            # 主题
+            'value="light"', 'value="dark"', 'value="warm"',
+            'value="indigo"', 'value="auto"',
+        )
+        for option in options:
+            self.assertIn(option, page, f"GUI 丢失原有选项：{option}")
 
     def test_page_has_no_client_side_fake_pipeline(self):
         """工作台不得用前端假数据代替后端：无内置快照/模拟检索结果。"""
@@ -178,6 +224,13 @@ class HttpContractTests(unittest.TestCase):
         cls.server.server_close()
         cls.thread.join(timeout=2)
 
+    def tearDown(self):
+        # 运行时重排覆盖是进程级状态；测试间清空，避免影响按 config 选择的单测。
+        from rag import server
+        server._RERANKER_RUNTIME["model"] = None
+        server._RERANKER_RUNTIME["rerank_pool"] = None
+        RAGRequestHandler.tools.clear()
+
     def _post_json(self, path, payload):
         # 120s: in a venv with torch/transformers the first default request also
         # loads the dense retriever lazily; 5s only covers the stdlib-only path.
@@ -211,9 +264,52 @@ class HttpContractTests(unittest.TestCase):
         self.assertIn("custom", health["available_modes"])
         self.assertEqual(health["demo_profile"], "neonatal_demo_v1")
         self.assertTrue(health["demo_cases_available"])
+        # v6.7.0：自动映射库与重排器状态须在 health 暴露（重排器默认 MedCPT / 池 0）
+        self.assertIn("term_mapping_library", health)
+        self.assertEqual(health["term_mapping_library"]["configured"], False)
+        self.assertEqual(health["reranker"]["model"], "medcpt")
+        self.assertEqual(health["reranker"]["rerank_pool"], 0)
+        self.assertEqual(health["reranker"]["available_models"], ["medcpt", "qwen3"])
+        self.assertEqual(health["routing"], {"mode": "off"})
+        self.assertEqual(health["controller"]["version"], "controller-v1-trial")
         status, tools = self.request("GET", "/api/tools")
         self.assertEqual(status, 200)
         self.assertEqual({item["name"] for item in tools["tools"]}, {"retrieve_evidence", "open_citation", "audit_grounded_answer"})
+
+    def test_reranker_settings_endpoint(self):
+        status, payload = self.request("POST", "/api/settings/reranker", {"model": "qwen3", "rerank_pool": 20})
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["reranker"]["model"], "qwen3")
+        self.assertEqual(payload["reranker"]["rerank_pool"], 20)
+        self.assertTrue(payload["reranker"]["runtime_override"])
+        status, health = self.request("GET", "/api/health")
+        self.assertEqual(status, 200)
+        self.assertEqual(health["reranker"]["model"], "qwen3")
+        self.assertEqual(health["reranker"]["rerank_pool"], 20)
+        status, invalid = self.request("POST", "/api/settings/reranker", {"model": "bogus"})
+        self.assertEqual(status, 400)
+        status, invalid_pool = self.request("POST", "/api/settings/reranker", {"rerank_pool": -1})
+        self.assertEqual(status, 400)
+        status, reset = self.request("POST", "/api/settings/reranker", {"model": "medcpt", "rerank_pool": 0})
+        self.assertEqual(status, 200)
+        self.assertEqual(reset["reranker"]["model"], "medcpt")
+        self.assertEqual(reset["reranker"]["rerank_pool"], 0)
+
+    def test_controller_endpoint_returns_rounds_and_replay(self):
+        status, result = self.request("POST", "/api/controller/retrieve", {
+            "question": "该患儿新生儿呼吸窘迫综合征的指南推荐是什么？",
+            "top_k": 3,
+            "source_kinds": ["guideline", "pubmed"],
+            "english_terms": ["respiratory distress syndrome"],
+            "source_mode": "custom",
+        })
+        self.assertEqual(status, 200)
+        self.assertEqual(result["controller_version"], "controller-v1-trial")
+        self.assertTrue(result["rounds"])
+        self.assertIn("reason", result["stop"])
+        self.assertIn("decision_sequence", result["replay"])
+        self.assertEqual(result["replay"]["stop_reason"], result["stop"]["reason"])
+        self.assertGreaterEqual(len(result["replay"]["decision_sequence"]), 1)
 
     def test_demo_cases_and_guidelines_endpoints(self):
         status, cases = self.request("GET", "/api/demo/cases")

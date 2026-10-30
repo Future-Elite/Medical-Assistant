@@ -356,6 +356,9 @@ class ApplicabilityCriterionResult:
     label: str | None = None
     source_locator: str | None = None
     review_status: str = "draft"
+    # 试算预览（可选，applicability_preview 开启时生成）：对未参与判定的条件
+    # 用同一比对规则试算"若经人工审核会判什么"。不改变 status——预览不构成判定。
+    preview: Mapping[str, Any] | None = None
 
 
 @dataclass(frozen=True)
@@ -482,6 +485,10 @@ def _term_mapping_fields(
             "mesh", "mesh_terms", "aliases", "alias", "synonyms", "notes", "note",
         }
         metadata = {str(key): item for key, item in payload.items() if key not in known}
+        declared = payload.get("metadata")
+        if isinstance(declared, Mapping):
+            # 显式 metadata 块与顶层未知字段合并（显式键优先），不再嵌套一层。
+            metadata = {**metadata, **{str(k): v for k, v in declared.items()}}
         return tuple(english), tuple(mesh), tuple(aliases), notes, metadata
     if isinstance(payload, Sequence) and not isinstance(payload, (str, bytes, bytearray)):
         return tuple(_strings(payload)), (), (), None, {}
@@ -515,9 +522,16 @@ def _jsonable(value: Any) -> Any:
     if isinstance(value, Enum):
         return value.value
     if is_dataclass(value):
-        return {key: _jsonable(item) for key, item in asdict(value).items()}
+        # preview=None 不出键：默认输出与旧版逐字段一致（冻结差分约束）。
+        return {
+            key: _jsonable(item) for key, item in asdict(value).items()
+            if not (key == "preview" and item is None)
+        }
     if isinstance(value, Mapping):
-        return {str(key): _jsonable(item) for key, item in value.items()}
+        return {
+            str(key): _jsonable(item) for key, item in value.items()
+            if not (key == "preview" and item is None)
+        }
     if isinstance(value, (tuple, list)):
         return [_jsonable(item) for item in value]
     return value

@@ -20,7 +20,7 @@
     --pre-bg:#f6f9fb;--pre-ink:#3b4b56;--code-bg:#f1f5f7;
     --grid-dot:rgba(17,101,121,.17);
     --hud-bg:rgba(255,255,255,.95);
-    --socket-in:#75848f;--socket-out:#116579;--wire:#3f7a86;--wire-alt:#0d7f72;
+    --wire:#3f7a86;--wire-alt:#0d7f72;
     --shadow:0 8px 22px rgba(18,34,46,.08);
     --topbar-1:#0f2c3a;--topbar-2:#123c4d;--topbar-3:#14495c;--topbar-line:#2d8b99;
     --topbar-ink:#ffffff;--topbar-sub:#b9ced6;--brand-frame:#76c2c6;--brand-ink:#bce5e3;
@@ -36,6 +36,7 @@
     --source-bg:#fafcfd;
     --fs-body:15px;--fs-label:13.5px;--fs-input:15px;--fs-code:14px;
     --fs-hint:12.5px;--fs-map:12px;--fs-node-title:14px;--fs-badge:11.5px;
+    --dock-h:96px;
   }
   html[data-theme="dark"]{
     color-scheme:dark;
@@ -50,7 +51,7 @@
     --pre-bg:#111a20;--pre-ink:#c4d2dc;--code-bg:#0f181d;
     --grid-dot:rgba(255,255,255,.09);
     --hud-bg:rgba(21,30,36,.95);
-    --socket-in:#8fa2ae;--socket-out:#4fb1c6;--wire:#69adb9;--wire-alt:#4dc9b2;
+    --wire:#69adb9;--wire-alt:#4dc9b2;
     --shadow:0 8px 24px rgba(0,0,0,.45);
     --topbar-1:#070d10;--topbar-2:#0c161c;--topbar-3:#102028;--topbar-line:#2d6d7c;
     --topbar-ink:#e8f2f6;--topbar-sub:#93a9b3;--brand-frame:#3f7c85;--brand-ink:#a8d6d8;
@@ -78,7 +79,7 @@
     --pre-bg:#fbf6ec;--pre-ink:#4a3c2e;--code-bg:#f6efe2;
     --grid-dot:rgba(160,95,22,.16);
     --hud-bg:rgba(255,253,248,.95);
-    --socket-in:#8a7a68;--socket-out:#a05f16;--wire:#9a6b34;--wire-alt:#0d7f6a;
+    --wire:#9a6b34;--wire-alt:#0d7f6a;
     --shadow:0 8px 22px rgba(72,49,20,.12);
     --topbar-1:#3a2412;--topbar-2:#4d3018;--topbar-3:#5c3a1d;--topbar-line:#a06a30;
     --topbar-ink:#fff8ee;--topbar-sub:#e0c9ae;--brand-frame:#c99b5e;--brand-ink:#f0d6b4;
@@ -106,7 +107,7 @@
     --pre-bg:#f6f8fd;--pre-ink:#3d4760;--code-bg:#f1f4fb;
     --grid-dot:rgba(61,79,166,.16);
     --hud-bg:rgba(255,255,255,.95);
-    --socket-in:#7b88a3;--socket-out:#3d4fa6;--wire:#5a6cad;--wire-alt:#0f7f8c;
+    --wire:#5a6cad;--wire-alt:#0f7f8c;
     --shadow:0 8px 22px rgba(28,40,80,.10);
     --topbar-1:#151b33;--topbar-2:#1d2647;--topbar-3:#253159;--topbar-line:#4b5f9e;
     --topbar-ink:#ffffff;--topbar-sub:#bcc7e0;--brand-frame:#7d8fd0;--brand-ink:#ccd7f2;
@@ -127,131 +128,165 @@
   body{margin:0;color:var(--ink);background:var(--paper);font:var(--fs-body)/1.6 "Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
   button,input,textarea,select{font:inherit}
   button{cursor:pointer}
+  code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.94em;background:var(--code-bg);border:1px solid var(--line-soft);border-radius:4px;padding:0 4px}
+
+  /* ---------- 顶栏 ---------- */
   .topbar{background:linear-gradient(135deg,var(--topbar-1) 0%,var(--topbar-2) 60%,var(--topbar-3) 100%);color:var(--topbar-ink);border-bottom:3px solid var(--topbar-line)}
-  .topbar-inner{max-width:1860px;margin:0 auto;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;gap:18px}
+  .topbar-inner{max-width:1880px;margin:0 auto;padding:11px 20px;display:flex;align-items:center;justify-content:space-between;gap:18px}
   .brand{display:flex;align-items:center;gap:12px}
   .brand-mark{width:44px;height:38px;display:grid;place-items:center;border:1px solid var(--brand-frame);color:var(--brand-ink);font-weight:700;letter-spacing:1px;border-radius:8px;font-size:11.5px}
   .brand strong{display:block;font-size:17px}
   .brand span,.status{color:var(--topbar-sub);font-size:12px}
   .status{text-align:right}
   .status-dot{width:8px;height:8px;border-radius:50%;background:#5fd6a4;display:inline-block;margin-right:7px}
-  .app{max-width:1860px;margin:0 auto;padding:12px 16px 30px;display:flex;flex-direction:column;gap:12px}
-  .topstrip{position:sticky;top:0;z-index:60;background:var(--paper);padding:4px 0 6px}
-  .toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:9px 13px}
-  .toolbar-left{display:flex;align-items:center;gap:12px;min-width:260px;flex:1}
-  .toolbar h1{margin:0;font-size:15px;white-space:nowrap}
-  .toolbar-note{color:var(--muted);font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:640px}
-  .toolbar-actions{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-  .node-nav{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px;padding:0 2px}
-  .node-chip{border:1px solid var(--line);background:var(--panel);color:var(--muted);border-radius:999px;padding:4px 11px;font-size:12px;display:inline-flex;align-items:center;gap:6px;box-shadow:0 1px 2px rgba(18,34,46,.04)}
-  .node-chip b{color:var(--accent-dark);font-size:11px}
-  .node-chip:hover,.node-chip.active{border-color:var(--result-hover);background:var(--accent-soft);color:var(--accent-dark)}
-  .primary{border:0;border-radius:7px;padding:9px 16px;background:var(--accent);color:var(--accent-ink);font-weight:700;letter-spacing:.3px;white-space:nowrap;font-size:13.5px}
-  .primary:hover{background:var(--accent-dark)}
-  .primary:disabled{opacity:.55;cursor:wait}
-  .secondary{border:1px solid var(--input-border);color:var(--accent-dark);background:var(--panel);border-radius:7px;padding:6px 11px;white-space:nowrap;font-size:12.5px}
+
+  /* ---------- 三栏工作区 ---------- */
+  .shell{max-width:1880px;margin:0 auto;padding:12px 18px 46px;display:grid;grid-template-columns:238px minmax(0,1fr) 338px;gap:16px;align-items:start}
+  .topdock{grid-column:1/-1;position:sticky;top:0;z-index:90;background:var(--paper);padding:8px 0 10px}
+  .commandbar{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px 18px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:10px 14px}
+  .cmd-main{min-width:0}
+  .cmd-kicker{color:var(--faint);font-size:10.5px;letter-spacing:.8px;text-transform:uppercase;font-weight:700;margin-bottom:1px}
+  .commandbar h1{margin:0 0 2px;font-size:17px;letter-spacing:.2px}
+  .cmd-note{color:var(--muted);font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .cmd-tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:5px}
+  .cmd-tags span{font-size:10.5px;color:var(--muted);background:var(--source-bg);border:1px solid var(--line-soft);border-radius:999px;padding:1px 8px}
+  .cmd-actions{display:flex;gap:7px;align-items:center;justify-content:flex-end;flex-wrap:wrap}
+  .backend-warning{grid-column:1/-1;color:var(--warn);background:var(--warn-soft);border:1px solid var(--warn-line);border-radius:8px;padding:6px 10px;margin:0;font-size:12.5px}
+  .primary{border:1px solid var(--accent-dark);border-radius:8px;padding:9px 16px;background:linear-gradient(135deg,var(--accent),var(--accent-dark));color:var(--accent-ink);font-weight:700;letter-spacing:.3px;white-space:nowrap;font-size:13.5px;box-shadow:0 5px 14px rgba(17,101,121,.22)}
+  .primary:hover{filter:brightness(1.06);transform:translateY(-1px)}
+  .primary:disabled{opacity:.55;cursor:wait;transform:none;filter:none}
+  .secondary{border:1px solid var(--input-border);color:var(--accent-dark);background:var(--panel);border-radius:8px;padding:6px 11px;white-space:nowrap;font-size:12.5px}
   .secondary:hover{background:var(--accent-soft)}
   .secondary:disabled{opacity:.55;cursor:wait}
-  .backend-warning{flex-basis:100%;color:var(--warn);background:var(--warn-soft);border:1px solid var(--warn-line);border-radius:6px;padding:6px 10px;margin:0;font-size:12.5px}
-  .theme-wrap{display:inline-flex;align-items:center;gap:6px;margin:0;font-weight:500;white-space:nowrap}
-  .theme-label{font-size:12px;color:var(--muted);white-space:nowrap}
+  .theme-wrap{display:inline-flex;align-items:center;gap:6px;margin:0;font-weight:500;white-space:nowrap;color:var(--muted);font-size:12px}
   .theme-select{border:1px solid var(--input-border);background:var(--input-bg);color:var(--ink);border-radius:7px;padding:5px 8px;font-size:12.5px;width:auto}
-  /* ---------- ComfyUI 式缩放画布 ---------- */
-  .viewport{position:relative;height:clamp(540px,66vh,820px);min-height:420px;resize:vertical;overflow:hidden;border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);background:var(--canvas);
-    background-image:radial-gradient(var(--grid-dot) 1px,transparent 1px);background-size:22px 22px;touch-action:none;cursor:grab}
-  .viewport.panning{cursor:grabbing}
-  .world{position:absolute;left:0;top:0;width:1640px;height:1520px;transform-origin:0 0;will-change:transform}
-  #wires{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:0;overflow:visible}
-  .node{position:absolute;display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:0 6px 18px rgba(18,34,46,.10);overflow:hidden;z-index:2;min-width:260px;min-height:160px}
-  .node.active{border-color:var(--result-hover);box-shadow:0 0 0 2px var(--accent-soft),0 8px 22px rgba(18,34,46,.12)}
-  .node.dragging{box-shadow:0 14px 30px rgba(18,34,46,.2)}
-  .node-head{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:9px 11px;background:var(--node-head);border-bottom:1px solid var(--line);cursor:move;user-select:none;flex:none}
-  .node-head h3{margin:0;font-size:var(--fs-node-title);display:flex;gap:7px;align-items:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .node-index{display:inline-grid;place-items:center;width:21px;height:21px;border-radius:5px;background:var(--accent);color:var(--accent-ink);font-size:11px;font-weight:700;flex:none}
-  .node-badge{font-size:var(--fs-badge);padding:1px 7px;border-radius:999px;border:1px solid var(--state-border);color:var(--state-ink);background:var(--state-bg);white-space:nowrap;flex:none}
-  .node-badge.ready{border-color:var(--badge-border);color:var(--badge-ink);background:var(--badge-bg)}
-  .node-badge.running{border-color:var(--warn-line);color:var(--warn);background:var(--warn-soft)}
-  .node-badge.done{border-color:var(--badge-border);color:var(--teal);background:var(--teal-soft)}
-  .node-badge.error{border-color:var(--danger-line);color:var(--danger);background:var(--danger-soft)}
-  .node-body{padding:10px 11px 11px;display:grid;gap:8px;overflow:auto;flex:1;min-height:0;align-content:start}
-  .node-foot{padding:7px 11px;border-top:1px dashed var(--line);color:var(--muted);font-size:11px;display:flex;justify-content:space-between;gap:8px;align-items:center;flex:none}
-  .node-resize{position:absolute;right:0;bottom:0;width:18px;height:18px;cursor:nwse-resize;z-index:6;background:linear-gradient(135deg,transparent 50%,var(--faint) 50%,var(--faint) 62%,transparent 62%,transparent 72%,var(--faint) 72%,var(--faint) 84%,transparent 84%)}
-  .port-row{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted)}
-  .port-row.out{justify-content:flex-end}
-  .socket{width:12px;height:12px;border-radius:50%;border:2px solid var(--socket-in);background:var(--panel);flex:none;box-shadow:0 0 0 2px var(--panel)}
-  .socket.out{border-color:var(--socket-out);background:var(--accent-soft)}
-  .socket.linked{border-color:var(--teal);background:var(--teal)}
-  .ports{display:grid;gap:5px;margin-top:1px}
-  .ports .label{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;color:var(--muted)}
+  .loading{color:var(--accent-dark);display:inline-flex;align-items:center;gap:6px;font-size:12px}
+  .spinner{width:13px;height:13px;border:2px solid var(--badge-border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;display:inline-block}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* ---------- 左侧流程导航 ---------- */
+  .flowrail{position:sticky;top:calc(var(--dock-h) + 8px);max-height:calc(100vh - var(--dock-h) - 20px);overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:12px;display:flex;flex-direction:column;gap:3px}
+  .rail-head{display:flex;align-items:baseline;justify-content:space-between;padding:0 4px 8px;border-bottom:1px solid var(--line-soft);margin-bottom:5px}
+  .rail-head span{font-size:12px;font-weight:800;letter-spacing:.6px;color:var(--accent-dark)}
+  .rail-head small{color:var(--faint);font-size:10.5px}
+  .flow-item{display:grid;grid-template-columns:24px minmax(0,1fr) auto;gap:8px;align-items:center;padding:7px 7px;border-radius:9px;text-decoration:none;color:var(--ink);border:1px solid transparent;transition:background .15s,border-color .15s}
+  .flow-item:hover{background:var(--accent-soft);border-color:var(--line-soft)}
+  .flow-item.active{background:var(--accent-soft);border-color:var(--badge-border)}
+  .flow-num{display:inline-grid;place-items:center;width:23px;height:23px;border-radius:6px;background:var(--state-bg);border:1px solid var(--state-border);color:var(--state-ink);font-size:10.5px;font-weight:800}
+  .flow-item.active .flow-num{background:var(--accent);border-color:var(--accent-dark);color:var(--accent-ink)}
+  .flow-text{min-width:0}
+  .flow-text b{display:block;font-size:12.5px;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .flow-text small{display:block;color:var(--muted);font-size:10.5px;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .nav-status{font-size:10.5px;border-radius:999px;padding:1px 7px;border:1px solid var(--state-border);color:var(--state-ink);background:var(--state-bg);white-space:nowrap;max-width:84px;overflow:hidden;text-overflow:ellipsis;font-weight:600}
+  .nav-status.ready{border-color:var(--badge-border);color:var(--badge-ink);background:var(--badge-bg)}
+  .nav-status.running{border-color:var(--warn-line);color:var(--warn);background:var(--warn-soft)}
+  .nav-status.done{border-color:var(--badge-border);color:var(--teal);background:var(--teal-soft)}
+  .nav-status.error{border-color:var(--danger-line);color:var(--danger);background:var(--danger-soft)}
+  .rail-foot{margin-top:8px;padding:8px 4px 0;border-top:1px solid var(--line-soft);color:var(--faint);font-size:10.5px;line-height:1.5}
+
+  /* ---------- 中间纵向流程 ---------- */
+  .stageflow{display:flex;flex-direction:column;gap:14px;min-width:0}
+  .stage{position:relative;display:grid;grid-template-columns:48px minmax(0,1fr);gap:10px;scroll-margin-top:calc(var(--dock-h) + 16px)}
+  .stage::before{content:"";position:absolute;left:23px;top:48px;bottom:-18px;width:2px;background:linear-gradient(var(--line),var(--line-soft));z-index:0}
+  .stage:last-child::before{display:none}
+  .stage-marker{position:relative;z-index:1;width:46px;height:46px;border-radius:13px;background:var(--panel);border:2px solid var(--line);display:grid;place-items:center;font-weight:800;font-size:15px;color:var(--accent-dark);box-shadow:var(--shadow)}
+  .stage.active .stage-marker{border-color:var(--accent);background:var(--accent);color:var(--accent-ink);box-shadow:0 6px 18px rgba(17,101,121,.28)}
+  .stage-card{min-width:0;background:var(--panel);border:1px solid var(--line);border-top:3px solid var(--accent);border-radius:14px;box-shadow:0 10px 26px rgba(18,34,46,.08);overflow:hidden;transition:box-shadow .2s}
+  .stage-card.flash{box-shadow:0 0 0 2px var(--badge-border),0 10px 26px rgba(18,34,46,.14)}
+  .stage-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:12px 16px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,var(--node-head),var(--panel))}
+  .stage-head h2{margin:0;font-size:15px;line-height:1.35}
+  .stage-head p{margin:2px 0 0;color:var(--muted);font-size:12px;line-height:1.5}
+  .head-badges{display:flex;align-items:center;gap:7px;flex-wrap:wrap;justify-content:flex-end;flex:none}
+  .stage-body{padding:14px 16px 16px;display:grid;gap:11px;min-width:0}
+  .stage-foot{padding:8px 16px;border-top:1px dashed var(--line);color:var(--muted);font-size:11.5px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;background:var(--source-bg)}
+  .fgrid{display:grid;gap:10px;min-width:0}
+  .fgrid.c2{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .fgrid.c3{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .fgrid.c4{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .actionrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .flowtags{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+  .ftag{font:11px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--chip-ink);background:var(--chip-bg);border:1px solid var(--chip-border);border-radius:6px;padding:2px 7px}
+  .ftag.arrow{color:var(--muted);background:transparent;border-style:dashed}
+  .ftag.muted{color:var(--faint);background:transparent}
+  .request-grid{display:grid;grid-template-columns:280px minmax(0,1fr);gap:14px;align-items:start;min-width:0}
+  .run-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;align-items:start;min-width:0}
+  .pipeline{display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:11.5px;color:var(--muted)}
+  .pipeline span{background:var(--source-bg);border:1px solid var(--line-soft);border-radius:6px;padding:2px 8px}
+  .pipeline i{font-style:normal;color:var(--faint)}
+  textarea.short{min-height:62px}
+
+  /* ---------- 通用表单 ---------- */
   label{display:block;color:var(--ink);font-size:var(--fs-label);font-weight:650;margin-bottom:5px}
-  textarea,input[type=text],input[type=date],input[type=number],select{width:100%;border:1px solid var(--input-border);background:var(--input-bg);color:var(--ink);padding:7px 9px;outline:0;border-radius:6px;transition:border .15s,box-shadow .15s;font-size:var(--fs-input)}
-  textarea{min-height:78px;resize:none;font-family:inherit;line-height:1.55}
+  textarea,input[type=text],input[type=date],input[type=number],select{width:100%;border:1px solid var(--input-border);background:var(--input-bg);color:var(--ink);padding:7px 9px;outline:0;border-radius:7px;transition:border .15s,box-shadow .15s;font-size:var(--fs-input)}
+  textarea{min-height:78px;resize:vertical;font-family:inherit;line-height:1.55}
   textarea.code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:var(--fs-code);line-height:1.5;min-height:96px}
   textarea:focus,input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
-  .field{margin:0}
+  .field{margin:0;min-width:0}
   .hint{color:var(--muted);font-size:var(--fs-hint);line-height:1.55}
-  .row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-  .row.inline{grid-template-columns:1fr auto}
-  .check{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:12.5px}
+  .check{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:12.5px;font-weight:500;margin:0}
   .check input{accent-color:var(--accent)}
-  .check-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 8px}
-  .mini-pre{max-height:none;overflow:auto;white-space:pre-wrap;word-break:break-word;font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--pre-ink);background:var(--pre-bg);border:1px solid var(--line-soft);border-radius:6px;padding:8px 9px;margin:0;min-height:64px}
-  .field-map{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:var(--fs-map);color:var(--muted);background:var(--code-bg);border:1px solid var(--line-soft);border-radius:5px;padding:4px 7px;word-break:break-all;line-height:1.5}
-  .mapping-table{max-height:132px;overflow:auto;border:1px solid var(--line-soft);border-radius:6px;background:var(--pre-bg)}
+  .check-grid{display:flex;gap:12px;flex-wrap:wrap;padding-top:4px}
+  .field-map{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:var(--fs-map);color:var(--muted);background:var(--code-bg);border:1px solid var(--line-soft);border-radius:5px;padding:4px 7px;word-break:break-all;line-height:1.5;margin:0}
+  .mini-pre{overflow:auto;white-space:pre-wrap;word-break:break-word;font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--pre-ink);background:var(--pre-bg);border:1px solid var(--line-soft);border-radius:7px;padding:8px 9px;margin:0;min-height:64px;max-height:260px}
+  .mapping-table{max-height:158px;overflow:auto;border:1px solid var(--line-soft);border-radius:7px;background:var(--pre-bg)}
   .mapping-table table{border-collapse:collapse;width:100%;font-size:11px}
   .mapping-table th,.mapping-table td{border-bottom:1px solid var(--line-soft);padding:4px 6px;text-align:left;vertical-align:top;line-height:1.45}
   .mapping-table th{color:var(--muted);font-weight:600;background:var(--code-bg);position:sticky;top:0}
   .mapping-table td{color:var(--pre-ink);word-break:break-word}
   .mapping-row-note{color:var(--muted);font-size:11px;margin-top:4px}
-  .req-body{display:grid;grid-template-columns:280px minmax(0,1fr);gap:12px;overflow:auto}
-  .req-side{display:flex;flex-direction:column;gap:7px;min-width:0}
-  .req-preview{display:flex;flex-direction:column;gap:4px;min-height:0}
-  .req-preview pre{flex:1;max-height:240px}
-  .zoom-hud{position:absolute;left:12px;bottom:12px;z-index:30;display:flex;align-items:center;gap:4px;background:var(--hud-bg);border:1px solid var(--line);border-radius:8px;padding:4px 6px;box-shadow:0 4px 12px rgba(18,34,46,.12)}
-  .zoom-hud button{border:1px solid transparent;background:transparent;color:var(--accent-dark);border-radius:5px;padding:2px 8px;font-size:13px}
-  .zoom-hud button:hover{background:var(--accent-soft);border-color:var(--badge-border)}
-  .zoom-label{min-width:48px;text-align:center;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
-  .canvas-hint{position:absolute;right:12px;bottom:12px;z-index:30;color:var(--muted);font-size:11px;background:var(--hud-bg);border:1px solid var(--line);border-radius:7px;padding:4px 9px;pointer-events:none}
-  /* ---------- 底部信息区 ---------- */
-  .bottom-strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
-  .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
-  .panel-head{padding:10px 13px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:8px;background:var(--node-head)}
-  .panel-head h2{margin:0;font-size:13px}
-  .panel-body{padding:11px 13px}
-  .panel-body.tight{padding:9px 11px}
-  .inspector h4{margin:9px 0 5px;font-size:12px;color:var(--ink)}
-  .inspector p{margin:3px 0;font-size:12px;color:var(--muted)}
-  .inspector ul{margin:5px 0 0;padding-left:16px;font-size:12px;color:var(--muted)}
-  .badge{display:inline-flex;align-items:center;border:1px solid var(--badge-border);color:var(--badge-ink);background:var(--badge-bg);padding:1px 8px;border-radius:999px;font-size:var(--fs-badge);white-space:nowrap}
-  .badge.warn{color:var(--warn);border-color:var(--warn-line);background:var(--warn-soft)}
-  .badge.state{color:var(--state-ink);border-color:var(--state-border);background:var(--state-bg)}
-  .badge.rank{color:var(--rank-ink);border-color:var(--rank-border);background:var(--rank-bg);font-weight:700}
-  .result-panel.flash{box-shadow:0 0 0 2px var(--badge-border)}
-  .result-panel{display:grid;grid-template-columns:minmax(0,1.3fr) 420px;gap:12px;align-items:start}
-  .metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:10px}
-  .metric{background:var(--source-bg);border:1px solid var(--line);border-radius:8px;padding:9px 11px}
+  details summary{cursor:pointer;font-size:12px;color:var(--accent-dark);margin:2px 0}
+  details pre{max-height:220px}
+  details textarea{margin-top:7px}
+
+  /* ---------- 选项卡 ---------- */
+  .tabbar{display:flex;gap:4px;flex-wrap:wrap;align-items:flex-end;border-bottom:1px solid var(--line);margin:0 0 12px;padding:0}
+  .tab{appearance:none;border:1px solid transparent;border-bottom:0;background:transparent;color:var(--muted);padding:8px 12px;border-radius:9px 9px 0 0;font-size:13px;font-weight:650;display:inline-flex;align-items:center;gap:7px;line-height:1.3}
+  .tab:hover{color:var(--accent-dark);background:var(--accent-soft)}
+  .tab.active{color:var(--accent-dark);background:var(--panel);border-color:var(--line);margin-bottom:-1px;box-shadow:inset 0 2px 0 var(--accent)}
+  .tab-count{font-size:10.5px;color:var(--muted);background:var(--chip-bg);border:1px solid var(--chip-border);border-radius:999px;padding:0 6px;font-weight:600}
+  .tab.active .tab-count{color:var(--accent-dark);background:var(--accent-soft)}
+  .tabbar.sub{margin-bottom:10px}
+  .tabbar.sub .tab{font-size:12px;padding:6px 10px}
+  .tab-panel{min-width:0}
+
+  /* ---------- 结果区 ---------- */
+  .metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+  .metric{background:var(--source-bg);border:1px solid var(--line);border-radius:9px;padding:9px 11px}
   .metric small{color:var(--muted);display:block;font-size:11px}
-  .metric strong{display:block;font-size:20px;margin-top:1px;color:var(--accent-dark)}
-  .warnings{padding:9px 12px;background:var(--warn-soft);border:1px solid var(--warn-line);color:var(--warn);font-size:12.5px;border-radius:7px;margin-bottom:10px;line-height:1.55}
-  .result-list{display:grid;gap:7px}
-  .result-list.inline{gap:5px}
-  .result-list.inline .result{padding:7px 9px;border-radius:6px}
-  .result-list.inline .result h3{font-size:12.5px;margin-bottom:2px}
-  .result-list.inline .result p{-webkit-line-clamp:1;font-size:11.5px}
-  .result-list.inline .result-meta{font-size:10.5px;gap:7px;margin-top:4px}
-  .result-list.inline .source-section{margin-bottom:7px}
-  .result-list.inline .source-head{margin-bottom:4px}
-  .citation-id{font:12px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--accent-dark);word-break:break-all}
-  .copy-btn{padding:1px 8px;font-size:11px}
-  .source-link{font-size:11px;color:var(--accent-dark);background:none;border:0;padding:0;text-decoration:underline;cursor:pointer}
-  .result{width:100%;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:11px 13px;color:var(--ink)}
+  .metric strong{display:block;font-size:20px;margin-top:1px;color:var(--accent-dark);font-variant-numeric:tabular-nums}
+  .warnings{padding:9px 12px;background:var(--warn-soft);border:1px solid var(--warn-line);color:var(--warn);font-size:12.5px;border-radius:8px;line-height:1.55}
+  .evidence-grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(300px,.8fr);gap:14px;align-items:start;min-width:0}
+  .detail-panel{border:1px solid var(--line);border-radius:12px;background:var(--source-bg);padding:12px 14px;max-height:720px;overflow:auto;min-width:0}
+  .detail-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding-bottom:8px;border-bottom:1px solid var(--line-soft);margin-bottom:8px}
+  .detail-head h3{margin:0;font-size:13px}
+  .result-list{display:grid;gap:7px;min-width:0}
+  .result{width:100%;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:11px 13px;color:var(--ink)}
   .result:hover,.result.active{border-color:var(--result-hover);box-shadow:0 3px 12px rgba(17,101,121,.11)}
   .result-top{display:flex;justify-content:space-between;gap:12px;align-items:start}
   .result-badges{display:flex;flex-direction:column;gap:4px;align-items:flex-end;flex:none}
   .result h3{margin:0 0 4px;font-size:13.5px;line-height:1.45;color:var(--ink)}
   .result p{margin:0;color:var(--muted);font-size:12px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.55}
   .result-meta{margin-top:6px;color:var(--muted);display:flex;gap:9px;flex-wrap:wrap;font-size:11px}
-  .empty{border:1px dashed var(--empty-border);color:var(--muted);background:var(--empty-bg);padding:24px 16px;text-align:center;border-radius:8px;font-size:12.5px;line-height:1.6}
+  .source-section{margin-bottom:12px}
+  .source-section:last-child{margin-bottom:0}
+  .source-head{display:flex;align-items:center;gap:8px;margin:0 0 6px}
+  .source-head h3{margin:0;font-size:12.5px}
+  .source-count{color:var(--faint);font-size:11px}
+  .empty{border:1px dashed var(--empty-border);color:var(--muted);background:var(--empty-bg);padding:24px 16px;text-align:center;border-radius:9px;font-size:12.5px;line-height:1.6}
+  .badge{display:inline-flex;align-items:center;border:1px solid var(--badge-border);color:var(--badge-ink);background:var(--badge-bg);padding:1px 8px;border-radius:999px;font-size:var(--fs-badge);white-space:nowrap}
+  .badge.warn{color:var(--warn);border-color:var(--warn-line);background:var(--warn-soft)}
+  .badge.state{color:var(--state-ink);border-color:var(--state-border);background:var(--state-bg)}
+  .badge.rank{color:var(--rank-ink);border-color:var(--rank-border);background:var(--rank-bg);font-weight:700}
+  .node-badge{font-size:var(--fs-badge);padding:2px 8px;border-radius:999px;border:1px solid var(--state-border);color:var(--state-ink);background:var(--state-bg);white-space:nowrap;flex:none}
+  .node-badge.ready{border-color:var(--badge-border);color:var(--badge-ink);background:var(--badge-bg)}
+  .node-badge.running{border-color:var(--warn-line);color:var(--warn);background:var(--warn-soft)}
+  .node-badge.done{border-color:var(--badge-border);color:var(--teal);background:var(--teal-soft)}
+  .node-badge.error{border-color:var(--danger-line);color:var(--danger);background:var(--danger-soft)}
+  .diag-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;min-width:0}
+  .diag-grid>*{min-width:0}
+  .diag-grid .insight{margin-bottom:0}
+
+  /* ---------- 引文详情 / 洞察卡 ---------- */
   .detail-title{font-size:15px;line-height:1.45;margin:0 0 8px;color:var(--ink)}
   .detail-quote{border-left:3px solid var(--quote-line);padding:9px 11px;background:var(--quote-bg);color:var(--quote-ink);margin:10px 0;border-radius:0 6px 6px 0;font-size:12.5px;line-height:1.6}
   .key-sentence{border:1px solid var(--badge-border);border-left:3px solid var(--teal);background:var(--teal-soft);padding:8px 10px;border-radius:0 6px 6px 0;margin-top:6px;font-size:12px;line-height:1.55}
@@ -260,7 +295,10 @@
   .detail-list li{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--line-soft);font-size:12px}
   .detail-list span:first-child{color:var(--muted);flex:none}
   .detail-list span:last-child{text-align:right;color:var(--ink);word-break:break-word;max-width:70%}
-  .insight{margin-bottom:10px;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .citation-id{font:12px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--accent-dark);word-break:break-all}
+  .copy-btn{padding:1px 8px;font-size:11px}
+  .insight{margin-bottom:10px;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:var(--panel)}
+  .insight:last-child{margin-bottom:0}
   .insight-head{display:flex;justify-content:space-between;align-items:center;padding:9px 11px;border-bottom:1px solid var(--line);background:var(--insight-bg);gap:8px}
   .insight-head h3{margin:0;font-size:12.5px}
   .insight-body{padding:10px 11px;font-size:12px;line-height:1.6}
@@ -273,11 +311,9 @@
   .review-item .ok{color:var(--teal);font-weight:700;flex:none}
   .review-item .find{color:var(--warn);font-weight:700;flex:none}
   .review-finding{border:1px solid var(--warn-line);background:var(--warn-soft);color:var(--warn);border-radius:7px;padding:7px 10px;font-size:12px;margin-top:5px;line-height:1.55}
-  .source-section{margin-bottom:12px}
-  .source-head{display:flex;align-items:center;gap:8px;margin:0 0 6px}
-  .source-head h3{margin:0;font-size:12.5px}
-  .source-count{color:var(--faint);font-size:11px}
-  .his-card{border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--panel)}
+
+  /* ---------- 患者事实 / HIS 卡 ---------- */
+  .his-card{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--panel)}
   .his-head{display:flex;align-items:center;gap:10px;padding:10px 12px;background:linear-gradient(135deg,var(--his-a),var(--his-b));color:#fff}
   .his-avatar{width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.35);display:grid;place-items:center;font-weight:700;font-size:12.5px;flex:none}
   .his-id{font-weight:700;font-size:13px}
@@ -296,85 +332,86 @@
   .his-fact-text{font-size:12.5px;color:var(--ink);word-break:break-word;line-height:1.5}
   .his-fact-meta{font-size:10.5px;color:var(--faint);margin-top:1px;word-break:break-all}
   .his-fact-score{font-size:11px;color:var(--accent-dark);background:var(--accent-soft);border-radius:999px;padding:0 7px;flex:none}
+  .hits-list{display:grid;gap:5px}
   .claim-list{margin:8px 0 0;padding:0;list-style:none;border-top:1px solid var(--line)}
   .claim-list li{padding:7px 0;border-bottom:1px solid var(--line-soft);color:var(--muted);font-size:12px}
   .claim-status{display:inline-block;min-width:124px;color:var(--accent-dark);font-weight:650}
-  .spinner{width:13px;height:13px;border:2px solid var(--badge-border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;display:inline-block}
-  @keyframes spin{to{transform:rotate(360deg)}}
-  .loading{color:var(--accent-dark);display:inline-flex;align-items:center;gap:6px;font-size:12px}
-  .api-log{display:grid;gap:3px;max-height:190px;overflow:auto;font:11.5px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace}
+
+  /* ---------- 右侧状态轨 ---------- */
+  .statusrail{position:sticky;top:calc(var(--dock-h) + 8px);max-height:calc(100vh - var(--dock-h) - 20px);overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);display:flex;flex-direction:column;min-width:0}
+  .rail-tabs{padding:9px 10px 0;margin:0 0 0;position:sticky;top:0;background:var(--panel);z-index:2}
+  .rail-panel{padding:12px 14px;display:grid;gap:12px}
+  .rail-block{display:grid;gap:6px;min-width:0}
+  .rail-block-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .rail-block-head h3{margin:0;font-size:12px;letter-spacing:.2px}
+  .rail-panel p{margin:0;font-size:12px;color:var(--muted);line-height:1.55}
+  .contract-list{margin:0;padding-left:15px;color:var(--muted);font-size:11.5px;line-height:1.65}
+  .contract-list b{color:var(--accent-dark)}
+  .rail-foot{padding:8px 14px 10px;border-top:1px solid var(--line-soft);color:var(--faint);font-size:10.5px;line-height:1.5}
+  .api-log{display:grid;gap:3px;max-height:520px;overflow:auto;font:11.5px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace}
   .api-row{display:flex;gap:6px;justify-content:space-between;border-bottom:1px solid var(--line-soft);padding:3px 0;color:var(--muted)}
   .api-row .ok{color:var(--teal);font-weight:700}
   .api-row .err{color:var(--danger);font-weight:700}
-  details summary{cursor:pointer;font-size:12px;color:var(--accent-dark);margin:5px 0}
-  details pre{max-height:220px}
   .source-item{border:1px solid var(--line);border-radius:7px;padding:7px 9px;font-size:11.5px;background:var(--source-bg);margin-bottom:5px}
   .source-item b{display:block;color:var(--accent-dark);font-size:12px}
   .source-item span{color:var(--muted);font-size:11px}
-  @media(max-width:1400px){.bottom-strip{grid-template-columns:repeat(2,minmax(0,1fr))}.result-panel{grid-template-columns:1fr}}
-  @media(max-width:900px){.bottom-strip{grid-template-columns:1fr}.toolbar-note{display:none}.viewport{height:560px}.node-nav{max-height:96px;overflow:auto}}
-  /* ---------- v6.6.5 固定工作台 ---------- */
-  .workspace{max-width:1860px;margin:0 auto;width:100%;padding:0 2px}
-  .workgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:start}
-  .workcol{display:flex;flex-direction:column;gap:16px;min-width:0}
-  .workgrid .node{position:relative!important;left:auto!important;top:auto!important;width:auto!important;height:auto!important;min-width:0;min-height:0;border-radius:14px;border:1px solid var(--line);border-top:3px solid var(--accent);box-shadow:0 10px 26px rgba(18,34,46,.08);overflow:hidden}
-  .workgrid .node:hover{box-shadow:0 14px 32px rgba(18,34,46,.12)}
-  .workgrid .node.active{border-color:var(--result-hover);box-shadow:0 0 0 2px var(--accent-soft),0 14px 32px rgba(18,34,46,.12)}
-  .workgrid .node-head{cursor:default;user-select:auto;padding:13px 15px;background:linear-gradient(180deg,var(--node-head),var(--panel))}
-  .workgrid .node-head h3{font-size:15px;white-space:normal;line-height:1.35}
-  .workgrid .node-body{overflow:visible;padding:14px 15px 16px;gap:11px}
-  .workgrid .node-foot{padding:9px 15px;font-size:11.5px;background:var(--source-bg)}
-  .workgrid .node-resize,.workgrid .ports{display:none!important}
-  #node-case,#node-question,#node-terms{grid-column:span 4}
-  #node-scope,#node-method{grid-column:span 3}
-  #node-request{grid-column:span 6}
-  #node-run,#node-results,#node-audit{grid-column:span 4}
-  .workflow-strip{display:flex;align-items:center;gap:7px;flex-wrap:wrap;padding:2px 2px 0;color:var(--muted);font-size:12px}
-  .workflow-strip a{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border:1px solid var(--line);border-radius:999px;background:var(--panel);color:var(--accent-dark);text-decoration:none;font-weight:650}
-  .workflow-strip a:hover{border-color:var(--accent);background:var(--accent-soft)}
-  .workflow-strip .arrow{color:var(--faint)}
-  .intro-banner{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:16px 18px;border:1px solid var(--line);border-radius:14px;background:linear-gradient(120deg,var(--panel),var(--accent-soft));box-shadow:var(--shadow)}
-  .intro-banner strong{display:block;font-size:16px;margin-bottom:3px}
-  .intro-banner p{margin:0;color:var(--muted);font-size:12.5px;line-height:1.6;max-width:900px}
-  .intro-badges{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}
-  .intro-badges span{padding:4px 9px;border:1px solid var(--badge-border);border-radius:999px;background:var(--badge-bg);color:var(--badge-ink);font-size:11.5px;white-space:nowrap}
-  .toolbar h1{font-size:16px;letter-spacing:.2px}
-  button.primary{background:linear-gradient(135deg,var(--accent),var(--accent-dark));color:var(--accent-ink);border:1px solid var(--accent-dark);box-shadow:0 5px 14px rgba(17,101,121,.22)}
-  button.primary:hover{filter:brightness(1.05);transform:translateY(-1px)}
-  .result-panel{grid-template-columns:minmax(0,1.35fr) 420px}
-  .panel{border-radius:14px}
-  .panel-head{background:linear-gradient(180deg,var(--node-head),var(--panel))}
+
   @media(max-width:1400px){
-    .workgrid{grid-template-columns:repeat(2,minmax(0,1fr))}
-    .workgrid .node{grid-column:span 1!important}
-    .result-panel{grid-template-columns:1fr}
+    .shell{grid-template-columns:minmax(0,1fr) 300px}
+    .flowrail{grid-column:1/-1;position:static;max-height:none;flex-direction:row;flex-wrap:wrap;overflow:visible;padding:8px;gap:6px}
+    .flowrail .rail-head,.flowrail .rail-foot{display:none}
+    .flow-item{min-width:126px;grid-template-columns:24px minmax(0,1fr)}
+    .flow-item .nav-status{grid-column:2;justify-self:start}
+    .flow-text b{font-size:12px}
+    .flow-text small{display:none}
   }
-  @media(max-width:900px){
-    .workgrid{grid-template-columns:1fr}
-    .workflow-strip{flex-wrap:nowrap;overflow:auto;padding-bottom:4px}
-    .intro-banner{flex-direction:column;align-items:flex-start}
-    .intro-badges{justify-content:flex-start}
-    .toolbar-note{display:none}
+  @media(max-width:1250px){
+    .evidence-grid{grid-template-columns:1fr}
+    .detail-panel{max-height:none}
+  }
+  @media(max-width:980px){
+    .shell{grid-template-columns:1fr;padding:10px 12px 36px}
+    .statusrail{position:static;max-height:none}
+    .commandbar{grid-template-columns:1fr}
+    .cmd-actions{justify-content:flex-start}
+    .topdock{position:static}
+    .stage{grid-template-columns:38px minmax(0,1fr);gap:8px}
+    .stage-marker{width:36px;height:36px;border-radius:10px;font-size:13px}
+    .stage::before{left:18px;top:40px}
+    .stageflow{gap:12px}
+    .fgrid.c2,.fgrid.c3,.fgrid.c4{grid-template-columns:1fr}
+    .request-grid,.run-grid,.diag-grid{grid-template-columns:1fr}
+    .metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .stage-head{flex-direction:column;gap:7px}
+    .head-badges{justify-content:flex-start}
+    .detail-list span:last-child{max-width:62%}
+  }
+  @media(max-width:640px){
+    .topbar-inner{flex-direction:column;align-items:flex-start;gap:6px}
+    .status{text-align:left}
+    .cmd-note{white-space:normal}
+    .metrics{grid-template-columns:1fr}
+    .tab{padding:7px 9px;font-size:12px}
   }
 </style>
 </head>
 <body>
 <header class="topbar"><div class="topbar-inner">
-  <div class="brand"><div class="brand-mark">NEO<br>RAG</div><div><strong>ChinaLLM · 新生儿证据检索工作流</strong><span>Neonatal Evidence Workflow · 固定分区 · 只读证据检索 · 后端 <b id="backendVersion">—</b></span></div></div>
+  <div class="brand"><div class="brand-mark">NEO<br>RAG</div><div><strong>ChinaLLM · 新生儿证据检索工作流</strong><span>Neonatal Evidence Workflow · 沿 RAG 流程 01–09 · 只读证据检索 · 后端 <b id="backendVersion">—</b></span></div></div>
   <div class="status"><i class="status-dot"></i><span id="serviceStatus">正在检查服务与病例档案</span></div>
 </div></header>
 
-<div class="app">
-  <div class="topstrip">
-    <div class="toolbar">
-      <div class="toolbar-left">
-        <h1>检索配置</h1>
-        <div class="toolbar-note" id="requestNote">请求尚未组装：先选择或手填快照。</div>
+<div class="shell">
+  <div class="topdock" id="topdock">
+    <div class="commandbar">
+      <div class="cmd-main">
+        <div class="cmd-kicker">检索配置 · RAG 流程 01–09</div>
+        <h1>证据检索控制台</h1>
+        <div class="cmd-note" id="requestNote">请求尚未组装：先选择或手填快照。</div>
+        <div class="cmd-tags"><span>只读</span><span>来源分离</span><span>不生成回答</span><span>真实 /api/retrieve</span></div>
       </div>
-      <div class="hint backend-warning" id="backendWarning" hidden></div>
-      <div class="toolbar-actions">
-        <label class="theme-wrap" title="配色主题">
-          <span class="theme-label">主题</span>
+      <div class="cmd-actions">
+        <label class="theme-wrap" title="配色主题"><span>主题</span>
           <select class="theme-select" id="themeSelect" aria-label="配色主题">
             <option value="light">浅色</option>
             <option value="dark">深色</option>
@@ -389,288 +426,367 @@
         <span id="loading" class="loading" hidden><span class="spinner"></span>正在检索</span>
         <button class="primary" id="runButton" type="button">▶ 执行检索</button>
       </div>
-    </div>
-    <div class="workflow-strip" id="workflowStrip" aria-label="检索步骤">
-      <a href="#node-case">01 输入</a><span class="arrow">→</span>
-      <a href="#node-question">02 问题</a><span class="arrow">→</span>
-      <a href="#node-terms">03 术语</a><span class="arrow">→</span>
-      <a href="#node-scope">04 范围</a><span class="arrow">→</span>
-      <a href="#node-method">05 方法</a><span class="arrow">→</span>
-      <a href="#node-request">06 请求</a><span class="arrow">→</span>
-      <a href="#node-run">07 执行</a><span class="arrow">→</span>
-      <a href="#node-results">08 结果</a><span class="arrow">→</span>
-      <a href="#node-audit">09 审计</a>
+      <div class="hint backend-warning" id="backendWarning" hidden></div>
     </div>
   </div>
 
-  <section class="intro-banner">
-    <div>
-      <strong>固定工作台：按 01–09 顺序填写，所有分区固定排列。</strong>
-      <p>病例与患者事实来自调用方快照；检索只读，不写回病历、不生成诊疗结论。外部来源只接收审核术语，不接收患者标识或原始病历。</p>
-    </div>
-    <div class="intro-badges"><span>只读</span><span>来源分离</span><span>不生成回答</span><span>真实 /api/retrieve</span></div>
-  </section>
+  <nav class="flowrail" aria-label="检索流程导航">
+    <div class="rail-head"><span>RAG 流程</span><small>01 → 09</small></div>
+    <a class="flow-item" href="#node-case" data-node="case"><span class="flow-num">01</span><span class="flow-text"><b>病例与快照</b><small>patient_snapshot · as_of</small></span><span class="nav-status" data-nav-status="case">待载入</span></a>
+    <a class="flow-item" href="#node-question" data-node="question"><span class="flow-num">02</span><span class="flow-text"><b>问题与意图</b><small>question · task · intent</small></span><span class="nav-status" data-nav-status="question">待填写</span></a>
+    <a class="flow-item" href="#node-terms" data-node="terms"><span class="flow-num">03</span><span class="flow-text"><b>术语与映射</b><small>patient_terms · term_mapping</small></span><span class="nav-status" data-nav-status="terms">待填写</span></a>
+    <a class="flow-item" href="#node-scope" data-node="scope"><span class="flow-num">04</span><span class="flow-text"><b>范围与过滤</b><small>source_mode · source_kinds</small></span><span class="nav-status" data-nav-status="scope">待配置</span></a>
+    <a class="flow-item" href="#node-method" data-node="method"><span class="flow-num">05</span><span class="flow-text"><b>检索方法与门控</b><small>retrieval_method · rerank</small></span><span class="nav-status" data-nav-status="method">待配置</span></a>
+    <a class="flow-item" href="#node-request" data-node="request"><span class="flow-num">06</span><span class="flow-text"><b>请求组装</b><small>RetrievalRequest</small></span><span class="nav-status" data-nav-status="request">组装中</span></a>
+    <a class="flow-item" href="#node-run" data-node="run"><span class="flow-num">07</span><span class="flow-text"><b>执行检索</b><small>POST /api/retrieve</small></span><span class="nav-status" data-nav-status="run">待执行</span></a>
+    <a class="flow-item" href="#node-results" data-node="results"><span class="flow-num">08</span><span class="flow-text"><b>证据结果</b><small>evidence_groups · tabs</small></span><span class="nav-status" data-nav-status="results">未检索</span></a>
+    <a class="flow-item" href="#node-audit" data-node="audit"><span class="flow-num">09</span><span class="flow-text"><b>引用与审计</b><small>citation · audit</small></span><span class="nav-status" data-nav-status="audit">待审计</span></a>
+    <div class="rail-foot">输入 → 问题 → 术语 → 范围 → 方法 → 请求 → 执行 → 结果 → 审计。每一步都可回改；请求区实时预览。</div>
+  </nav>
 
-  <main class="workspace" id="workspace">
-    <div class="workgrid" id="graph">
-      <div class="workcol" data-col="input">
-
-      <!-- 01 病例与快照 -->
-      <section class="node" id="node-case" data-node="case" style="left:20px;top:22px;width:300px;height:690px">
-        <div class="node-head"><h3><span class="node-index">01</span>病例与快照</h3><span class="node-badge" id="badge-case">待载入</span></div>
-        <div class="node-body">
-          <div class="field"><label for="demoCase">病例选择</label><select id="demoCase"></select></div>
-          <div class="field"><label for="patientRef">patient_ref</label><input id="patientRef" type="text" readonly></div>
-          <div class="field"><label for="asOf">as_of</label><input id="asOf" type="date"></div>
-          <div class="row inline"><button class="secondary" id="loadSnapshot" type="button">载入快照</button><span class="badge state" id="snapshotState">未载入</span></div>
-          <p class="field-map">POST /api/his/snapshot → patient_snapshot</p>
-          <div class="ports">
-            <div class="port-row out"><span class="label">patient_snapshot</span><i class="socket out" id="sock-case-snapshot" data-socket="case:out:snapshot"></i></div>
+  <main class="stageflow" id="workspace">
+    <section class="stage" id="node-case" data-node="case">
+      <div class="stage-marker">01</div>
+      <div class="stage-card">
+        <div class="stage-head">
+          <div><h2>病例与快照</h2><p>病例来自调用方快照；按 as_of 截止，未来记录被抑制。选择病例或手动编辑快照 JSON。</p></div>
+          <span class="node-badge" id="badge-case">待载入</span>
+        </div>
+        <div class="stage-body">
+          <div class="fgrid c3">
+            <div class="field"><label for="demoCase">病例选择</label><select id="demoCase"></select></div>
+            <div class="field"><label for="patientRef">patient_ref</label><input id="patientRef" type="text" readonly></div>
+            <div class="field"><label for="asOf">as_of</label><input id="asOf" type="date"></div>
+          </div>
+          <div class="fgrid c2">
+            <div class="field">
+              <label>快照操作</label>
+              <div class="actionrow"><button class="secondary" id="loadSnapshot" type="button">载入快照</button><span class="badge state" id="snapshotState">未载入</span></div>
+              <label class="check" style="margin-top:7px"><input type="checkbox" id="manualSnapshot"> 手填/编辑快照（不跟随病例下拉覆盖）</label>
+              <div class="hint" style="margin-top:5px">快照经 /api/his/snapshot 过滤回显后随 /api/retrieve 发送；病例为合成数据，走真实检索路径。</div>
+            </div>
+            <div class="field"><label>最近一次快照回显</label><pre class="mini-pre" id="snapshotPreview">尚未载入</pre></div>
           </div>
           <details id="snapshotDetails"><summary>快照 JSON（可直接编辑后载入）</summary><textarea class="code" id="snapshotJson" spellcheck="false"></textarea></details>
-          <label class="check"><input type="checkbox" id="manualSnapshot"> 手填/编辑快照（不跟随病例下拉覆盖）</label>
-          <div class="hint">快照经 /api/his/snapshot 过滤回显后随 /api/retrieve 发送；病例为合成数据，走真实检索路径。</div>
-          <div class="field"><label>最近一次快照回显</label><pre class="mini-pre" id="snapshotPreview">尚未载入</pre></div>
+          <div class="flowtags"><span class="ftag">patient_snapshot</span><span class="ftag">as_of</span><span class="ftag arrow">→ 06 请求</span><span class="ftag muted" id="caseSynthetic">合成数据</span></div>
         </div>
-        <div class="node-foot"><span>病例库</span><span id="caseSynthetic">合成数据</span></div>
-        <div class="node-resize" data-resize="case"></div>
-      </section>
+      </div>
+    </section>
 
-      <!-- 02 问题与意图 -->
-      <section class="node" id="node-question" data-node="question" style="left:334px;top:22px;width:300px;height:690px">
-        <div class="node-head"><h3><span class="node-index">02</span>问题与意图</h3><span class="node-badge" id="badge-question">待填写</span></div>
-        <div class="node-body">
+    <section class="stage" id="node-question" data-node="question">
+      <div class="stage-marker">02</div>
+      <div class="stage-card">
+        <div class="stage-head">
+          <div><h2>问题与意图</h2><p>中文原始问题按原样发送；问题内英文词由系统自动抽取。</p></div>
+          <span class="node-badge" id="badge-question">待填写</span>
+        </div>
+        <div class="stage-body">
           <div class="field"><label for="question">question（中文原始问题）</label><textarea id="question" required></textarea></div>
-          <div class="row">
+          <div class="fgrid c3">
             <div class="field"><label for="task">task</label><select id="task"><option value="clinical_question">clinical_question</option><option value="evidence_update">evidence_update</option></select></div>
             <div class="field"><label for="queryLanguage">query_language</label><select id="queryLanguage"><option value="zh">zh</option><option value="en">en</option></select></div>
-          </div>
-          <div class="field"><label for="clinicalIntent">clinical_intent</label><select id="clinicalIntent"><option value="">自动推断</option><option value="guideline_recommendation">guideline_recommendation</option><option value="evidence_update">evidence_update</option><option value="drug_safety">drug_safety</option><option value="clinical_question">clinical_question</option></select></div>
-          <p class="field-map">question / task / query_language / clinical_intent</p>
-          <div class="ports">
-            <div class="port-row out"><span class="label">question + intent</span><i class="socket out" id="sock-question" data-socket="question:out:query"></i></div>
+            <div class="field"><label for="clinicalIntent">clinical_intent</label><select id="clinicalIntent"><option value="">自动推断</option><option value="guideline_recommendation">guideline_recommendation</option><option value="evidence_update">evidence_update</option><option value="drug_safety">drug_safety</option><option value="clinical_question">clinical_question</option></select></div>
           </div>
           <div class="hint">问题原样保留、不翻译；问题内英文词由系统自动提取为 question_english_terms（GUI 不手填）。</div>
+          <div class="flowtags"><span class="ftag">question</span><span class="ftag">task</span><span class="ftag">query_language</span><span class="ftag">clinical_intent</span><span class="ftag muted">不自动翻译</span><span class="ftag arrow">→ 06 请求</span></div>
         </div>
-        <div class="node-foot"><span>中文问题优先</span><span>不生成回答</span></div>
-        <div class="node-resize" data-resize="question"></div>
-      </section>
-
-      <!-- 03 术语与映射 -->
-      <section class="node" id="node-terms" data-node="terms" style="left:648px;top:22px;width:300px;height:690px">
-        <div class="node-head"><h3><span class="node-index">03</span>术语与映射</h3><span class="node-badge" id="badge-terms">待填写</span></div>
-        <div class="node-body">
-          <div class="field"><label for="patientTerms">patient_terms（人工审核最小术语）</label><input id="patientTerms" type="text" placeholder="逗号分隔"></div>
-          <div class="field"><label for="termMapping">term_mapping（映射表 JSON：概念 → english / mesh / aliases）</label><textarea class="code" id="termMapping" spellcheck="false">[]</textarea></div>
-          <div class="field"><label>映射表预览（概念—英文—MeSH 绑定）</label><div id="termMappingPreview" class="mapping-table"><div class="hint">尚无可展开的映射行。</div></div></div>
-          <div class="field"><label for="facets">facets（JSON：问题槽位）</label><textarea class="code" id="facets" spellcheck="false">{}</textarea></div>
-          <p class="field-map">patient_terms / term_mapping / facets</p>
-          <div class="ports">
-            <div class="port-row out"><span class="label">reviewed term mapping</span><i class="socket out" id="sock-terms" data-socket="terms:out:terms"></i></div>
-          </div>
-          <div class="hint">term_mapping 只在概念/别名命中时展开；英文与 MeSH 必须来自同一映射行；工作台只发送 term_mapping（展开记录为 reviewed_term_mapping）。</div>
-        </div>
-        <div class="node-foot"><span>审核术语可追溯</span><span>不自动翻译</span></div>
-        <div class="node-resize" data-resize="terms"></div>
-      </section>
-
       </div>
-      <div class="workcol" data-col="config">
-      <!-- 04 范围与过滤 -->
-      <section class="node" id="node-scope" data-node="scope" style="left:962px;top:22px;width:300px;height:690px">
-        <div class="node-head"><h3><span class="node-index">04</span>范围与过滤</h3><span class="node-badge" id="badge-scope">待配置</span></div>
-        <div class="node-body">
-          <div class="row">
+    </section>
+
+    <section class="stage" id="node-terms" data-node="terms">
+      <div class="stage-marker">03</div>
+      <div class="stage-card">
+        <div class="stage-head">
+          <div><h2>术语与映射</h2><p>只发送人工审核过的最小术语；英文与 MeSH 必须来自同一映射行。</p></div>
+          <span class="node-badge" id="badge-terms">待填写</span>
+        </div>
+        <div class="stage-body">
+          <div class="fgrid c2">
+            <div class="field"><label for="patientTerms">patient_terms（人工审核最小术语）</label><input id="patientTerms" type="text" placeholder="逗号分隔"></div>
+            <div class="field"><label for="facets">facets（JSON：问题槽位）</label><textarea class="code short" id="facets" spellcheck="false">{}</textarea></div>
+          </div>
+          <div class="field"><label for="termMapping">term_mapping（映射表 JSON：概念 → english / mesh / aliases）</label><textarea class="code" id="termMapping" spellcheck="false">[]</textarea></div>
+          <div class="fgrid">
+            <div class="field"><label>映射表预览（概念—英文—MeSH 绑定）</label><div id="termMappingPreview" class="mapping-table"><div class="hint">尚无可展开的映射行。</div></div></div>
+            <div class="field"><label>术语映射库（自动映射：问题命中概念/别名才展开）</label><div id="termMappingLibrary" class="mapping-table"><div class="hint">读取后端配置中…</div></div></div>
+          </div>
+          <div class="hint">term_mapping 只在概念/别名命中时展开；工作台只发送 term_mapping（展开记录为 reviewed_term_mapping）。库行标 needs_review，人工核验前不是金标准。</div>
+          <div class="flowtags"><span class="ftag">patient_terms</span><span class="ftag">term_mapping</span><span class="ftag">facets</span><span class="ftag arrow">→ 06 请求</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="stage" id="node-scope" data-node="scope">
+      <div class="stage-marker">04</div>
+      <div class="stage-card">
+        <div class="stage-head">
+          <div><h2>范围与过滤</h2><p>选择来源模式、来源类型与返回条数；as_of 同时约束患者事实与文献。</p></div>
+          <span class="node-badge" id="badge-scope">待配置</span>
+        </div>
+        <div class="stage-body">
+          <div class="fgrid c3">
             <div class="field"><label for="sourceMode">source_mode</label><select id="sourceMode"><option value="custom">custom · 调用方来源库</option><option value="live">live · 实时 PubMed + 指南元数据</option></select></div>
             <div class="field"><label for="topK">top_k</label><input id="topK" type="number" min="1" max="50" value="6"></div>
+            <div class="field"><label>source_kinds</label><div class="check-grid"><label class="check"><input type="checkbox" value="guideline" data-kind checked>guideline</label><label class="check"><input type="checkbox" value="pubmed" data-kind checked>pubmed</label></div></div>
           </div>
-          <div class="field"><label>source_kinds</label><div class="check-grid"><label class="check"><input type="checkbox" value="guideline" data-kind checked>guideline</label><label class="check"><input type="checkbox" value="pubmed" data-kind checked>pubmed</label></div></div>
-          <div class="field"><label for="filters">filters（JSON，例如 guideline_version）</label><textarea class="code" id="filters" spellcheck="false">{}</textarea></div>
-          <p class="field-map">source_mode / source_kinds / filters / top_k / as_of（来自步骤 01）</p>
-          <div class="ports">
-            <div class="port-row out"><span class="label">scope</span><i class="socket out" id="sock-scope" data-socket="scope:out:scope"></i></div>
-          </div>
-          <div class="hint">custom 来源库需先加载；未加载时会显式报错，不返回空结果冒充“没有证据”。</div>
+          <div class="field"><label for="filters">filters（JSON，例如 guideline_version）</label><textarea class="code short" id="filters" spellcheck="false">{}</textarea></div>
+          <div class="hint">custom 来源库需先加载；未加载时会显式报错，不返回空结果冒充“没有证据”。服务不内置任何本地语料。</div>
+          <div class="flowtags"><span class="ftag">source_mode</span><span class="ftag">source_kinds</span><span class="ftag">filters</span><span class="ftag">top_k</span><span class="ftag arrow">→ 06 请求</span></div>
         </div>
-        <div class="node-foot"><span>as_of 同时约束患者事实与文献</span><span>不内置语料</span></div>
-        <div class="node-resize" data-resize="scope"></div>
-      </section>
+      </div>
+    </section>
 
-      <!-- 05 检索方法 -->
-      <section class="node" id="node-method" data-node="method" style="left:1276px;top:22px;width:300px;height:690px">
-        <div class="node-head"><h3><span class="node-index">05</span>检索方法与门控</h3><span class="node-badge" id="badge-method">待配置</span></div>
-        <div class="node-body">
-          <div class="field"><label for="retrievalMethod">retrieval_method</label><select id="retrievalMethod">
-            <option value="">未指定（bm25）</option>
-            <option value="bm25">bm25</option><option value="ql">ql</option><option value="rm3">rm3</option>
-            <option value="dense">dense（MedCPT，英文域）</option><option value="xlingual">xlingual（multilingual-e5）</option>
-            <option value="m3">m3（BGE-M3）</option><option value="translate">translate（zh→en 变体）</option>
-            <option value="splade">splade</option><option value="colbert">colbert</option><option value="query2doc">query2doc</option>
-            <option value="bm25,ql">bm25 + ql（RRF）</option><option value="bm25,xlingual">bm25 + xlingual（RRF）</option>
-            <option value="bm25,m3">bm25 + m3（RRF）</option><option value="bm25,dense">bm25 + dense（RRF）</option>
-            <option value="bm25,translate">bm25 + translate</option>
-          </select></div>
-          <label class="check"><input type="checkbox" id="rerankToggle"> rerank（MedCPT cross-encoder）</label>
-          <div class="field"><label for="fidelityGate">fidelity_gate（查询保真研究层）</label><select id="fidelityGate"><option value="off">off</option><option value="audit">audit</option><option value="warn">warn</option><option value="downweight">downweight</option><option value="reject">reject</option></select></div>
-          <p class="field-map">retrieval_method / rerank / fidelity_gate</p>
-          <div class="ports">
-            <div class="port-row out"><span class="label">method</span><i class="socket out" id="sock-method" data-socket="method:out:method"></i></div>
-          </div>
-          <div class="hint">神经方法不可用时 trace 标 not_configured，不静默降级；门控只改变被判定路线的信号。</div>
+    <section class="stage" id="node-method" data-node="method">
+      <div class="stage-marker">05</div>
+      <div class="stage-card">
+        <div class="stage-head">
+          <div><h2>检索方法与门控</h2><p>检索方法、重排开关与查询保真门控；神经方法不可用时显式标记，不静默降级。</p></div>
+          <span class="node-badge" id="badge-method">待配置</span>
         </div>
-        <div class="node-foot"><span>零分路线不参与 RRF</span><span id="methodHint">方法就绪状态见下方</span></div>
-        <div class="node-resize" data-resize="method"></div>
-      </section>
+        <div class="stage-body">
+          <div class="fgrid c2">
+            <div class="field"><label for="retrievalMethod">retrieval_method</label><select id="retrievalMethod">
+              <option value="">未指定（bm25）</option>
+              <option value="bm25">bm25</option><option value="ql">ql</option><option value="rm3">rm3</option>
+              <option value="dense">dense（MedCPT，英文域）</option><option value="xlingual">xlingual（multilingual-e5）</option>
+              <option value="m3">m3（BGE-M3）</option><option value="translate">translate（zh→en 变体）</option>
+              <option value="splade">splade</option><option value="colbert">colbert</option><option value="query2doc">query2doc</option>
+              <option value="bm25,ql">bm25 + ql（RRF）</option><option value="bm25,xlingual">bm25 + xlingual（RRF）</option>
+              <option value="bm25,m3">bm25 + m3（RRF）</option><option value="bm25,dense">bm25 + dense（RRF）</option>
+              <option value="bm25,translate">bm25 + translate</option>
+            </select></div>
+            <div class="field"><label for="fidelityGate">fidelity_gate（查询保真研究层）</label><select id="fidelityGate"><option value="off">off</option><option value="audit">audit</option><option value="warn">warn</option><option value="downweight">downweight</option><option value="reject">reject</option></select></div>
+          </div>
+          <label class="check"><input type="checkbox" id="rerankToggle"> rerank（启用重排；重排器与候选池见下）</label>
+          <div class="fgrid c2">
+            <div class="field"><label for="rerankerModel">重排器模型（服务端）</label><select id="rerankerModel">
+              <option value="medcpt">MedCPT cross-encoder（英文查询域）</option>
+              <option value="qwen3">Qwen3-Reranker-0.6B（多语言，中文问题可见）</option>
+            </select></div>
+            <div class="field"><label for="rerankPool">重排候选池 rerank_pool</label><input id="rerankPool" type="number" min="0" step="10" value="0"></div>
+          </div>
+          <div class="field"><label>当前生效配置</label><div id="rerankerInfo" class="mapping-table"><div class="hint">读取后端配置中…</div></div></div>
+          <div class="field"><label>&nbsp;</label><button class="secondary" type="button" id="applyReranker">应用重排配置</button><div class="hint" id="rerankerApplyHint">切换后对下一次检索生效；已打开的旧引用不受影响。</div></div>
+          <div class="hint">零分路线不参与 RRF；门控只改变被判定路线的信号。方法就绪状态见右侧状态轨。</div>
+          <div class="flowtags"><span class="ftag">retrieval_method</span><span class="ftag">rerank</span><span class="ftag">fidelity_gate</span><span class="ftag arrow">→ 06 请求</span><span class="ftag muted" id="methodHint">方法就绪状态见右侧</span></div>
+        </div>
+      </div>
+    </section>
 
-      <!-- 06 请求组装 -->
-      <section class="node" id="node-request" data-node="request" style="left:20px;top:736px;width:1600px;height:330px">
-        <div class="node-head"><h3><span class="node-index">06</span>RetrievalRequest</h3><span class="node-badge" id="badge-request">组装中</span></div>
-        <div class="node-body req-body">
-          <div class="req-side">
-            <p class="hint">本区只预览请求，不发送；字段与 <code>RetrievalRequest.from_dict()</code> 一一对应，<code>request_id</code> 执行时生成。</p>
-            <div class="ports">
-              <div class="port-row"><i class="socket" id="sock-request-snapshot" data-socket="request:in:snapshot"></i><span class="label">patient_snapshot</span></div>
-              <div class="port-row"><i class="socket" id="sock-request-question" data-socket="request:in:question"></i><span class="label">question</span></div>
-              <div class="port-row"><i class="socket" id="sock-request-terms" data-socket="request:in:terms"></i><span class="label">terms</span></div>
-              <div class="port-row"><i class="socket" id="sock-request-scope" data-socket="request:in:scope"></i><span class="label">scope</span></div>
-              <div class="port-row"><i class="socket" id="sock-request-method" data-socket="request:in:method"></i><span class="label">method</span></div>
+    <section class="stage" id="node-request" data-node="request">
+      <div class="stage-marker">06</div>
+      <div class="stage-card">
+        <div class="stage-head">
+          <div><h2>请求组装</h2><p>字段与 RetrievalRequest.from_dict() 一一对应；request_id 执行时生成。</p></div>
+          <span class="node-badge" id="badge-request">组装中</span>
+        </div>
+        <div class="stage-body">
+          <div class="request-grid">
+            <div class="field">
+              <div class="flowtags"><span class="ftag">patient_snapshot</span><span class="ftag">question</span><span class="ftag">terms</span><span class="ftag">scope</span><span class="ftag">method</span></div>
+              <p class="field-map" style="margin-top:9px">POST /api/retrieve</p>
+              <p class="hint" style="margin-top:7px">本区只预览请求，不发送；JSON-first 契约，不发送原始病历。</p>
             </div>
-            <p class="field-map">POST /api/retrieve</p>
-            <div class="ports"><div class="port-row out"><span class="label">request</span><i class="socket out" id="sock-request-out" data-socket="request:out:request"></i></div></div>
-          </div>
-          <div class="req-preview">
-            <label for="requestPreview">将发送的 JSON（实时，来自步骤 01–05）</label>
-            <pre class="mini-pre" id="requestPreview">尚未组装</pre>
+            <div class="field"><label for="requestPreview">将发送的 JSON（实时，来自步骤 01–05）</label><pre class="mini-pre" id="requestPreview">尚未组装</pre></div>
           </div>
         </div>
-        <div class="node-foot"><span>JSON-first 契约</span><span>不发送原始病历</span></div>
-        <div class="node-resize" data-resize="request"></div>
-      </section>
-
       </div>
-      <div class="workcol" data-col="execute">
-      <!-- 07 执行检索 -->
-      <section class="node" id="node-run" data-node="run" style="left:20px;top:1096px;width:300px;height:404px">
-        <div class="node-head"><h3><span class="node-index">07</span>执行检索</h3><span class="node-badge" id="badge-run">待执行</span></div>
-        <div class="node-body">
-          <div class="ports">
-            <div class="port-row"><i class="socket" id="sock-run-in" data-socket="run:in:request"></i><span class="label">request</span></div>
-          </div>
-          <p class="hint">执行一次 <code>retrieve_evidence</code>：分源收集 → 来源内排序 → 联合选择 → 引用生成。返回 EvidencePackage。</p>
-          <div class="field"><label>本次输出摘要</label><pre class="mini-pre" id="runPreview">尚未执行</pre></div>
-          <div class="ports"><div class="port-row out"><span class="label">EvidencePackage</span><i class="socket out" id="sock-run-pkg" data-socket="run:out:package"></i></div><div class="port-row out"><span class="label">retrieval_id</span><i class="socket out" id="sock-run-rid" data-socket="run:out:retrieval_id"></i></div></div>
-        </div>
-        <div class="node-foot"><span>只读</span><span>不生成回答</span></div>
-        <div class="node-resize" data-resize="run"></div>
-      </section>
+    </section>
 
-      <!-- 08 证据结果 -->
-      <section class="node" id="node-results" data-node="results" style="left:334px;top:1096px;width:600px;height:404px">
-        <div class="node-head"><h3><span class="node-index">08</span>证据结果</h3><span class="node-badge" id="badge-results">未检索</span></div>
-        <div class="node-body">
-          <div class="ports"><div class="port-row"><i class="socket" id="sock-results-in" data-socket="results:in:package"></i><span class="label">EvidencePackage</span></div></div>
-          <div class="field"><label>结果列表（点击卡片查看引文详情；完整结果面板在下方）</label><div id="resultListInline" class="result-list inline"><div class="hint">尚未检索。</div></div></div>
-          <details><summary>包摘要</summary><pre class="mini-pre" id="packagePreview">尚未检索</pre></details>
-          <details><summary>原始响应 JSON（后端真实返回）</summary><pre class="mini-pre" id="rawResponse">尚未检索</pre></details>
-          <div class="ports"><div class="port-row out"><span class="label">citation_id</span><i class="socket out" id="sock-results-cit" data-socket="results:out:citation"></i></div></div>
+    <section class="stage" id="node-run" data-node="run">
+      <div class="stage-marker">07</div>
+      <div class="stage-card">
+        <div class="stage-head">
+          <div><h2>执行检索</h2><p>执行一次 retrieve_evidence：分源收集 → 来源内排序 → 联合选择 → 引用生成。</p></div>
+          <span class="node-badge" id="badge-run">待执行</span>
         </div>
-        <div class="node-foot"><span>来源分离</span><span id="resultNote">—</span></div>
-        <div class="node-resize" data-resize="results"></div>
-      </section>
-
-      <!-- 09 引用与审计 -->
-      <section class="node" id="node-audit" data-node="audit" style="left:948px;top:1096px;width:672px;height:404px">
-        <div class="node-head"><h3><span class="node-index">09</span>引用与审计</h3><span class="node-badge" id="badge-audit">待审计</span></div>
-        <div class="node-body">
-          <div class="ports">
-            <div class="port-row"><i class="socket" id="sock-audit-rid" data-socket="audit:in:retrieval_id"></i><span class="label">retrieval_id</span></div>
-            <div class="port-row"><i class="socket" id="sock-audit-cit" data-socket="audit:in:citation"></i><span class="label">citation_id</span></div>
+        <div class="stage-body">
+          <div class="run-grid">
+            <div class="field">
+              <div class="pipeline"><span>分源收集</span><i>→</i><span>来源内排序</span><i>→</i><span>联合选择</span><i>→</i><span>引用生成</span></div>
+              <p class="hint" style="margin-top:8px">返回 EvidencePackage；只读，不生成回答。</p>
+              <div class="actionrow" style="margin-top:9px"><button class="primary" id="runInline" type="button">▶ 执行检索</button><span class="badge state">EvidencePackage</span></div>
+            </div>
+            <div class="field"><label>本次输出摘要</label><pre class="mini-pre" id="runPreview">尚未执行</pre></div>
           </div>
-          <div class="field"><label for="auditAnswer">待审计回答（用 [citation_id] 标注）</label><textarea id="auditAnswer" placeholder="粘贴带本次 citation_id 的回答；系统不生成回答。"></textarea></div>
-          <div class="row inline"><button class="secondary" id="auditTemplate" type="button">插入引用模板</button><button class="secondary" id="auditButton" type="button">审计回答</button></div>
-          <p class="field-map">POST /api/citation · POST /api/audit</p>
-          <div id="auditOutput"></div>
+          <div class="field" style="margin-top:12px;border-top:1px solid var(--line);padding-top:10px">
+            <label>逐轮检索控制器（研究层）</label>
+            <p class="hint" style="margin:4px 0 8px">逐轮决定查哪个来源、查完停不停；患者事实固定在第一轮本地检索。结果在“逐轮控制”选项卡回看。</p>
+            <div class="fgrid c4">
+              <div class="field"><label for="controllerMaxRounds">max_rounds</label><input id="controllerMaxRounds" type="number" min="0" max="8" step="1" value="4"></div>
+              <div class="field"><label for="controllerMaxCost">max_cost</label><input id="controllerMaxCost" type="number" min="0" step="0.5" value="3.0"></div>
+              <div class="field"><label for="controllerMinEvidence">min_evidence</label><input id="controllerMinEvidence" type="number" min="0" step="1" value="3"></div>
+              <div class="field"><label for="controllerMinCoverage">min_coverage</label><input id="controllerMinCoverage" type="number" min="0" max="1" step="0.05" value="0.5"></div>
+            </div>
+            <div class="actionrow" style="margin-top:9px"><button class="secondary" id="runControllerInline" type="button">▶ 运行逐轮控制器</button><span class="hint" id="controllerHint">不改默认检索；只影响这一次控制器运行。</span></div>
+          </div>
         </div>
-        <div class="node-foot"><span>只做引用结构审计；语义支持未测量（not_checked）</span><span id="auditHint">需要先检索</span></div>
-        <div class="node-resize" data-resize="audit"></div>
-      </section>
+        <div class="stage-foot"><span>只读</span><span>不生成回答 · 不写回病历</span></div>
       </div>
-    </div>
+    </section>
+
+    <section class="stage" id="node-results" data-node="results">
+      <div class="stage-marker">08</div>
+      <div class="stage-card" id="resultPanel">
+        <div class="stage-head">
+          <div><h2>证据结果</h2><p id="resultNote">尚未检索。</p></div>
+          <div class="head-badges"><span class="badge state" id="modeBadge">custom</span><span class="node-badge" id="badge-results">未检索</span></div>
+        </div>
+        <div class="stage-body">
+          <div class="metrics"><div class="metric"><small>候选证据</small><strong id="candidateCount">—</strong></div><div class="metric"><small>最终返回</small><strong id="selectedCount">—</strong></div><div class="metric"><small>指南条目</small><strong id="guidelineCount">—</strong></div><div class="metric"><small>成功来源</small><strong id="sourceCount">—</strong></div></div>
+          <div id="warnings" class="warnings" hidden></div>
+          <div class="tabbar" data-tabbar="results" role="tablist" aria-label="结果视图">
+            <button class="tab active" data-tab="evidence" type="button" role="tab" aria-selected="true">证据列表 <span class="tab-count" id="tabEvidenceCount">—</span></button>
+            <button class="tab" data-tab="patient" type="button" role="tab" aria-selected="false">患者事实</button>
+            <button class="tab" data-tab="applicability" type="button" role="tab" aria-selected="false">指南适用性</button>
+            <button class="tab" data-tab="controller" type="button" role="tab" aria-selected="false">逐轮控制</button>
+            <button class="tab" data-tab="diagnostics" type="button" role="tab" aria-selected="false">检索诊断</button>
+            <button class="tab" data-tab="raw" type="button" role="tab" aria-selected="false">原始响应</button>
+          </div>
+          <div data-panel-group="results">
+            <div class="tab-panel" data-panel="evidence">
+              <div class="tabbar sub" id="sourceTabs" aria-label="按来源筛选" hidden></div>
+              <div class="evidence-grid">
+                <div><div id="resultList" class="result-list"><div class="empty">选择病例或手填快照 → 载入快照 → 执行检索。结果按来源分选项卡显示，患者事实单独列出。</div></div></div>
+                <aside class="detail-panel"><div class="detail-head"><h3>引文详情</h3><span id="detailKind" class="badge state">未选择</span></div><div id="detailBody"><div class="empty">选择一条证据查看摘录、关键证据句、版本与来源定位。</div></div></aside>
+              </div>
+            </div>
+            <div class="tab-panel" data-panel="patient" hidden>
+              <div class="tabbar sub" data-tabbar="patient" role="tablist" aria-label="患者事实视图">
+                <button class="tab active" data-tab="hits" type="button" role="tab" aria-selected="true">本次命中 <span class="tab-count" id="patientHitCount">—</span></button>
+                <button class="tab" data-tab="snapshot" type="button" role="tab" aria-selected="false">快照事实 <span class="tab-count" id="patientSnapshotCount">—</span></button>
+              </div>
+              <div data-panel-group="patient">
+                <div class="tab-panel" data-panel="hits"><div id="patientFacts"><div class="empty">尚未检索。执行检索后显示本地患者事实命中。</div></div></div>
+                <div class="tab-panel" data-panel="snapshot" hidden><div id="snapshotPanel"><div class="empty">尚未载入快照。载入后显示按 as_of 截止的可见事实。</div></div></div>
+              </div>
+            </div>
+            <div class="tab-panel" data-panel="applicability" hidden><div id="applicabilityBox"><div class="empty">尚未检索。执行后显示指南结构化适用条件核对结果。</div></div></div>
+            <div class="tab-panel" data-panel="controller" hidden><div id="controllerBox"><div class="empty">尚未运行。步骤 07 可调 max_rounds / max_cost / min_evidence / min_coverage，然后点“运行逐轮控制器”。</div></div></div>
+            <div class="tab-panel" data-panel="diagnostics" hidden>
+              <div class="diag-grid">
+                <div id="mappingSourcesBox"></div>
+                <div id="routingBox"></div>
+                <div id="queryReviewBox"></div>
+                <div id="jointBox"></div>
+                <div id="fidelityBox"></div>
+              </div>
+            </div>
+            <div class="tab-panel" data-panel="raw" hidden>
+              <div class="hint" id="sourceGroups">evidence_groups：尚未检索</div>
+              <div class="fgrid c2" style="margin-top:10px">
+                <div class="field"><label>包摘要</label><pre class="mini-pre" id="packagePreview">尚未检索</pre></div>
+                <div class="field"><label>原始响应 JSON（后端真实返回）</label><pre class="mini-pre" id="rawResponse">尚未检索</pre></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="stage-foot"><span>来源分离 · 分数只表示检索相关性</span><span>结果按来源分选项卡显示</span></div>
+      </div>
+    </section>
+
+    <section class="stage" id="node-audit" data-node="audit">
+      <div class="stage-marker">09</div>
+      <div class="stage-card">
+        <div class="stage-head">
+          <div><h2>引用与审计</h2><p>对带 citation_id 的回答做引用结构审计；系统不生成回答。</p></div>
+          <span class="node-badge" id="badge-audit">待审计</span>
+        </div>
+        <div class="stage-body">
+          <div class="fgrid c2">
+            <div class="field">
+              <label for="auditAnswer">待审计回答（用 [citation_id] 标注）</label>
+              <textarea id="auditAnswer" placeholder="粘贴带本次 citation_id 的回答；系统不生成回答。"></textarea>
+              <div class="actionrow" style="margin-top:8px"><button class="secondary" id="auditTemplate" type="button">插入引用模板</button><button class="secondary" id="auditButton" type="button">审计回答</button></div>
+              <p class="field-map" style="margin-top:8px">POST /api/citation · POST /api/audit</p>
+              <div class="hint" style="margin-top:6px" id="auditHint">需要先检索。引用 ID 绑定单次 retrieval_id；跨会话或跨检索引用会被拒绝。</div>
+            </div>
+            <div id="auditOutput"></div>
+          </div>
+        </div>
+        <div class="stage-foot"><span>只做引用结构审计；语义支持未测量（not_checked）</span><span>引用 ID 绑定单次 retrieval_id</span></div>
+      </div>
+    </section>
   </main>
 
-  <div class="bottom-strip">
-    <section class="panel inspector" id="inspector">
-      <div class="panel-head"><h2>后端与契约</h2><span class="badge state" id="inspectorBadge">RetrievalRequest</span></div>
-      <div class="panel-body">
-        <p id="profileLine">病例库 · 合成数据</p>
-        <p id="backendInfo">正在读取 /api/health…</p>
-        <p class="hint">覆盖新生儿呼吸窘迫综合征（RDS）、感染性肺炎、TTN、黄疸、PPHN、BPD、低血糖与母体 GBS；病例为合成数据，检索走真实 <code>/api/retrieve</code>。</p>
-        <h4>字段 → 步骤对照</h4>
-        <ul>
-          <li><b>01</b> patient_snapshot、as_of</li>
-          <li><b>02</b> question、task、query_language、clinical_intent</li>
-          <li><b>03</b> patient_terms、term_mapping（概念→english/mesh/aliases）、facets</li>
-          <li><b>04</b> source_mode、source_kinds、filters、top_k</li>
-          <li><b>05</b> retrieval_method、rerank、fidelity_gate</li>
-          <li><b>06</b> request_id（执行时生成）+ 以上全部</li>
-        </ul>
-        <p class="hint">服务不内置任何本地语料；来源库需显式加载。病例默认 <code>live</code>；分数只表示检索相关性，不是证据质量。</p>
+  <aside class="statusrail" aria-label="状态与工具">
+    <div class="tabbar rail-tabs" data-tabbar="rail" role="tablist" aria-label="状态工具">
+      <button class="tab active" data-tab="status" type="button" role="tab" aria-selected="true">状态</button>
+      <button class="tab" data-tab="sources" type="button" role="tab" aria-selected="false">来源</button>
+      <button class="tab" data-tab="log" type="button" role="tab" aria-selected="false">日志 <span class="tab-count" id="apiCount">0</span></button>
+    </div>
+    <div data-panel-group="rail">
+      <div class="rail-panel" data-panel="status">
+        <div class="rail-block">
+          <div class="rail-block-head"><h3>后端与契约</h3><span class="badge state" id="inspectorBadge">RetrievalRequest</span></div>
+          <p id="profileLine">病例库 · 合成数据</p>
+          <p id="backendInfo">正在读取 /api/health…</p>
+          <ul class="contract-list">
+            <li><b>01</b> patient_snapshot、as_of</li>
+            <li><b>02</b> question、task、query_language、clinical_intent</li>
+            <li><b>03</b> patient_terms、term_mapping、facets</li>
+            <li><b>04</b> source_mode、source_kinds、filters、top_k</li>
+            <li><b>05</b> retrieval_method、rerank、fidelity_gate</li>
+            <li><b>06</b> request_id（执行时生成）+ 以上全部</li>
+          </ul>
+          <p class="hint">覆盖新生儿呼吸窘迫综合征（RDS）、感染性肺炎、TTN、黄疸、PPHN、BPD、低血糖与母体 GBS；病例为合成数据，检索走真实 <code>/api/retrieve</code>。分数只表示检索相关性，不是证据质量。</p>
+        </div>
+        <div class="rail-block">
+          <div class="rail-block-head"><h3>检索方法就绪</h3><span class="badge state" id="methodBadge">—</span></div>
+          <div id="methodList" class="hint">正在读取 /api/health…</div>
+        </div>
+        <div class="rail-block">
+          <p class="hint">只读：检索不写回病历、不生成诊疗结论；外部来源只接收审核术语，不接收患者标识或原始病历。</p>
+        </div>
       </div>
-    </section>
-
-    <section class="panel">
-      <div class="panel-head"><h2>来源库</h2><span class="badge state" id="demoSourceBadge">未加载</span></div>
-      <div class="panel-body tight">
-        <div id="demoGuidelineList" class="hint">正在读取来源库…</div>
-        <div class="row inline" style="margin-top:7px"><button class="secondary" id="loadDemoGuidelines" type="button">加载来源库</button><button class="secondary" id="clearSources" type="button">清空自定义来源</button></div>
-        <p class="hint" style="margin-top:6px">来源库条目只在显式加载后用于 <code>custom</code> 模式；病例默认走 <code>live</code>，直接检索真实指南与开放获取正文。未加载时 custom 检索会显式报错。</p>
+      <div class="rail-panel" data-panel="sources" hidden>
+        <div class="rail-block">
+          <div class="rail-block-head"><h3>来源库</h3><span class="badge state" id="demoSourceBadge">未加载</span></div>
+          <div id="demoGuidelineList" class="hint">正在读取来源库…</div>
+          <div class="actionrow"><button class="secondary" id="loadDemoGuidelines" type="button">加载来源库</button><button class="secondary" id="clearSources" type="button">清空自定义来源</button></div>
+          <p class="hint">来源库条目只在显式加载后用于 <code>custom</code> 模式；病例默认走 <code>live</code>，直接检索真实指南与开放获取正文。未加载时 custom 检索会显式报错。</p>
+        </div>
       </div>
-    </section>
-
-    <section class="panel">
-      <div class="panel-head"><h2>检索方法就绪</h2><span class="badge state" id="methodBadge">—</span></div>
-      <div class="panel-body"><div id="methodList" class="hint">正在读取 /api/health…</div></div>
-    </section>
-
-    <section class="panel">
-      <div class="panel-head"><h2>API 调用日志</h2><span class="badge state" id="apiCount">0</span></div>
-      <div class="panel-body tight"><div id="apiLog" class="api-log"><div class="hint">尚无调用。每次真实 HTTP 请求会记录在这里。</div></div></div>
-    </section>
-  </div>
-
-  <div class="result-panel" id="resultPanel">
-    <section class="panel">
-      <div class="panel-head"><h2>证据结果（evidence_groups）</h2><span class="badge state" id="modeBadge">custom</span></div>
-      <div class="panel-body">
-        <div class="metrics"><div class="metric"><small>候选证据</small><strong id="candidateCount">—</strong></div><div class="metric"><small>最终返回</small><strong id="selectedCount">—</strong></div><div class="metric"><small>指南条目</small><strong id="guidelineCount">—</strong></div><div class="metric"><small>成功来源</small><strong id="sourceCount">—</strong></div></div>
-        <div id="warnings" class="warnings" hidden></div>
-        <div id="queryReviewBox"></div>
-        <div id="fidelityBox"></div>
-        <div id="jointBox"></div>
-        <div id="patientFacts"></div>
-        <div id="applicabilityBox"></div>
-        <div id="sourceGroups" class="hint" style="margin-bottom:8px">evidence_groups：尚未检索</div>
-        <div id="resultList" class="result-list"><div class="empty">选择病例或手填快照 → 载入快照 → 执行检索。结果将按指南 / PubMed 分源显示，患者事实单独列出。</div></div>
+      <div class="rail-panel" data-panel="log" hidden>
+        <div class="rail-block">
+          <div class="rail-block-head"><h3>API 调用日志</h3><span class="badge state">实时</span></div>
+          <div id="apiLog" class="api-log"><div class="hint">尚无调用。每次真实 HTTP 请求会记录在这里。</div></div>
+        </div>
       </div>
-    </section>
-    <aside class="panel">
-      <div class="panel-head"><h2>引文详情</h2><span id="detailKind" class="badge state">未选择</span></div>
-      <div class="panel-body" id="detailBody"><div class="empty">选择一条证据查看摘录、关键证据句、版本与来源定位。</div></div>
-    </aside>
-  </div>
+    </div>
+    <div class="rail-foot">单文件工作台 · 无框架 / 无 CDN · 所有输入直连真实 HTTP API。</div>
+  </aside>
 </div>
+
 <script>
 const $=id=>document.getElementById(id);
-const WORLD={w:1640,h:1520};
-const state={cases:[],case:null,snapshot:null,pkg:null,selectedIndex:null,activeNode:'case',view:{x:18,y:16,scale:0.8},apiLog:[],registeredSources:0};
+const state={cases:[],case:null,snapshot:null,pkg:null,selectedIndex:null,sourceFilter:'all',apiLog:[],registeredSources:0};
 const collectionLabels={birth:'出生/成熟度',maternal:'母体（主体=mother）',diagnoses:'诊断',postnatal:'生后时点',respiratory_support:'呼吸支持',vitals:'生命体征',blood_gas:'血气',labs:'检验',imaging:'影像',medications:'用药',therapies:'治疗',feeding:'喂养',risk_factors:'风险因素',reports:'记录'};
 const kindLabels={guideline:'指南',pubmed:'PubMed',drug:'药品',clinical_trial:'临床试验',local_knowledge:'本地知识'};
 const sourceLabels={'neonatal-guideline-metadata':'指南元数据','neonatal-guideline-synthetic':'合成指南','neonatal-literature-synthetic':'合成文献'};
 const caseColors={birth:'#2563a8',maternal:'#7c4dad',diagnoses:'#b04545',postnatal:'#0d7f72',respiratory_support:'#116579',vitals:'#b06a0a',blood_gas:'#1a7f5a',labs:'#b06a0a',imaging:'#2563a8',medications:'#1a7f5a',therapies:'#7c4dad',feeding:'#0d7f72',risk_factors:'#a23535',reports:'#5b6b78'};
+
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function listValue(id){return $(id).value.split(',').map(x=>x.trim()).filter(Boolean);}
-function setBadge(id,text,cls){const el=$(id);if(!el)return;el.textContent=text;el.className='node-badge'+(cls?' '+cls:'');}
-function setNodeActive(node){state.activeNode=node;document.querySelectorAll('.node').forEach(n=>n.classList.toggle('active',n.dataset.node===node));document.querySelectorAll('.node-chip').forEach(r=>r.classList.toggle('active',r.dataset.node===node));}
+function setBadge(id,text,cls){const el=$(id);if(!el)return;el.textContent=text;el.className='node-badge'+(cls?' '+cls:'');const key=id.replace(/^badge-/,'');const nav=document.querySelector(`[data-nav-status="${key}"]`);if(nav){nav.textContent=text;nav.className='nav-status'+(cls?' '+cls:'');}}
+function setNodeActive(node){document.querySelectorAll('.stage').forEach(s=>s.classList.toggle('active',s.dataset.node===node));document.querySelectorAll('.flow-item').forEach(a=>a.classList.toggle('active',a.dataset.node===node));}
+function jsonPreview(id,value){$(id).textContent=JSON.stringify(value,null,2);}
+
+/* ---------- 选项卡 ---------- */
+function selectTab(group,key){
+  document.querySelectorAll(`[data-tabbar="${group}"] [data-tab]`).forEach(b=>{const on=b.dataset.tab===key;b.classList.toggle('active',on);b.setAttribute('aria-selected',on?'true':'false');});
+  document.querySelectorAll(`[data-panel-group="${group}"] > [data-panel]`).forEach(p=>{p.hidden=p.dataset.panel!==key;});
+}
+document.querySelectorAll('[data-tabbar]').forEach(bar=>{
+  bar.addEventListener('click',event=>{const btn=event.target.closest('[data-tab]');if(!btn)return;selectTab(bar.dataset.tabbar,btn.dataset.tab);});
+});
+document.querySelectorAll('.flow-item').forEach(item=>item.addEventListener('click',()=>setNodeActive(item.dataset.node)));
+function syncDockHeight(){const dock=$('topdock');if(dock)document.documentElement.style.setProperty('--dock-h',dock.offsetHeight+'px');}
+window.addEventListener('resize',syncDockHeight);
+if('IntersectionObserver' in window){
+  const spy=new IntersectionObserver(entries=>{entries.forEach(entry=>{if(entry.isIntersecting)setNodeActive(entry.target.dataset.node);});},{rootMargin:'-16% 0px -68% 0px',threshold:0});
+  document.querySelectorAll('.stage').forEach(stage=>spy.observe(stage));
+}
 
 /* ---------- 真实 HTTP + 调用日志 ---------- */
 function logApi(method,url,status,ms){state.apiLog.unshift({method,url,status,ms,at:new Date().toLocaleTimeString()});state.apiLog=state.apiLog.slice(0,30);renderApiLog();}
@@ -683,82 +799,12 @@ async function requestJson(url,options={}){
   if(!response.ok){const parts=[data.error||`请求失败（${response.status}）`];if(data.exception_type)parts.push(`异常: ${data.exception_type}`);if(data.error_id)parts.push(`错误 ID: ${data.error_id}`);throw new Error(parts.join(' | '));}
   return data;
 }
-function jsonPreview(id,value){$(id).textContent=JSON.stringify(value,null,2);}
-
-/* ---------- 画布交互已停用：v6.6.5 使用固定工作台布局 ---------- */
-if(false){
-const viewport=$('viewport'),world=$('graph');
-function clamp(v,min,max){return Math.min(max,Math.max(min,v));}
-function applyView(){world.style.transform=`translate(${state.view.x}px, ${state.view.y}px) scale(${state.view.scale})`;$('zoomLabel').textContent=Math.round(state.view.scale*100)+'%';requestAnimationFrame(drawWires);}
-function setZoom(next,mx,my){next=clamp(next,0.35,2.2);const old=state.view.scale;const vx=mx==null?viewport.clientWidth/2:mx;const vy=my==null?viewport.clientHeight/2:my;const wx=(vx-state.view.x)/old,wy=(vy-state.view.y)/old;state.view.x=vx-wx*next;state.view.y=vy-wy*next;state.view.scale=next;applyView();saveLayout();}
-function fitView(){const vw=viewport.clientWidth,vh=viewport.clientHeight;const scale=clamp(Math.min(vw/WORLD.w,vh/WORLD.h)*0.98,0.45,2.2);state.view={x:(vw-WORLD.w*scale)/2,y:10,scale};applyView();saveLayout();}
-function fitWidth(){const vw=viewport.clientWidth;const scale=clamp((vw-26)/WORLD.w,0.66,1.2);state.view={x:(vw-WORLD.w*scale)/2,y:14,scale};applyView();}
-function centerNode(id){const node=document.querySelector(`.node[data-node="${id}"]`);if(!node)return;const scale=Math.max(state.view.scale,0.75);state.view.scale=scale;state.view.x=viewport.clientWidth/2-(node.offsetLeft+node.offsetWidth/2)*scale;state.view.y=viewport.clientHeight/2-(node.offsetTop+node.offsetHeight/2)*scale;applyView();saveLayout();}
-viewport.addEventListener('wheel',event=>{event.preventDefault();const rect=viewport.getBoundingClientRect();const factor=Math.exp(-event.deltaY*0.0014);setZoom(state.view.scale*factor,event.clientX-rect.left,event.clientY-rect.top);},{passive:false});
-viewport.addEventListener('mousedown',event=>{if(event.button!==0)return;if(event.target.closest('.node'))return;if(event.target.closest('.zoom-hud'))return;event.preventDefault();const start={x:event.clientX,y:event.clientY,vx:state.view.x,vy:state.view.y};viewport.classList.add('panning');const move=ev=>{state.view.x=start.vx+(ev.clientX-start.x);state.view.y=start.vy+(ev.clientY-start.y);applyView();};const up=()=>{viewport.classList.remove('panning');window.removeEventListener('mousemove',move);window.removeEventListener('mouseup',up);saveLayout();};window.addEventListener('mousemove',move);window.addEventListener('mouseup',up);});
-$('zoomOut').addEventListener('click',()=>setZoom(state.view.scale/1.15));
-$('zoomIn').addEventListener('click',()=>setZoom(state.view.scale*1.15));
-$('zoomFit').addEventListener('click',fitView);
-$('zoomReset').addEventListener('click',()=>setZoom(1));
-
-document.querySelectorAll('.node').forEach(node=>{
-  const head=node.querySelector('.node-head');
-  head.addEventListener('mousedown',event=>{
-    if(event.target.closest('button,input,select,textarea,a'))return;
-    if(event.button!==0)return;
-    event.preventDefault();setNodeActive(node.dataset.node);
-    const start={x:event.clientX,y:event.clientY,left:node.offsetLeft,top:node.offsetTop};
-    node.classList.add('dragging');
-    const move=ev=>{node.style.left=Math.max(0,start.left+(ev.clientX-start.x)/state.view.scale)+'px';node.style.top=Math.max(0,start.top+(ev.clientY-start.y)/state.view.scale)+'px';drawWires();};
-    const up=()=>{node.classList.remove('dragging');window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);window.removeEventListener('pointercancel',up);saveLayout();};
-    window.addEventListener('pointermove',move);window.addEventListener('pointerup',up);window.addEventListener('pointercancel',up);
-  });
-  node.addEventListener('click',()=>setNodeActive(node.dataset.node));
-});
-document.querySelectorAll('.node-resize').forEach(handle=>{
-  handle.addEventListener('mousedown',event=>{
-    event.stopPropagation();event.preventDefault();const node=handle.closest('.node');const start={x:event.clientX,y:event.clientY,w:node.offsetWidth,h:node.offsetHeight};
-    const move=ev=>{node.style.width=Math.max(240,start.w+(ev.clientX-start.x)/state.view.scale)+'px';node.style.height=Math.max(150,start.h+(ev.clientY-start.y)/state.view.scale)+'px';drawWires();};
-    const up=()=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);saveLayout();};
-    window.addEventListener('pointermove',move);window.addEventListener('pointerup',up);
-  });
-});
-function saveLayout(){const layout={view:state.view,nodes:{}};document.querySelectorAll('.node').forEach(node=>{layout.nodes[node.dataset.node]={left:node.offsetLeft,top:node.offsetTop,width:node.offsetWidth,height:node.offsetHeight};});try{localStorage.setItem('neo-workbench-layout-v2',JSON.stringify(layout));}catch(_){}}
-function loadLayout(){try{const raw=localStorage.getItem('neo-workbench-layout-v2');if(!raw)return false;const layout=JSON.parse(raw);if(layout.view){state.view={x:layout.view.x,y:layout.view.y,scale:clamp(layout.view.scale,0.35,2.2)};}Object.entries(layout.nodes||{}).forEach(([id,box])=>{const node=document.querySelector(`.node[data-node="${id}"]`);if(!node)return;node.style.left=box.left+'px';node.style.top=box.top+'px';node.style.width=box.width+'px';node.style.height=box.height+'px';});return true;}catch(_){return false;}}
-const DEFAULT_GEOMETRY={};
-document.querySelectorAll('.node').forEach(node=>{DEFAULT_GEOMETRY[node.dataset.node]={left:node.style.left,top:node.style.top,width:node.style.width,height:node.style.height};});
-$('jumpResults').addEventListener('click',()=>scrollToResults());
-$('jumpCanvas').addEventListener('click',()=>$('viewport').scrollIntoView({behavior:'smooth',block:'start'}));
-$('resetLayout').addEventListener('click',()=>{try{localStorage.removeItem('neo-workbench-layout-v2');}catch(_){}document.querySelectorAll('.node').forEach(node=>{const base=DEFAULT_GEOMETRY[node.dataset.node];if(!base)return;node.style.left=base.left;node.style.top=base.top;node.style.width=base.width;node.style.height=base.height;});fitView();});
-window.addEventListener('resize',()=>requestAnimationFrame(drawWires));
-
-function scrollToResults(){const panel=$('resultPanel');if(!panel)return;panel.scrollIntoView({behavior:'smooth',block:'start'});panel.classList.add('flash');setTimeout(()=>panel.classList.remove('flash'),900);}
-/* ---------- 连线：世界坐标，随缩放/拖拽/滚动实时重算 ---------- */
-const LINKS=[['case:out:snapshot','request:in:snapshot'],['question:out:query','request:in:question'],['terms:out:terms','request:in:terms'],['scope:out:scope','request:in:scope'],['method:out:method','request:in:method'],['request:out:request','run:in:request'],['run:out:package','results:in:package'],['run:out:retrieval_id','audit:in:retrieval_id'],['results:out:citation','audit:in:citation']];
-function socketCenter(el){const wr=world.getBoundingClientRect();const r=el.getBoundingClientRect();const scale=state.view.scale;return {x:(r.left+r.width/2-wr.left)/scale,y:(r.top+r.height/2-wr.top)/scale};}
-function themeColor(name,fallback){const value=getComputedStyle(document.documentElement).getPropertyValue(name).trim();return value||fallback;}
-function drawWires(){const svg=$('wires');if(!svg)return;svg.setAttribute('viewBox',`0 0 ${WORLD.w} ${WORLD.h}`);const wireMain=themeColor('--wire','#3f7a86');const wireAlt=themeColor('--wire-alt','#0d7f72');const parts=[];LINKS.forEach(([from,to],index)=>{const a=document.querySelector(`[data-socket="${from}"]`);const b=document.querySelector(`[data-socket="${to}"]`);if(!a||!b)return;const p1=socketCenter(a),p2=socketCenter(b);const cyan=index>=6;const color=cyan?wireAlt:wireMain;let d;if(p2.x<p1.x-12){const dy=Math.max(70,Math.abs(p2.y-p1.y)*0.55);d=`M ${p1.x.toFixed(1)} ${p1.y.toFixed(1)} C ${p1.x.toFixed(1)} ${(p1.y+dy).toFixed(1)}, ${p2.x.toFixed(1)} ${(p2.y-dy).toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;}else{const dx=Math.max(46,Math.abs(p2.x-p1.x)*0.45);d=`M ${p1.x.toFixed(1)} ${p1.y.toFixed(1)} C ${(p1.x+dx).toFixed(1)} ${p1.y.toFixed(1)}, ${(p2.x-dx).toFixed(1)} ${p2.y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;}parts.push(`<path d="${d}" fill="none" stroke="${color}" stroke-width="2.6" stroke-linecap="round" vector-effect="non-scaling-stroke" stroke-dasharray="${cyan?'8 5':'none'}" opacity=".96" marker-end="url(#arrow-${cyan?'cyan':'blue'})"/>`);a.classList.add('linked');b.classList.add('linked');});svg.innerHTML=`<defs><marker id="arrow-blue" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="${wireMain}"/></marker><marker id="arrow-cyan" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="${wireAlt}"/></marker></defs>`+parts.join('');}
-world.addEventListener('scroll',()=>drawWires(),true);
-document.querySelectorAll('.node-body').forEach(body=>body.addEventListener('scroll',()=>drawWires()));
-
-/* ---------- 节点导航 ---------- */
-const railNodes=[['case','01 病例与快照'],['question','02 问题与意图'],['terms','03 术语与映射'],['scope','04 范围与过滤'],['method','05 检索方法与门控'],['request','06 RetrievalRequest'],['run','07 执行检索'],['results','08 证据结果'],['audit','09 引用与审计']];
-function renderRail(){$('railBody').innerHTML=railNodes.map(([id,label])=>`<button class="node-chip ${state.activeNode===id?'active':''}" data-node="${id}" type="button"><b>${esc(label.slice(0,2))}</b>${esc(label.slice(3))}</button>`).join('');document.querySelectorAll('.node-chip').forEach(chip=>chip.addEventListener('click',()=>{setNodeActive(chip.dataset.node);centerNode(chip.dataset.node);}));}
-
-}
-function drawWires(){}
-function saveLayout(){}
-function loadLayout(){return false;}
-function renderRail(){}
-function fitWidth(){}
-function scrollToResults(){const panel=$('resultPanel');if(!panel)return;panel.scrollIntoView({behavior:'smooth',block:'start'});panel.classList.add('flash');setTimeout(()=>panel.classList.remove('flash'),900);}
-$('jumpResults').addEventListener('click',()=>scrollToResults());
 
 /* ---------- 病例与快照（真实后端） ---------- */
-async function loadCases(){try{const data=await requestJson('/api/demo/cases');state.cases=data.cases||[];$('demoCase').innerHTML=state.cases.map(c=>`<option value="${esc(c.case_id)}">${esc(c.label)}</option>`).join('');const sets=data.case_sets||{};const setText=sets.generated_his?`（精选 ${sets.curated} + HIS 生成 ${sets.generated_his}）`:'';$('profileLine').textContent=`病例库 · ${state.cases.length} 例合成病例${setText}`;if(state.cases.length)applyCase(state.cases[0].case_id);}catch(e){$('demoGuidelineList').textContent=`病例档案读取失败：${e.message}`;const warning=$('backendWarning');warning.hidden=false;warning.textContent=`无法读取 /api/demo/cases：${e.message}。本页面需要 v6.6.5 后端（PYTHONPATH=. python3 -m rag.server）。`;}}
-function applyCase(caseId){const c=state.cases.find(x=>x.case_id===caseId);if(!c)return;state.case=c;const p=c.preset||{};$('patientRef').value=c.snapshot.patient_ref||'';$('asOf').value=c.snapshot.as_of||'';$('snapshotJson').value=JSON.stringify(c.snapshot,null,2);$('manualSnapshot').checked=false;$('question').value=p.question||'';$('task').value=p.task||'clinical_question';$('queryLanguage').value=p.query_language||'zh';$('clinicalIntent').value=p.clinical_intent||'';$('patientTerms').value=(p.patient_terms||[]).join(', ');$('termMapping').value=JSON.stringify(p.term_mapping||[],null,2);$('facets').value=JSON.stringify(p.facets||{},null,2);$('filters').value=JSON.stringify(p.filters||{},null,2);$('sourceMode').value=p.source_mode||'custom';$('topK').value=String(p.top_k||6);document.querySelectorAll('[data-kind]').forEach(cb=>cb.checked=(p.source_kinds||['guideline','pubmed']).includes(cb.value));$('retrievalMethod').value=p.retrieval_method||'';$('rerankToggle').checked=Boolean(p.rerank);$('fidelityGate').value=p.fidelity_gate||'off';state.snapshot=null;$('snapshotState').textContent='未载入';$('snapshotPreview').textContent='尚未载入';setBadge('badge-case','待载入','');setBadge('badge-question',p.question?'已填写':'待填写',p.question?'ready':'');setBadge('badge-terms','待填写','');setBadge('badge-scope','待配置','');setBadge('badge-method','待配置','');updateRequestPreview();drawWires();}
+async function loadCases(){try{const data=await requestJson('/api/demo/cases');state.cases=data.cases||[];$('demoCase').innerHTML=state.cases.map(c=>`<option value="${esc(c.case_id)}">${esc(c.label)}</option>`).join('');const sets=data.case_sets||{};const setText=sets.generated_his?`（精选 ${sets.curated} + HIS 生成 ${sets.generated_his}）`:'';$('profileLine').textContent=`病例库 · ${state.cases.length} 例合成病例${setText}`;if(state.cases.length)applyCase(state.cases[0].case_id);}catch(e){$('demoGuidelineList').textContent=`病例档案读取失败：${e.message}`;const warning=$('backendWarning');warning.hidden=false;warning.textContent=`无法读取 /api/demo/cases：${e.message}。本页面需要 v6.7.0 后端（PYTHONPATH=. python3 -m rag.server）。`;}}
+function applyCase(caseId){const c=state.cases.find(x=>x.case_id===caseId);if(!c)return;state.case=c;const p=c.preset||{};$('patientRef').value=c.snapshot.patient_ref||'';$('asOf').value=c.snapshot.as_of||'';$('snapshotJson').value=JSON.stringify(c.snapshot,null,2);$('manualSnapshot').checked=false;$('question').value=p.question||'';$('task').value=p.task||'clinical_question';$('queryLanguage').value=p.query_language||'zh';$('clinicalIntent').value=p.clinical_intent||'';$('patientTerms').value=(p.patient_terms||[]).join(', ');$('termMapping').value=JSON.stringify(p.term_mapping||[],null,2);$('facets').value=JSON.stringify(p.facets||{},null,2);$('filters').value=JSON.stringify(p.filters||{},null,2);$('sourceMode').value=p.source_mode||'custom';$('topK').value=String(p.top_k||6);document.querySelectorAll('[data-kind]').forEach(cb=>cb.checked=(p.source_kinds||['guideline','pubmed']).includes(cb.value));$('retrievalMethod').value=p.retrieval_method||'';$('rerankToggle').checked=Boolean(p.rerank);$('fidelityGate').value=p.fidelity_gate||'off';state.snapshot=null;$('snapshotState').textContent='未载入';$('snapshotPreview').textContent='尚未载入';$('snapshotPanel').innerHTML='<div class="empty">尚未载入快照。载入后显示按 as_of 截止的可见事实。</div>';$('patientSnapshotCount').textContent='—';setBadge('badge-case','待载入','');setBadge('badge-question',p.question?'已填写':'待填写',p.question?'ready':'');setBadge('badge-terms','待填写','');setBadge('badge-scope','待配置','');setBadge('badge-method','待配置','');updateRequestPreview();}
 $('demoCase').addEventListener('change',()=>applyCase($('demoCase').value));
-$('loadSnapshot').addEventListener('click',async()=>{const b=$('loadSnapshot');b.disabled=true;b.textContent='载入中…';try{const parsed=JSON.parse($('snapshotJson').value||'{}');if(!$('manualSnapshot').checked){parsed.as_of=$('asOf').value||parsed.as_of;}const response=await requestJson('/api/his/snapshot',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({patient_snapshot:parsed})});state.snapshot=response.data;$('asOf').value=response.data.as_of||$('asOf').value;jsonPreview('snapshotPreview',{patient_ref:response.data.patient_ref,as_of:response.data.as_of,visible_facts:response.data.facts.length,suppressed_future:response.data.suppressed_future});$('snapshotState').textContent=`${response.data.facts.length} 条可见事实`;setBadge('badge-case','快照就绪','done');$('patientFacts').innerHTML=renderPatientPanel(response.data);updateRequestPreview();}catch(e){state.snapshot=null;$('snapshotState').textContent='载入失败';setBadge('badge-case','失败','error');$('snapshotPreview').textContent=e.message;}finally{b.disabled=false;b.textContent='载入快照';}});
+$('loadSnapshot').addEventListener('click',async()=>{const b=$('loadSnapshot');b.disabled=true;b.textContent='载入中…';try{const parsed=JSON.parse($('snapshotJson').value||'{}');if(!$('manualSnapshot').checked){parsed.as_of=$('asOf').value||parsed.as_of;}const response=await requestJson('/api/his/snapshot',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({patient_snapshot:parsed})});state.snapshot=response.data;$('asOf').value=response.data.as_of||$('asOf').value;jsonPreview('snapshotPreview',{patient_ref:response.data.patient_ref,as_of:response.data.as_of,visible_facts:response.data.facts.length,suppressed_future:response.data.suppressed_future});$('snapshotState').textContent=`${response.data.facts.length} 条可见事实`;$('snapshotPanel').innerHTML=renderPatientPanel(response.data);$('patientSnapshotCount').textContent=`${response.data.facts.length} 条`;setBadge('badge-case','快照就绪','done');selectTab('patient','snapshot');updateRequestPreview();}catch(e){state.snapshot=null;$('snapshotState').textContent='载入失败';setBadge('badge-case','失败','error');$('snapshotPreview').textContent=e.message;}finally{b.disabled=false;b.textContent='载入快照';}});
 
 /* ---------- 请求组装 ---------- */
 function parseJsonField(id){const raw=$(id).value.trim();if(!raw)return {};try{const value=JSON.parse(raw);if(value===null||typeof value!=='object'||Array.isArray(value))throw new Error('必须是 JSON 对象');return value;}catch(e){throw new Error(`${id} JSON 无效：${e.message}`);}}
@@ -770,14 +816,15 @@ function updateRequestPreview(){renderTermMappingPreview();try{const request=cur
 document.querySelectorAll('[data-kind]').forEach(cb=>cb.addEventListener('change',updateRequestPreview));
 
 /* ---------- 空白请求 ---------- */
-$('blankRequest').addEventListener('click',()=>{state.case=null;state.snapshot=null;state.pkg=null;$('patientRef').value='';$('asOf').value='';$('snapshotJson').value='{\n  "patient_ref": "",\n  "as_of": "",\n  "facts": []\n}';$('manualSnapshot').checked=true;$('question').value='';$('task').value='clinical_question';$('queryLanguage').value='zh';$('clinicalIntent').value='';$('patientTerms').value='';$('termMapping').value='[]';$('facets').value='{}';$('filters').value='{}';$('sourceMode').value='custom';$('topK').value='6';document.querySelectorAll('[data-kind]').forEach(cb=>cb.checked=true);$('retrievalMethod').value='';$('rerankToggle').checked=false;$('fidelityGate').value='off';$('snapshotState').textContent='未载入';$('snapshotPreview').textContent='尚未载入';setBadge('badge-case','待载入','');setBadge('badge-question','待填写','');setBadge('badge-terms','待填写','');setBadge('badge-scope','待配置','');setBadge('badge-method','待配置','');updateRequestPreview();});
+function resetResults(){state.pkg=null;state.selectedIndex=null;state.sourceFilter='all';$('candidateCount').textContent='—';$('selectedCount').textContent='—';$('guidelineCount').textContent='—';$('sourceCount').textContent='—';$('tabEvidenceCount').textContent='—';$('warnings').hidden=true;$('warnings').innerHTML='';$('mappingSourcesBox').innerHTML='';$('routingBox').innerHTML='';$('controllerBox').innerHTML='';$('queryReviewBox').innerHTML='';$('jointBox').innerHTML='';$('fidelityBox').innerHTML='';$('applicabilityBox').innerHTML='<div class="empty">尚未检索。执行后显示指南结构化适用条件核对结果。</div>';$('patientFacts').innerHTML='<div class="empty">尚未检索。执行检索后显示本地患者事实命中。</div>';$('patientHitCount').textContent='—';$('sourceTabs').innerHTML='';$('sourceTabs').hidden=true;$('resultList').innerHTML='<div class="empty">选择病例或手填快照 → 载入快照 → 执行检索。结果按来源分选项卡显示，患者事实单独列出。</div>';$('detailKind').textContent='未选择';$('detailBody').innerHTML='<div class="empty">选择一条证据查看摘录、关键证据句、版本与来源定位。</div>';$('sourceGroups').textContent='evidence_groups：尚未检索';$('packagePreview').textContent='尚未检索';$('rawResponse').textContent='尚未检索';$('runPreview').textContent='尚未执行';$('resultNote').textContent='尚未检索。';$('auditOutput').innerHTML='';$('auditHint').textContent='需要先检索。引用 ID 绑定单次 retrieval_id；跨会话或跨检索引用会被拒绝。';setBadge('badge-run','待执行','');setBadge('badge-results','未检索','');setBadge('badge-audit','待审计','');}
+$('blankRequest').addEventListener('click',()=>{state.case=null;state.snapshot=null;$('patientRef').value='';$('asOf').value='';$('snapshotJson').value='{\n  "patient_ref": "",\n  "as_of": "",\n  "facts": []\n}';$('manualSnapshot').checked=true;$('question').value='';$('task').value='clinical_question';$('queryLanguage').value='zh';$('clinicalIntent').value='';$('patientTerms').value='';$('termMapping').value='[]';$('facets').value='{}';$('filters').value='{}';$('sourceMode').value='custom';$('topK').value='6';document.querySelectorAll('[data-kind]').forEach(cb=>cb.checked=true);$('retrievalMethod').value='';$('rerankToggle').checked=false;$('fidelityGate').value='off';$('snapshotState').textContent='未载入';$('snapshotPreview').textContent='尚未载入';$('snapshotPanel').innerHTML='<div class="empty">尚未载入快照。载入后显示按 as_of 截止的可见事实。</div>';$('patientSnapshotCount').textContent='—';setBadge('badge-case','待载入','');setBadge('badge-question','待填写','');setBadge('badge-terms','待填写','');setBadge('badge-scope','待配置','');setBadge('badge-method','待配置','');resetResults();updateRequestPreview();});
 
 /* ---------- 执行与结果 ---------- */
-$('runButton').addEventListener('click',async()=>{
+async function executeRetrieval(){
   const request=updateRequestPreview();
   if(!request)return;
-  if(!request.question){$('requestPreview').textContent='question 不能为空';setBadge('badge-request','缺少问题','error');$('resultList').innerHTML='<div class="empty"><b>检索未执行</b><br>步骤 02 的 question（中文原始问题）为空。可先选择病例自动填充，或点“空白请求”自行填写。</div>';return;}
-  const b=$('runButton');b.disabled=true;$('loading').hidden=false;setBadge('badge-run','执行中','running');
+  if(!request.question){$('requestPreview').textContent='question 不能为空';setBadge('badge-request','缺少问题','error');selectTab('results','evidence');$('resultList').innerHTML='<div class="empty"><b>检索未执行</b><br>步骤 02 的 question（中文原始问题）为空。可先选择病例自动填充，或点“空白请求”自行填写。</div>';scrollToResults();return;}
+  const buttons=[$('runButton'),$('runInline')];buttons.forEach(b=>b.disabled=true);$('loading').hidden=false;setBadge('badge-run','执行中','running');
   try{
     // custom 模式但没有注册来源时：先显式加载演示库（真实 POST），再检索；不伪造结果。
     if(request.source_mode==='custom'&&state.registeredSources===0){
@@ -789,20 +836,23 @@ $('runButton').addEventListener('click',async()=>{
     const pkg=await requestJson('/api/retrieve',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...request,request_id:`gui-${Date.now()}`})});
     renderPkg(pkg);setBadge('badge-run','完成','done');setBadge('badge-results','已返回','done');
   }catch(e){
-    setBadge('badge-run','失败','error');
+    setBadge('badge-run','失败','error');setBadge('badge-results','检索失败','error');selectTab('results','evidence');
     const hint=/no custom sources registered/.test(e.message)
-      ? 'custom 模式没有已注册来源。点击下方按钮加载来源库，或切换到 live 模式后重试。'
-      : '请查看下方 API 调用日志中的状态码与错误信息。';
+      ? 'custom 模式没有已注册来源。打开右侧“来源”选项卡加载来源库，或切换到 live 模式后重试。'
+      : '请查看右侧“日志”选项卡中的状态码与错误信息。';
     $('resultList').innerHTML=`<div class="empty"><b>检索失败</b><br>${esc(e.message)}<div class="hint" style="margin-top:8px">${esc(hint)}</div>${/no custom sources registered/.test(e.message)?'<button class="secondary" style="margin-top:8px" type="button" id="retryAfterLoad">加载来源库并重试</button>':''}</div>`;
     const retry=$('retryAfterLoad');
     if(retry){retry.addEventListener('click',async()=>{retry.disabled=true;try{await requestJson('/api/demo/guidelines/load',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});await refreshDemoGuidelines();await refreshSources();retry.textContent='已加载，正在重试…';$('runButton').click();}catch(err){$('resultList').innerHTML=`<div class="empty"><b>加载失败</b><br>${esc(err.message)}</div>`;retry.disabled=false;retry.textContent='加载来源库并重试';}});}
     await refreshSources();
-  }finally{b.disabled=false;$('loading').hidden=true;}
-});
+  }finally{buttons.forEach(b=>b.disabled=false);$('loading').hidden=true;}
+}
+async function executeController(){const request=currentRequest();if(!request.question){$('controllerBox').innerHTML='<div class="empty">question 不能为空。</div>';selectTab('results','controller');return;}const policy={max_rounds:Number($('controllerMaxRounds').value),max_cost:Number($('controllerMaxCost').value),min_evidence:Number($('controllerMinEvidence').value),min_coverage:Number($('controllerMinCoverage').value)};const b=$('runControllerInline');b.disabled=true;b.textContent='控制器运行中…';$('controllerHint').textContent='正在逐轮检索…';try{if(request.source_mode==='custom'&&state.registeredSources===0){await requestJson('/api/demo/guidelines/load',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});await refreshDemoGuidelines();await refreshSources();}const result=await requestJson('/api/controller/retrieve',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...request,controller_policy:policy,request_id:`controller-${Date.now()}`})});$('controllerBox').innerHTML=renderController(result);$('controllerHint').textContent=`完成：${result.stop?.reason||'—'} · ${result.final?.rounds??0} 轮 · 证据 ${result.final?.evidence_count??0}`;selectTab('results','controller');setBadge('badge-run','控制器完成','done');}catch(e){$('controllerBox').innerHTML=`<div class="empty"><b>控制器运行失败</b><br>${esc(e.message)}</div>`;$('controllerHint').textContent='运行失败';selectTab('results','controller');setBadge('badge-run','控制器失败','error');}finally{b.disabled=false;b.textContent='▶ 运行逐轮控制器';}}
+$('runControllerInline').addEventListener('click',executeController);
+$('runButton').addEventListener('click',executeRetrieval);$('runInline').addEventListener('click',()=>$('runButton').click());
 
-function renderPatientPanel(snapshot){if(!snapshot){return '';}const facts=snapshot.facts||[];const groups={};facts.forEach(f=>{const key=f.collection||'other';if(!groups[key])groups[key]=[];groups[key].push(f);});const initials=String(snapshot.patient_ref||'?').replace(/^neo-/,'').slice(0,4).toUpperCase();const suppressed=Number(snapshot.suppressed_future||0);const chips=`<span class="his-chip">as_of ${esc(snapshot.as_of)}</span><span class="his-chip">可见事实 ${facts.length} 条</span>${suppressed?`<span class="his-chip suppressed">已抑制未来记录 ${suppressed} 条</span>`:''}<span class="his-chip">来源 ${esc(String(snapshot.source||'').includes('synthetic')?'合成数据':(snapshot.source||'快照'))}</span>`;const sections=Object.keys(groups).map(key=>{const color=caseColors[key]||'#5b6b78';const label=collectionLabels[key]||key;const items=groups[key].map(f=>{const fv=f.fields||{};const main=Object.entries(fv).filter(([k])=>!['text','free_text','narrative','note','history'].includes(k)).map(([k,v])=>`${esc(k)}=${esc(v)}`).join(' · ')||esc(f.event_type||'记录');const time=esc(f.time||f.start||'—');const role=fv.subject_role?`<span class="his-chip role-chip">${esc(fv.subject_role)}</span>`:'';return `<div class="his-fact"><span class="his-fact-time">${time}</span><div class="his-fact-main"><div class="his-fact-text">${main} ${role}</div><div class="his-fact-meta">${esc(f.record_path)} · ${esc(f.field_path)}${f.end?` · 至 ${esc(f.end)}`:''}</div></div></div>`;}).join('');return `<div class="his-group"><div class="his-group-title"><span class="his-dot" style="background:${color}"></span>${esc(label)}<span class="source-count">${groups[key].length} 条</span></div>${items}</div>`;}).join('');return `<section class="panel" style="margin-bottom:12px"><div class="panel-head"><h2>患者快照（只读 HIS · 合成数据）</h2><span class="badge state">原始病历不发送外部来源</span></div><div class="panel-body" style="padding:0"><div class="his-card" style="border:0;border-radius:0"><div class="his-head"><div class="his-avatar">${esc(initials)}</div><div><div class="his-id">${esc(snapshot.patient_ref)}</div><div class="his-sub">合成病例 · 按 as_of 截止 · record_path/field_path 可回溯</div></div></div><div class="his-chips">${chips}</div><div class="his-body">${sections||'<div class="empty">快照中没有可见事实。</div>'}</div></div></div></section>`;}
+function renderPatientPanel(snapshot){if(!snapshot){return '<div class="empty">尚未载入快照。</div>';}const facts=snapshot.facts||[];const groups={};facts.forEach(f=>{const key=f.collection||'other';if(!groups[key])groups[key]=[];groups[key].push(f);});const initials=String(snapshot.patient_ref||'?').replace(/^neo-/,'').slice(0,4).toUpperCase();const suppressed=Number(snapshot.suppressed_future||0);const chips=`<span class="his-chip">as_of ${esc(snapshot.as_of)}</span><span class="his-chip">可见事实 ${facts.length} 条</span>${suppressed?`<span class="his-chip suppressed">已抑制未来记录 ${suppressed} 条</span>`:''}<span class="his-chip">来源 ${esc(String(snapshot.source||'').includes('synthetic')?'合成数据':(snapshot.source||'快照'))}</span>`;const sections=Object.keys(groups).map(key=>{const color=caseColors[key]||'#5b6b78';const label=collectionLabels[key]||key;const items=groups[key].map(f=>{const fv=f.fields||{};const main=Object.entries(fv).filter(([k])=>!['text','free_text','narrative','note','history'].includes(k)).map(([k,v])=>`${esc(k)}=${esc(v)}`).join(' · ')||esc(f.event_type||'记录');const time=esc(f.time||f.start||'—');const role=fv.subject_role?`<span class="his-chip role-chip">${esc(fv.subject_role)}</span>`:'';return `<div class="his-fact"><span class="his-fact-time">${time}</span><div class="his-fact-main"><div class="his-fact-text">${main} ${role}</div><div class="his-fact-meta">${esc(f.record_path)} · ${esc(f.field_path)}${f.end?` · 至 ${esc(f.end)}`:''}</div></div></div>`;}).join('');return `<div class="his-group"><div class="his-group-title"><span class="his-dot" style="background:${color}"></span>${esc(label)}<span class="source-count">${groups[key].length} 条</span></div>${items}</div>`;}).join('');return `<div class="his-card"><div class="his-head"><div class="his-avatar">${esc(initials)}</div><div><div class="his-id">${esc(snapshot.patient_ref)}</div><div class="his-sub">合成病例 · 按 as_of 截止 · record_path/field_path 可回溯</div></div></div><div class="his-chips">${chips}</div><div class="his-body">${sections||'<div class="empty">快照中没有可见事实。</div>'}</div></div>`;}
 
-function renderPatientHits(pkg){const hits=pkg.patient_hits||[];if(!hits.length)return '';const rows=hits.map(h=>`<div class="his-fact"><span class="his-fact-time">${esc(h.time||h.start||'—')}</span><div class="his-fact-main"><div class="his-fact-text">${esc(h.evidence_text)}</div><div class="his-fact-meta">${esc(h.record_path)} · ${esc(h.field_path)} · 命中：${esc((h.matched_terms||[]).join('、'))}</div></div><span class="his-fact-score">${Number(h.score).toFixed(3)}</span></div>`).join('');return `<section class="panel" style="margin-bottom:12px"><div class="panel-head"><h2>患者事实命中（本地检索）</h2><span class="badge state">${hits.length} 条</span></div><div class="panel-body">${rows}<div class="hint">患者事实与外部证据是不同来源；命中分数只表示本地词面匹配。</div></div></section>`;}
+function renderPatientHits(pkg){const hits=pkg.patient_hits||[];if(!hits.length)return '';const rows=hits.map(h=>`<div class="his-fact"><span class="his-fact-time">${esc(h.time||h.start||'—')}</span><div class="his-fact-main"><div class="his-fact-text">${esc(h.evidence_text)}</div><div class="his-fact-meta">${esc(h.record_path)} · ${esc(h.field_path)} · 命中：${esc((h.matched_terms||[]).join('、'))}</div></div><span class="his-fact-score">${Number(h.score).toFixed(3)}</span></div>`).join('');return `<div class="hits-list">${rows}</div><div class="hint" style="margin-top:6px">患者事实与外部证据是不同来源；命中分数只表示本地词面匹配。</div>`;}
 
 function renderJoint(pkg){const joint=pkg.trace?.joint_selection;if(!joint||!joint.participating_sources?.length)return '';const selected=joint.selected_per_source||{},guaranteed=joint.guaranteed_minimums||{},merit=joint.merit_filled_per_source||{};const chips=joint.participating_sources.map(kind=>{const pref=joint.intent_preference===kind;return `<span class="quota ${pref?'preferred':''}">${esc(kindLabels[kind]||kind)} · 入选 <b>${selected[kind]??0}</b>（保底 ${guaranteed[kind]??0}${merit[kind]?` + 择优 ${merit[kind]}`:''}）${pref?' · 意图优先':''}</span>`;}).join('');return `<div class="insight"><div class="insight-head"><h3>联合选择（分源配额）</h3><span class="badge state">${esc(joint.strategy||'per_source')}</span></div><div class="insight-body"><div class="quota-grid">${chips}</div><div class="hint">${(joint.rationale||[]).map(esc).join('<br>')}</div></div></div>`;}
 
@@ -810,24 +860,28 @@ function renderQueryReview(pkg){const review=pkg.trace?.query_review;if(!review)
 
 function renderFidelity(pkg){const f=pkg.trace?.query_fidelity;if(!f||!f.applied)return '';const decisions=(f.decisions||[]).map(d=>{const cls=d.action==='reject'||d.action==='downweight'?'find':'ok';return `<li class="review-item"><span class="${cls}">${esc(d.action)}</span><span><b>${esc(d.route)}</b> · ${esc(d.level)} · ${esc(d.reason||'')}</span></li>`;}).join('');const report=f.report||{};const routes=(report.routes||[]).map(r=>{const findings=(r.findings||[]).filter(x=>x.level!=='L0');const items=findings.length?findings.map(x=>`<div class="review-finding">[${esc(x.level)}/${esc(x.verdict)}] ${esc(x.evidence||'')}</div>`).join(''):`<div class="hint">无分级问题（status=${esc(r.status)}）。</div>`;return `<div class="hint" style="margin-top:5px"><b>${esc(r.route)}</b>（status=${esc(r.status)}，level=${esc(r.level)}）</div>${items}`;}).join('');const badge=f.policy==='off'?'<span class="badge">未启用</span>':'<span class="badge warn">已应用</span>';return `<div class="insight"><div class="insight-head"><h3>查询保真审计与门控</h3>${badge}</div><div class="insight-body"><div class="hint">策略：${esc(f.policy)}</div><ul class="review-list">${decisions}</ul>${routes}<div class="hint" style="margin-top:6px">自动判定是确定性词面基线的假设（suspected_*/unverifiable），不是临床结论。</div></div></div>`;}
 
-function renderApplicability(pkg){const rows=pkg.applicability||[];if(!rows.length)return '';const labels={possible_match:'可能匹配',mismatch:'条件不符',unknown:'信息不足',not_assessed:'未评估'};const cls={possible_match:'',mismatch:'warn',unknown:'warn',not_assessed:'state'};const items=rows.map(row=>{const criteria=(row.criteria||[]).map(c=>`<div class="review-finding"><b>${esc(c.label||c.criterion_id)}</b> · ${esc(c.field)} ${esc(c.operator)} ${esc((c.expected||[]).join(', '))} → <b>${esc(c.status)}</b>${c.observed_value?`（观测：${esc(c.observed_value)}）`:''}<div class="hint">${esc(c.reason||'')}${(c.patient_record_paths||[]).length?` · ${esc(c.patient_record_paths.join('、'))}`:''}</div></div>`).join('');return `<div class="insight"><div class="insight-head"><h3>${esc(row.document_id)}</h3><span class="badge ${cls[row.status]||'state'}">${esc(labels[row.status]||row.status)}</span></div><div class="insight-body"><div class="hint">${esc(row.reason||'')}</div>${criteria||'<div class="hint">指南未提供结构化适用条件。</div>'}<div class="hint" style="margin-top:6px">字段核对不等于临床适用性结论；未记录/待回报不写成阴性。</div></div></div>`;}).join('');return `<section class="panel" style="margin-bottom:12px"><div class="panel-head"><h2>指南适用性（结构化条件核对）</h2><span class="badge state">${rows.length} 条指南</span></div><div class="panel-body">${items}</div></section>`;}
-function renderPkg(pkg){state.pkg=pkg;state.selectedIndex=pkg.citations?.length?0:null;const trace=pkg.trace||{};$('patientFacts').innerHTML=renderPatientHits(pkg);$('applicabilityBox').innerHTML=renderApplicability(pkg);$('sourceGroups').textContent=`evidence_groups：${Object.keys(pkg.evidence_groups||{}).join('、')||'无'} · source separation：${pkg.source_separation?.status||'unknown'}`;$('candidateCount').textContent=trace.candidate_count??0;$('selectedCount').textContent=trace.selected_count??0;$('guidelineCount').textContent=(pkg.ranked_documents||[]).filter(x=>x.document.kind==='guideline').length;$('sourceCount').textContent=(trace.connector_trace||[]).filter(x=>x.status==='ok').length;$('modeBadge').textContent=pkg.trace?.source_mode||'—';const methodLabel=trace.retrieval_method||'bm25';const methodStates=(trace.method_trace||[]).map(m=>`${m.method}:${m.status}`).join('、')||methodLabel;$('resultNote').textContent=`${pkg.request_id} · 方法 ${methodLabel}`;const warnings=pkg.warnings||[];$('warnings').hidden=!warnings.length;$('warnings').innerHTML=warnings.map(x=>`⚠ ${esc(x)}`).join('<br>');$('queryReviewBox').innerHTML=renderQueryReview(pkg);$('jointBox').innerHTML=renderJoint(pkg);$('fidelityBox').innerHTML=renderFidelity(pkg);jsonPreview('runPreview',{retrieval_id:pkg.retrieval_id,request_id:pkg.request_id,candidate_count:trace.candidate_count,selected_count:trace.selected_count,warnings:warnings.length});jsonPreview('packagePreview',{retrieval_id:pkg.retrieval_id,groups:Object.keys(pkg.evidence_groups||{}),citations:(pkg.citations||[]).length,source_separation:pkg.source_separation});$('rawResponse').textContent=JSON.stringify(pkg,null,2);setBadge('badge-audit','待审计','');const list=$('resultList');const inlineList=$('resultListInline');if(!pkg.ranked_documents.length){const emptyHtml='<div class="empty">没有满足当前时间、版本、状态和查询相关度条件的证据。</div>';list.innerHTML=emptyHtml;inlineList.innerHTML=emptyHtml;renderDetail(null);return;}const groups=pkg.evidence_groups||{},order=Object.keys(groups);const indexByCit=new Map();(pkg.ranked_documents||[]).forEach((item,i)=>{if(item.citation_id)indexByCit.set(item.citation_id,i);});const listHtml=order.map(kind=>{const items=groups[kind]||[];const rows=items.map((item,innerIndex)=>{const globalIndex=item.citation_id&&indexByCit.has(item.citation_id)?indexByCit.get(item.citation_id):-1;const d=item.document;return `<button class="result ${globalIndex===state.selectedIndex?'active':''}" data-index="${globalIndex}" type="button"><div class="result-top"><div><h3>${esc(d.title)}</h3><p>${esc(d.text)}</p></div><div class="result-badges"><span class="badge">${esc(kindLabels[d.kind]||d.kind)}</span><span class="badge rank">来源内 #${innerIndex+1}</span></div></div><div class="result-meta">${globalIndex>=0?`<span>总排名 ${globalIndex+1}</span>`:'<span>总排名 —</span>'}<span>来源内分数 ${Number(item.score).toFixed(3)}</span><span>${esc(item.evidence_status)}</span>${d.pmid?`<span>PMID ${esc(d.pmid)}</span>`:''}${d.version_id?`<span>版本 ${esc(d.version_id)}</span>`:''}${d.recommendation_id?`<span>推荐 ${esc(d.recommendation_id)}</span>`:''}<span>引用 ${esc(item.citation_id||'—')}</span></div></button>`;}).join('');return `<div class="source-section"><div class="source-head"><h3>${esc(kindLabels[kind]||kind)}</h3><span class="source-count">${items.length} 条</span></div>${rows}</div>`;}).join('');
-  list.innerHTML=listHtml;inlineList.innerHTML=listHtml;
-  const bindResultClicks=root=>root.querySelectorAll('.result').forEach(b=>b.addEventListener('click',()=>{state.selectedIndex=Number(b.dataset.index);renderPkgSelection();scrollToResults();}));
-  bindResultClicks(list);bindResultClicks(inlineList);
-  renderDetail(state.selectedIndex);
-  setBadge('badge-results',`${pkg.ranked_documents.length} 条`,'done');
-  if(window.__scrollOnRun!==false){setTimeout(()=>scrollToResults(),120);}
-  window.__scrollOnRun=true;
+function renderApplicability(pkg){const rows=pkg.applicability||[];if(!rows.length)return '';const labels={possible_match:'可能匹配',mismatch:'条件不符',unknown:'信息不足',not_assessed:'未评估'};const cls={possible_match:'',mismatch:'warn',unknown:'warn',not_assessed:'state'};const stText={match:'对得上',mismatch:'对不上',unknown:'看不出来'};const stCls={match:'',mismatch:'warn',unknown:'state'};const items=rows.map(row=>{const criteria=(row.criteria||[]).map(c=>{const pv=c.preview;const obs=(pv&&pv.observed_value)||c.observed_value;const paths=(pv&&pv.patient_record_paths&&pv.patient_record_paths.length?pv.patient_record_paths:(c.patient_record_paths||[]));const pBadge=pv?` <span class="badge state">试算预览：${esc(stText[pv.status]||pv.status)}（未审核）</span>`:'';return `<div class="review-finding"><div><b>${esc(c.label||c.criterion_id)}</b> <span class="badge ${stCls[c.status]||'state'}">${esc(stText[c.status]||c.status)}</span>${pBadge}</div><div class="hint">条件：${esc(c.field)} ${esc(c.operator)} ${esc((c.expected||[]).join(', ')||'—')}${(pv&&pv.unit)?(' '+esc(pv.unit)):''} · 来源 ${esc(c.source_locator||'—')}</div><div class="hint">病历实际：<b>${esc(obs||'无可用记录')}</b>${paths.length?`（${esc(paths.join('、'))}）`:''}</div><div class="hint">${esc(c.reason||'')}${pv?(' '+esc(pv.note||'')):''}</div></div>`;}).join('');const prev=(row.criteria||[]).filter(c=>c.preview);const prevOk=prev.filter(c=>c.preview.status==='match').length;const prevLine=prev.length?`<div class="hint"><b>试算预览：${prevOk}/${prev.length} 条对得上</b>——未审核条件的机制演示，不构成判定；正式结论以人工审核后为准。</div>`:'';return `<div class="insight"><div class="insight-head"><h3>${esc(row.document_id)}</h3><span class="badge ${cls[row.status]||'state'}">${esc(labels[row.status]||row.status)}</span></div><div class="insight-body"><div class="hint">${esc(row.reason||'')}</div>${prevLine}${criteria||'<div class="hint">指南未提供结构化适用条件。</div>'}<div class="hint" style="margin-top:6px">图例：对得上=字段满足条件 · 对不上=字段不满足（≠临床不适用） · 看不出来=缺记录/未审核/单位不一致。字段核对不等于临床适用性结论；未记录/待回报不写成阴性。</div></div></div>`;}).join('');return `<div class="applicability-list"><div class="hint" style="margin-bottom:8px">本次核对 ${rows.length} 份指南的结构化条件。</div>${items}</div>`;}
+
+function renderController(result){const labels={patient_facts:'患者事实（本地）',guideline_registry:'指南注册表',europe_pmc:'Europe PMC',authorized_pdf:'授权 PDF',pubmed:'PubMed',other:'其它'};const stop=result.stop||{};const final=result.final||{};const rounds=result.rounds||[];const cards=rounds.map(r=>{const cons=(r.considered||[]).map(c=>`${esc(labels[c.role]||c.role)}:${esc(c.decision)}`).join(' · ')||'—';const stopText=r.stop_after?`${esc(r.stop_after.decision)}/${esc(r.stop_after.reason)}`:'—';return `<div class="review-finding"><div><b>round ${r.round} · ${esc(labels[r.role]||r.role||'—')}</b> <span class="badge">${esc(r.action)}</span></div><div class="hint">${esc(r.reason||'')}</div><div class="hint">来源：${esc((r.source_ids||[]).join('、')||'—')} · 新增证据：${r.result?.new_documents ?? '—'} · 停止判断：${stopText}</div><div class="hint">候选：${cons}</div></div>`;}).join('');const cov=final.coverage||{};return `<div class="insight"><div class="insight-head"><h3>逐轮检索控制（${esc(result.controller_version||'controller-v1-trial')}）</h3><span class="badge">${esc(stop.reason||'—')}</span></div><div class="insight-body"><div class="hint">最终：证据 ${final.evidence_count??0} · 来源 ${esc((final.source_roles||[]).join(' → ')||'—')} · 词面覆盖 ${cov.covered??0}/${cov.total??0}（${cov.ratio??0}）· 预算 ${final.budget_spent??0}</div>${cards}<div class="hint">停止是检索层启发式，不是临床充分性；“来源耗尽”不等于“没有证据”。本轮试运行不合并跨轮 citation_id。</div><div class="hint">回放序列：${esc((result.replay?.decision_sequence||[]).map(x=>`r${x.round}:${x.role||x.action}${x.stop_after?('→'+x.stop_after):''}`).join(' · ')||'—')}</div></div></div>`;}
+function renderRouting(pkg){const r=pkg.trace&&pkg.trace.route_decision;if(!r)return '';const modeText={shadow:'影子：只记录，不改变检索',active:'生效：按决策收窄/重排来源'}[r.mode]||r.mode;const src=(r.selected_sources||[]).join(' → ')||'—';const notes=(r.notes||[]).join(' ');return `<div class="insight"><div class="insight-head"><h3>来源路由（本次）</h3><span class="badge ${r.applied?'':'state'}">${esc(modeText)}</span></div><div class="insight-body"><div class="hint">规则 <b>${esc(r.rule)}</b> · 意图 ${esc(r.clinical_intent||'—')} · 英文覆盖 ${r.english_coverage?'有':'无'}</div><div class="hint">选中来源：${esc(src)} · 实际来源顺序：${esc((r.source_order_after||[]).join(' → ')||'（影子模式保留原顺序）')}</div><div class="hint">${esc((r.rationale||[]).join(' '))}${notes?' '+esc(notes):''}</div><div class="hint">只决定外部来源组合，患者事实始终本地检索；规则版 v0，未学习、未调参。</div></div></div>`;}
+function renderMappingSources(pkg){const qplan=pkg.query_plan||{};const rows=qplan.mapping_trace||[];const expanded=rows.filter(function(r){return r.status==='expanded';});const req=expanded.filter(function(r){return (r.origin||'request')==='request';}).map(function(r){return r.concept;});const lib=expanded.filter(function(r){return r.origin==='library';}).map(function(r){return r.concept;});const t=(pkg.trace&&pkg.trace.query_plan&&pkg.trace.query_plan.term_mapping)||{};const badge=t.library_rows?('<span class="badge">库展开 '+(t.library_expanded||0)+'/'+t.library_rows+'</span>'):(t.expanded?('<span class="badge">请求展开 '+t.expanded+'</span>'):'');const parts=[];if(req.length)parts.push('请求行展开：'+req.join('、'));if(lib.length)parts.push('库行展开：'+lib.join('、'));if(!parts.length)parts.push('本次无映射展开');return `<div class="insight"><div class="insight-head"><h3>术语映射来源（本次）</h3>${badge}</div><div class="insight-body"><div class="hint">${esc(parts.join(' · '))}</div><div class="hint">共展开 ${t.expanded||0} 行 · 未命中 ${((t.unmatched)||[]).length} 个概念；库行标 needs_review，人工核验前不是金标准。</div></div></div>`;}
+
+function renderSourceTabs(){const pkg=state.pkg;const groups=(pkg&&pkg.evidence_groups)||{};const keys=Object.keys(groups);if(keys.length<=1){state.sourceFilter=keys[0]||'all';}else if(state.sourceFilter!=='all'&&!keys.includes(state.sourceFilter)){state.sourceFilter='all';}$('sourceTabs').hidden=keys.length===0;if(!keys.length){$('sourceTabs').innerHTML='';return;}const buttons=[];if(keys.length>1){const total=(pkg.ranked_documents||[]).length;buttons.push(`<button class="tab ${state.sourceFilter==='all'?'active':''}" data-src="all" type="button">全部 <span class="tab-count">${total} 条</span></button>`);}keys.forEach(k=>{const n=(groups[k]||[]).length;buttons.push(`<button class="tab ${state.sourceFilter===k?'active':''}" data-src="${esc(k)}" type="button">${esc(kindLabels[k]||k)} <span class="tab-count">${n} 条</span></button>`);});$('sourceTabs').innerHTML=buttons.join('');}
+
+function renderResultList(){const list=$('resultList');if(!state.pkg)return;const groups=state.pkg.evidence_groups||{};const keys=Object.keys(groups);if(!keys.length){list.innerHTML='<div class="empty">没有满足当前时间、版本、状态和查询相关度条件的证据。</div>';return;}const indexByCit=new Map();(state.pkg.ranked_documents||[]).forEach((item,i)=>{if(item.citation_id)indexByCit.set(item.citation_id,i);});const selectedKeys=state.sourceFilter==='all'?keys:keys.filter(k=>k===state.sourceFilter);list.innerHTML=selectedKeys.map(kind=>{const items=groups[kind]||[];const rows=items.map((item,innerIndex)=>{const globalIndex=item.citation_id&&indexByCit.has(item.citation_id)?indexByCit.get(item.citation_id):-1;const d=item.document;return `<button class="result ${globalIndex===state.selectedIndex?'active':''}" data-index="${globalIndex}" type="button"><div class="result-top"><div><h3>${esc(d.title)}</h3><p>${esc(d.text)}</p></div><div class="result-badges"><span class="badge">${esc(kindLabels[d.kind]||d.kind)}</span><span class="badge rank">来源内 #${innerIndex+1}</span></div></div><div class="result-meta">${globalIndex>=0?`<span>总排名 ${globalIndex+1}</span>`:'<span>总排名 —</span>'}<span>来源内分数 ${Number(item.score).toFixed(3)}</span><span>${esc(item.evidence_status)}</span>${d.pmid?`<span>PMID ${esc(d.pmid)}</span>`:''}${d.version_id?`<span>版本 ${esc(d.version_id)}</span>`:''}${d.recommendation_id?`<span>推荐 ${esc(d.recommendation_id)}</span>`:''}<span>引用 ${esc(item.citation_id||'—')}</span></div></button>`;}).join('');return `<div class="source-section"><div class="source-head"><h3>${esc(kindLabels[kind]||kind)}</h3><span class="source-count">${items.length} 条</span></div>${rows}</div>`;}).join('');
+  list.querySelectorAll('.result').forEach(b=>b.addEventListener('click',()=>{state.selectedIndex=Number(b.dataset.index);renderPkgSelection();if(window.innerWidth<1250){const detail=$('detailBody');if(detail)detail.scrollIntoView({behavior:'smooth',block:'center'});}}));
 }
+$('sourceTabs').addEventListener('click',event=>{const btn=event.target.closest('[data-src]');if(!btn)return;state.sourceFilter=btn.dataset.src;renderSourceTabs();renderResultList();});
+
+function renderPkg(pkg){state.pkg=pkg;state.selectedIndex=pkg.citations?.length?0:null;state.sourceFilter='all';const trace=pkg.trace||{};$('patientFacts').innerHTML=renderPatientHits(pkg)||'<div class="empty">本次检索没有命中患者事实；快照事实可在“快照事实”页查看。</div>';$('patientHitCount').textContent=`${(pkg.patient_hits||[]).length} 条`;$('applicabilityBox').innerHTML=renderApplicability(pkg)||'<div class="empty">本次结果没有可核对的结构化适用条件。</div>';$('sourceGroups').textContent=`evidence_groups：${Object.keys(pkg.evidence_groups||{}).join('、')||'无'} · source separation：${pkg.source_separation?.status||'unknown'}`;$('candidateCount').textContent=trace.candidate_count??0;$('selectedCount').textContent=trace.selected_count??0;$('guidelineCount').textContent=(pkg.ranked_documents||[]).filter(x=>x.document.kind==='guideline').length;$('sourceCount').textContent=(trace.connector_trace||[]).filter(x=>x.status==='ok').length;$('modeBadge').textContent=pkg.trace?.source_mode||'—';const methodLabel=trace.retrieval_method||'bm25';const rt=trace.rerank_trace||{};const rerankLabel=rt.status==='ok'?(' · 重排 '+rt.reranker_id+(rt.pool_enabled?('（池 '+rt.pool_size+'→'+rt.reranked_count+' 条中取）'):'')):'';$('resultNote').textContent=`${pkg.request_id} · 方法 ${methodLabel}${rerankLabel}`;const warnings=pkg.warnings||[];$('warnings').hidden=!warnings.length;$('warnings').innerHTML=warnings.map(x=>`⚠ ${esc(x)}`).join('<br>');$('mappingSourcesBox').innerHTML=renderMappingSources(pkg)||'<div class="empty">本次没有映射展开记录。</div>';$('routingBox').innerHTML=renderRouting(pkg)||'<div class="empty">来源路由未启用（RAG_ROUTING_MODE=off）。</div>';$('queryReviewBox').innerHTML=renderQueryReview(pkg)||'<div class="empty">本次没有检索式自检记录。</div>';$('jointBox').innerHTML=renderJoint(pkg)||'<div class="empty">本次没有联合选择记录。</div>';$('fidelityBox').innerHTML=renderFidelity(pkg)||'<div class="empty">查询保真门控未启用或未产生记录。</div>';jsonPreview('runPreview',{retrieval_id:pkg.retrieval_id,request_id:pkg.request_id,candidate_count:trace.candidate_count,selected_count:trace.selected_count,warnings:warnings.length});jsonPreview('packagePreview',{retrieval_id:pkg.retrieval_id,groups:Object.keys(pkg.evidence_groups||{}),citations:(pkg.citations||[]).length,source_separation:pkg.source_separation});$('rawResponse').textContent=JSON.stringify(pkg,null,2);$('tabEvidenceCount').textContent=`${(pkg.ranked_documents||[]).length} 条`;setBadge('badge-audit','待审计','');renderSourceTabs();renderResultList();renderDetail(state.selectedIndex);setBadge('badge-results',`${(pkg.ranked_documents||[]).length} 条`,'done');selectTab('results','evidence');setTimeout(()=>scrollToResults(),120);}
 
 function renderPkgSelection(){const list=$('resultList');list.querySelectorAll('.result').forEach(b=>b.classList.toggle('active',Number(b.dataset.index)===state.selectedIndex));renderDetail(state.selectedIndex);}
 function findCitation(rankedDoc){if(!rankedDoc||!rankedDoc.citation_id)return null;return (state.pkg.citations||[]).find(c=>c.citation_id===rankedDoc.citation_id)||null;}
-function renderDetail(index){if(!state.pkg||index===null||!state.pkg.ranked_documents[index]){$('detailKind').textContent='未选择';$('detailBody').innerHTML='<div class="empty">选择一条证据查看摘录、关键证据句、版本与来源定位。</div>';return;}const ranked=state.pkg.ranked_documents[index],citation=findCitation(ranked)||state.pkg.citations[index],doc=ranked.document;$('detailKind').textContent=kindLabels[doc.kind]||doc.kind;const sentences=(citation.key_evidence_sentences||[]).map(s=>`<div class="key-sentence"><div>${esc(s.text)}</div><div class="key-sentence-meta">${esc(s.locator)} · 匹配度 ${Number(s.score).toFixed(3)}${s.matched_terms?.length?` · ${esc(s.matched_terms.join('、'))}`:''}</div></div>`).join('');const sentenceSection=sentences?`<div style="margin:10px 0"><strong>关键证据句</strong>${sentences}<div class="hint">句子定位用于人工核对，不等于主张支持验证。</div></div>`:'<div class="hint">本条没有匹配到直接证据句，请核对完整摘录。</div>';$('detailBody').innerHTML=`<h3 class="detail-title">${esc(doc.title)}</h3><div class="detail-quote">“${esc(citation.quote)}”</div>${sentenceSection}<ul class="detail-list"><li><span>引用 ID</span><span><code class="citation-id">${esc(citation.citation_id)}</code> <button class="secondary copy-btn" type="button" id="copyCitationId">复制</button></span></li><li><span>证据状态</span><span>${esc(ranked.evidence_status)}</span></li><li><span>来源</span><span>${esc(doc.source_id)}</span></li><li><span>指南版本</span><span>${esc(doc.version_id||'不适用')}</span></li><li><span>推荐编号</span><span>${esc(doc.recommendation_id||'未提供')}</span></li><li><span>适用人群</span><span>${esc(doc.population||'未提供')}</span></li><li><span>原文定位</span><span>${esc(citation.locator||'未提供')}</span></li><li><span>标识符</span><span>${esc(doc.pmid?`PMID ${doc.pmid}`:(doc.doi||doc.document_id))}</span></li><li><span>排序依据</span><span>${(ranked.rank_explanation||[]).map(esc).join(' · ')}</span></li></ul><button class="secondary" style="margin-top:10px;width:100%" type="button" id="openCitation">↗ 打开本次检索的引文</button><div class="hint" id="citationResult"></div>`;const copyBtn=$('copyCitationId');if(copyBtn){copyBtn.addEventListener('click',async()=>{const id=citation.citation_id;try{await navigator.clipboard.writeText(id);copyBtn.textContent='已复制';}catch(_){copyBtn.textContent=id;}setTimeout(()=>{copyBtn.textContent='复制';},1500);});}$('openCitation').addEventListener('click',async()=>{const b=$('openCitation');b.disabled=true;b.textContent='正在打开…';try{const o=await requestJson('/api/citation',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({retrieval_id:state.pkg.retrieval_id,citation_id:citation.citation_id})});$('citationResult').innerHTML=`<b>引用已锁定：</b>${esc(o.citation.title)} · ${esc(o.citation.locator||'定位已返回')}`;setBadge('badge-audit','引用已打开','ready');}catch(e){$('citationResult').textContent=e.message;}finally{b.disabled=false;b.textContent='↗ 打开本次检索的引文';}});}
+function renderDetail(index){if(!state.pkg||index===null||!state.pkg.ranked_documents[index]){$('detailKind').textContent='未选择';$('detailBody').innerHTML='<div class="empty">选择一条证据查看摘录、关键证据句、版本与来源定位。</div>';return;}const ranked=state.pkg.ranked_documents[index];const citation=findCitation(ranked)||(state.pkg.citations||[])[index];const doc=ranked.document;$('detailKind').textContent=kindLabels[doc.kind]||doc.kind;if(!citation){$('detailBody').innerHTML=`<h3 class="detail-title">${esc(doc.title)}</h3><div class="empty">本条没有可打开的引文记录。</div>`;return;}const sentences=(citation.key_evidence_sentences||[]).map(s=>`<div class="key-sentence"><div>${esc(s.text)}</div><div class="key-sentence-meta">${esc(s.locator)} · 匹配度 ${Number(s.score).toFixed(3)}${s.matched_terms?.length?` · ${esc(s.matched_terms.join('、'))}`:''}</div></div>`).join('');const sentenceSection=sentences?`<div style="margin:10px 0"><strong>关键证据句</strong>${sentences}<div class="hint">句子定位用于人工核对，不等于主张支持验证。</div></div>`:'<div class="hint">本条没有匹配到直接证据句，请核对完整摘录。</div>';$('detailBody').innerHTML=`<h3 class="detail-title">${esc(doc.title)}</h3><div class="detail-quote">“${esc(citation.quote)}”</div>${sentenceSection}<ul class="detail-list"><li><span>引用 ID</span><span><code class="citation-id">${esc(citation.citation_id)}</code> <button class="secondary copy-btn" type="button" id="copyCitationId">复制</button></span></li><li><span>证据状态</span><span>${esc(ranked.evidence_status)}</span></li><li><span>来源</span><span>${esc(doc.source_id)}</span></li><li><span>指南版本</span><span>${esc(doc.version_id||'不适用')}</span></li><li><span>推荐编号</span><span>${esc(doc.recommendation_id||'未提供')}</span></li><li><span>适用人群</span><span>${esc(doc.population||'未提供')}</span></li><li><span>原文定位</span><span>${esc(citation.locator||'未提供')}</span></li><li><span>标识符</span><span>${esc(doc.pmid?`PMID ${doc.pmid}`:(doc.doi||doc.document_id))}</span></li><li><span>排序依据</span><span>${(ranked.rank_explanation||[]).map(esc).join(' · ')}</span></li></ul><button class="secondary" style="margin-top:10px;width:100%" type="button" id="openCitation">↗ 打开本次检索的引文</button><div class="hint" id="citationResult"></div>`;const copyBtn=$('copyCitationId');if(copyBtn){copyBtn.addEventListener('click',async()=>{const id=citation.citation_id;try{await navigator.clipboard.writeText(id);copyBtn.textContent='已复制';}catch(_){copyBtn.textContent=id;}setTimeout(()=>{copyBtn.textContent='复制';},1500);});}$('openCitation').addEventListener('click',async()=>{const b=$('openCitation');b.disabled=true;b.textContent='正在打开…';try{const o=await requestJson('/api/citation',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({retrieval_id:state.pkg.retrieval_id,citation_id:citation.citation_id})});$('citationResult').innerHTML=`<b>引用已锁定：</b>${esc(o.citation.title)} · ${esc(o.citation.locator||'定位已返回')}`;setBadge('badge-audit','引用已打开','ready');}catch(e){$('citationResult').textContent=e.message;}finally{b.disabled=false;b.textContent='↗ 打开本次检索的引文';}});}
 
 $('auditTemplate').addEventListener('click',()=>{if(!state.pkg||!state.pkg.citations?.length){$('auditHint').textContent='请先完成一次检索。';return;}const first=state.pkg.citations[0].citation_id;const input=$('auditAnswer');input.value=`依据本次检索证据，该患儿…[${first}]。`;input.focus();$('auditHint').textContent='已插入模板；方括号内是本次检索的 citation_id。';});
 $('auditButton').addEventListener('click',async()=>{if(!state.pkg){$('auditHint').textContent='请先完成检索。';return;}const answer=$('auditAnswer').value.trim();if(!answer){$('auditHint').textContent='请输入待审计回答。';return;}const b=$('auditButton');b.disabled=true;b.textContent='正在审计…';try{const a=await requestJson('/api/audit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({retrieval_id:state.pkg.retrieval_id,answer})});renderAudit(a);setBadge('badge-audit',a.verifier?.available?'已校验':(a.verifier?.mode==='structural_only'?'结构审计':'未校验'),'ready');}catch(e){$('auditHint').textContent=e.message;}finally{b.disabled=false;b.textContent='审计回答';}});
-function renderAudit(a){if(!a)return;const m=a.alce_like||{};$('auditHint').textContent=`校验器：${a.verifier?.name||'unknown'}`;const claims=(a.claims||[]).map(c=>`<li><span class="claim-status">${esc(c.ragtruth_label)}</span>${esc(c.claim)}</li>`).join('');const warnings=(a.warnings||[]).map(x=>`<li>${esc(x)}</li>`).join('');$('auditOutput').innerHTML=`<div class="hint" style="margin-top:8px"><b>引用完整性：</b>${m.citation_completeness==null?'未测量':(m.citation_completeness*100).toFixed(1)+'%'} · <b>支持精确率：</b>${m.citation_precision==null?'未测量':(m.citation_precision*100).toFixed(1)+'%'}</div>${warnings?`<ul class="claim-list">${warnings}</ul>`:''}${claims?`<ul class="claim-list">${claims}</ul>`:''}`;}
+function renderAudit(a){if(!a)return;const m=a.alce_like||{};$('auditHint').textContent=`校验器：${a.verifier?.name||'unknown'}`;const claims=(a.claims||[]).map(c=>`<li><span class="claim-status">${esc(c.ragtruth_label)}</span>${esc(c.claim)}</li>`).join('');const warnings=(a.warnings||[]).map(x=>`<li>${esc(x)}</li>`).join('');$('auditOutput').innerHTML=`<div class="insight"><div class="insight-head"><h3>审计结果</h3><span class="badge state">结构审计</span></div><div class="insight-body"><div class="hint"><b>引用完整性：</b>${m.citation_completeness==null?'未测量':(m.citation_completeness*100).toFixed(1)+'%'} · <b>支持精确率：</b>${m.citation_precision==null?'未测量':(m.citation_precision*100).toFixed(1)+'%'}</div>${warnings?`<ul class="claim-list">${warnings}</ul>`:''}${claims?`<ul class="claim-list">${claims}</ul>`:''}</div></div>`;}
 
 /* ---------- 演示来源（真实后端） ---------- */
 async function refreshDemoGuidelines(){try{const data=await requestJson('/api/demo/guidelines');const rows=(data.guidelines||[]).map(g=>`<div class="source-item"><b>${esc(sourceLabels[g.source_id]||g.source_id)}</b><span>${esc(g.description||'')}</span><span>${g.document_count} 条 · ${g.synthetic?'合成来源':'含真实书目元数据'}</span></div>`).join('');const registered=(data.registered||[]).map(r=>r.source_id).join('、');$('demoGuidelineList').innerHTML=(rows||'<div class="hint">未读取到来源库。</div>')+`<div class="hint" style="margin-top:5px">已注册：${esc(registered||'未加载')}</div>`;state.registeredSources=(data.registered||[]).length;$('demoSourceBadge').textContent=state.registeredSources?`已加载 ${state.registeredSources} 个`:'未加载';}catch(e){$('demoGuidelineList').textContent=e.message;}}
@@ -838,19 +892,21 @@ async function refreshSources(){try{const s=await requestJson('/api/sources');co
 /* ---------- 主题（浅色/深色/暖色/靛蓝/跟随系统），持久化 ---------- */
 const THEME_KEY='neo-workbench-theme';
 const systemDark=()=>window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;
-function applyTheme(choice){const theme=choice==='auto'?(systemDark()?'dark':'light'):choice;document.documentElement.setAttribute('data-theme',theme);try{localStorage.setItem(THEME_KEY,choice);}catch(_){}const select=$('themeSelect');if(select&&select.value!==choice)select.value=choice;requestAnimationFrame(drawWires);}
+function applyTheme(choice){const theme=choice==='auto'?(systemDark()?'dark':'light'):choice;document.documentElement.setAttribute('data-theme',theme);try{localStorage.setItem(THEME_KEY,choice);}catch(_){}const select=$('themeSelect');if(select&&select.value!==choice)select.value=choice;syncDockHeight();}
 function initTheme(){let saved='light';try{saved=new URLSearchParams(location.search).get('theme')||localStorage.getItem(THEME_KEY)||'light';}catch(_){}if(!['light','dark','warm','indigo','auto'].includes(saved))saved='light';applyTheme(saved);$('themeSelect').value=saved;$('themeSelect').addEventListener('change',()=>applyTheme($('themeSelect').value));if(window.matchMedia){const query=window.matchMedia('(prefers-color-scheme: dark)');query.addEventListener?.('change',()=>{if(($('themeSelect').value||'light')==='auto')applyTheme('auto');});}}
 initTheme();
 
 /* ---------- 后端自检 ---------- */
-async function backendCheck(){try{const [health,tools,sources]=await Promise.all([requestJson('/api/health'),requestJson('/api/tools'),requestJson('/api/sources')]);const warning=$('backendWarning');const expected='6.6.5';if(health.rag_version!==expected){warning.hidden=false;warning.textContent=`当前后端版本 ${health.rag_version}，本页面需要 v${expected}（/api/demo/* 等接口）。请用 PYTHONPATH=. python3 -m rag.server 启动服务。`;}else{warning.hidden=true;}const methods=health.retrieval_methods||{};const ready=Object.entries(methods).filter(([k,v])=>v.available).map(([k])=>k);const notReady=Object.entries(methods).filter(([k,v])=>!v.available).map(([k])=>k);$('backendVersion').textContent=`v${health.rag_version}`;$('serviceStatus').textContent=`后端 v${health.rag_version} · ${ready.join('/')||'bm25'}`;$('backendInfo').innerHTML=`真实后端 <b>v${esc(health.rag_version)}</b> · 模式 ${esc(health.active_mode)} · 工具 ${tools.tools.length} 个 · 已注册来源 ${((sources.custom&&sources.custom.registered)||[]).length} 个`;$('methodList').innerHTML=`就绪：${ready.join('、')||'bm25'}<br>未就绪：${notReady.join('、')||'无'}`;$('methodBadge').textContent=`${ready.length} 项就绪`;$('methodHint').textContent=`就绪 ${ready.length} 项`;setBadge('badge-method','已读取','ready');}catch(e){$('serviceStatus').textContent='后端自检失败：'+e.message;const warning=$('backendWarning');warning.hidden=false;warning.textContent=`后端自检失败：${e.message}。请确认服务已用本仓库根目录启动，且端口与页面一致。`;}}
+async function backendCheck(){try{const [health,tools,sources]=await Promise.all([requestJson('/api/health'),requestJson('/api/tools'),requestJson('/api/sources')]);const warning=$('backendWarning');const expected='6.7.0';if(health.rag_version!==expected){warning.hidden=false;warning.textContent=`当前后端版本 ${health.rag_version}，本页面需要 v${expected}（/api/demo/* 等接口）。请用 PYTHONPATH=. python3 -m rag.server 启动服务。`;}else{warning.hidden=true;}const methods=health.retrieval_methods||{};const ready=Object.entries(methods).filter(([k,v])=>v.available).map(([k])=>k);const notReady=Object.entries(methods).filter(([k,v])=>!v.available).map(([k])=>k);$('backendVersion').textContent=`v${health.rag_version}`;$('serviceStatus').textContent=`后端 v${health.rag_version} · ${ready.join('/')||'bm25'}`;$('backendInfo').innerHTML=`真实后端 <b>v${esc(health.rag_version)}</b> · 模式 ${esc(health.active_mode)} · 工具 ${tools.tools.length} 个 · 已注册来源 ${((sources.custom&&sources.custom.registered)||[]).length} 个`;$('methodList').innerHTML=`就绪：${ready.join('、')||'bm25'}<br>未就绪：${notReady.join('、')||'无'}`;$('methodBadge').textContent=`${ready.length} 项就绪`;$('methodHint').textContent=`就绪 ${ready.length} 项`;const lib=health.term_mapping_library||{};if(lib.configured){const chips=(lib.concepts||[]).map(function(c){return '<code>'+esc(c)+'</code>';}).join('、')||'—';const ms=lib.mesh_status||{};const meshLine=` · MeSH 实取：${(ms.mesh_grounded||0)} 精确锚定 / ${(ms.mesh_top_match||0)} 最佳匹配 / ${(ms.not_found||0)} 未找到`;$('termMappingLibrary').innerHTML=`<div class="hint"><b>${esc(lib.source||'映射库')}</b> · ${lib.rows||0} 个概念${meshLine}：<br>${chips}<br>问题命中概念/别名才展开；请求自带对照表优先；英文/主题词来自数据标签与 NLM MeSH 实取（Descriptor UI 可溯），临床核验前不是金标准。</div>`;}else{$('termMappingLibrary').innerHTML='<div class="hint">未配置映射库（config.term_mapping_library_path 为空）：仅用上方请求级对照表。配一次全站生效。</div>';}const rr=health.reranker||{};const modelLabels={medcpt:'MedCPT cross-encoder（英文查询域）',qwen3:'Qwen3-Reranker-0.6B（多语言，中文问题可见）'};if($('rerankerModel'))$('rerankerModel').value=rr.model||'medcpt';if($('rerankPool'))$('rerankPool').value=String(rr.rerank_pool??0);const rrOverride=rr.runtime_override?'（本次运行已覆盖）':'';$('rerankerInfo').innerHTML=`<div class="hint">当前重排器：<b>${esc(modelLabels[rr.model]||rr.model||'medcpt')}</b>${rrOverride} · 候选池：<b>${rr.rerank_pool||0}</b>（0=标准模式：仅重排已选 top_k；>0=候选池模式：先扩大候选，再重排并截断到 top_k）</div>`;setBadge('badge-method','已读取','ready');}catch(e){$('serviceStatus').textContent='后端自检失败：'+e.message;const warning=$('backendWarning');warning.hidden=false;warning.textContent=`后端自检失败：${e.message}。请确认服务已在本仓库根目录启动，且端口与页面一致。`;}}
+$('applyReranker').addEventListener('click',async()=>{const b=$('applyReranker');const hint=$('rerankerApplyHint');b.disabled=true;hint.textContent='正在应用…';try{const r=await requestJson('/api/settings/reranker',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:$('rerankerModel').value,rerank_pool:Number($('rerankPool').value)})});hint.textContent=`已生效：${r.reranker.model} · 候选池 ${r.reranker.rerank_pool}。${r.message||''}`;await backendCheck();}catch(e){hint.textContent='应用失败：'+e.message;}finally{b.disabled=false;}});
 $('backendCheck').addEventListener('click',backendCheck);
 
-/* ---------- 启动 ---------- */
-renderRail();
-window.__layoutLoaded=loadLayout();if(!window.__layoutLoaded)fitWidth();
-loadCases().then(()=>{backendCheck();refreshDemoGuidelines();refreshSources();setTimeout(()=>{if(!window.__layoutLoaded)fitWidth();},120);});
-window.addEventListener('load',()=>setTimeout(()=>{drawWires();},250));
+/* ---------- 导航与启动 ---------- */
+function scrollToResults(){const panel=$('resultPanel');if(!panel)return;panel.scrollIntoView({behavior:'smooth',block:'start'});panel.classList.add('flash');setTimeout(()=>panel.classList.remove('flash'),900);}
+$('jumpResults').addEventListener('click',()=>{selectTab('results','evidence');scrollToResults();});
+syncDockHeight();
+loadCases().then(()=>{backendCheck();refreshDemoGuidelines();refreshSources();setTimeout(syncDockHeight,150);});
+window.addEventListener('load',()=>setTimeout(syncDockHeight,120));
 </script>
 </body>
 </html>

@@ -1,8 +1,10 @@
 {
   "baseline": {
+    "path": "v6.6.4",
     "version": "6.6.4"
   },
   "candidate": {
+    "path": "v6.6.5",
     "version": "6.6.5"
   },
   "probe_date": "2026-10-25",

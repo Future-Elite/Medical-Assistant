@@ -16,13 +16,13 @@
 
 HTTP 服务和浏览器工作台只是这个核心调用层之上的附加封装，见第 13 节。不需要启动 `server.py` 就可以直接使用 RAG。
 
-当前版本在包 `__init__.py` 中以 `__version__` 声明（当前 `6.6.5`）；运行时 trace 的 `rag_version` 与 `/api/health` 均读取该值，代码中不硬编码版本字符串。
+当前版本在包 `__init__.py` 中以 `__version__` 声明（当前 `6.7.0`）；运行时 trace 的 `rag_version` 与 `/api/health` 均读取该值，代码中不硬编码版本字符串。
 
 集成分支 v6.6.4：translate 在外部来源召回前生成候选，查询保真 reject 也在外发前生效。`query_plan.machine_translations` 与审核术语分开，实际 PubMed 查询记录在 `trace.connector_trace[].query`。中文 Agent 默认通过现有 translate 槽接入 Qwen 查询转换，英文查询不需转换；未配置或失败仍在 method_trace/warnings 明确报告。
 
-**v6.6.5 查询映射表与指南适用性**：`term_mapping` 把中文概念与英文/MeSH 绑定，映射路径生成概念分组查询变体，PubMed 使用 `[tiab]` / `[MeSH Terms]`；`metadata.applicability_criteria` 声明逐条适用条件，`applicability[].criteria` 给出逐条核对结果。旧 `english_terms` / `mesh_terms` / `user_terms` 与旧 `population_criteria` 分支保留，legacy 路径已做 v6.6.4→v6.6.5 冻结语义差分（6 场景 × 5 策略，逐字段一致）。工作台为 01–09 固定分区布局（不再提供画布缩放/拖拽/连线），步骤 03 使用 `term_mapping` 映射表输入，结果区新增“指南适用性”面板。
+**v6.6.5 查询映射表与指南适用性**：`term_mapping` 把中文概念与英文/MeSH 绑定，映射路径生成概念分组查询变体，PubMed 使用 `[tiab]` / `[MeSH Terms]`；`metadata.applicability_criteria` 声明逐条适用条件，`applicability[].criteria` 给出逐条核对结果。旧 `english_terms` / `mesh_terms` / `user_terms` 与旧 `population_criteria` 分支保留，legacy 路径已做 v6.6.4→v6.6.5 冻结语义差分（6 场景 × 5 策略，逐字段一致）。工作台节点 03 改为 `term_mapping` 映射表输入，结果区新增“指南适用性”面板。
 
-**新生儿专科化（v6.6.4 引入，v6.6.5 沿用）**（详见 §13.4 与 `demo/README.md`）：live 指南注册表只含新生儿指南元数据；演示档案 `rag/demo/` 提供 9 例精选合成新生儿病例与三个调用方来源（元数据 + 合成指南块 + 合成文献），必须显式 `POST /api/demo/guidelines/load` 才注册进 custom 来源。另有独立档案 `rag/demo/his_generated/` 的 11 例场景病例与 `rag/demo/his_generated_30/` 的 30 例 HIS 风格批量病例（同 schema，`load_demo_cases(<该目录>)`；不进入默认 `/api/demo/cases`）。工作台为 01–09 固定分区工作台，输入与 `RetrievalRequest` 逐字段对应。引擎层相对 v6.6.3：13 个文件字节级一致（`pipeline/ranking/fidelity/gate/bm25/lexical/evidence/patient_retrieval/his/connectors/models/neural_adapters/retrieval_adapters`），`query.py`/`pubmed.py`/`guidelines.py`/`guideline_fulltext.py` 为检索修复，`audit.py` 默认改为结构化审计；2026-10-17 差分早于上述改动，不覆盖它们。
+**新生儿专科化（v6.6.4 引入，v6.6.5 沿用）**（详见 §13.4 与 `demo/README.md`）：live 指南注册表只含新生儿指南元数据；演示档案 `rag/demo/` 提供 9 例精选合成新生儿病例与三个调用方来源（元数据 + 合成指南块 + 合成文献），必须显式 `POST /api/demo/guidelines/load` 才注册进 custom 来源。另有独立档案 `rag/demo/his_generated/` 的 11 例场景病例与 `rag/demo/his_generated_30/` 的 30 例 HIS 风格批量病例（同 schema，`load_demo_cases(<该目录>)`；不进入默认 `/api/demo/cases`）。工作台为 01–09 流程化工作台（左侧流程导航 + 纵向步骤卡 + 结果选项卡），输入与 `RetrievalRequest` 逐字段对应。引擎层相对 v6.6.3：13 个文件字节级一致（`pipeline/ranking/fidelity/gate/bm25/lexical/evidence/patient_retrieval/his/connectors/models/neural_adapters/retrieval_adapters`），`query.py`/`pubmed.py`/`guidelines.py`/`guideline_fulltext.py` 为检索修复，`audit.py` 默认改为结构化审计；2026-10-17 差分早于上述改动，不覆盖它们。
 
 模块不会读取原始病历、写回 HIS/PACS、生成诊断或治疗决定。`patient_terms` 只能传入人工审核的最小化术语，不得传入患者姓名、住院号、身份证号、自由文本病史或原始病历。RAG 不自行读取真实 HIS：`patient_snapshot` 由 Agent 读取并授权传入。
 
@@ -244,7 +244,7 @@ package = pipeline.retrieve(request)
 | `query_language` | `str` | `"zh"` | 否 | 问题语言标记（字段别名 `language` 亦可）。 |
 | `clinical_intent` | `str \| None` | `None` | 否 | `guideline_recommendation` / `evidence_update` / `drug_safety` / `clinical_question`；缺省时由问题文本推断。 |
 | `facets` | `Mapping[str, Sequence[str]]` | `{}` | 否 | 结构化临床问题槽位（population/outcome 等），取值作为检索概念参与匹配。 |
-| `term_mapping` | `tuple[TermMappingEntry, ...]` | `()` | 否 | **推荐输入**：审核术语映射表。数组行 `{"concept","aliases","english","mesh"}`，或对象 `{概念: {english, mesh, aliases}}` / 旧式 `{概念: [english]}`。英文与 MeSH 与概念绑定，仅当概念/别名出现在问题、患者术语、审核外部术语或 facets 时展开；未命中概念写入 `query_plan.mapping_trace`。映射路径启用概念分组查询变体与 PubMed `[tiab]`/`[MeSH Terms]` 查询式。 |
+| `term_mapping` | `tuple[TermMappingEntry, ...]` | `()` | 否 | **推荐输入**：审核术语映射表。数组行 `{"concept","aliases","english","mesh"}`，或对象 `{概念: {english, mesh, aliases}}` / 旧式 `{概念: [english]}`。英文与 MeSH 与概念绑定，仅当概念/别名出现在问题、患者术语、审核外部术语或 facets 时展开；未命中概念写入 `query_plan.mapping_trace`。映射路径启用概念分组查询变体与 PubMed `[tiab]`/`[MeSH Terms]` 查询式。v6.7.0 起另支持**通用术语映射库**（`config.term_mapping_library_path`）：库行自动参与同一展开流程、同概念请求行优先，`mapping_trace` 逐行记 `origin`（`request`/`library`）。 |
 | `english_terms` | `tuple[str, ...]` | `()` | 否 | **兼容字段（旧调用方）**：直接英文术语列表，参与英文检索与实时 PubMed 查询。新调用方应把英文放入 `term_mapping` 对应概念行，以保留概念—术语绑定。 |
 | `mesh_terms` | `tuple[str, ...]` | `()` | 否 | **兼容字段（旧调用方）**：直接 MeSH 列表，参与英文检索与实时 PubMed 查询。新调用方应把 MeSH 放入 `term_mapping` 对应概念行。 |
 | `patient_snapshot` | `Any \| None` | `None` | 否 | Agent 从只读 HIS 获取的结构化快照对象（解码在管线内完成）。 |
@@ -397,7 +397,7 @@ result = rag.retrieve_evidence({
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
-| `rag_version` | `str` | 包 `__version__`（当前 `6.6.5`）。 |
+| `rag_version` | `str` | 包 `__version__`（当前 `6.7.0`）。 |
 | `source_mode` | `str` | 本轮来源模式。 |
 | `retrieved_at` | `str` | UTC 时间戳。 |
 | `connector_trace` | `list[dict]` | 每个连接器的执行状态。成功含 `source_id`、`status`、`returned`、`kind`；失败含错误类型和阶段。 |
@@ -409,6 +409,7 @@ result = rag.retrieve_evidence({
 | `method_trace` | `list[dict]` | 逐方法状态（`ok`/`not_configured`/`error`/`fallback`/`unknown`），含原因与返回数。 |
 | `semantic_trace` | `dict` | 语义检索状态汇总。 |
 | `rerank_trace` | `dict` | 重排请求状态（`not_requested`/`ok`/`not_configured`/`error`）。 |
+| `route_decision` | `dict \| absent` | 规则路由决策（仅 `routing_mode != off` 时出现）：`rule`、`selected_sources`、`rationale`、`notes`、`fallback_all`、`mode`、`applied`、`clinical_intent`、`english_coverage`；`active` 另有 `source_order_after`（见第 5.10 节）。 |
 | `query_plan` | `dict` | 语言、意图、英文/问题英文/MeSH 术语，以及 `term_mapping` 的提供/展开/未命中计数和 `variant_roles`。 |
 | `external_terms` | `list[str]` | 实际发往外部的术语（审核英文词 + 问题内英文词）。 |
 | `patient_context` | `dict` | 快照接收状态、可见事实数、命中数、未来抑制数。 |
@@ -490,6 +491,44 @@ result = rag.retrieve_evidence({
 - `not_recorded` / `pending` / `unavailable` / `hypothesis` **不会**变成 `mismatch` 或阴性；字段为空同样按 `unknown` 处理。
 - 只评估 `review_status=reviewed/synthetic_fixture` 且带原文定位的结构化条件；**不解析指南正文自由文本**，不生成治疗阈值。
 - `mismatch` 只表示字段核对不一致，不是“临床不适用”；`possible_match` 不是“指南符合”。
+- **试算预览（`applicability_preview`，默认关）**：未参与判定的条件可附 `preview` 字段——用同一比对规则试算“若经人工审核会判什么”（`preview.status` + `observed_value`/`patient_record_paths`/`unit`），供界面展示机制；官方 `status` 保持 `unknown`，预览明确标注“不构成判定”。开启后工作台适用性面板并排显示“条件 / 病历实际 / 试算预览”。
+
+### 5.10 规则路由 v0（`routing_mode`）
+
+`EvidenceRetrievalPipeline(..., routing_mode=...)` 在查询计划之后、选连接器之前决定外部来源组合；三种模式：
+
+| 模式 | 行为 |
+|---|---|
+| `off`（默认） | legacy：所有选中来源照旧执行；trace 不出现 `route_decision`。 |
+| `shadow` | 计算决策并写入 `trace.route_decision`，**不改变**来源顺序、排序和返回；用于实验性运行与决策分布统计。 |
+| `active` | 按决策收窄/重排 `request.source_kinds`，重建查询计划后再检索；trace 另记 `source_order_after`。 |
+
+规则 v0（`rag/routing.py`，纯函数 `decide_route()`，按顺序先命中先返回）：
+
+1. `no_english_drop_pubmed`：查询计划没有任何英文覆盖时去掉 PubMed 分支；若 PubMed 是唯一来源，回退全来源，避免空检索。
+2. `guideline_recommendation_first`：指南推荐意图（问题含指南/推荐/建议/治疗/剂量等）指南优先。
+3. `evidence_update_pubmed_first`：证据更新意图（最新/更新/recent 等）PubMed 优先。
+4. `drug_safety_pubmed_first`：药物安全意图（安全/不良反应/禁忌 等）PubMed 优先。
+5. `default_all_sources`：无特定线索，全部可用来源按 legacy 顺序。
+
+边界：只决定**外部来源**；患者事实始终本地检索，不参与路由；请求显式给了 `source_kinds` 时只在其内选择；不决定“要不要检索”（Agent 职责）。实验读数：39 例演示病例 × 3 模式 × 2 种映射配置共 234 次离线检索，shadow top-k 39/39 与 off 一致，active 在现有合成语料上 top-k 也 39/39 不变；无英文探针 active 连接器 3→2、候选 22→13、警告 4→0。**top-k 不变不代表路由有效或无害**：当前语料尚未覆盖证据更新/药物安全/无英文等真实分支，质量结论需冻结查询集 + 人工标注。`trace.route_decision` 逐条留痕，便于回溯误判。合法值之外显式报错。
+
+### 5.11 逐轮检索控制器（`controller-v1-trial`，研究层）
+
+`RetrievalController` 把“这次选哪些来源”升级为“逐轮决定查不查、查哪个逻辑来源、查完停不停”。默认 `/api/retrieve` **不启用**；调用方显式构造：
+
+```python
+from rag.controller import ControllerPolicy, RetrievalController, replay_controller_result
+controller = RetrievalController(pipeline, policy=ControllerPolicy(min_coverage=0.5))
+result = controller.run(request)          # dict：rounds / stop / final / replay
+view = replay_controller_result(result)   # 只读回放表
+```
+
+逻辑来源由 `role_for_source()` 映射：`guideline_registry`、`europe_pmc`、`authorized_pdf`、`pubmed`、`other`；`patient_facts` 固定为 round 0，本地检索、不参与外部路由。每轮选择使用 `score(role) = intent_prior - cost_weight*cost`；无英文覆盖时跳过 PubMed/Europe PMC；已查、预算不足、不可用都写入 `considered[]` 的 `skip` 与原因。
+
+停止原因：`sufficient_evidence`（证据数 + 词面覆盖 + 必需角色）、`budget_exhausted`、`no_new_evidence`（连续零增量）、`max_rounds`、`sources_exhausted`、`no_eligible_source`、`no_positive_expected_gain`。`sufficiency/coverage` 是检索层启发式，不是临床充分性；`sources_exhausted` 不是“没有证据”。
+
+`pipeline.retrieve(request, only_source_ids=(...))` 是控制器专用白名单：只限制实际运行的连接器，**不会**写入 `request.source_kinds` 的 connector-level kind 过滤；默认 `None` 保持 legacy。逐轮证据摘要各自绑定本轮 `retrieval_id`，跨轮 citation 合并尚未实现。设计说明与 R1→R4 路线见研发侧报告（不随本分支发布）。
 
 ## 6. 打开引用：`EvidenceRAG.open_citation`
 
@@ -664,11 +703,11 @@ result = rag.retrieve_evidence({
 
 ## 10. 指南连接器
 
-位置：`rag/guidelines.py`
+位置：`rag/guidelines.py`、`rag/guideline_pdf.py`
 
 - `GuidelineMetadataConnector`：只提供官方元数据和 canonical URL（标记 `metadata_only`），不索引全文；
 - `LiveGuidelineFullTextConnector`：检索时实时查询 Europe PMC；仅对 `isOpenAccess=Y` 的记录抓取 JATS 全文并按章节分块，非 OA 记录只返回书目/摘要与链接（`full_text_allowed=false`）；全文不落盘、不缓存、不再分发；
-- `LocalGuidelinePdfConnector` 不在本发布副本中；调用方可在自己的部署中接入已授权的 PDF 连接器；
+- `LocalGuidelinePdfConnector`（`guideline-pdf-local`）：调用方自备 PDF（`config.guideline_pdf_dir`，仓库外）；检索时实时解析并按章节分块，manifest 或 PDF 不可用时显式警告；全文不落盘、不缓存、不再分发；
 - `VersionedGuidelineConnector`：离线/已授权只读指南源，校验非指南文档、警告缺失 `version_id`/`locator` 条目，支持 `filters["guideline_version"]` 过滤；
 - `LicensedGuidelineSnapshotConnector`：只有在 `full_text_allowed=true` 且 `rights_basis` 已记录时才索引全文；
 - 新生儿指南注册表 `neonatal_guideline_metadata_registry()` 当前含三条经官方页面核实的记录：新生儿感染性肺炎（2025，中文）、欧洲 RDS 2025 更新版（Neonatology 2026-03-09，PMID 41802129）、RDS 中文解读（二级来源，`official=false`）；**成人指南不再注册**；
@@ -726,9 +765,11 @@ registry.register(CallableConnector(source_id="local-guideline", kinds=("guideli
 | `splade` | 神经 | torch + transformers | `naver/splade-cocondenser-ensembledistil` | 稀疏学习权重。 |
 | `colbert` | 神经 | torch + transformers | `colbert-ir/colbertv2.0` | MaxSim 后期交互。 |
 | `query2doc` | 神经 | torch + transformers | `flan-t5-small`（可注入） | 生成伪文档作为额外查询变体参与 BM25。 |
-| `rerank`（开关） | 重排 | torch + transformers | MedCPT cross-encoder | `rerank=true` 时在排序后重排。 |
+| `rerank`（开关） | 重排 | torch + transformers | MedCPT cross-encoder（默认）/ Qwen3-Reranker-0.6B | `rerank=true` 时在排序后重排；重排器由 `config.reranker_model` 选择，见下方「重排器与重排时机」。 |
 
 关键语义：
+
+- **重排器与重排时机（v6.7.0）**：`config.reranker_model` 选 `medcpt`（默认，MedCPT cross-encoder）或 `qwen3`（`Qwen/Qwen3-Reranker-0.6B`，本地缓存权重、多语言，**中文问题可见**；官方 chat template 的 `system`/`query`/`document` 三角色 + yes/no 词元概率打分，指令文本 `QWEN3_RERANKER_INSTRUCTION` 冻结为常量；需 `transformers>=4.51`）。`config.rerank_pool` 控制重排时机：`0`（默认）= 标准模式——重排只作用于联合选择后的 `top_k`；`>0` 且请求 `rerank=true` 时，分源排序与联合选择按 `max(top_k, rerank_pool)` 收集候选，重排后再截断到 `top_k`，`trace.rerank_trace` 记录 `pool_enabled`/`pool_size`/`reranked_count`。请求 `rerank=false` 时池不生效。重排分数只表示检索相关性，不是证据质量。**工作台步骤 05 可直接选择重排器与候选池**：`POST /api/settings/reranker`（`{"model":"medcpt|qwen3","rerank_pool":N}`）在进程内即时生效，下一次检索按新配置重建；已打开的旧 `retrieval_id` 仍绑定原检索工具。重启服务后回到 env/config。
 
 - **零信号路线不参与 RRF**（2026-10-09 修复）：某一路对全部候选给零分时（如中文问题对英文语料 BM25），该路排名只是任意顺序，计入 RRF 等于注入噪声；只有正分候选参与该路排名。
 - 神经方法不可用（缺依赖/模型/加载失败）时在 `trace.method_trace` 标 `not_configured`（附原因）；全部所选方法都不可用且无神经信号时回退 `bm25` 并记 `fallback`；**绝不拿词面分数冒充 dense/SPLADE/ColBERT**。
@@ -757,6 +798,10 @@ registry.register(CallableConnector(source_id="local-guideline", kinds=("guideli
 | `fidelity_lexicon_path` | `str` | `""` | 可选：`FidelityLexicon` JSON 路径（结构见 `contracts/examples/fidelity_lexicon_example.json`）；环境变量 `RAG_FIDELITY_LEXICON` 可覆盖；留空时实体串换检测标"不可检测"。 |
 | `fidelity_default_policy` | `str` | `"off"` | 默认查询保真策略（第 5.8 节）；单次请求可用 `fidelity_gate` 覆盖，环境变量 `RAG_FIDELITY_POLICY` 可覆盖。 |
 | `fidelity_penalty` | `float` | `0.5` | `downweight` 的乘性系数，取值须在 `[0, 1]`。 |
+| `term_mapping_library_path` | `str` | `""` | 可选通用术语映射库（`{"library": name, "rows": [...]}` 或行数组；环境变量 `RAG_TERM_MAPPING_LIBRARY` 可覆盖）。配置一次全站生效，概念/别名命中才展开，请求行优先；留空=不启用（legacy）。文件缺失/损坏显式报错。构建器支持 `--mesh-enrich`：经 NCBI E-utilities 从 **NLM MeSH 实取**官方主题词/Descriptor UI/入口词（`mesh_grounded`/`mesh_top_match`/`not_found` 逐行留痕），中文别名仍来自数据/词表、待人工核验。 |
+| `reranker_model` | `str` | `"medcpt"` | 重排器选择：`medcpt`（MedCPT cross-encoder，默认）/ `qwen3`（Qwen3-Reranker-0.6B，本地权重）。环境变量 `RAG_RERANKER_MODEL` 可覆盖；未知值显式报错。工作台可用 `POST /api/settings/reranker` 在进程内即时覆盖。 |
+| `applicability_preview` | `bool` | `False` | 适用性**试算预览**：`true` 时给未参与判定的条件（未审核/缺出处）附加 `preview`（同一比对规则的试算结果 + 观测值/病历路径）。`status` 不变，预览不构成判定。环境变量 `RAG_APPLICABILITY_PREVIEW` 可覆盖。 |
+| `routing_mode` | `str` | `"off"` | 规则路由模式：`off`（关闭，默认）/ `shadow`（只记录决策）/ `active`（收窄/重排外部来源）。环境变量 `RAG_ROUTING_MODE` 可覆盖；其它值显式报错。见第 5.10 节。 |
 
 密钥只保存在本地配置，不要写入脚本、日志、README 或提交记录。修改 `config.py` 后需重启服务。
 
@@ -767,7 +812,7 @@ registry.register(CallableConnector(source_id="local-guideline", kinds=("guideli
 - `live`（默认）：实时 PubMed（E-utilities）+ 新生儿指南元数据/链接记录 + 开放获取指南全文（`allow_live_guideline_fulltext`，默认 `True`）；前两者需要 `allow_live_pubmed` 与 `allow_live_guidelines` 同时为 `True`；
 - `custom`：调用方注册的自有知识库（如医院指南库、自备文献快照）。库为空时检索**显式报错**，不返回空结果冒充"没有证据"。
 
-指南全文只对 Europe PMC 标记为 `isOpenAccess=Y` 的记录实时抓取；非 OA 记录只返回书目/摘要与链接，`full_text_allowed=false`，并在 warnings 中说明。全文不落盘、不缓存、不再分发。
+指南全文只对 Europe PMC 标记为 `isOpenAccess=Y` 的记录实时抓取；非 OA 记录只返回书目/摘要与链接，`full_text_allowed=false`，并在 warnings 中说明。调用方自备的已授权 PDF 通过 `LocalGuidelinePdfConnector`（`guideline-pdf-local`）参与同一检索，目录在仓库外，检索时实时解析。全文不落盘、不缓存、不再分发。
 
 **主题过滤与抓取上限**：指南连接器用审核术语中的疾病短语做主题匹配，先过滤与主题不符的记录，再抓取全文；每次最多处理 `max_articles=5` 篇文章，每篇最多保留 `max_chunks_per_article=3` 个章节块，避免单篇文章的多个 chunk 占满 `top_k`。新生儿指南元数据注册表同样按疾病 token 过滤，只有查询主题相关的元数据记录会进入候选。两个上限均为连接器构造参数，可按调用方预算调整。
 
@@ -820,6 +865,8 @@ python3 server.py
 | `GET` | `/api/demo/guidelines` | 演示指南库清单与是否已注册（不隐式注册）。 |
 | `POST` | `/api/demo/guidelines/load` | 显式把演示指南库注册进 custom 库（同 source_id 覆盖，事件可审计）。 |
 | `POST` | `/api/retrieve` | 接收检索字段（与 `RetrievalRequest.from_dict()` 相同）。 |
+| `POST` | `/api/controller/retrieve` | 逐轮控制器试运行：同一请求字段 + 可选 `controller_policy`（`max_rounds`/`max_cost`/`min_evidence`/`min_coverage`/…）；返回 `rounds`/`stop`/`final`/`replay`，不合并跨轮 citation。 |
+| `POST` | `/api/settings/reranker` | 进程内切换重排器/候选池：`{"model":"medcpt|qwen3","rerank_pool":N}`；下一次检索重建工具，已打开的旧 `retrieval_id` 不受影响。 |
 | `POST` | `/api/citation` | 接收 `retrieval_id`、`citation_id`。 |
 | `POST` | `/api/audit` | 接收 `retrieval_id`、`answer`。 |
 
@@ -836,7 +883,7 @@ HTTP 状态码：
 
 ### 13.4 浏览器工作台
 
-工作台 = 单文件 HTML + 标准库 `http.server`，无前端框架、无 CDN、无构建步骤。**v6.6.5 起为固定分区工作台**：顶部固定工具栏 + 01–09 步骤条，主体按“输入（01–03）/ 配置（04–06）/ 执行与结果（07–09）”三列固定排列，不再提供缩放、平移、拖拽或连线；底部固定信息区（后端与契约、演示来源、方法就绪、API 调用日志），再下方是结果面板与引文详情。所有输入都直接发给真实 `/api/his/snapshot`、`/api/retrieve`、`/api/citation`、`/api/audit`；步骤 01 支持直接编辑快照 JSON 后载入，步骤 08 可展开后端原始响应。结果区包含“指南适用性（结构化条件核对）”面板。
+工作台 = 单文件 HTML + 标准库 `http.server`，无前端框架、无 CDN、无构建步骤。**v6.7.0 起为流程化选项卡工作台**：顶部固定控制条（主题、后端自检、空白请求、查看结果、执行检索）+ 左侧 01–09 流程导航（每步带状态）+ 中间按真实调用顺序纵向排列的步骤卡 + 右侧状态轨（状态 / 来源 / 日志三个选项卡）。不再提供缩放、平移、拖拽或连线。步骤 08 结果区用选项卡收纳：证据列表（可按来源再分选项卡）、患者事实（本次命中 / 快照事实）、指南适用性、检索诊断（映射来源 / 来源路由 / 检索式自检 / 联合选择 / 查询保真）、原始响应；引文详情与证据列表并排。所有输入都直接发给真实 `/api/his/snapshot`、`/api/retrieve`、`/api/citation`、`/api/audit`；步骤 01 支持直接编辑快照 JSON 后载入，步骤 08 可展开后端原始响应。重构前的旧版页面不随本分支发布。
 
 九个步骤按真实调用顺序固定排列，每个步骤的输入字段与 `RetrievalRequest` 一一对应：
 
@@ -846,9 +893,9 @@ HTTP 状态码：
 | 02 问题与意图 | 中文问题、任务、语言、临床意图 | `question`、`task`、`query_language`、`clinical_intent` |
 | 03 术语与映射 | 患者术语、`term_mapping` 映射表（概念→英文/MeSH/别名）、facets | `patient_terms`、`term_mapping`、`facets` |
 | 04 范围与过滤 | 来源模式、top_k、来源类型、filters | `source_mode`、`top_k`、`source_kinds`、`filters` |
-| 05 检索方法与门控 | 方法、重排、保真门控 | `retrieval_method`、`rerank`、`fidelity_gate` |
+| 05 检索方法与门控 | 方法、重排开关、重排器/候选池、保真门控 | `retrieval_method`、`rerank`、`fidelity_gate`；`POST /api/settings/reranker` 即时切换 `reranker_model`/`rerank_pool` |
 | 06 RetrievalRequest | 只预览不发送，实时 JSON | `request_id` 在执行时生成 |
-| 07 执行检索 | 执行按钮 | `POST /api/retrieve` |
+| 07 执行检索 | 执行按钮；逐轮控制器（研究）按钮 | `POST /api/retrieve`；`POST /api/controller/retrieve`（结果区“检索诊断”显示 rounds/stop/replay） |
 | 08 证据结果 | 包摘要、citation_id 输出 | `EvidencePackage` |
 | 09 引用与审计 | 打开引文、审计回答 | `POST /api/citation`、`POST /api/audit` |
 
@@ -858,11 +905,11 @@ HTTP 状态码：
 
 **结果呈现**：执行成功后自动滚动到“证据结果”面板（按指南/PubMed 分源卡片、患者事实命中、联合选择、检索式自检、查询保真、引文详情）；步骤 08 同时保留一份紧凑结果列表，便于在当前页面直接点选。工具栏提供“查看结果”跳转按钮。
 
-**失败处理**：`source_mode=custom` 但尚无已注册来源时，执行按钮会先真实调用 `POST /api/demo/guidelines/load` 再检索；若仍失败，结果区显示错误信息与“加载来源库并重试”按钮，并在日志中保留原始状态码。页面启动时会比对 `/api/health` 的 `rag_version`，若后端不是 6.6.5（例如误连到 8797/8798 的旧实例）会在工具栏顶部显示版本不匹配警告。病例 9 例全部为合成新生儿数据（RDS/回顾时点/肺炎/TTN/黄疸/PPHN/BPD/低血糖/GBS），下拉框来自 `rag/demo/neonatal_cases.json`；每例默认 `source_mode=live`，直接检索真实指南与开放获取正文，不默认使用合成指南块。来源库需点击“加载来源库”（`POST /api/demo/guidelines/load`）后才会注册进 custom 库；服务不持有患者数据，也不内置语料。步骤 03 的 `term_mapping` JSON 映射表会在输入时渲染概念—英文—MeSH 预览；JSON 无效会阻止执行。
+**失败处理**：`source_mode=custom` 但尚无已注册来源时，执行按钮会先真实调用 `POST /api/demo/guidelines/load` 再检索；若仍失败，结果区显示错误信息与“加载来源库并重试”按钮，并在日志中保留原始状态码。页面启动时会比对 `/api/health` 的 `rag_version`，若后端不是 6.7.0（例如误连到 8797/8798 的旧实例）会在工具栏顶部显示版本不匹配警告。病例 9 例全部为合成新生儿数据（RDS/回顾时点/肺炎/TTN/黄疸/PPHN/BPD/低血糖/GBS），下拉框来自 `rag/demo/neonatal_cases.json`；每例默认 `source_mode=live`，直接检索真实指南与开放获取正文，不默认使用合成指南块。来源库需点击“加载来源库”（`POST /api/demo/guidelines/load`）后才会注册进 custom 库；服务不持有患者数据，也不内置语料。步骤 03 的 `term_mapping` JSON 映射表会在输入时渲染概念—英文—MeSH 预览；JSON 无效会阻止执行。
 
 ### 13.5 契约文档
 
-- `contracts/agent_contract.json`：机器可读的 Agent/HIS/RAG 契约（`contract_version` 与包 `__version__` 同步，当前 `6.6.5`），含 `language_rules`、`term_mapping`、`applicability_criteria` 与字段语义；
+- `contracts/agent_contract.json`：机器可读的 Agent/HIS/RAG 契约（`contract_version` 与包 `__version__` 同步，当前 `6.7.0`），含 `language_rules`、`term_mapping`、`applicability_criteria` 与字段语义；
 - `contracts/README.md`：调用顺序、接口字段定义、隐私与错误边界（含查询保真门控字段，见其第 9.4 节）；
 - `contracts/examples/`：请求/响应/错误示例（含 `agent_fidelity_gate_request.json`、`fidelity_lexicon_example.json`）；
 - 运行时的同一份语义可从 `GET /api/tools` 获取（`agent.py` 的 `tool_specifications()`）。
@@ -907,7 +954,7 @@ python3 -m compileall -q rag
 
 测试使用合成或录制数据，不请求实时 PubMed、不请求 LLM、不下载模型、不加载神经模型。
 
-测试覆盖含查询保真审计与门控（`tests/test_fidelity.py`、`tests/test_gate.py`）、离线实验骨架的指标层（`tests/test_fidelity_metrics.py`），以及 v6.6.5 的映射表与结构化适用性（`tests/test_query_mapping_applicability.py`：映射解析/展开/别名边界、概念分组变体、PubMed 字段标签、逐条条件核对、data_status 与 subject_role 语义、legacy 分支）。跨组件契约测试在仓库根 `tests/`（HIS→Agent→RAG 链路，用 `contracts/examples/` 的合成样例，离线运行）：`python3 -m unittest discover -s tests -t . -p 'test_*.py'`。`rag/eval/run_fidelity_experiments.py --plan` 只打印实验臂矩阵与数据需求、不执行检索（实验前模式）。
+测试覆盖含查询保真审计与门控（`tests/test_fidelity.py`、`tests/test_gate.py`）、离线实验骨架的指标层（`tests/test_fidelity_metrics.py`），v6.6.5 的映射表与结构化适用性（`tests/test_query_mapping_applicability.py`：映射解析/展开/别名边界、概念分组变体、PubMed 字段标签、逐条条件核对、data_status 与 subject_role 语义、legacy 分支），v6.7.0 的重排池与 Qwen3 重排器（`tests/test_rerank_upgrade_670.py`：注入打分离线、池行为、legacy 路径不变）、通用术语映射库（`tests/test_term_mapping_library.py`：加载校验、库行展开与溯源、请求优先、构建器抽取）、规则路由（`tests/test_routing.py`：五条决策、无英文回退、请求来源过滤、off/shadow/active 模式、非法值），以及逐轮控制器（`tests/test_controller.py`：患者事实首轮、来源限制、无英文跳过、预算/轮数停止、回放与确定性）。当前全量 **346 tests：337 通过 + 9 跳过**（当次实跑；跳过项为不随发布分支分发的研发侧构建器测试）。跨组件契约测试在仓库根 `tests/`（HIS→Agent→RAG 链路，用 `contracts/examples/` 的合成样例，离线运行）：`python3 -m unittest discover -s tests -t . -p 'test_*.py'`。`rag/eval/run_fidelity_experiments.py --plan` 只打印实验臂矩阵与数据需求、不执行检索（实验前模式）。
 
 ## 16. 使用边界
 

@@ -18,7 +18,7 @@ Hard boundaries:
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import re
 from typing import Any, Mapping, Sequence
 
@@ -66,15 +66,21 @@ def assess_applicability(
     document: SourceDocument,
     snapshot: PatientSnapshot | None,
     patient_hits: Sequence[Any],
+    *,
+    preview: bool = False,
 ) -> ApplicabilityAssessment:
-    """Assess one guideline document against the visible patient snapshot."""
+    """Assess one guideline document against the visible patient snapshot.
+
+    ``preview=True`` additionally computes a clearly-labelled trial judgment for
+    criteria blocked by the review gate (status stays ``unknown`` either way).
+    """
     if snapshot is None:
         return ApplicabilityAssessment(document.document_id, "not_assessed", "未提供患者快照。")
 
     raw = document.metadata.get("applicability_criteria")
     criteria, parse_errors = parse_applicability_criteria(raw)
     if criteria:
-        results = tuple(_evaluate(criterion, snapshot) for criterion in criteria)
+        results = tuple(_evaluate(criterion, snapshot, preview=preview) for criterion in criteria)
         return _overall(document.document_id, results, parse_errors, _criteria_logic(raw))
     if raw not in (None, "", [], {}):
         return ApplicabilityAssessment(
@@ -148,8 +154,7 @@ def _criteria_logic(value: Any) -> str:
     return "all_of"
 
 
-def _evaluate(criterion: _Criterion, snapshot: PatientSnapshot) -> ApplicabilityCriterionResult:
-    observed, suppressed = _lookup_values(snapshot.visible_facts(), criterion)
+def _evaluate(criterion: _Criterion, snapshot: PatientSnapshot, *, preview: bool = False) -> ApplicabilityCriterionResult:
     base = {
         "criterion_id": criterion.criterion_id,
         "field": criterion.field,
@@ -160,18 +165,32 @@ def _evaluate(criterion: _Criterion, snapshot: PatientSnapshot) -> Applicability
         "source_locator": criterion.source_locator,
         "review_status": criterion.review_status,
     }
+    gate_reason: str | None = None
     if criterion.review_status not in _PARTICIPATING_REVIEW_STATUSES:
-        return ApplicabilityCriterionResult(
-            **base, status="unknown",
-            reason=(
-                f"条件未审核（{criterion.review_status}），不参与判定；只有已审核条件可以核对。"
-            ),
+        gate_reason = (
+            f"条件未审核（{criterion.review_status}），不参与判定；只有已审核条件可以核对。"
         )
-    if not criterion.source_locator:
-        return ApplicabilityCriterionResult(
-            **base, status="unknown",
-            reason="条件缺少原文定位（source.locator/quote），不参与判定。",
-        )
+    elif not criterion.source_locator:
+        gate_reason = "条件缺少原文定位（source.locator/quote），不参与判定。"
+    if gate_reason is not None:
+        result = ApplicabilityCriterionResult(**base, status="unknown", reason=gate_reason)
+        if preview:
+            judged = _judge(criterion, snapshot, base)
+            result = replace(result, preview={
+                "status": judged.status,
+                "observed_value": judged.observed_value,
+                "patient_record_paths": judged.patient_record_paths,
+                "unit": criterion.unit,
+                "subject_role": criterion.subject_role,
+                "note": "试算预览：按同一比对规则对未参与判定的条件试算，不构成判定；正式结论以人工审核后为准。",
+            })
+        return result
+    return _judge(criterion, snapshot, base)
+
+
+def _judge(criterion: _Criterion, snapshot: PatientSnapshot, base: Mapping[str, Any]) -> ApplicabilityCriterionResult:
+    """The comparison itself (review gates already passed or bypassed for preview)."""
+    observed, suppressed = _lookup_values(snapshot.visible_facts(), criterion)
     if criterion.operator not in _SUPPORTED_OPERATORS:
         return ApplicabilityCriterionResult(
             **base, status="unknown",

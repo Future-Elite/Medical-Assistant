@@ -29,7 +29,10 @@ class GuidelineTests(unittest.TestCase):
             self.assertNotIn(adult, joined)
         self.assertTrue(all(doc.kind == "guideline" for doc in registry))
         self.assertTrue(all(doc.metadata["content_mode"] == "metadata_only" for doc in registry))
-        self.assertTrue(all(doc.metadata["full_text_allowed"] is False for doc in registry))
+        # 现行策略：元数据记录本身不带正文，但必须指向全文来源（Europe PMC / 调用方 PDF）
+        for doc in registry:
+            self.assertTrue(doc.metadata["full_text_allowed"])
+            self.assertTrue(doc.metadata["full_text_sources"])
 
     def test_pneumonia_metadata_fields(self):
         doc = neonatal_pneumonia_metadata()

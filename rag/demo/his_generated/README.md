@@ -1,6 +1,6 @@
 # HIS 风格新生儿合成数据（his_generated）
 
-本目录由研发侧工具 `generate_neonatal_his.py` 确定性生成（该工具不随本分支发布），
+本目录由 研发侧工具 `generate_neonatal_his.py` 确定性生成（该工具不随本分支发布），
 是**独立于 `rag/demo/neonatal_cases.json` 的第二个演示档案**。它复用 v6.6.5 的真实
 `PatientSnapshot` / `RetrievalRequest` 契约，但不改动精选的 9 例病例，也不注册任何来源。
 
@@ -21,7 +21,7 @@
 ## 2. 生成
 
 ```bash
-# 在含研发侧 tools/ 的工作区根目录执行；PYTHONPATH 让脚本导入本分支的 rag 包做契约校验
+# 从项目根目录执行；PYTHONPATH 让脚本能导入 v6.6.5 的 rag 包做契约校验
 PYTHONPATH=. python3 tools/generate_neonatal_his.py \
   --seed 20261018
 ```
@@ -101,8 +101,8 @@ curl -s http://127.0.0.1:8798/api/retrieve \
 
 | 上游 | 实际能力 | 本目录的处理 |
 |---|---|---|
-| `origin/his@0e6a2d1` | Java/Spring Boot；写 MySQL `his_demo`；患者年龄 18–89；诊断/用药/检验/剂量来自 `dept_diagnosis` / `diagnosis_drug` / `diagnosis_lab` / `drug_dose` 本体表 | 借其「科室-诊断-用药-检验一致、时间严格递增、身份证 GB 11643」纪律；不直接运行（该生成器依赖 MySQL 本体库，且无新生儿年龄档） |
-| `origin/hisdata@e85f469` | Python 3.11+ + Synthea 源码 + JDK 21 + 5 个 Java 补丁；IR → GMF → FHIR → 8 张 CSV；当前 IR 只有成人 T2DM | 借其「IR 每个数字带 source、稳定行序、空值不填 0、`【待核实】` 标记」纪律；不直接运行（当前无新生儿 IR） |
+| `origin/his@0e6a2d1` | Java/Spring Boot；写 MySQL `his_demo`；患者年龄 18–89；诊断/用药/检验/剂量来自 `dept_diagnosis` / `diagnosis_drug` / `diagnosis_lab` / `drug_dose` 本体表 | 借其「科室-诊断-用药-检验一致、时间严格递增、身份证 GB 11643」纪律；不运行（需要 MySQL 本体库，且生成器无新生儿年龄档） |
+| `origin/hisdata@e85f469` | Python 3.11+ + Synthea 源码 + JDK 21 + 5 个 Java 补丁；IR → GMF → FHIR → 8 张 CSV；当前 IR 只有成人 T2DM | 借其「IR 每个数字带 source、稳定行序、空值不填 0、`【待核实】` 标记」纪律；不运行（需要 `SYNTHEA_HOME`，且无新生儿 IR） |
 
 本目录**不是** Synthea/FHIR 产物，不声称 Synthea 溯源；也没有运行上述两条上游生成器。
 

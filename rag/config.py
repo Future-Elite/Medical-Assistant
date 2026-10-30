@@ -20,9 +20,14 @@ class RAGConfig:
     source_mode: str = "live"
     allow_live_pubmed: bool = True
     allow_live_guidelines: bool = True
-    # 实时开放获取指南全文（Europe PMC JATS）。仅对 isOpenAccess=Y 的记录抓取全文；
-    # 非 OA 记录只返回书目/摘要与链接。关闭后 live 模式仍保留指南元数据。
+    # 实时指南全文（Europe PMC JATS）。按现行来源策略，指南全文均可检索：
+    # 优先抓取 JATS 全文；无全文时退到书目/摘要 + 链接，并显式写 warning。
     allow_live_guideline_fulltext: bool = True
+    # 指南 PDF 目录（仓库外，调用方自备）：<dir>/guideline_pdfs.json + PDF。
+    # 命中时作为 guideline-pdf-local 连接器注册；缺失时该来源自动缺席。
+    guideline_pdf_dir: str = "~/.chinallm/guideline_pdfs"
+    # 指南书目元数据实时查询（Europe PMC 按 DOI/PMID）：失败时回退本地注册表。
+    allow_live_guideline_metadata_lookup: bool = True
     # 可选：启动时预载自定义来源库文件（{"sources": [...]} 或 JSON 数组；
     # 单个来源的 schema 见 custom_sources.py 与 contracts/README.md）。
     # 留空表示不预载，调用方在运行时用 POST /api/sources/custom 注册。
@@ -39,6 +44,25 @@ class RAGConfig:
     fidelity_lexicon_path: str = ""
     fidelity_default_policy: str = "off"
     fidelity_penalty: float = 0.5
+    # 可选术语映射库（通用机制，v6.7.0）：概念—英文/MeSH 映射行的可复用文件
+    # （{"library": name, "rows": [...]} 或行数组；构建工具不随本分支发布）。
+    # 配置一次对所有请求生效（概念/别名命中才展开）；留空=不启用（legacy）。
+    # 环境变量 RAG_TERM_MAPPING_LIBRARY 可覆盖；文件缺失/损坏显式报错。
+    term_mapping_library_path: str = ""
+    # 重排器选择：medcpt（默认，MedCPT cross-encoder）| qwen3（Qwen3-Reranker-0.6B，
+    # 本地 HF 缓存权重；多语言，中文问题可见）。默认值保持 legacy 语义。
+    reranker_model: str = "medcpt"
+    # 重排候选池：0=legacy（重排只作用于联合选择后的 top_k）；>0 时按池大小收集并
+    # 联合选择候选，重排后再截断到请求 top_k。仅当请求 rerank=true 时生效。
+    rerank_pool: int = 0
+    # 适用性试算预览：true 时给"未参与判定"的条件（未审核/缺出处）附加
+    # preview 字段——用同一比对规则试算"若审过会判什么"。status 不变，
+    # 预览不构成判定。环境变量 RAG_APPLICABILITY_PREVIEW=1 可覆盖。
+    applicability_preview: bool = False
+    # 规则路由 v0（研究特性）：off=legacy；shadow=只记录 trace.route_decision
+    # 不改检索行为（实验性运行）；active=按决策收窄/重排来源。
+    # 环境变量 RAG_ROUTING_MODE 可覆盖。
+    routing_mode: str = "off"
 
 
 CONFIG = RAGConfig()

@@ -6,7 +6,7 @@
         "guideline"
       ],
       "description": "经书目核验的新生儿指南元数据（仅元数据，不含全文）",
-      "version": "2026-10-17",
+      "version": "2026-10-28",
       "documents": [
         {
           "document_id": "guide-neo-pneumonia-2025-meta",
@@ -187,6 +187,490 @@
               }
             ],
             "applicability_notes": "适用范围条件仅来自指南标题/适用人群；胎龄阈值为早产儿定义，不是治疗阈值。"
+          }
+        },
+        {
+          "document_id": "guide-neo-hyperbilirubinemia-2022-meta",
+          "kind": "guideline",
+          "title": "Clinical Practice Guideline Revision: Management of Hyperbilirubinemia in the Newborn Infant 35 or More Weeks of Gestation",
+          "text": "官方书目元数据记录，仅用于来源定位；未登记全文，不提供推荐原文。Bibliographic metadata only; full text not indexed.",
+          "url": "https://doi.org/10.1542/peds.2022-058859",
+          "published_at": "2022-08-05",
+          "locator": "Pediatrics 2022;150(3):e2022058859",
+          "version_id": "2022",
+          "population": "胎龄 ≥35 周新生儿高胆红素血症",
+          "status": "current",
+          "doi": "10.1542/peds.2022-058859",
+          "pmid": "35927462",
+          "metadata": {
+            "content_mode": "metadata_only",
+            "full_text_allowed": false,
+            "rights_basis": "open_access_cc_by_nc",
+            "license": "cc by-nc",
+            "official": true,
+            "publisher": "Pediatrics",
+            "mesh_terms": "Hyperbilirubinemia, Neonatal; Infant, Newborn",
+            "keywords": "neonatal hyperbilirubinemia; jaundice; phototherapy",
+            "language": "en",
+            "synthetic": false,
+            "topic_keys": [
+              "hyperbilirubinemia",
+              "jaundice",
+              "高胆红素血症",
+              "黄疸"
+            ],
+            "applicability_criteria": [
+              {
+                "criterion_id": "ga_ge_35_weeks",
+                "field": "ga_days",
+                "operator": "ge",
+                "required": true,
+                "value": 245,
+                "label": "胎龄 ≥35 周（≥245 天）",
+                "source": {
+                  "locator": "指南标题/适用人群",
+                  "quote": "35 or More Weeks of Gestation"
+                },
+                "review_status": "scope_only",
+                "unit": "days"
+              },
+              {
+                "criterion_id": "hyperbilirubinemia_diagnosis",
+                "field": "diagnosis",
+                "operator": "contains_any",
+                "required": true,
+                "value": [
+                  "高胆红素血症",
+                  "黄疸",
+                  "hyperbilirubinemia",
+                  "jaundice"
+                ],
+                "label": "诊断包含高胆红素血症/黄疸",
+                "source": {
+                  "locator": "指南标题/适用人群",
+                  "quote": "hyperbilirubinemia"
+                },
+                "review_status": "scope_only"
+              }
+            ],
+            "applicability_notes": "仅标题/适用人群级条件；光疗阈值等治疗阈值不结构化。"
+          }
+        },
+        {
+          "document_id": "guide-neo-rds-2022-meta",
+          "kind": "guideline",
+          "title": "European Consensus Guidelines on the Management of Respiratory Distress Syndrome: 2022 Update",
+          "text": "官方书目元数据记录，仅用于来源定位；未登记全文，不提供推荐原文。Bibliographic metadata only; full text not indexed.",
+          "url": "https://doi.org/10.1159/000528914",
+          "published_at": "2023-01-01",
+          "locator": "Neonatology 2023;120(1):3-23",
+          "version_id": "2022",
+          "population": "早产儿呼吸窘迫综合征",
+          "status": "current",
+          "doi": "10.1159/000528914",
+          "pmid": "36863329",
+          "metadata": {
+            "content_mode": "metadata_only",
+            "full_text_allowed": false,
+            "rights_basis": "open_access_cc_by",
+            "license": "cc by",
+            "official": true,
+            "publisher": "Neonatology",
+            "mesh_terms": "Respiratory Distress Syndrome, Newborn",
+            "keywords": "RDS; preterm infant; surfactant",
+            "language": "en",
+            "synthetic": false,
+            "topic_keys": [
+              "respiratory distress syndrome",
+              "RDS",
+              "呼吸窘迫综合征"
+            ],
+            "stable_id": "PMCID PMC10064400",
+            "applicability_criteria": [
+              {
+                "criterion_id": "preterm_infant",
+                "field": "ga_days",
+                "operator": "lt",
+                "required": true,
+                "value": 259,
+                "label": "早产儿（出生胎龄 < 37 周）",
+                "source": {
+                  "locator": "指南标题/适用人群",
+                  "quote": "preterm infants"
+                },
+                "review_status": "scope_only",
+                "unit": "days"
+              },
+              {
+                "criterion_id": "rds_diagnosis",
+                "field": "diagnosis",
+                "operator": "contains_any",
+                "required": true,
+                "value": [
+                  "呼吸窘迫综合征",
+                  "RDS",
+                  "respiratory distress syndrome"
+                ],
+                "label": "诊断包含呼吸窘迫综合征",
+                "source": {
+                  "locator": "指南标题/适用人群",
+                  "quote": "Respiratory Distress Syndrome"
+                },
+                "review_status": "scope_only"
+              }
+            ],
+            "applicability_notes": "仅标题/适用人群级条件；治疗阈值不结构化。"
+          }
+        },
+        {
+          "document_id": "guide-neo-surfactant-2014-meta",
+          "kind": "guideline",
+          "title": "Surfactant Replacement Therapy for Preterm and Term Neonates With Respiratory Distress",
+          "text": "官方书目元数据记录，仅用于来源定位；未登记全文，不提供推荐原文。Bibliographic metadata only; full text not indexed.",
+          "url": "https://doi.org/10.1542/peds.2013-3443",
+          "published_at": "2014-01-01",
+          "locator": "Pediatrics 2014;133(1):156-163",
+          "version_id": "2014",
+          "population": "早产儿与足月儿呼吸窘迫",
+          "status": "unknown",
+          "doi": "10.1542/peds.2013-3443",
+          "pmid": "24379227",
+          "metadata": {
+            "content_mode": "metadata_only",
+            "full_text_allowed": false,
+            "rights_basis": "open_access_cc_by_nc_nd",
+            "license": "cc by-nc-nd",
+            "official": true,
+            "publisher": "Pediatrics",
+            "mesh_terms": "Surface-Active Agents; Respiratory Distress Syndrome, Newborn",
+            "keywords": "surfactant; respiratory distress",
+            "language": "en",
+            "synthetic": false,
+            "topic_keys": [
+              "surfactant",
+              "respiratory distress",
+              "肺表面活性物质",
+              "呼吸窘迫"
+            ],
+            "applicability_criteria": [
+              {
+                "criterion_id": "rds_or_distress",
+                "field": "diagnosis",
+                "operator": "contains_any",
+                "required": true,
+                "value": [
+                  "呼吸窘迫综合征",
+                  "呼吸窘迫",
+                  "RDS",
+                  "respiratory distress syndrome"
+                ],
+                "label": "诊断包含呼吸窘迫综合征/呼吸窘迫",
+                "source": {
+                  "locator": "指南标题/适用人群",
+                  "quote": "Respiratory Distress"
+                },
+                "review_status": "scope_only"
+              }
+            ],
+            "applicability_notes": "仅标题/适用人群级条件；不包含给药剂量与时机阈值。"
+          }
+        },
+        {
+          "document_id": "guide-neo-hypoglycemia-pes-2015-meta",
+          "kind": "guideline",
+          "title": "Recommendations from the Pediatric Endocrine Society for Evaluation and Management of Persistent Hypoglycemia in Neonates, Infants, and Children",
+          "text": "官方书目元数据记录，仅用于来源定位；未登记全文，不提供推荐原文。Bibliographic metadata only; full text not indexed.",
+          "url": "https://doi.org/10.1016/j.jpeds.2015.03.057",
+          "published_at": "2015-08-01",
+          "locator": "J Pediatr 2015;167(2):238-245",
+          "version_id": "2015",
+          "population": "新生儿、婴儿与儿童持续性低血糖",
+          "status": "current",
+          "doi": "10.1016/j.jpeds.2015.03.057",
+          "pmid": "25957977",
+          "metadata": {
+            "content_mode": "metadata_only",
+            "full_text_allowed": false,
+            "rights_basis": "open_access_cc_by_nc_nd",
+            "license": "cc by-nc-nd",
+            "official": true,
+            "publisher": "The Journal of Pediatrics",
+            "mesh_terms": "Hypoglycemia; Infant, Newborn",
+            "keywords": "persistent hypoglycemia; neonatal hypoglycemia",
+            "language": "en",
+            "synthetic": false,
+            "topic_keys": [
+              "hypoglycemia",
+              "低血糖",
+              "新生儿低血糖"
+            ],
+            "stable_id": "PMCID PMC11891912",
+            "applicability_criteria": [
+              {
+                "criterion_id": "neonatal_period",
+                "field": "pna_hours",
+                "operator": "le",
+                "required": true,
+                "value": 672,
+                "label": "新生儿期（生后 ≤ 28 天）",
+                "source": {
+                  "locator": "指南标题/适用人群",
+                  "quote": "Neonates"
+                },
+                "review_status": "scope_only",
+                "unit": "hours"
+              },
+              {
+                "criterion_id": "hypoglycemia_diagnosis",
+                "field": "diagnosis",
+                "operator": "contains_any",
+                "required": true,
+                "value": [
+                  "低血糖",
+                  "hypoglycemia"
+                ],
+                "label": "诊断包含低血糖",
+                "source": {
+                  "locator": "指南标题/适用人群",
+                  "quote": "Hypoglycemia"
+                },
+                "review_status": "scope_only"
+              }
+            ],
+            "applicability_notes": "仅标题/适用人群级条件；血糖阈值与治疗方案不结构化。"
+          }
+        },
+        {
+          "document_id": "guide-neo-bpd-2019-meta",
+          "kind": "guideline",
+          "title": "The Diagnosis of Bronchopulmonary Dysplasia in Very Preterm Infants: An Evidence-based Approach",
+          "text": "官方书目元数据记录，仅用于来源定位；未登记全文，不提供推荐原文。Bibliographic metadata only; full text not indexed.",
+          "url": "https://doi.org/10.1164/rccm.201812-2348OC",
+          "published_at": "2019-09-15",
+          "locator": "Am J Respir Crit Care Med 2019;200(6):751-759",
+          "version_id": "2019",
+          "population": "极早产儿支气管肺发育不良",
+          "status": "current",
+          "doi": "10.1164/rccm.201812-2348OC",
+          "pmid": "30995069",
+          "metadata": {
+            "content_mode": "metadata_only",
+            "full_text_allowed": false,
+            "rights_basis": "open_access_cc_by_nc_nd",
+            "license": "cc by-nc-nd",
+            "official": true,
+            "publisher": "American Journal of Respiratory and Critical Care Medicine",
+            "mesh_terms": "Bronchopulmonary Dysplasia; Infant, Premature",
+            "keywords": "bronchopulmonary dysplasia; BPD; preterm",
+            "language": "en",
+            "synthetic": false,
+            "topic_keys": [
+              "bronchopulmonary dysplasia",
+              "BPD",
+              "支气管肺发育不良"
+            ],
+            "stable_id": "PMCID PMC6775872",
+            "applicability_criteria": [
+              {
+                "criterion_id": "preterm_infant",
+                "field": "ga_days",
+                "operator": "lt",
+                "required": true,
+                "value": 259,
+                "label": "早产儿（出生胎龄 < 37 周）",
+                "source": {
+                  "locator": "指南标题/适用人群",
+                  "quote": "Very Preterm Infants"
+                },
+                "review_status": "scope_only",
+                "unit": "days"
+              },
+              {
+                "criterion_id": "bpd_diagnosis",
+                "field": "diagnosis",
+                "operator": "contains_any",
+                "required": true,
+                "value": [
+                  "支气管肺发育不良",
+                  "BPD",
+                  "bronchopulmonary dysplasia"
+                ],
+                "label": "诊断包含支气管肺发育不良",
+                "source": {
+                  "locator": "指南标题/适用人群",
+                  "quote": "Bronchopulmonary Dysplasia"
+                },
+                "review_status": "scope_only"
+              }
+            ],
+            "applicability_notes": "仅标题/适用人群级条件；氧依赖与影像分级阈值不结构化。"
+          }
+        },
+        {
+          "document_id": "guide-neo-pocus-2020-meta",
+          "kind": "guideline",
+          "title": "International Evidence-Based Guidelines on Point of Care Ultrasound (POCUS) for Critically Ill Neonates and Children",
+          "text": "官方书目元数据记录，仅用于来源定位；未登记全文，不提供推荐原文。Bibliographic metadata only; full text not indexed.",
+          "url": "https://doi.org/10.1186/s13054-020-2787-9",
+          "published_at": "2020-02-24",
+          "locator": "Crit Care 2020;24(1):65",
+          "version_id": "2020",
+          "population": "危重新生儿与儿童的床旁超声",
+          "status": "current",
+          "doi": "10.1186/s13054-020-2787-9",
+          "pmid": "32093763",
+          "metadata": {
+            "content_mode": "metadata_only",
+            "full_text_allowed": false,
+            "rights_basis": "open_access_cc_by",
+            "license": "cc by",
+            "official": true,
+            "publisher": "Critical Care",
+            "mesh_terms": "Ultrasonography; Infant, Newborn; Critical Illness",
+            "keywords": "POCUS; neonatal ultrasound",
+            "language": "en",
+            "synthetic": false,
+            "topic_keys": [
+              "POCUS",
+              "point of care ultrasound",
+              "床旁超声",
+              "新生儿超声"
+            ],
+            "stable_id": "PMCID PMC7041196",
+            "applicability_criteria": [
+              {
+                "criterion_id": "neonatal_period",
+                "field": "pna_hours",
+                "operator": "le",
+                "required": true,
+                "value": 672,
+                "label": "新生儿期（生后 ≤ 28 天）",
+                "source": {
+                  "locator": "指南标题/适用人群",
+                  "quote": "Neonates"
+                },
+                "review_status": "scope_only",
+                "unit": "hours"
+              }
+            ],
+            "applicability_notes": "仅范围级条件；超声指征与操作规范不结构化。"
+          }
+        },
+        {
+          "document_id": "guide-neo-feeding-vlbw-2015-meta",
+          "kind": "guideline",
+          "title": "Guidelines for Feeding Very Low Birth Weight Infants",
+          "text": "官方书目元数据记录，仅用于来源定位；未登记全文，不提供推荐原文。Bibliographic metadata only; full text not indexed.",
+          "url": "https://doi.org/10.3390/nu7010423",
+          "published_at": "2015-01-08",
+          "locator": "Nutrients 2015;7(1):423-442",
+          "version_id": "2015",
+          "population": "极低出生体重儿喂养",
+          "status": "current",
+          "doi": "10.3390/nu7010423",
+          "pmid": "25580815",
+          "metadata": {
+            "content_mode": "metadata_only",
+            "full_text_allowed": false,
+            "rights_basis": "open_access_cc_by",
+            "license": "cc by",
+            "official": true,
+            "publisher": "Nutrients",
+            "mesh_terms": "Infant, Very Low Birth Weight; Enteral Nutrition",
+            "keywords": "VLBW; enteral feeding; human milk",
+            "language": "en",
+            "synthetic": false,
+            "topic_keys": [
+              "feeding",
+              "nutrition",
+              "VLBW",
+              "极低出生体重",
+              "喂养"
+            ],
+            "stable_id": "PMCID PMC4303848",
+            "applicability_criteria": [
+              {
+                "criterion_id": "vlbw_birth_weight",
+                "field": "birth_weight_g",
+                "operator": "lt",
+                "required": true,
+                "value": 1500,
+                "label": "极低出生体重（<1500 g）",
+                "source": {
+                  "locator": "指南标题/适用人群",
+                  "quote": "Very Low Birth Weight"
+                },
+                "review_status": "scope_only",
+                "unit": "g"
+              },
+              {
+                "criterion_id": "preterm_infant",
+                "field": "ga_days",
+                "operator": "lt",
+                "required": true,
+                "value": 259,
+                "label": "早产儿（出生胎龄 < 37 周）",
+                "source": {
+                  "locator": "指南标题/适用人群",
+                  "quote": "preterm infants"
+                },
+                "review_status": "scope_only",
+                "unit": "days"
+              }
+            ],
+            "applicability_notes": "仅定义级条件；喂养量与加奶速度不结构化。"
+          }
+        },
+        {
+          "document_id": "guide-neo-late-preterm-2013-meta",
+          "kind": "guideline",
+          "title": "Multidisciplinary Guidelines for the Care of Late Preterm Infants",
+          "text": "官方书目元数据记录，仅用于来源定位；未登记全文，不提供推荐原文。Bibliographic metadata only; full text not indexed.",
+          "url": "https://doi.org/10.1038/jp.2013.53",
+          "published_at": "2013-07-01",
+          "locator": "J Perinatol 2013;33 Suppl 2:S5-S22",
+          "version_id": "2013",
+          "population": "晚期早产儿（34–36 周）",
+          "status": "unknown",
+          "doi": "10.1038/jp.2013.53",
+          "pmid": "23803627",
+          "metadata": {
+            "content_mode": "metadata_only",
+            "full_text_allowed": false,
+            "rights_basis": "open_access_cc_by_nc_nd",
+            "license": "cc by-nc-nd",
+            "official": true,
+            "publisher": "Journal of Perinatology",
+            "mesh_terms": "Infant, Premature; Infant, Newborn",
+            "keywords": "late preterm; 34-36 weeks",
+            "language": "en",
+            "synthetic": false,
+            "topic_keys": [
+              "late preterm",
+              "晚期早产",
+              "34-36 weeks"
+            ],
+            "stable_id": "PMCID PMC3697041",
+            "applicability_criteria": [
+              {
+                "criterion_id": "late_preterm_ga",
+                "field": "ga_days",
+                "operator": "between",
+                "required": true,
+                "value": [
+                  245,
+                  259
+                ],
+                "label": "晚期早产（34–36 周）",
+                "source": {
+                  "locator": "指南标题/适用人群",
+                  "quote": "Late Preterm Infants"
+                },
+                "review_status": "scope_only",
+                "unit": "days"
+              }
+            ],
+            "applicability_notes": "仅定义级条件；不包含具体治疗阈值。"
           }
         }
       ]

@@ -1,0 +1,241 @@
+{
+  "artifact": "guideline_applicability_review_draft",
+  "version": "v0-2026-10-28",
+  "purpose": "真实新生儿指南适用性条件的待审草案（审核表/待审清单）：供新生儿科医生逐条核对后把 review_status 从 draft 翻成 reviewed 并确认 source 定位，才可参与 applicability 判定。",
+  "rules": [
+    "只含适用范围级条件（人群/胎龄/日龄/诊断主题/主体），不含任何治疗阈值——AAP 高胆红素的小时龄-胎龄-危险因素曲线、低血糖 <2.8/≤2.8 等阈值表达一律不结构化（见各条 do_not_structure）。",
+    "source.quote 取自本仓书目记录（指南书目记录 §5/§5b，2026-10-20 定向核查），不是指南正文；卷期页未逐条复核。医生核对时应以指南原文/官方页面为准更正。",
+    "review_status 全部为 draft：按 applicability 语义不参与判定、结果只出 unknown——这是有意的，翻成 reviewed 之前不允许任何 match/mismatch 结论。",
+    "字段名（ga_days/pna_hours/diagnosis/pma_weeks/gbs_status 等）是草案命名，审核时须与 PatientSnapshot 实际字段对照；pma_weeks 由调用方派生（PMA 不写入快照），缺失时按 unknown 处理。",
+    "subject_role 严格区分 patient/mother（GBS 条目必须母婴分离）。",
+    "本文件是审核材料，不直接进检索管线；审核通过后由维护者把 reviewed 行迁入指南注册表/自定义来源的 metadata.applicability_criteria。"
+  ],
+  "field_notes": {
+    "ga_days": "出生胎龄总天数（37 周 = 259 天，35 周 = 245 天）",
+    "pna_hours": "生后小时数（新生儿期 28 天 = 672 小时）",
+    "diagnosis": "diagnoses.name 的别名（contains_any 匹配）",
+    "pma_weeks": "经后胎龄（周），调用方派生，不在快照内",
+    "gbs_status": "母体 GBS 定植/筛查状态（collection=maternal）"
+  },
+  "guidelines": [
+    {
+      "guideline_id": "neo-pneumonia-2025",
+      "title": "基层医疗卫生机构常见新生儿疾病诊疗指南：新生儿感染性肺炎（2025年）",
+      "version_id": "2025",
+      "source_role": "practice_guideline",
+      "registration_status": "registered",
+      "identifiers": {"doi": "10.7499/j.issn.1008-8830.2412164", "pmid": "40962511"},
+      "applicability_criteria": [
+        {
+          "criterion_id": "neonatal_period", "field": "pna_hours", "operator": "le", "value": 672,
+          "unit": "hours", "subject_role": "patient", "required": true, "review_status": "draft",
+          "label": "新生儿期起病（生后 28 天内）",
+          "source": {"locator": "指南书目记录 §5·新生儿感染性肺炎（2025）书目记录", "quote": "面向基层儿科医护人员及新生儿期起病的疑似/确诊感染性肺炎"}
+        },
+        {
+          "criterion_id": "pneumonia_theme", "field": "diagnosis", "operator": "contains_any",
+          "value": ["肺炎", "pneumonia"], "subject_role": "patient", "required": true, "review_status": "draft",
+          "label": "疑似/确诊感染性肺炎",
+          "source": {"locator": "指南书目记录 §5·新生儿感染性肺炎（2025）书目记录", "quote": "新生儿期起病的疑似/确诊感染性肺炎"}
+        }
+      ],
+      "do_not_structure": ["推荐 11 的综合判断（高危因素+临床+影像+实验室）不结构化为单一条件；推荐 10 的 CT/肺超声定位是推荐内容不是适用条件；部分推荐为 GPS，证据质量限制随推荐文本保留"]
+    },
+    {
+      "guideline_id": "eu-rds-2025",
+      "title": "European Consensus Guidelines on the Management of Respiratory Distress Syndrome: 2025",
+      "version_id": "2025",
+      "published_at": "2026-03-09",
+      "source_role": "consensus",
+      "registration_status": "registered",
+      "identifiers": {"doi": "10.1159/000551062", "pmid": "41802129", "pmcid": "PMC13038240"},
+      "applicability_criteria": [
+        {
+          "criterion_id": "preterm_infant", "field": "ga_days", "operator": "lt", "value": 259,
+          "unit": "days", "subject_role": "patient", "required": true, "review_status": "draft",
+          "label": "早产儿（胎龄 < 37 周）",
+          "source": {"locator": "指南书目记录 §5·European RDS 2025 书目记录", "quote": "主要涉及早产儿RDS及围产管理"}
+        },
+        {
+          "criterion_id": "rds_theme", "field": "diagnosis", "operator": "contains_any",
+          "value": ["呼吸窘迫综合征", "RDS", "respiratory distress syndrome"], "subject_role": "patient",
+          "required": true, "review_status": "draft", "label": "RDS 主题",
+          "source": {"locator": "指南书目记录 §5·European RDS 2025 书目记录", "quote": "主要涉及早产儿RDS及围产管理"}
+        }
+      ],
+      "do_not_structure": ["肺超声诊断及 PS 需求判断的培训/胎龄/支持条件依赖具体推荐语境，不结构化；“培养阴性且无确证败血症下的经验抗菌药停药”不能移植为已诊断肺炎的一概停药规则"]
+    },
+    {
+      "guideline_id": "eu-rds-2025-cn-interpretation",
+      "title": "《欧洲新生儿呼吸窘迫综合征管理共识指南2025版》解读",
+      "version_id": "2025",
+      "source_role": "secondary_interpretation",
+      "registration_status": "registered",
+      "identifiers": {"doi": "10.7499/j.issn.1008-8830.2603060", "pmid": "42130350"},
+      "applicability_criteria": [
+        {
+          "criterion_id": "preterm_infant", "field": "ga_days", "operator": "lt", "value": 259,
+          "unit": "days", "subject_role": "patient", "required": true, "review_status": "draft",
+          "label": "早产儿（与原版同人群，仅作辅助来源）",
+          "source": {"locator": "指南书目记录 §5·RDS 中文解读书目记录", "quote": "中文解读是辅助来源，不能与原版指南合并为同一原文对象"}
+        }
+      ],
+      "do_not_structure": ["中文解读不得与原版合并为同一原文对象；解读作者的补充表述不作为独立适用条件"]
+    },
+    {
+      "guideline_id": "aap-hyperbilirubinemia-2022",
+      "title": "AAP Clinical Practice Guideline: Management of Hyperbilirubinemia in the Newborn Infant 35 or More Weeks of Gestation",
+      "version_id": "2022",
+      "source_role": "practice_guideline",
+      "registration_status": "candidate",
+      "identifiers": {"doi": "10.1542/peds.2022-058859", "pmid": "35927462"},
+      "applicability_criteria": [
+        {
+          "criterion_id": "ga_ge_35w", "field": "ga_days", "operator": "ge", "value": 245,
+          "unit": "days", "subject_role": "patient", "required": true, "review_status": "draft",
+          "label": "胎龄 ≥ 35 周",
+          "source": {"locator": "指南书目记录 §5b·高胆红素血症行", "quote": "适用 ≥35 周"}
+        },
+        {
+          "criterion_id": "jaundice_theme", "field": "diagnosis", "operator": "contains_any",
+          "value": ["黄疸", "高胆红素血症", "hyperbilirubinemia", "jaundice"], "subject_role": "patient",
+          "required": true, "review_status": "draft", "label": "高胆红素血症/黄疸主题",
+          "source": {"locator": "指南书目记录 §5b·高胆红素血症行", "quote": "Management of Hyperbilirubinemia in the Newborn Infant 35 or More Weeks of Gestation"}
+        }
+      ],
+      "do_not_structure": ["阈值以小时龄、胎龄和神经毒性危险因素表/曲线表达，不能简化为单一胆红素值（红线：本草案一律不结构化治疗/干预阈值）"]
+    },
+    {
+      "guideline_id": "cps-hypoglycemia-2019",
+      "title": "CPS position statement: The screening and management of newborns at risk for low blood glucose",
+      "version_id": "2019",
+      "source_role": "position_statement",
+      "registration_status": "candidate",
+      "identifiers": {"doi": "10.1093/pch/pxz134", "pmid": "31844395"},
+      "applicability_criteria": [
+        {
+          "criterion_id": "neonatal_period", "field": "pna_hours", "operator": "le", "value": 672,
+          "unit": "hours", "subject_role": "patient", "required": true, "review_status": "draft",
+          "label": "新生儿期",
+          "source": {"locator": "指南书目记录 §5b·低血糖行", "quote": "screening and management of newborns at risk for low blood glucose"}
+        },
+        {
+          "criterion_id": "hypoglycemia_theme", "field": "diagnosis", "operator": "contains_any",
+          "value": ["低血糖", "hypoglycemia", "血糖异常"], "subject_role": "patient", "required": false,
+          "review_status": "draft", "label": "低血糖风险/主题（非必需：筛查对象可无诊断）",
+          "source": {"locator": "指南书目记录 §5b·低血糖行", "quote": "newborns at risk for low blood glucose"}
+        }
+      ],
+      "do_not_structure": ["出生后 72 小时内过渡期与持续低血糖的阈值用途不同，不结构化为单一数值条件；正文存在 <2.8 与 ≤2.8 的表述差异，阈值须照原文保留"]
+    },
+    {
+      "guideline_id": "pphn-2021",
+      "title": "Evidence-Based Guidelines for Acute Stabilization and Management of Neonates with Persistent Pulmonary Hypertension of the Newborn",
+      "version_id": "2021",
+      "source_role": "practice_guideline",
+      "registration_status": "candidate",
+      "identifiers": {"doi": "10.1055/a-1711-0778", "pmid": "34852367", "pmcid": "PMC12131203"},
+      "applicability_criteria": [
+        {
+          "criterion_id": "neonatal_period", "field": "pna_hours", "operator": "le", "value": 672,
+          "unit": "hours", "subject_role": "patient", "required": true, "review_status": "draft",
+          "label": "新生儿期",
+          "source": {"locator": "指南书目记录 §5b·PPHN 行", "quote": "Neonates with Persistent Pulmonary Hypertension of the Newborn"}
+        },
+        {
+          "criterion_id": "pphn_theme", "field": "diagnosis", "operator": "contains_any",
+          "value": ["持续性肺动脉高压", "PPHN", "persistent pulmonary hypertension"], "subject_role": "patient",
+          "required": true, "review_status": "draft", "label": "PPHN 主题",
+          "source": {"locator": "指南书目记录 §5b·PPHN 行", "quote": "Persistent Pulmonary Hypertension of the Newborn"}
+        }
+      ],
+      "do_not_structure": ["急性稳定与管理流程是推荐内容，不结构化为适用条件"]
+    },
+    {
+      "guideline_id": "ers-bpd-longterm-2020",
+      "title": "European Respiratory Society guideline on long-term management of children with bronchopulmonary dysplasia",
+      "version_id": "2020",
+      "source_role": "practice_guideline",
+      "registration_status": "candidate",
+      "identifiers": {"doi": "10.1183/13993003.00788-2019", "pmid": "31558663"},
+      "applicability_criteria": [
+        {
+          "criterion_id": "bpd_diagnosed", "field": "diagnosis", "operator": "contains_any",
+          "value": ["支气管肺发育不良", "BPD", "bronchopulmonary dysplasia"], "subject_role": "patient",
+          "required": true, "review_status": "draft", "label": "已确诊 BPD",
+          "source": {"locator": "指南书目记录 §5b·BPD（长期管理）行", "quote": "针对已确诊 BPD、出院后或 >36 周 PMA 的长期管理"}
+        },
+        {
+          "criterion_id": "pma_gt_36w", "field": "pma_weeks", "operator": "gt", "value": 36,
+          "unit": "weeks", "subject_role": "patient", "required": true, "review_status": "draft",
+          "label": "经后胎龄 > 36 周或出院后（pma_weeks 由调用方派生，缺失=unknown）",
+          "source": {"locator": "指南书目记录 §5b·BPD（长期管理）行", "quote": "出院后或 >36 周 PMA 的长期管理"}
+        }
+      ],
+      "do_not_structure": ["本条不是 NICU 急性 BPD 指南，不得用于急性期适用性判定"]
+    },
+    {
+      "guideline_id": "ats-pprd-2021",
+      "title": "ATS Clinical Practice Guideline: Outpatient Respiratory Management of Infants, Children, and Adolescents with Post-Prematurity Respiratory Disease",
+      "version_id": "2021",
+      "source_role": "practice_guideline",
+      "registration_status": "candidate",
+      "identifiers": {"doi": "10.1164/rccm.202110-2269ST", "pmid": "34908518", "pmcid": "PMC8865713"},
+      "applicability_criteria": [
+        {
+          "criterion_id": "pprd_theme", "field": "diagnosis", "operator": "contains_any",
+          "value": ["早产后呼吸疾病", "PPRD", "post-prematurity respiratory disease"], "subject_role": "patient",
+          "required": true, "review_status": "draft", "label": "早产后呼吸疾病（门诊管理场景）",
+          "source": {"locator": "指南书目记录 §5b·早产后呼吸疾病（门诊）行", "quote": "门诊 PPRD 管理，不能替代急性 BPD 指南"}
+        }
+      ],
+      "do_not_structure": ["门诊管理场景不结构化为阈值条件；不能替代急性 BPD 指南"]
+    },
+    {
+      "guideline_id": "aap-apnea-prematurity-2015",
+      "title": "Apnea of Prematurity（clinical report）",
+      "version_id": "2015",
+      "source_role": "clinical_report",
+      "registration_status": "candidate",
+      "identifiers": {"doi": "10.1542/peds.2015-3757", "pmid": "26628729"},
+      "applicability_criteria": [
+        {
+          "criterion_id": "preterm_infant", "field": "ga_days", "operator": "lt", "value": 259,
+          "unit": "days", "subject_role": "patient", "required": true, "review_status": "draft",
+          "label": "早产儿",
+          "source": {"locator": "指南书目记录 §5b·早产儿呼吸暂停行", "quote": "Apnea of Prematurity（clinical report）"}
+        },
+        {
+          "criterion_id": "apnea_theme", "field": "diagnosis", "operator": "contains_any",
+          "value": ["呼吸暂停", "apnea"], "subject_role": "patient", "required": true, "review_status": "draft",
+          "label": "呼吸暂停主题",
+          "source": {"locator": "指南书目记录 §5b·早产儿呼吸暂停行", "quote": "是 clinical report，不是 practice guideline；只能作为背景"}
+        }
+      ],
+      "do_not_structure": ["clinical report 不是 practice guideline，只能作为背景来源，不进推荐类判定"]
+    },
+    {
+      "guideline_id": "aap-gbs-2019",
+      "title": "Management of Infants at Risk for Group B Streptococcal Disease",
+      "version_id": "2019",
+      "source_role": "clinical_report",
+      "registration_status": "candidate",
+      "identifiers": {"doi": "10.1542/peds.2019-1881", "pmid": "31285392"},
+      "applicability_criteria": [
+        {
+          "criterion_id": "maternal_gbs_status", "field": "gbs_status", "operator": "exists",
+          "subject_role": "mother", "required": true, "review_status": "draft",
+          "label": "母体 GBS 定植/筛查状态有记录（母婴分离：只读母体事实）",
+          "source": {"locator": "指南书目记录 §5b·GBS 行", "quote": "涉及母体定植与新生儿评估，必须保持母婴主体分离"}
+        },
+        {
+          "criterion_id": "neonatal_period", "field": "pna_hours", "operator": "le", "value": 672,
+          "unit": "hours", "subject_role": "patient", "required": true, "review_status": "draft",
+          "label": "新生儿期评估对象",
+          "source": {"locator": "指南书目记录 §5b·GBS 行", "quote": "Management of Infants at Risk for Group B Streptococcal Disease"}
+        }
+      ],
+      "do_not_structure": ["母体定植状态与新生儿评估必须分主体表达，不做母婴字段混用；clinical report 不是 practice guideline"]
+    }
+  ]
+}

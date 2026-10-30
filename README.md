@@ -165,7 +165,7 @@ Medical-Assistant/
 
 | 层 | 位置 | 当前值 |
 |---|---|---|
-| RAG 包 | `rag/__init__.py` 的 `__version__` | `6.6.5`（新生儿专科化 + 术语映射表 + 指南适用性） |
+| RAG 包 | `rag/__init__.py` 的 `__version__` | `6.7.0`（重排候选池 + Qwen3 重排器 + 通用术语映射库 + 规则路由 + 逐轮控制器） |
 | HIS | `his/backend/pom.xml` 的 `<version>` | `1.0.0`（随 subtree 同步） |
 | HIS × RAG 接口契约 | `contracts/his_rag.md` 的 `contract_version` | `0.2.0` |
 | 组合版本（release） | git tag `medassist-<x.y.z>` | 暂无（真实 HIS 联调通过后打 `medassist-0.1.0`） |

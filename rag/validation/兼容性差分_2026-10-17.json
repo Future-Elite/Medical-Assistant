@@ -13,6 +13,6 @@
     "external_terms"
   ],
   "frozen_semantics_identical": true,
-  "note": "引擎层（pipeline/ranking/query/fidelity/gate/audit/bm25/lexical/evidence/patient_retrieval/his/connectors/custom_sources/models）在 v6.6.4 与 v6.6.3 字节级一致；pubmed.py 于 2026-10-18 发布前增加 XML 实体声明拒绝与 DOCTYPE 剥离（解析语义不变，不在原差分基线的字节比较范围内）；本探针用同一份调用方来源与快照验证行为一致。",
+  "note": "引擎层（pipeline/ranking/query/fidelity/gate/audit/bm25/lexical/evidence/patient_retrieval/his/connectors/custom_sources/pubmed/models）在 v6.6.4 与 v6.6.3 字节级一致；本探针用同一份调用方来源与快照验证行为一致。",
   "generated_at": "2026-10-17"
 }

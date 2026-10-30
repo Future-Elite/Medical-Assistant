@@ -139,7 +139,7 @@ def neonatal_pneumonia_metadata() -> SourceDocument:
         document_id="neo:guide:pneumonia-2025",
         title="基层医疗卫生机构常见新生儿疾病诊疗指南：新生儿感染性肺炎（2025年）",
         text=(
-            "Official bibliographic metadata only; the full text is not indexed. "
+            "Official bibliographic metadata. Full text comes from the caller's PDF copy. "
             "Neonatal infectious pneumonia: diagnosis, imaging, differential diagnosis and referral."
         ),
         url="https://www.zgddek.com/CN/10.7499/j.issn.1008-8830.2412164",
@@ -152,9 +152,11 @@ def neonatal_pneumonia_metadata() -> SourceDocument:
         pmid="40962511",
         metadata={
             "publisher": "中国当代儿科杂志", "stable_id": "PMCID PMC12447934",
-            "official": True, "license": "source page statement; verify for reuse",
-            "rights_basis": "source_page_requires_verification", "full_text_allowed": False,
+            "official": True, "license": "journal copyright (Europe PMC isOpenAccess=N)",
+            "rights_basis": "caller_provided_pdf", "full_text_allowed": True,
+            "is_open_access": False,
             "content_mode": "metadata_only", "live_source": True, "language": "zh",
+            "full_text_sources": ["caller_pdf:guideline:pneumonia-cn-2025"],
             "mesh_terms": "Pneumonia; Infant, Newborn",
             "keywords": "neonatal infectious pneumonia diagnosis imaging differential referral",
             "applicability_criteria": [
@@ -181,9 +183,9 @@ def neonatal_rds_metadata() -> SourceDocument:
         document_id="neo:guide:rds-2025",
         title="European Consensus Guidelines on the Management of Respiratory Distress Syndrome: 2025",
         text=(
-            "Official bibliographic metadata only; the full text is not indexed. "
-            "Respiratory distress syndrome in preterm infants: surfactant, respiratory support, "
-            "antenatal transfer and antibiotic stewardship."
+            "Official bibliographic metadata. Full text is fetched from Europe PMC "
+            "(PMCID PMC13038240) or the caller's PDF copy. Respiratory distress syndrome in "
+            "preterm infants: surfactant, respiratory support, antenatal transfer and antibiotic stewardship."
         ),
         url="https://pubmed.ncbi.nlm.nih.gov/41802129/",
         published_at="2026-03-09",
@@ -195,10 +197,12 @@ def neonatal_rds_metadata() -> SourceDocument:
         pmid="41802129",
         metadata={
             "publisher": "Neonatology", "stable_id": "PMCID PMC13038240",
-            "official": True, "license": "source page statement; verify for reuse",
-            "rights_basis": "source_page_requires_verification", "full_text_allowed": False,
+            "official": True, "license": "CC BY-NC 4.0 (Karger page statement)",
+            "rights_basis": "publisher_open_access_cc_by_nc", "full_text_allowed": True,
+            "is_open_access": True,
             "content_mode": "metadata_only", "live_source": True, "language": "en",
             "version_label": "2025 update (7th edition)",
+            "full_text_sources": ["europe_pmc:PMC13038240", "caller_pdf:guideline:rds-european-2025"],
             "mesh_terms": "Respiratory Distress Syndrome, Newborn; Pulmonary Surfactants",
             "keywords": "respiratory distress syndrome RDS preterm surfactant CPAP",
             "applicability_criteria": [
@@ -225,7 +229,7 @@ def neonatal_rds_chinese_interpretation_metadata() -> SourceDocument:
         document_id="neo:guide:rds-2025-cn-interpretation",
         title="《欧洲新生儿呼吸窘迫综合征管理共识指南2025版》解读",
         text=(
-            "中文解读文章的官方书目元数据；未登记全文。作为二级解释来源登记，"
+            "中文解读文章的官方书目元数据。全文来自调用方 PDF；作为二级解释来源登记，"
             "不得与英文原版指南合并或互相替代。"
         ),
         url="https://www.zgddek.com/CN/10.7499/j.issn.1008-8830.2603060",
@@ -239,9 +243,11 @@ def neonatal_rds_chinese_interpretation_metadata() -> SourceDocument:
         metadata={
             "publisher": "中国当代儿科杂志", "stable_id": "PMCID PMC13173480",
             "official": False, "source_role": "secondary_interpretation",
-            "license": "source page statement; verify for reuse",
-            "rights_basis": "source_page_requires_verification", "full_text_allowed": False,
+            "license": "CC BY-NC-ND 4.0 (PDF footer)",
+            "rights_basis": "publisher_open_access_cc_by_nc_nd", "full_text_allowed": True,
+            "is_open_access": False,
             "content_mode": "metadata_only", "live_source": True, "language": "zh",
+            "full_text_sources": ["caller_pdf:guideline:rds-cn-interpretation-2025"],
             "mesh_terms": "Respiratory Distress Syndrome, Newborn",
             "keywords": "RDS 指南解读 新生儿呼吸窘迫综合征",
             "applicability_criteria": [
@@ -263,7 +269,13 @@ def neonatal_rds_chinese_interpretation_metadata() -> SourceDocument:
 
 
 def neonatal_guideline_metadata_registry() -> tuple[SourceDocument, ...]:
-    """All registered neonatal guideline metadata records (metadata_only).
+    """Registered neonatal guideline records (bibliographic metadata).
+
+    Each record is a stable bibliographic anchor: it carries the identifiers,
+    version and the pointers to where the full text comes from
+    (``metadata.full_text_sources``).  The text itself is never stored here —
+    Europe PMC serves open full text at request time and the caller's PDF
+    directory serves the rest.
 
     Deliberately excludes adult guidelines. Record order is the registry's
     declared order, not a clinical ranking.

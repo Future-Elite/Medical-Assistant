@@ -51,7 +51,7 @@
     "当前数据为 synthetic fixture，仅用于机制测试。"
   ],
   "trace": {
-    "rag_version": "6.6.5",
+    "rag_version": "6.7.0",
     "query_plan": {
       "language": "zh",
       "intent": "guideline_recommendation",

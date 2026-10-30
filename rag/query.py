@@ -8,6 +8,7 @@ from typing import Any
 
 from .his import PatientSnapshot, minimize_patient_snapshot
 from .models import QueryPlan, RetrievalRequest, TermMappingEntry
+from .term_mapping_library import MAPPING_ORIGIN_LIBRARY, MAPPING_ORIGIN_REQUEST
 
 DEFAULT_SOURCE_ORDER = ("guideline", "pubmed", "drug", "clinical_trial", "local_knowledge")
 _RECOMMENDATION_MARKERS = ("指南", "推荐", "建议", "应当", "适应证", "禁忌", "剂量", "治疗", "guideline", "recommend")
@@ -33,24 +34,39 @@ class _MappingExpansion:
     unmatched: tuple[str, ...] = ()
 
 
-def build_query_plan(request: RetrievalRequest, known_sources: list[dict[str, object]]) -> QueryPlan:
+def build_query_plan(request: RetrievalRequest, known_sources: list[dict[str, object]], library=None) -> QueryPlan:
+    """Build the query plan.
+
+    ``library`` (optional :class:`~rag.term_mapping_library.TermMappingLibrary`)
+    adds reusable mapping rows: request ``term_mapping`` rows win on concept
+    collision, library rows cover concepts the request did not supply. Library
+    expansions are traced with ``origin=library`` and never masquerade as
+    caller-reviewed rows. With no library the plan is identical to the
+    request-only path.
+    """
     reviewed_external = minimize_patient_snapshot(request.patient_snapshot) if isinstance(request.patient_snapshot, PatientSnapshot) else ()
     segments = _input_segments(request, reviewed_external)
     extracted = (*_extract_terms(request.question), *request.patient_terms, *reviewed_external, *_facet_values(request.facets))
     request_text = " ".join(text for _, text in segments).lower()
-    mapping = _expand_term_mapping(request.term_mapping, segments)
+    request_concepts = {entry.concept.casefold() for entry in request.term_mapping}
+    library_rows = tuple(getattr(library, "entries", ()) or ())
+    added_library_rows = tuple(entry for entry in library_rows if entry.concept.casefold() not in request_concepts)
+    mapping = _expand_term_mapping(request.term_mapping, segments, trace_source="reviewed_term_mapping", origin=MAPPING_ORIGIN_REQUEST)
+    library_mapping = _expand_term_mapping(
+        added_library_rows, segments, trace_source="term_mapping_library", origin=MAPPING_ORIGIN_LIBRARY,
+    ) if added_library_rows else _MappingExpansion()
     reviewed_concepts = tuple(
         key for key in request.user_terms
         if str(key).strip() and str(key).lower() in request_text
     )
-    concepts = _unique((*extracted, *mapping.concepts, *reviewed_concepts))
-    english: list[str] = [*mapping.english, *request.english_terms]
-    mesh: list[str] = [*mapping.mesh, *request.mesh_terms]
+    concepts = _unique((*extracted, *mapping.concepts, *library_mapping.concepts, *reviewed_concepts))
+    english: list[str] = [*mapping.english, *library_mapping.english, *request.english_terms]
+    mesh: list[str] = [*mapping.mesh, *library_mapping.mesh, *request.mesh_terms]
     question_english = _question_english_terms(request.question)
-    expansion_trace: list[Mapping[str, Any]] = list(mapping.trace)
+    expansion_trace: list[Mapping[str, Any]] = [*mapping.trace, *library_mapping.trace]
     if question_english:
         expansion_trace.append({"concept": "question", "terms": list(question_english), "source": "question_ascii"})
-    mapped_concepts = {entry.concept.casefold() for entry in mapping.entries if entry.english}
+    mapped_concepts = {entry.concept.casefold() for entry in (*mapping.entries, *library_mapping.entries) if entry.english}
     for concept in concepts:
         if concept.casefold() in mapped_concepts:
             continue
@@ -60,9 +76,10 @@ def build_query_plan(request: RetrievalRequest, known_sources: list[dict[str, ob
             expansion_trace.append({"concept": concept, "terms": list(mapped), "source": "reviewed_user_terms"})
     english = list(_unique(english))
     mesh = list(_unique(mesh))
-    if mapping.entries:
+    effective_mapping_entries = (*mapping.entries, *library_mapping.entries)
+    if effective_mapping_entries:
         variants, variant_trace = _mapping_query_variants(
-            request.question, concepts, english, mesh, mapping.entries,
+            request.question, concepts, english, mesh, effective_mapping_entries,
         )
     else:
         variants = _unique((request.question, " ".join(concepts), " ".join((*concepts, *english)), " ".join((*english, *mesh))))
@@ -99,6 +116,11 @@ def build_query_plan(request: RetrievalRequest, known_sources: list[dict[str, ob
         rationale.append("查询变体按概念分组生成（原始问题/中文概念/概念英文/概念 MeSH/概念组合/全局组合），保留概念—术语绑定。")
     elif request.term_mapping:
         rationale.append("提供了 term_mapping，但没有任何概念出现在问题/术语文本中；未展开映射术语。")
+    if library_mapping.entries:
+        rationale.append(
+            f"术语映射库命中 {len(library_mapping.entries)} 个概念（来源 {getattr(library, 'source', '') or 'library'}）；"
+            "库行与请求行同构展开、请求优先，provenance 见 mapping_trace.origin。"
+        )
     if recommendation:
         rationale.append("问题含推荐/指南线索，优先路由指南来源；这不是绝对正确性排序。")
     if update:
@@ -123,8 +145,8 @@ def build_query_plan(request: RetrievalRequest, known_sources: list[dict[str, ob
         english_terms=tuple(english),
         mesh_terms=tuple(mesh),
         expansion_trace=tuple(expansion_trace),
-        term_mapping=request.term_mapping,
-        mapping_trace=mapping.trace,
+        term_mapping=(*request.term_mapping, *added_library_rows),
+        mapping_trace=(*mapping.trace, *library_mapping.trace),
         variant_trace=variant_trace,
         question_english_terms=question_english,
     )
@@ -142,6 +164,9 @@ def _input_segments(request: RetrievalRequest, reviewed_external: tuple[str, ...
 def _expand_term_mapping(
     entries: tuple[TermMappingEntry, ...],
     segments: tuple[tuple[str, str], ...],
+    *,
+    trace_source: str = "reviewed_term_mapping",
+    origin: str = MAPPING_ORIGIN_REQUEST,
 ) -> _MappingExpansion:
     expanded: list[TermMappingEntry] = []
     concepts: list[str] = []
@@ -149,6 +174,8 @@ def _expand_term_mapping(
     mesh: list[str] = []
     trace: list[Mapping[str, Any]] = []
     unmatched: list[str] = []
+    # legacy 冻结：请求行的 trace 形状与 v6.6.5 逐字段一致，只给库行加 origin。
+    origin_fields = {"origin": origin} if origin == MAPPING_ORIGIN_LIBRARY else {}
     for entry in entries:
         hit = _first_surface_match(entry.surfaces(), segments)
         if hit is None:
@@ -156,19 +183,19 @@ def _expand_term_mapping(
             trace.append({
                 "concept": entry.concept, "status": "not_matched",
                 "english": list(entry.english), "mesh": list(entry.mesh),
-                "aliases": list(entry.aliases),
+                "aliases": list(entry.aliases), **origin_fields,
             })
             continue
-        surface, source = hit
+        surface, matched_in = hit
         expanded.append(entry)
         concepts.append(entry.concept)
         english.extend(entry.english)
         mesh.extend(entry.mesh)
         trace.append({
             "concept": entry.concept, "status": "expanded",
-            "matched_surface": surface, "matched_in": source,
+            "matched_surface": surface, "matched_in": matched_in,
             "terms": list(entry.english), "mesh_terms": list(entry.mesh),
-            "aliases": list(entry.aliases), "source": "reviewed_term_mapping",
+            "aliases": list(entry.aliases), "source": trace_source, **origin_fields,
         })
     return _MappingExpansion(
         entries=tuple(expanded), concepts=tuple(concepts),
@@ -316,16 +343,34 @@ def review_query_plan(plan: QueryPlan, *, english_source_present: bool) -> dict[
         )
 
     # 2b) 映射表覆盖：未命中的概念不展开，必须显式列出而不是静默丢弃。
+    # 但映射库是词库（收几十个概念），未命中是常态——库行只计数不刷警告；
+    # 请求自带的手写行未命中才可能是键写错，逐条列出。无库时文案与旧版逐字段一致。
     mapping_trace = tuple(getattr(plan, "mapping_trace", ()) or ())
     if mapping_trace:
         expanded = [str(entry.get("concept")) for entry in mapping_trace if entry.get("status") == "expanded"]
-        unmatched = [str(entry.get("concept")) for entry in mapping_trace if entry.get("status") != "expanded"]
-        checks.append({
-            "item": "term_mapping_coverage",
-            "status": "review_needed" if unmatched else "ok",
-            "detail": f"映射表概念：命中 {len(expanded)}，未命中 {len(unmatched)}"
-                      + (f"（未命中：{', '.join(unmatched)}）" if unmatched else ""),
-        })
+        unmatched_entries = [entry for entry in mapping_trace if entry.get("status") != "expanded"]
+        library_rows = sum(1 for entry in mapping_trace if entry.get("origin") == "library")
+        if library_rows:
+            unmatched = [
+                str(entry.get("concept")) for entry in unmatched_entries
+                if entry.get("origin", "request") == "request"
+            ]
+            unmatched_library = len(unmatched_entries) - len(unmatched)
+            checks.append({
+                "item": "term_mapping_coverage",
+                "status": "review_needed" if unmatched else "ok",
+                "detail": f"映射行：命中 {len(expanded)}，请求行未命中 {len(unmatched)}"
+                          + (f"（{', '.join(unmatched)}）" if unmatched else "")
+                          + f"；库行未命中 {unmatched_library}/{library_rows}（词库常态，不提示）",
+            })
+        else:
+            unmatched = [str(entry.get("concept")) for entry in unmatched_entries]
+            checks.append({
+                "item": "term_mapping_coverage",
+                "status": "review_needed" if unmatched else "ok",
+                "detail": f"映射表概念：命中 {len(expanded)}，未命中 {len(unmatched)}"
+                          + (f"（未命中：{', '.join(unmatched)}）" if unmatched else ""),
+            })
         if unmatched:
             findings.append(
                 "术语映射表中以下概念未出现在问题/患者术语/facets 中，未展开："
@@ -488,11 +533,14 @@ def population_clause(plan: QueryPlan) -> str:
     return ""
 
 
+MAPPING_EXPANSION_SOURCES = ("reviewed_term_mapping", "term_mapping_library")
+
+
 def mapping_active(plan: QueryPlan) -> bool:
-    """True when at least one reviewed mapping concept matched the request."""
+    """True when at least one reviewed or library mapping concept matched."""
     return any(
         isinstance(entry, Mapping) and entry.get("status") == "expanded"
-        and entry.get("source") == "reviewed_term_mapping"
+        and entry.get("source") in MAPPING_EXPANSION_SOURCES
         for entry in (plan.mapping_trace or ())
     )
 
