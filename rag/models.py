@@ -25,6 +25,39 @@ class EvidenceStatus(str, Enum):
 
 
 @dataclass(frozen=True)
+class TermMappingEntry:
+    """One reviewed concept row: Chinese concept + English/MeSH products.
+
+    The concept (or one of its aliases) gates expansion: a row is used only when
+    it appears in the question, patient terms, reviewed external terms or
+    facets.  English and MeSH stay bound to the same concept so the query plan
+    can build concept-scoped variants and audit which concept produced which
+    external term.
+    """
+    concept: str
+    english: tuple[str, ...] = ()
+    mesh: tuple[str, ...] = ()
+    aliases: tuple[str, ...] = ()
+    notes: str | None = None
+    metadata: Mapping[str, Any] = field(default_factory=dict)
+
+    def surfaces(self) -> tuple[str, ...]:
+        return tuple(dict.fromkeys(
+            str(item).strip() for item in (self.concept, *self.aliases) if str(item).strip()
+        ))
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "concept": self.concept,
+            "english": list(self.english),
+            "mesh": list(self.mesh),
+            "aliases": list(self.aliases),
+            "notes": self.notes,
+            "metadata": dict(self.metadata),
+        }
+
+
+@dataclass(frozen=True)
 class RetrievalRequest:
     """Agent input; patient_terms are reviewed minimal terms, never raw notes."""
     request_id: str
@@ -39,6 +72,7 @@ class RetrievalRequest:
     query_language: str = "zh"
     clinical_intent: str | None = None
     facets: Mapping[str, Sequence[str]] = field(default_factory=dict)
+    term_mapping: tuple[TermMappingEntry, ...] = ()
     english_terms: tuple[str, ...] = ()
     mesh_terms: tuple[str, ...] = ()
     patient_snapshot: Any | None = None
@@ -125,6 +159,7 @@ class RetrievalRequest:
             query_language=str(raw.get("query_language") or raw.get("language") or "zh"),
             clinical_intent=_optional_string(raw.get("clinical_intent")),
             facets=facets,
+            term_mapping=parse_term_mapping(raw.get("term_mapping")),
             english_terms=tuple(_strings(raw.get("english_terms"))),
             mesh_terms=tuple(_strings(raw.get("mesh_terms"))),
             patient_snapshot=patient_snapshot,
@@ -220,6 +255,11 @@ class QueryPlan:
     english_terms: tuple[str, ...] = ()
     mesh_terms: tuple[str, ...] = ()
     expansion_trace: tuple[Mapping[str, Any], ...] = ()
+    # 审核术语映射表的实际使用情况：命中的概念、英文/MeSH 产物与未命中概念。
+    term_mapping: tuple[TermMappingEntry, ...] = ()
+    mapping_trace: tuple[Mapping[str, Any], ...] = ()
+    # 查询变体的角色与来源（映射表路径才生成）；variants 仍是实际打分输入。
+    variant_trace: tuple[Mapping[str, Any], ...] = ()
     # 问题文本中直接提取的英文词（已过滤常见功能词与纯数值），
     # 直接参与英文检索/实时 PubMed 查询；与调用方审核的 english_terms 分开记录。
     question_english_terms: tuple[str, ...] = ()
@@ -298,6 +338,30 @@ class PatientHit:
 
 
 @dataclass(frozen=True)
+class ApplicabilityCriterionResult:
+    """One structured guideline criterion checked against patient facts.
+
+    ``status`` is deliberately only ``match``/``mismatch``/``unknown``:
+    missing, pending and not-recorded data never become a negative finding.
+    """
+    criterion_id: str
+    field: str
+    operator: str
+    expected: tuple[str, ...] = ()
+    status: str = "unknown"
+    observed_value: str | None = None
+    patient_record_paths: tuple[str, ...] = ()
+    reason: str = ""
+    required: bool = True
+    label: str | None = None
+    source_locator: str | None = None
+    review_status: str = "draft"
+    # 试算预览（可选，applicability_preview 开启时生成）：对未参与判定的条件
+    # 用同一比对规则试算"若经人工审核会判什么"。不改变 status——预览不构成判定。
+    preview: Mapping[str, Any] | None = None
+
+
+@dataclass(frozen=True)
 class ApplicabilityAssessment:
     document_id: str
     status: str
@@ -305,6 +369,7 @@ class ApplicabilityAssessment:
     matched_patient_fields: tuple[str, ...] = ()
     missing_patient_fields: tuple[str, ...] = ()
     patient_record_paths: tuple[str, ...] = ()
+    criteria: tuple[ApplicabilityCriterionResult, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -352,6 +417,86 @@ def parse_iso_date(value: str | None) -> date | None:
         return None
 
 
+def parse_term_mapping(value: Any) -> tuple[TermMappingEntry, ...]:
+    """Normalize the reviewed mapping table into concept-bound rows.
+
+    Accepted shapes::
+
+        [{"concept": "新生儿呼吸窘迫综合征",
+          "english": ["respiratory distress syndrome"],
+          "mesh": ["Respiratory Distress Syndrome, Newborn"],
+          "aliases": ["NRDS"]}]
+
+        {"新生儿呼吸窘迫综合征": {
+             "english": [...], "mesh": [...], "aliases": [...]}}
+
+        {"新生儿呼吸窘迫综合征": ["respiratory distress syndrome"]}
+
+    The last two are the object form; a bare list value is the legacy
+    ``user_terms`` shape and carries English terms only.  A row with neither
+    English nor MeSH is rejected instead of being silently ignored.
+    """
+    if value in (None, "", {}, []):
+        return ()
+    rows: list[tuple[str, Any]] = []
+    if isinstance(value, Mapping):
+        rows = [(str(concept), payload) for concept, payload in value.items()]
+    elif isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
+        for index, item in enumerate(value):
+            if not isinstance(item, Mapping):
+                raise ValueError(f"term_mapping[{index}] must be an object")
+            concept = str(item.get("concept") or item.get("zh") or item.get("key") or "").strip()
+            if not concept:
+                raise ValueError(f"term_mapping[{index}] requires concept")
+            rows.append((concept, item))
+    else:
+        raise ValueError("term_mapping must be an object or a list of concept rows")
+
+    entries: list[TermMappingEntry] = []
+    seen: set[str] = set()
+    for concept, payload in rows:
+        cleaned_concept = str(concept).strip()
+        if not cleaned_concept:
+            raise ValueError("term_mapping concept must be non-empty")
+        key = cleaned_concept.casefold()
+        if key in seen:
+            raise ValueError(f"duplicate term_mapping concept: {cleaned_concept}")
+        seen.add(key)
+        english, mesh, aliases, notes, metadata = _term_mapping_fields(payload, cleaned_concept)
+        if not english and not mesh:
+            raise ValueError(f"term_mapping entry {cleaned_concept!r} requires english or mesh terms")
+        entries.append(TermMappingEntry(
+            concept=cleaned_concept, english=english, mesh=mesh, aliases=aliases,
+            notes=notes, metadata=metadata,
+        ))
+    return tuple(entries)
+
+
+def _term_mapping_fields(
+    payload: Any, concept: str,
+) -> tuple[tuple[str, ...], tuple[str, ...], tuple[str, ...], str | None, Mapping[str, Any]]:
+    if isinstance(payload, Mapping):
+        english = _strings(payload.get("english") or payload.get("english_terms") or payload.get("en"))
+        mesh = _strings(payload.get("mesh") or payload.get("mesh_terms"))
+        aliases = _strings(payload.get("aliases") or payload.get("alias") or payload.get("synonyms"))
+        notes = _optional_string(payload.get("notes") or payload.get("note"))
+        known = {
+            "concept", "zh", "key", "english", "english_terms", "en",
+            "mesh", "mesh_terms", "aliases", "alias", "synonyms", "notes", "note",
+        }
+        metadata = {str(key): item for key, item in payload.items() if key not in known}
+        declared = payload.get("metadata")
+        if isinstance(declared, Mapping):
+            # 显式 metadata 块与顶层未知字段合并（显式键优先），不再嵌套一层。
+            metadata = {**metadata, **{str(k): v for k, v in declared.items()}}
+        return tuple(english), tuple(mesh), tuple(aliases), notes, metadata
+    if isinstance(payload, Sequence) and not isinstance(payload, (str, bytes, bytearray)):
+        return tuple(_strings(payload)), (), (), None, {}
+    if isinstance(payload, str):
+        return tuple(_strings(payload)), (), (), None, {}
+    raise ValueError(f"term_mapping entry {concept!r} must be an object, list or string")
+
+
 def _strings(value: Any) -> list[str]:
     if isinstance(value, str):
         return [value] if value.strip() else []
@@ -377,9 +522,16 @@ def _jsonable(value: Any) -> Any:
     if isinstance(value, Enum):
         return value.value
     if is_dataclass(value):
-        return {key: _jsonable(item) for key, item in asdict(value).items()}
+        # preview=None 不出键：默认输出与旧版逐字段一致（冻结差分约束）。
+        return {
+            key: _jsonable(item) for key, item in asdict(value).items()
+            if not (key == "preview" and item is None)
+        }
     if isinstance(value, Mapping):
-        return {str(key): _jsonable(item) for key, item in value.items()}
+        return {
+            str(key): _jsonable(item) for key, item in value.items()
+            if not (key == "preview" and item is None)
+        }
     if isinstance(value, (tuple, list)):
         return [_jsonable(item) for item in value]
     return value

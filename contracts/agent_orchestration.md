@@ -1,7 +1,8 @@
 # Medical Agent integration contract (draft 0.1.0)
 
-This integration includes the RAG 6.6.3 query-conversion patch on main's 6.6.2
-baseline and HIS snapshot contract 0.2.0. It is a
+This integration includes RAG 6.7.0 (rerank candidate pool, Qwen3 reranker,
+term-mapping library, rule routing and the iterative controller research layer;
+all new mechanisms default off) and HIS snapshot contract 0.2.0. It is a
 read-only synthetic-data prototype. It does not write HIS records or connect PACS.
 
 ## Entry point and ownership

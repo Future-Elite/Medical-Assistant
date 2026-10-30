@@ -1,0 +1,29 @@
+{
+  "baseline": {
+    "path": "v6.6.4",
+    "version": "6.6.4"
+  },
+  "candidate": {
+    "path": "v6.6.5",
+    "version": "6.6.5"
+  },
+  "probe_date": "2026-10-25",
+  "scenario_count": 6,
+  "policy_count": 5,
+  "case_count": 30,
+  "compared_fields": [
+    "query_plan.variants",
+    "query_plan.english_terms",
+    "query_plan.mesh_terms",
+    "trace.query_fidelity.decisions",
+    "trace.query_fidelity.applied",
+    "ranked_documents order",
+    "warnings",
+    "applicability status",
+    "trace.method_trace",
+    "trace.joint_selection.selected_per_source"
+  ],
+  "differences": [],
+  "frozen_semantics_identical": true,
+  "note": "Legacy path only: no term_mapping input and no applicability_criteria metadata. The fixture guidelines therefore take the legacy applicability branch. The v6.6.5 mapping path and structured-criteria path are covered by rag/tests/test_query_mapping_applicability.py, not by this frozen probe."
+}

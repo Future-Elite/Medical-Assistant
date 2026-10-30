@@ -1,11 +1,18 @@
 {
-  "request_id": "example-custom-001",
-  "question": "该患者高血压的指南推荐是什么？",
-  "as_of": "2025-12-31",
+  "request_id": "example-custom-neo-001",
+  "question": "该患儿新生儿呼吸窘迫综合征的指南推荐是什么？",
+  "as_of": "2026-04-15",
   "top_k": 4,
   "source_mode": "custom",
-  "source_kinds": ["guideline", "pubmed"],
-  "english_terms": ["hypertension"],
-  "mesh_terms": ["Hypertension"],
-  "note": "自定义来源模式示例：先 POST /api/sources/custom 注册来源库（见 agent_custom_source_register.json），再以 source_mode=custom 检索。服务不内置任何本地语料；库为空时检索会显式报错。"
+  "source_kinds": [
+    "guideline",
+    "pubmed"
+  ],
+  "english_terms": [
+    "respiratory distress syndrome"
+  ],
+  "mesh_terms": [
+    "Respiratory Distress Syndrome, Newborn"
+  ],
+  "note": "自定义来源模式示例：先 POST /api/sources/custom 注册来源库（见 agent_custom_source_register.json）或 POST /api/demo/guidelines/load 加载演示库，再以 source_mode=custom 检索。服务不内置任何本地语料；库为空时检索会显式报错。"
 }

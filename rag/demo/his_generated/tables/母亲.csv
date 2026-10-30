@@ -1,0 +1,12 @@
+﻿母亲ID,patient_id,血型,GBS状态,胎膜早破小时,产前发热,产前抗生素,妊娠期糖尿病,数据来源,synthetic
+MOTHER-NEO-HIS-APNEA,neo-his-apnea-001,,not_recorded,7,,,,synthetic_neonatal_his,true
+MOTHER-NEO-HIS-BPD,neo-his-bpd-001,,not_recorded,9,,,,synthetic_neonatal_his,true
+MOTHER-NEO-HIS-GBS,neo-his-gbs-001,,positive,22,否,penicillin,,synthetic_neonatal_his,true
+MOTHER-NEO-HIS-HYPOGLYCEMIA,neo-his-hypoglycemia-001,,not_recorded,4,,,not_recorded,synthetic_neonatal_his,true
+MOTHER-NEO-HIS-JAUNDICE,neo-his-jaundice-001,O+,not_recorded,4,,,,synthetic_neonatal_his,true
+MOTHER-NEO-HIS-PNEUMONIA,neo-his-pneumonia-001,,positive,25,38.4,penicillin,,synthetic_neonatal_his,true
+MOTHER-NEO-HIS-PPHN,neo-his-pphn-001,,not_recorded,7,,,,synthetic_neonatal_his,true
+MOTHER-NEO-HIS-RDS,neo-his-rds-001,,not_recorded,18,否,ampicillin,,synthetic_neonatal_his,true
+MOTHER-NEO-HIS-RDS-RETRO,neo-his-rds-retro-001,,not_recorded,17,否,ampicillin,,synthetic_neonatal_his,true
+MOTHER-NEO-HIS-RDS-SEVERE,neo-his-rds-severe-001,,not_recorded,5,否,,,synthetic_neonatal_his,true
+MOTHER-NEO-HIS-TTN,neo-his-ttn-001,,not_recorded,2,否,,,synthetic_neonatal_his,true

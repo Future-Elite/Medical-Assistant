@@ -1,0 +1,1890 @@
+{
+  "profile": "neonatal_his_snapshots_v1",
+  "synthetic": true,
+  "note": "可直接 POST /api/his/snapshot 的合成新生儿快照；不是真实患者数据。",
+  "patients": [
+    {
+      "patient_ref": "neo-his-rds-001",
+      "as_of": "2026-03-10",
+      "source": "synthetic_neonatal_his",
+      "reviewed_external_terms": [
+        "respiratory distress syndrome",
+        "pulmonary surfactant",
+        "CPAP",
+        "preterm infant"
+      ],
+      "facts": [
+        {
+          "collection": "birth",
+          "event_type": "birth",
+          "record_path": "birth[0]",
+          "field_path": "birth[0].ga_days",
+          "fields": {
+            "subject_role": "patient",
+            "sex": "M",
+            "ga_days": 211,
+            "ga_text": "30周+1天",
+            "birth_weight_g": 1515,
+            "delivery_mode": "cesarean",
+            "multiple_birth": false,
+            "data_status": "observed_positive"
+          },
+          "time": "2026-03-10"
+        },
+        {
+          "collection": "maternal",
+          "event_type": "pregnancy",
+          "record_path": "maternal[0]",
+          "field_path": "maternal[0].status",
+          "fields": {
+            "gbs_status": "not_recorded",
+            "prom_hours": 18,
+            "maternal_fever": false,
+            "antibiotics_before_delivery": "ampicillin",
+            "data_status": "not_recorded",
+            "subject_role": "mother"
+          },
+          "time": "2026-03-10"
+        },
+        {
+          "collection": "diagnoses",
+          "event_type": "diagnosis",
+          "record_path": "diagnoses[0]",
+          "field_path": "diagnoses[0].name",
+          "fields": {
+            "name": "新生儿呼吸窘迫综合征",
+            "code": "P22.0",
+            "code_system": "ICD10_WHO（待复核）",
+            "data_status": "observed_positive",
+            "subject_role": "patient"
+          },
+          "time": "2026-03-10"
+        },
+        {
+          "collection": "postnatal",
+          "event_type": "measurement",
+          "record_path": "postnatal[0]",
+          "field_path": "postnatal[0].pna_hours",
+          "fields": {
+            "subject_role": "patient",
+            "pna_hours": 6,
+            "current_weight_g": 1492,
+            "data_status": "observed_positive"
+          },
+          "time": "2026-03-10"
+        },
+        {
+          "collection": "respiratory_support",
+          "event_type": "support",
+          "record_path": "respiratory_support[0]",
+          "field_path": "respiratory_support[0].mode",
+          "fields": {
+            "mode": "CPAP",
+            "fio2": "0.30",
+            "fio2_unit": "fraction",
+            "peep_cmh2o": 6,
+            "flow_lpm": 7,
+            "ongoing": true,
+            "subject_role": "patient",
+            "data_status": "observed_positive",
+            "started_event_time": "2026-03-10T04:30:00+08:00"
+          },
+          "start": "2026-03-10"
+        },
+        {
+          "collection": "vitals",
+          "event_type": "measurement",
+          "record_path": "vitals[0]",
+          "field_path": "vitals[0].measured_at",
+          "fields": {
+            "hr_bpm": 156,
+            "rr_per_min": 64,
+            "spo2_percent": 91,
+            "temp_c": 36.5,
+            "subject_role": "patient",
+            "data_status": "observed_positive",
+            "event_time": "2026-03-10T08:00:00+08:00"
+          },
+          "time": "2026-03-10"
+        },
+        {
+          "collection": "blood_gas",
+          "event_type": "measurement",
+          "record_path": "blood_gas[0]",
+          "field_path": "blood_gas[0].ph",
+          "fields": {
+            "sample_type": "capillary",
+            "ph": 7.27,
+            "pco2_mmhg": 57,
+            "po2_mmhg": 43,
+            "hco3_mmol_l": 24,
+            "base_excess": -1,
+            "lactate_mmol_l": 2.3,
+            "subject_role": "patient",
+            "data_status": "observed_positive",
+            "event_time": "2026-03-10T07:30:00+08:00"
+          },
+          "time": "2026-03-10"
+        },
+        {
+          "collection": "imaging",
+          "event_type": "lung_ultrasound",
+          "record_path": "imaging[0]",
+          "field_path": "imaging[0].modality",
+          "fields": {
+            "modality": "lung_ultrasound",
+            "report_status": "signed",
+            "impression": "双肺B线增多，未见实变",
+            "data_status": "observed_positive",
+            "subject_role": "patient"
+          },
+          "time": "2026-03-10"
+        },
+        {
+          "collection": "labs",
+          "event_type": "measurement",
+          "record_path": "labs[0]",
+          "field_path": "labs[0].crp_mg_l",
+          "fields": {
+            "crp_mg_l": 8,
+            "wbc_10e9_l": 10.1,
+            "glucose_mmol_l": 2.9,
+            "subject_role": "patient",
+            "data_status": "observed_positive",
+            "event_time": "2026-03-10T06:00:00+08:00"
+          },
+          "time": "2026-03-10"
+        },
+        {
+          "collection": "labs",
+          "event_type": "culture",
+          "record_path": "labs[1]",
+          "field_path": "labs[1].specimen",
+          "fields": {
+            "specimen": "blood",
+            "culture_status": "pending",
+            "subject_role": "patient",
+            "data_status": "pending",
+            "collected_event_time": "2026-03-10T05:00:00+08:00"
+          },
+          "time": "2026-03-10"
+        },
+        {
+          "collection": "medications",
+          "event_type": "medication",
+          "record_path": "medications[0]",
+          "field_path": "medications[0].name",
+          "fields": {
+            "name": "caffeine citrate",
+            "data_status": "observed_positive",
+            "dose": "loading",
+            "frequency": "q24h",
+            "route": "IV",
+            "ongoing": true,
+            "subject_role": "patient"
+          },
+          "start": "2026-03-10"
+        },
+        {
+          "collection": "medications",
+          "event_type": "medication",
+          "record_path": "medications[1]",
+          "field_path": "medications[1].name",
+          "fields": {
+            "name": "pulmonary surfactant",
+            "data_status": "observed_negative",
+            "status": "not_administered",
+            "subject_role": "patient"
+          },
+          "time": "2026-03-10"
+        },
+        {
+          "collection": "reports",
+          "event_type": "report",
+          "record_path": "reports[0]",
+          "field_path": "reports[0].impression",
+          "fields": {
+            "subject_role": "patient",
+            "impression": "future record",
+            "data_status": "observed_positive"
+          },
+          "time": "2026-03-15"
+        }
+      ]
+    },
+    {
+      "patient_ref": "neo-his-rds-severe-001",
+      "as_of": "2026-04-22",
+      "source": "synthetic_neonatal_his",
+      "reviewed_external_terms": [
+        "respiratory distress syndrome",
+        "pulmonary surfactant",
+        "mechanical ventilation",
+        "preterm infant"
+      ],
+      "facts": [
+        {
+          "collection": "birth",
+          "event_type": "birth",
+          "record_path": "birth[0]",
+          "field_path": "birth[0].ga_days",
+          "fields": {
+            "subject_role": "patient",
+            "sex": "F",
+            "ga_days": 192,
+            "ga_text": "27周+3天",
+            "birth_weight_g": 991,
+            "delivery_mode": "cesarean",
+            "multiple_birth": false,
+            "data_status": "observed_positive"
+          },
+          "time": "2026-04-22"
+        },
+        {
+          "collection": "maternal",
+          "event_type": "pregnancy",
+          "record_path": "maternal[0]",
+          "field_path": "maternal[0].status",
+          "fields": {
+            "gbs_status": "not_recorded",
+            "prom_hours": 5,
+            "maternal_fever": false,
+            "antenatal_steroids": true,
+            "data_status": "not_recorded",
+            "subject_role": "mother"
+          },
+          "time": "2026-04-22"
+        },
+        {
+          "collection": "diagnoses",
+          "event_type": "diagnosis",
+          "record_path": "diagnoses[0]",
+          "field_path": "diagnoses[0].name",
+          "fields": {
+            "name": "新生儿呼吸窘迫综合征",
+            "code": "P22.0",
+            "code_system": "ICD10_WHO（待复核）",
+            "data_status": "observed_positive",
+            "subject_role": "patient"
+          },
+          "time": "2026-04-22"
+        },
+        {
+          "collection": "postnatal",
+          "event_type": "measurement",
+          "record_path": "postnatal[0]",
+          "field_path": "postnatal[0].pna_hours",
+          "fields": {
+            "subject_role": "patient",
+            "pna_hours": 2,
+            "current_weight_g": 943,
+            "data_status": "observed_positive"
+          },
+          "time": "2026-04-22"
+        },
+        {
+          "collection": "respiratory_support",
+          "event_type": "support",
+          "record_path": "respiratory_support[0]",
+          "field_path": "respiratory_support[0].mode",
+          "fields": {
+            "mode": "IMV",
+            "fio2": "0.40",
+            "fio2_unit": "fraction",
+            "peep_cmh2o": 6,
+            "rate_per_min": 40,
+            "ongoing": true,
+            "subject_role": "patient",
+            "data_status": "observed_positive",
+            "started_event_time": "2026-04-22T04:30:00+08:00"
+          },
+          "start": "2026-04-22"
+        },
+        {
+          "collection": "vitals",
+          "event_type": "measurement",
+          "record_path": "vitals[0]",
+          "field_path": "vitals[0].measured_at",
+          "fields": {
+            "hr_bpm": 174,
+            "rr_per_min": 67,
+            "spo2_percent": 87,
+            "temp_c": 36.2,
+            "bp_systolic_mmhg": 57,
+            "bp_diastolic_mmhg": 29,
+            "subject_role": "patient",
+            "data_status": "observed_positive",
+            "event_time": "2026-04-22T08:00:00+08:00"
+          },
+          "time": "2026-04-22"
+        },
+        {
+          "collection": "blood_gas",
+          "event_type": "measurement",
+          "record_path": "blood_gas[0]",
+          "field_path": "blood_gas[0].ph",
+          "fields": {
+            "sample_type": "arterial",
+            "ph": 7.22,
+            "pco2_mmhg": 62,
+            "po2_mmhg": 48,
+            "hco3_mmol_l": 21,
+            "base_excess": -5,
+            "lactate_mmol_l": 2.9,
+            "subject_role": "patient",
+            "data_status": "observed_positive",
+            "event_time": "2026-04-22T07:30:00+08:00"
+          },
+          "time": "2026-04-22"
+        },
+        {
+          "collection": "imaging",
+          "event_type": "chest_xray",
+          "record_path": "imaging[0]",
+          "field_path": "imaging[0].modality",
+          "fields": {
+            "modality": "chest_xray",
+            "report_status": "signed",
+            "impression": "双肺透亮度减低，可见支气管充气征",
+            "data_status": "observed_positive",
+            "subject_role": "patient"
+          },
+          "time": "2026-04-22"
+        },
+        {
+          "collection": "labs",
+          "event_type": "measurement",
+          "record_path": "labs[0]",
+          "field_path": "labs[0].crp_mg_l",
+          "fields": {
+            "crp_mg_l": 12,
+            "wbc_10e9_l": 11.4,
+            "glucose_mmol_l": 3.0,
+            "subject_role": "patient",
+            "data_status": "observed_positive",
+            "event_time": "2026-04-22T06:00:00+08:00"
+          },
+          "time": "2026-04-22"
+        },
+        {
+          "collection": "labs",
+          "event_type": "culture",
+          "record_path": "labs[1]",
+          "field_path": "labs[1].specimen",
+          "fields": {
+            "specimen": "blood",
+            "culture_status": "pending",
+            "subject_role": "patient",
+            "data_status": "pending",
+            "collected_event_time": "2026-04-22T05:00:00+08:00"
+          },
+          "time": "2026-04-22"
+        },
+        {
+          "collection": "medications",
+          "event_type": "medication",
+          "record_path": "medications[0]",
+          "field_path": "medications[0].name",
+          "fields": {
+            "name": "caffeine citrate",
+            "data_status": "observed_positive",
+            "dose": "maintenance",
+            "frequency": "q24h",
+            "route": "IV",
+            "ongoing": true,
+            "subject_role": "patient"
+          },
+          "start": "2026-04-22"
+        },
+        {
+          "collection": "medications",
+          "event_type": "medication",
+          "record_path": "medications[1]",
+          "field_path": "medications[1].name",
+          "fields": {
+            "name": "pulmonary surfactant",
+            "data_status": "observed_positive",
+            "dose": "200 mg/kg",
+            "route": "intratracheal",
+            "status": "administered",
+            "subject_role": "patient"
+          },
+          "time": "2026-04-22"
+        },
+        {
+          "collection": "reports",
+          "event_type": "report",
+          "record_path": "reports[0]",
+          "field_path": "reports[0].impression",
+          "fields": {
+            "subject_role": "patient",
+            "impression": "future record",
+            "data_status": "observed_positive"
+          },
+          "time": "2026-04-27"
+        }
+      ]
+    },
+    {
+      "patient_ref": "neo-his-rds-retro-001",
+      "as_of": "2026-02-25",
+      "source": "synthetic_neonatal_his",
+      "reviewed_external_terms": [
+        "respiratory distress syndrome",
+        "pulmonary surfactant",
+        "CPAP",
+        "preterm infant"
+      ],
+      "facts": [
+        {
+          "collection": "birth",
+          "event_type": "birth",
+          "record_path": "birth[0]",
+          "field_path": "birth[0].ga_days",
+          "fields": {
+            "subject_role": "patient",
+            "sex": "M",
+            "ga_days": 211,
+            "ga_text": "30周+1天",
+            "birth_weight_g": 1451,
+            "delivery_mode": "cesarean",
+            "multiple_birth": false,
+            "data_status": "observed_positive"
+          },
+          "time": "2026-02-25"
+        },
+        {
+          "collection": "maternal",
+          "event_type": "pregnancy",
+          "record_path": "maternal[0]",
+          "field_path": "maternal[0].status",
+          "fields": {
+            "gbs_status": "not_recorded",
+            "prom_hours": 17,
+            "maternal_fever": false,
+            "antibiotics_before_delivery": "ampicillin",
+            "data_status": "not_recorded",
+            "subject_role": "mother"
+          },
+          "time": "2026-02-25"
+        },
+        {
+          "collection": "diagnoses",
+          "event_type": "diagnosis",
+          "record_path": "diagnoses[0]",
+          "field_path": "diagnoses[0].name",
+          "fields": {
+            "name": "新生儿呼吸窘迫综合征",
+            "code": "P22.0",
+            "code_system": "ICD10_WHO（待复核）",
+            "data_status": "observed_positive",
+            "subject_role": "patient"
+          },
+          "time": "2026-02-25"
+        },
+        {
+          "collection": "postnatal",
+          "event_type": "measurement",
+          "record_path": "postnatal[0]",
+          "field_path": "postnatal[0].pna_hours",
+          "fields": {
+            "subject_role": "patient",
+            "pna_hours": 5,
+            "current_weight_g": 1383,
+            "data_status": "observed_positive"
+          },
+          "time": "2026-02-25"
+        },
+        {
+          "collection": "respiratory_support",
+          "event_type": "support",
+          "record_path": "respiratory_support[0]",
+          "field_path": "respiratory_support[0].mode",
+          "fields": {
+            "mode": "CPAP",
+            "fio2": "0.30",
+            "fio2_unit": "fraction",
+            "peep_cmh2o": 6,
+            "flow_lpm": 7,
+            "ongoing": true,
+            "subject_role": "patient",
+            "data_status": "observed_positive",
+            "started_event_time": "2026-02-25T04:30:00+08:00"
+          },
+          "start": "2026-02-25"
+        },
+        {
+          "collection": "vitals",
+          "event_type": "measurement",
+          "record_path": "vitals[0]",
+          "field_path": "vitals[0].measured_at",
+          "fields": {
+            "hr_bpm": 164,
+            "rr_per_min": 68,
+            "spo2_percent": 90,
+            "temp_c": 36.4,
+            "subject_role": "patient",
+            "data_status": "observed_positive",
+            "event_time": "2026-02-25T08:00:00+08:00"
+          },
+          "time": "2026-02-25"
+        },
+        {
+          "collection": "blood_gas",
+          "event_type": "measurement",
+          "record_path": "blood_gas[0]",
+          "field_path": "blood_gas[0].ph",
+          "fields": {
+            "sample_type": "capillary",
+            "ph": 7.29,
+            "pco2_mmhg": 52,
+            "po2_mmhg": 39,
+            "hco3_mmol_l": 24,
+            "base_excess": -1,
+            "lactate_mmol_l": 1.8,
+            "subject_role": "patient",
+            "data_status": "observed_positive",
+            "event_time": "2026-02-25T07:30:00+08:00"
+          },
+          "time": "2026-02-25"
+        },
+        {
+          "collection": "imaging",
+          "event_type": "lung_ultrasound",
+          "record_path": "imaging[0]",
+          "field_path": "imaging[0].modality",
+          "fields": {
+            "modality": "lung_ultrasound",
+            "report_status": "signed",
+            "impression": "双肺B线增多，未见实变",
+            "data_status": "observed_positive",
+            "subject_role": "patient"
+          },
+          "time": "2026-02-25"
+        },
+        {
+          "collection": "labs",
+          "event_type": "measurement",
+          "record_path": "labs[0]",
+          "field_path": "labs[0].crp_mg_l",
+          "fields": {
+            "crp_mg_l": 8,
+            "wbc_10e9_l": 10.1,
+            "glucose_mmol_l": 2.9,
+            "subject_role": "patient",
+            "data_status": "observed_positive",
+            "event_time": "2026-02-25T06:00:00+08:00"
+          },
+          "time": "2026-02-25"
+        },
+        {
+          "collection": "labs",
+          "event_type": "culture",
+          "record_path": "labs[1]",
+          "field_path": "labs[1].specimen",
+          "fields": {
+            "specimen": "blood",
+            "culture_status": "pending",
+            "subject_role": "patient",
+            "data_status": "pending",
+            "collected_event_time": "2026-02-25T05:00:00+08:00"
+          },
+          "time": "2026-02-25"
+        },
+        {
+          "collection": "medications",
+          "event_type": "medication",
+          "record_path": "medications[0]",
+          "field_path": "medications[0].name",
+          "fields": {
+            "name": "caffeine citrate",
+            "data_status": "observed_positive",
+            "dose": "loading",
+            "frequency": "q24h",
+            "route": "IV",
+            "ongoing": true,
+            "subject_role": "patient"
+          },
+          "start": "2026-02-25"
+        },
+        {
+          "collection": "medications",
+          "event_type": "medication",
+          "record_path": "medications[1]",
+          "field_path": "medications[1].name",
+          "fields": {
+            "name": "pulmonary surfactant",
+            "data_status": "observed_negative",
+            "status": "not_administered",
+            "subject_role": "patient"
+          },
+          "time": "2026-02-25"
+        },
+        {
+          "collection": "reports",
+          "event_type": "report",
+          "record_path": "reports[0]",
+          "field_path": "reports[0].impression",
+          "fields": {
+            "subject_role": "patient",
+            "impression": "future record",
+            "data_status": "observed_positive"
+          },
+          "time": "2026-03-02"
+        }
+      ]
+    },
+    {
+      "patient_ref": "neo-his-pneumonia-001",
+      "as_of": "2026-09-12",
+      "source": "synthetic_neonatal_his",
+      "reviewed_external_terms": [
+        "neonatal pneumonia",
+        "chest radiograph",
+        "C-reactive protein"
+      ],
+      "facts": [
+        {
+          "collection": "birth",
+          "event_type": "birth",
+          "record_path": "birth[0]",
+          "field_path": "birth[0].ga_days",
+          "fields": {
+            "subject_role": "patient",
+            "sex": "F",
+            "ga_days": 272,
+            "ga_text": "38周+6天",
+            "birth_weight_g": 3291,
+            "delivery_mode": "vaginal",
+            "multiple_birth": false,
+            "data_status": "observed_positive"
+          },
+          "time": "2026-09-11"
+        },
+        {
+          "collection": "maternal",
+          "event_type": "pregnancy",
+          "record_path": "maternal[0]",
+          "field_path": "maternal[0].status",
+          "fields": {
+            "gbs_status": "positive",
+            "prom_hours": 25,
+            "maternal_fever_c": 38.4,
+            "antibiotics_before_delivery": "penicillin",
+            "antibiotics_hours_before_delivery": 4,
+            "data_status": "observed_positive",
+            "subject_role": "mother"
+          },
+          "time": "2026-09-11"
+        },
+        {
+          "collection": "diagnoses",
+          "event_type": "diagnosis",
+          "record_path": "diagnoses[0]",
+          "field_path": "diagnoses[0].name",
+          "fields": {
+            "name": "新生儿感染性肺炎",
+            "code": "P23.9",
+            "code_system": "ICD10_WHO（待复核）",
+            "data_status": "observed_positive",
+            "subject_role": "patient"
+          },
+          "time": "2026-09-12"
+        },
+        {
+          "collection": "postnatal",
+          "event_type": "measurement",
+          "record_path": "postnatal[0]",
+          "field_path": "postnatal[0].pna_hours",
+          "fields": {
+            "subject_role": "patient",
+            "pna_hours": 38,
+            "current_weight_g": 3147,
+            "data_status": "observed_positive"
+          },
+          "time": "2026-09-12"
+        },
+        {
+          "collection": "vitals",
+          "event_type": "measurement",
+          "record_path": "vitals[0]",
+          "field_path": "vitals[0].measured_at",
+          "fields": {
+            "temp_c": 39.0,
+            "rr_per_min": 74,
+            "hr_bpm": 172,
+            "spo2_percent": 95,
+            "respiratory_support": "room air",
+            "subject_role": "patient",
+            "data_status": "observed_positive",
+            "event_time": "2026-09-12T08:00:00+08:00"
+          },
+          "time": "2026-09-12"
+        },
+        {
+          "collection": "imaging",
+          "event_type": "chest_xray",
+          "record_path": "imaging[0]",
+          "field_path": "imaging[0].modality",
+          "fields": {
+            "modality": "chest_xray",
+            "report_status": "signed",
+            "impression": "双肺纹理增粗，右下肺斑片影",
+            "data_status": "observed_positive",
+            "subject_role": "patient"
+          },
+          "time": "2026-09-12"
+        },
+        {
+          "collection": "labs",
+          "event_type": "measurement",
+          "record_path": "labs[0]",
+          "field_path": "labs[0].crp_mg_l",
+          "fields": {
+            "crp_mg_l": 49,
+            "wbc_10e9_l": 17.8,
+            "platelets_10e9_l": 218,
+            "glucose_mmol_l": 3.0,
+            "subject_role": "patient",
+            "data_status": "observed_positive",
+            "event_time": "2026-09-12T06:00:00+08:00"
+          },
+          "time": "2026-09-12"
+        },
+        {
+          "collection": "labs",
+          "event_type": "culture",
+          "record_path": "labs[1]",
+          "field_path": "labs[1].specimen",
+          "fields": {
+            "specimen": "blood",
+            "culture_status": "pending",
+            "subject_role": "patient",
+            "data_status": "pending",
+            "collected_event_time": "2026-09-12T05:00:00+08:00"
+          },
+          "time": "2026-09-12"
+        },
+        {
+          "collection": "medications",
+          "event_type": "medication",
+          "record_path": "medications[0]",
+          "field_path": "medications[0].name",
+          "fields": {
+            "name": "ampicillin",
+            "data_status": "observed_positive",
+            "dose": "50 mg/kg/dose",
+            "frequency": "q12h",
+            "route": "IV",
+            "ongoing": true,
+            "subject_role": "patient"
+          },
+          "start": "2026-09-11"
+        },
+        {
+          "collection": "medications",
+          "event_type": "medication",
+          "record_path": "medications[1]",
+          "field_path": "medications[1].name",
+          "fields": {
+            "name": "gentamicin",
+            "data_status": "observed_positive",
+            "dose": "4 mg/kg/dose",
+            "frequency": "q24h",
+            "route": "IV",
+            "ongoing": true,
+            "subject_role": "patient"
+          },
+          "start": "2026-09-11"
+        },
+        {
+          "collection": "reports",
+          "event_type": "report",
+          "record_path": "reports[0]",
+          "field_path": "reports[0].impression",
+          "fields": {
+            "subject_role": "patient",
+            "impression": "future record",
+            "data_status": "observed_positive"
+          },
+          "time": "2026-09-17"
+        }
+      ]
+    },
+    {
+      "patient_ref": "neo-his-ttn-001",
+      "as_of": "2026-08-20",
+      "source": "synthetic_neonatal_his",
+      "reviewed_external_terms": [
+        "transient tachypnea of the newborn",
+        "TTN",
+        "tachypnea"
+      ],
+      "facts": [
+        {
+          "collection": "birth",
+          "event_type": "birth",
+          "record_path": "birth[0]",
+          "field_path": "birth[0].ga_days",
+          "fields": {
+            "subject_role": "patient",
+            "sex": "M",
+            "ga_days": 272,
+            "ga_text": "38周+6天",
+            "birth_weight_g": 3161,
+            "delivery_mode": "vaginal",
+            "multiple_birth": false,
+            "data_status": "observed_positive"
+          },
+          "time": "2026-08-20"
+        },
+        {
+          "collection": "maternal",
+          "event_type": "pregnancy",
+          "record_path": "maternal[0]",
+          "field_path": "maternal[0].status",
+          "fields": {
+            "gbs_status": "not_recorded",
+            "prom_hours": 2,
+            "maternal_fever": false,
+            "data_status": "not_recorded",
+            "subject_role": "mother"
+          },
+          "time": "2026-08-20"
+        },
+        {
+          "collection": "diagnoses",
+          "event_type": "diagnosis",
+          "record_path": "diagnoses[0]",
+          "field_path": "diagnoses[0].name",
+          "fields": {
+            "name": "暂时性呼吸增快",
+            "code": "P22.1",
+            "code_system": "ICD10_WHO（待复核）",
+            "data_status": "observed_positive",
+            "subject_role": "patient"
+          },
+          "time": "2026-08-20"
+        },
+        {
+          "collection": "postnatal",
+          "event_type": "measurement",
+          "record_path": "postnatal[0]",
+          "field_path": "postnatal[0].pna_hours",
+          "fields": {
+            "subject_role": "patient",
+            "pna_hours": 8,
+            "current_weight_g": 3040,
+            "data_status": "observed_positive"
+          },
+          "time": "2026-08-20"
+        },
+        {
+          "collection": "vitals",
+          "event_type": "measurement",
+          "record_path": "vitals[0]",
+          "field_path": "vitals[0].measured_at",
+          "fields": {
+            "rr_per_min": 79,
+            "spo2_percent": 96,
+            "respiratory_support": "room air",
+            "temp_c": 36.9,
+            "subject_role": "patient",
+            "data_status": "observed_positive",
+            "event_time": "2026-08-20T08:00:00+08:00"
+          },
+          "time": "2026-08-20"
+        },
+        {
+          "collection": "imaging",
+          "event_type": "chest_xray",
+          "record_path": "imaging[0]",
+          "field_path": "imaging[0].modality",
+          "fields": {
+            "modality": "chest_xray",
+            "report_status": "signed",
+            "impression": "肺门纹理增多，叶间裂积液",
+            "data_status": "observed_positive",
+            "subject_role": "patient"
+          },
+          "time": "2026-08-20"
+        },
+        {
+          "collection": "labs",
+          "event_type": "measurement",
+          "record_path": "labs[0]",
+          "field_path": "labs[0].crp_mg_l",
+          "fields": {
+            "crp_mg_l": 4,
+            "wbc_10e9_l": 12.0,
+            "glucose_mmol_l": 3.5,
+            "subject_role": "patient",
+            "data_status": "observed_positive",
+            "event_time": "2026-08-20T06:00:00+08:00"
+          },
+          "time": "2026-08-20"
+        },
+        {
+          "collection": "reports",
+          "event_type": "report",
+          "record_path": "reports[0]",
+          "field_path": "reports[0].impression",
+          "fields": {
+            "subject_role": "patient",
+            "impression": "future record",
+            "data_status": "observed_positive"
+          },
+          "time": "2026-08-25"
+        }
+      ]
+    },
+    {
+      "patient_ref": "neo-his-jaundice-001",
+      "as_of": "2026-07-18",
+      "source": "synthetic_neonatal_his",
+      "reviewed_external_terms": [
+        "neonatal jaundice",
+        "hyperbilirubinemia",
+        "phototherapy",
+        "total bilirubin"
+      ],
+      "facts": [
+        {
+          "collection": "birth",
+          "event_type": "birth",
+          "record_path": "birth[0]",
+          "field_path": "birth[0].ga_days",
+          "fields": {
+            "subject_role": "patient",
+            "sex": "F",
+            "ga_days": 248,
+            "ga_text": "35周+3天",
+            "birth_weight_g": 2329,
+            "delivery_mode": "vaginal",
+            "multiple_birth": false,
+            "data_status": "observed_positive"
+          },
+          "time": "2026-07-15"
+        },
+        {
+          "collection": "maternal",
+          "event_type": "pregnancy",
+          "record_path": "maternal[0]",
+          "field_path": "maternal[0].status",
+          "fields": {
+            "blood_type": "O+",
+            "gbs_status": "not_recorded",
+            "prom_hours": 4,
+            "data_status": "not_recorded",
+            "subject_role": "mother"
+          },
+          "time": "2026-07-15"
+        },
+        {
+          "collection": "diagnoses",
+          "event_type": "diagnosis",
+          "record_path": "diagnoses[0]",
+          "field_path": "diagnoses[0].name",
+          "fields": {
+            "name": "新生儿黄疸",
+            "code": "P59.9",
+            "code_system": "ICD10_WHO（待复核）",
+            "data_status": "observed_positive",
+            "subject_role": "patient"
+          },
+          "time": "2026-07-18"
+        },
+        {
+          "collection": "postnatal",
+          "event_type": "measurement",
+          "record_path": "postnatal[0]",
+          "field_path": "postnatal[0].pna_hours",
+          "fields": {
+            "subject_role": "patient",
+            "pna_hours": 72,
+            "current_weight_g": 2254,
+            "data_status": "observed_positive"
+          },
+          "time": "2026-07-18"
+        },
+        {
+          "collection": "vitals",
+          "event_type": "measurement",
+          "record_path": "vitals[0]",
+          "field_path": "vitals[0].measured_at",
+          "fields": {
+            "hr_bpm": 153,
+            "rr_per_min": 51,
+            "spo2_percent": 95,
+            "temp_c": 36.6,
+            "subject_role": "patient",
+            "data_status": "observed_positive",
+            "event_time": "2026-07-18T08:00:00+08:00"
+          },
+          "time": "2026-07-18"
+        },
+        {
+          "collection": "labs",
+          "event_type": "measurement",
+          "record_path": "labs[0]",
+          "field_path": "labs[0].total_bilirubin_umol_l",
+          "fields": {
+            "total_bilirubin_umol_l": 268,
+            "direct_bilirubin_umol_l": 13,
+            "hemoglobin_g_l": 147,
+            "hematocrit": 0.43,
+            "reticulocyte": 0.04,
+            "coombs": "negative",
+            "blood_type": "A+",
+            "subject_role": "patient",
+            "data_status": "observed_positive",
+            "event_time": "2026-07-18T06:00:00+08:00"
+          },
+          "time": "2026-07-18"
+        },
+        {
+          "collection": "therapies",
+          "event_type": "phototherapy",
+          "record_path": "therapies[0]",
+          "field_path": "therapies[0].name",
+          "fields": {
+            "name": "phototherapy",
+            "ongoing": true,
+            "data_status": "observed_positive",
+            "subject_role": "patient",
+            "started_event_time": "2026-07-18T09:00:00+08:00"
+          },
+          "start": "2026-07-18"
+        },
+        {
+          "collection": "reports",
+          "event_type": "report",
+          "record_path": "reports[0]",
+          "field_path": "reports[0].impression",
+          "fields": {
+            "subject_role": "patient",
+            "impression": "future record",
+            "data_status": "observed_positive"
+          },
+          "time": "2026-07-23"
+        }
+      ]
+    },
+    {
+      "patient_ref": "neo-his-pphn-001",
+      "as_of": "2026-06-12",
+      "source": "synthetic_neonatal_his",
+      "reviewed_external_terms": [
+        "persistent pulmonary hypertension of the newborn",
+        "PPHN",
+        "inhaled nitric oxide",
+        "meconium aspiration syndrome"
+      ],
+      "facts": [
+        {
+          "collection": "birth",
+          "event_type": "birth",
+          "record_path": "birth[0]",
+          "field_path": "birth[0].ga_days",
+          "fields": {
+            "subject_role": "patient",
+            "sex": "M",
+            "ga_days": 272,
+            "ga_text": "38周+6天",
+            "birth_weight_g": 3340,
+            "delivery_mode": "vaginal",
+            "multiple_birth": false,
+            "data_status": "observed_positive",
+            "meconium_stained_fluid": true
+          },
+          "time": "2026-06-12"
+        },
+        {
+          "collection": "maternal",
+          "event_type": "pregnancy",
+          "record_path": "maternal[0]",
+          "field_path": "maternal[0].status",
+          "fields": {
+            "gbs_status": "not_recorded",
+            "prom_hours": 7,
+            "meconium_stained_fluid": true,
+            "data_status": "not_recorded",
+            "subject_role": "mother"
+          },
+          "time": "2026-06-12"
+        },
+        {
+          "collection": "diagnoses",
+          "event_type": "diagnosis",
+          "record_path": "diagnoses[0]",
+          "field_path": "diagnoses[0].name",
+          "fields": {
+            "name": "持续性肺动脉高压",
+            "code": "P29.3",
+            "code_system": "ICD10_WHO（待复核）",
+            "data_status": "observed_positive",
+            "subject_role": "patient"
+          },
+          "time": "2026-06-12"
+        },
+        {
+          "collection": "diagnoses",
+          "event_type": "diagnosis",
+          "record_path": "diagnoses[1]",
+          "field_path": "diagnoses[1].name",
+          "fields": {
+            "name": "胎粪吸入综合征",
+            "code": "P24.0",
+            "code_system": "ICD10_WHO（待复核）",
+            "data_status": "observed_positive",
+            "subject_role": "patient"
+          },
+          "time": "2026-06-12"
+        },
+        {
+          "collection": "postnatal",
+          "event_type": "measurement",
+          "record_path": "postnatal[0]",
+          "field_path": "postnatal[0].pna_hours",
+          "fields": {
+            "subject_role": "patient",
+            "pna_hours": 11,
+            "current_weight_g": 3244,
+            "data_status": "observed_positive"
+          },
+          "time": "2026-06-12"
+        },
+        {
+          "collection": "respiratory_support",
+          "event_type": "support",
+          "record_path": "respiratory_support[0]",
+          "field_path": "respiratory_support[0].mode",
+          "fields": {
+            "mode": "IMV",
+            "fio2": "1.0",
+            "fio2_unit": "fraction",
+            "peep_cmh2o": 5,
+            "rate_per_min": 40,
+            "ongoing": true,
+            "subject_role": "patient",
+            "data_status": "observed_positive",
+            "started_event_time": "2026-06-12T04:30:00+08:00"
+          },
+          "start": "2026-06-12"
+        },
+        {
+          "collection": "vitals",
+          "event_type": "measurement",
+          "record_path": "vitals[0]",
+          "field_path": "vitals[0].measured_at",
+          "fields": {
+            "preductal_spo2_percent": 89,
+            "postductal_spo2_percent": 81,
+            "bp_systolic_mmhg": 61,
+            "bp_diastolic_mmhg": 33,
+            "hr_bpm": 165,
+            "subject_role": "patient",
+            "data_status": "observed_positive",
+            "event_time": "2026-06-12T08:00:00+08:00"
+          },
+          "time": "2026-06-12"
+        },
+        {
+          "collection": "blood_gas",
+          "event_type": "measurement",
+          "record_path": "blood_gas[0]",
+          "field_path": "blood_gas[0].ph",
+          "fields": {
+            "sample_type": "arterial",
+            "ph": 7.26,
+            "pco2_mmhg": 46,
+            "po2_mmhg": 51,
+            "lactate_mmol_l": 4.0,
+            "subject_role": "patient",
+            "data_status": "observed_positive",
+            "event_time": "2026-06-12T07:30:00+08:00"
+          },
+          "time": "2026-06-12"
+        },
+        {
+          "collection": "imaging",
+          "event_type": "echocardiography",
+          "record_path": "imaging[0]",
+          "field_path": "imaging[0].modality",
+          "fields": {
+            "modality": "echocardiography",
+            "report_status": "signed",
+            "impression": "estimated RV pressure systemic; no structural heart disease",
+            "data_status": "observed_positive",
+            "subject_role": "patient"
+          },
+          "time": "2026-06-12"
+        },
+        {
+          "collection": "imaging",
+          "event_type": "chest_xray",
+          "record_path": "imaging[1]",
+          "field_path": "imaging[1].modality",
+          "fields": {
+            "modality": "chest_xray",
+            "report_status": "signed",
+            "impression": "双肺斑片影，胎粪吸入改变",
+            "data_status": "observed_positive",
+            "subject_role": "patient"
+          },
+          "time": "2026-06-12"
+        },
+        {
+          "collection": "labs",
+          "event_type": "measurement",
+          "record_path": "labs[0]",
+          "field_path": "labs[0].crp_mg_l",
+          "fields": {
+            "crp_mg_l": 4,
+            "wbc_10e9_l": 12.1,
+            "glucose_mmol_l": 4.0,
+            "platelets_10e9_l": 181,
+            "subject_role": "patient",
+            "data_status": "observed_positive",
+            "event_time": "2026-06-12T06:00:00+08:00"
+          },
+          "time": "2026-06-12"
+        },
+        {
+          "collection": "medications",
+          "event_type": "medication",
+          "record_path": "medications[0]",
+          "field_path": "medications[0].name",
+          "fields": {
+            "name": "inhaled nitric oxide",
+            "data_status": "observed_positive",
+            "dose": "20 ppm",
+            "route": "inhaled",
+            "ongoing": true,
+            "subject_role": "patient"
+          },
+          "start": "2026-06-12"
+        },
+        {
+          "collection": "medications",
+          "event_type": "medication",
+          "record_path": "medications[1]",
+          "field_path": "medications[1].name",
+          "fields": {
+            "name": "pulmonary surfactant",
+            "data_status": "observed_positive",
+            "dose": "200 mg/kg",
+            "route": "intratracheal",
+            "status": "administered",
+            "subject_role": "patient"
+          },
+          "time": "2026-06-12"
+        },
+        {
+          "collection": "reports",
+          "event_type": "report",
+          "record_path": "reports[0]",
+          "field_path": "reports[0].impression",
+          "fields": {
+            "subject_role": "patient",
+            "impression": "future record",
+            "data_status": "observed_positive"
+          },
+          "time": "2026-06-17"
+        }
+      ]
+    },
+    {
+      "patient_ref": "neo-his-bpd-001",
+      "as_of": "2026-05-20",
+      "source": "synthetic_neonatal_his",
+      "reviewed_external_terms": [
+        "bronchopulmonary dysplasia",
+        "BPD",
+        "postmenstrual age",
+        "preterm infant"
+      ],
+      "facts": [
+        {
+          "collection": "birth",
+          "event_type": "birth",
+          "record_path": "birth[0]",
+          "field_path": "birth[0].ga_days",
+          "fields": {
+            "subject_role": "patient",
+            "sex": "F",
+            "ga_days": 195,
+            "ga_text": "27周+6天",
+            "birth_weight_g": 1020,
+            "delivery_mode": "cesarean",
+            "multiple_birth": false,
+            "data_status": "observed_positive"
+          },
+          "time": "2026-03-25"
+        },
+        {
+          "collection": "maternal",
+          "event_type": "pregnancy",
+          "record_path": "maternal[0]",
+          "field_path": "maternal[0].status",
+          "fields": {
+            "gbs_status": "not_recorded",
+            "prom_hours": 9,
+            "antenatal_steroids": true,
+            "data_status": "not_recorded",
+            "subject_role": "mother"
+          },
+          "time": "2026-03-25"
+        },
+        {
+          "collection": "diagnoses",
+          "event_type": "diagnosis",
+          "record_path": "diagnoses[0]",
+          "field_path": "diagnoses[0].name",
+          "fields": {
+            "name": "支气管肺发育不良",
+            "code": "P27.1",
+            "code_system": "ICD10_WHO（待复核）",
+            "data_status": "observed_positive",
+            "subject_role": "patient"
+          },
+          "time": "2026-05-20"
+        },
+        {
+          "collection": "postnatal",
+          "event_type": "measurement",
+          "record_path": "postnatal[0]",
+          "field_path": "postnatal[0].pna_hours",
+          "fields": {
+            "subject_role": "patient",
+            "pna_hours": 1353,
+            "current_weight_g": 1142,
+            "data_status": "observed_positive"
+          },
+          "time": "2026-05-20"
+        },
+        {
+          "collection": "respiratory_support",
+          "event_type": "support",
+          "record_path": "respiratory_support[0]",
+          "field_path": "respiratory_support[0].mode",
+          "fields": {
+            "mode": "CPAP",
+            "fio2": "0.25",
+            "fio2_unit": "fraction",
+            "peep_cmh2o": 5,
+            "ongoing": true,
+            "subject_role": "patient",
+            "data_status": "observed_positive",
+            "started_event_time": "2026-03-25T04:30:00+08:00"
+          },
+          "start": "2026-03-25"
+        },
+        {
+          "collection": "vitals",
+          "event_type": "measurement",
+          "record_path": "vitals[0]",
+          "field_path": "vitals[0].measured_at",
+          "fields": {
+            "hr_bpm": 149,
+            "rr_per_min": 57,
+            "spo2_percent": 94,
+            "temp_c": 36.7,
+            "subject_role": "patient",
+            "data_status": "observed_positive",
+            "event_time": "2026-05-20T08:00:00+08:00"
+          },
+          "time": "2026-05-20"
+        },
+        {
+          "collection": "blood_gas",
+          "event_type": "measurement",
+          "record_path": "blood_gas[0]",
+          "field_path": "blood_gas[0].ph",
+          "fields": {
+            "sample_type": "capillary",
+            "ph": 7.37,
+            "pco2_mmhg": 43,
+            "po2_mmhg": 62,
+            "subject_role": "patient",
+            "data_status": "observed_positive",
+            "event_time": "2026-05-20T07:30:00+08:00"
+          },
+          "time": "2026-05-20"
+        },
+        {
+          "collection": "imaging",
+          "event_type": "chest_xray",
+          "record_path": "imaging[0]",
+          "field_path": "imaging[0].modality",
+          "fields": {
+            "modality": "chest_xray",
+            "report_status": "signed",
+            "impression": "双肺透亮度不均，间质改变",
+            "data_status": "observed_positive",
+            "subject_role": "patient"
+          },
+          "time": "2026-05-20"
+        },
+        {
+          "collection": "labs",
+          "event_type": "measurement",
+          "record_path": "labs[0]",
+          "field_path": "labs[0].crp_mg_l",
+          "fields": {
+            "crp_mg_l": 3,
+            "wbc_10e9_l": 8.5,
+            "glucose_mmol_l": 3.9,
+            "subject_role": "patient",
+            "data_status": "observed_positive",
+            "event_time": "2026-05-20T06:00:00+08:00"
+          },
+          "time": "2026-05-20"
+        },
+        {
+          "collection": "medications",
+          "event_type": "medication",
+          "record_path": "medications[0]",
+          "field_path": "medications[0].name",
+          "fields": {
+            "name": "caffeine citrate",
+            "data_status": "observed_positive",
+            "dose": "maintenance",
+            "frequency": "q24h",
+            "route": "IV",
+            "ongoing": true,
+            "subject_role": "patient"
+          },
+          "start": "2026-03-25"
+        },
+        {
+          "collection": "reports",
+          "event_type": "report",
+          "record_path": "reports[0]",
+          "field_path": "reports[0].impression",
+          "fields": {
+            "subject_role": "patient",
+            "impression": "future record",
+            "data_status": "observed_positive"
+          },
+          "time": "2026-05-25"
+        }
+      ]
+    },
+    {
+      "patient_ref": "neo-his-hypoglycemia-001",
+      "as_of": "2026-04-05",
+      "source": "synthetic_neonatal_his",
+      "reviewed_external_terms": [
+        "neonatal hypoglycemia",
+        "blood glucose",
+        "low birth weight infant"
+      ],
+      "facts": [
+        {
+          "collection": "birth",
+          "event_type": "birth",
+          "record_path": "birth[0]",
+          "field_path": "birth[0].ga_days",
+          "fields": {
+            "subject_role": "patient",
+            "sex": "M",
+            "ga_days": null,
+            "ga_text": null,
+            "birth_weight_g": 1936,
+            "delivery_mode": "vaginal",
+            "multiple_birth": false,
+            "data_status": "observed_positive"
+          },
+          "time": "2026-04-05"
+        },
+        {
+          "collection": "maternal",
+          "event_type": "pregnancy",
+          "record_path": "maternal[0]",
+          "field_path": "maternal[0].status",
+          "fields": {
+            "gestational_diabetes": "not_recorded",
+            "gbs_status": "not_recorded",
+            "prom_hours": 4,
+            "data_status": "not_recorded",
+            "subject_role": "mother"
+          },
+          "time": "2026-04-05"
+        },
+        {
+          "collection": "diagnoses",
+          "event_type": "diagnosis",
+          "record_path": "diagnoses[0]",
+          "field_path": "diagnoses[0].name",
+          "fields": {
+            "name": "新生儿低血糖",
+            "code": "P70.4",
+            "code_system": "ICD10_WHO（待复核）",
+            "data_status": "observed_positive",
+            "subject_role": "patient"
+          },
+          "time": "2026-04-05"
+        },
+        {
+          "collection": "postnatal",
+          "event_type": "measurement",
+          "record_path": "postnatal[0]",
+          "field_path": "postnatal[0].pna_hours",
+          "fields": {
+            "subject_role": "patient",
+            "pna_hours": 2,
+            "current_weight_g": 1880,
+            "data_status": "observed_positive"
+          },
+          "time": "2026-04-05"
+        },
+        {
+          "collection": "vitals",
+          "event_type": "measurement",
+          "record_path": "vitals[0]",
+          "field_path": "vitals[0].measured_at",
+          "fields": {
+            "temp_c": 36.5,
+            "hr_bpm": 145,
+            "rr_per_min": 50,
+            "subject_role": "patient",
+            "data_status": "observed_positive",
+            "event_time": "2026-04-05T08:00:00+08:00"
+          },
+          "time": "2026-04-05"
+        },
+        {
+          "collection": "labs",
+          "event_type": "measurement",
+          "record_path": "labs[0]",
+          "field_path": "labs[0].glucose_mmol_l",
+          "fields": {
+            "glucose_mmol_l": 2.1,
+            "subject_role": "patient",
+            "data_status": "observed_positive",
+            "event_time": "2026-04-05T06:00:00+08:00"
+          },
+          "time": "2026-04-05"
+        },
+        {
+          "collection": "feeding",
+          "event_type": "breastfeeding",
+          "record_path": "feeding[0]",
+          "field_path": "feeding[0].status",
+          "fields": {
+            "status": "initiated",
+            "data_status": "observed_positive",
+            "subject_role": "patient"
+          },
+          "start": "2026-04-05"
+        },
+        {
+          "collection": "reports",
+          "event_type": "report",
+          "record_path": "reports[0]",
+          "field_path": "reports[0].impression",
+          "fields": {
+            "subject_role": "patient",
+            "impression": "future record",
+            "data_status": "observed_positive"
+          },
+          "time": "2026-04-10"
+        }
+      ]
+    },
+    {
+      "patient_ref": "neo-his-gbs-001",
+      "as_of": "2026-10-02",
+      "source": "synthetic_neonatal_his",
+      "reviewed_external_terms": [
+        "group B streptococcus",
+        "early-onset sepsis",
+        "asymptomatic",
+        "blood culture"
+      ],
+      "facts": [
+        {
+          "collection": "birth",
+          "event_type": "birth",
+          "record_path": "birth[0]",
+          "field_path": "birth[0].ga_days",
+          "fields": {
+            "subject_role": "patient",
+            "sex": "F",
+            "ga_days": 281,
+            "ga_text": "40周+1天",
+            "birth_weight_g": 3335,
+            "delivery_mode": "vaginal",
+            "multiple_birth": false,
+            "data_status": "observed_positive"
+          },
+          "time": "2026-10-02"
+        },
+        {
+          "collection": "maternal",
+          "event_type": "pregnancy",
+          "record_path": "maternal[0]",
+          "field_path": "maternal[0].status",
+          "fields": {
+            "gbs_status": "positive",
+            "prom_hours": 22,
+            "maternal_fever": false,
+            "antibiotics_before_delivery": "penicillin",
+            "antibiotics_hours_before_delivery": 4,
+            "data_status": "observed_positive",
+            "subject_role": "mother"
+          },
+          "time": "2026-10-02"
+        },
+        {
+          "collection": "risk_factors",
+          "event_type": "risk_factor",
+          "record_path": "risk_factors[0]",
+          "field_path": "risk_factors[0].name",
+          "fields": {
+            "name": "maternal group B streptococcus colonisation",
+            "data_status": "observed_positive",
+            "subject_role": "patient"
+          },
+          "time": "2026-10-02"
+        },
+        {
+          "collection": "postnatal",
+          "event_type": "measurement",
+          "record_path": "postnatal[0]",
+          "field_path": "postnatal[0].pna_hours",
+          "fields": {
+            "subject_role": "patient",
+            "pna_hours": 12,
+            "current_weight_g": 3288,
+            "data_status": "observed_positive"
+          },
+          "time": "2026-10-02"
+        },
+        {
+          "collection": "vitals",
+          "event_type": "measurement",
+          "record_path": "vitals[0]",
+          "field_path": "vitals[0].measured_at",
+          "fields": {
+            "temp_c": 36.7,
+            "hr_bpm": 137,
+            "rr_per_min": 47,
+            "spo2_percent": 99,
+            "respiratory_support": "room air",
+            "subject_role": "patient",
+            "data_status": "observed_positive",
+            "event_time": "2026-10-02T08:00:00+08:00"
+          },
+          "time": "2026-10-02"
+        },
+        {
+          "collection": "labs",
+          "event_type": "measurement",
+          "record_path": "labs[0]",
+          "field_path": "labs[0].crp_mg_l",
+          "fields": {
+            "crp_mg_l": 3,
+            "wbc_10e9_l": 11.3,
+            "subject_role": "patient",
+            "data_status": "observed_positive",
+            "event_time": "2026-10-02T06:00:00+08:00"
+          },
+          "time": "2026-10-02"
+        },
+        {
+          "collection": "labs",
+          "event_type": "culture",
+          "record_path": "labs[1]",
+          "field_path": "labs[1].specimen",
+          "fields": {
+            "specimen": "blood",
+            "culture_status": "pending",
+            "subject_role": "patient",
+            "data_status": "pending",
+            "collected_event_time": "2026-10-02T05:00:00+08:00"
+          },
+          "time": "2026-10-02"
+        },
+        {
+          "collection": "reports",
+          "event_type": "report",
+          "record_path": "reports[0]",
+          "field_path": "reports[0].impression",
+          "fields": {
+            "subject_role": "patient",
+            "impression": "future record",
+            "data_status": "observed_positive"
+          },
+          "time": "2026-10-07"
+        }
+      ]
+    },
+    {
+      "patient_ref": "neo-his-apnea-001",
+      "as_of": "2026-11-08",
+      "source": "synthetic_neonatal_his",
+      "reviewed_external_terms": [
+        "apnea of prematurity",
+        "caffeine citrate",
+        "respiratory monitoring"
+      ],
+      "facts": [
+        {
+          "collection": "birth",
+          "event_type": "birth",
+          "record_path": "birth[0]",
+          "field_path": "birth[0].ga_days",
+          "fields": {
+            "subject_role": "patient",
+            "sex": "M",
+            "ga_days": 216,
+            "ga_text": "30周+6天",
+            "birth_weight_g": 1478,
+            "delivery_mode": "vaginal",
+            "multiple_birth": false,
+            "data_status": "observed_positive"
+          },
+          "time": "2026-11-07"
+        },
+        {
+          "collection": "maternal",
+          "event_type": "pregnancy",
+          "record_path": "maternal[0]",
+          "field_path": "maternal[0].status",
+          "fields": {
+            "gbs_status": "not_recorded",
+            "prom_hours": 7,
+            "antenatal_steroids": true,
+            "data_status": "not_recorded",
+            "subject_role": "mother"
+          },
+          "time": "2026-11-07"
+        },
+        {
+          "collection": "diagnoses",
+          "event_type": "diagnosis",
+          "record_path": "diagnoses[0]",
+          "field_path": "diagnoses[0].name",
+          "fields": {
+            "name": "早产儿呼吸暂停",
+            "code": "P28.4",
+            "code_system": "ICD10_WHO（待复核）",
+            "data_status": "observed_positive",
+            "subject_role": "patient"
+          },
+          "time": "2026-11-08"
+        },
+        {
+          "collection": "postnatal",
+          "event_type": "measurement",
+          "record_path": "postnatal[0]",
+          "field_path": "postnatal[0].pna_hours",
+          "fields": {
+            "subject_role": "patient",
+            "pna_hours": 47,
+            "current_weight_g": 1450,
+            "data_status": "observed_positive"
+          },
+          "time": "2026-11-08"
+        },
+        {
+          "collection": "respiratory_support",
+          "event_type": "support",
+          "record_path": "respiratory_support[0]",
+          "field_path": "respiratory_support[0].mode",
+          "fields": {
+            "mode": "CPAP",
+            "fio2": "0.21",
+            "fio2_unit": "fraction",
+            "peep_cmh2o": 5,
+            "flow_lpm": 6,
+            "ongoing": true,
+            "subject_role": "patient",
+            "data_status": "observed_positive",
+            "started_event_time": "2026-11-07T04:30:00+08:00"
+          },
+          "start": "2026-11-07"
+        },
+        {
+          "collection": "vitals",
+          "event_type": "measurement",
+          "record_path": "vitals[0]",
+          "field_path": "vitals[0].measured_at",
+          "fields": {
+            "hr_bpm": 150,
+            "rr_per_min": 43,
+            "spo2_percent": 97,
+            "temp_c": 36.6,
+            "apnea_events_24h": 3,
+            "respiratory_support": "CPAP",
+            "subject_role": "patient",
+            "data_status": "observed_positive",
+            "event_time": "2026-11-08T08:00:00+08:00"
+          },
+          "time": "2026-11-08"
+        },
+        {
+          "collection": "blood_gas",
+          "event_type": "measurement",
+          "record_path": "blood_gas[0]",
+          "field_path": "blood_gas[0].ph",
+          "fields": {
+            "sample_type": "capillary",
+            "ph": 7.3,
+            "pco2_mmhg": 52,
+            "po2_mmhg": 46,
+            "subject_role": "patient",
+            "data_status": "observed_positive",
+            "event_time": "2026-11-08T07:30:00+08:00"
+          },
+          "time": "2026-11-08"
+        },
+        {
+          "collection": "labs",
+          "event_type": "measurement",
+          "record_path": "labs[0]",
+          "field_path": "labs[0].crp_mg_l",
+          "fields": {
+            "crp_mg_l": 3,
+            "wbc_10e9_l": 8.7,
+            "glucose_mmol_l": 3.7,
+            "subject_role": "patient",
+            "data_status": "observed_positive",
+            "event_time": "2026-11-08T06:00:00+08:00"
+          },
+          "time": "2026-11-08"
+        },
+        {
+          "collection": "medications",
+          "event_type": "medication",
+          "record_path": "medications[0]",
+          "field_path": "medications[0].name",
+          "fields": {
+            "name": "caffeine citrate",
+            "data_status": "observed_positive",
+            "dose": "maintenance",
+            "frequency": "q24h",
+            "route": "IV",
+            "ongoing": true,
+            "subject_role": "patient"
+          },
+          "start": "2026-11-07"
+        },
+        {
+          "collection": "reports",
+          "event_type": "report",
+          "record_path": "reports[0]",
+          "field_path": "reports[0].impression",
+          "fields": {
+            "subject_role": "patient",
+            "impression": "future record",
+            "data_status": "observed_positive"
+          },
+          "time": "2026-11-13"
+        }
+      ]
+    }
+  ]
+}

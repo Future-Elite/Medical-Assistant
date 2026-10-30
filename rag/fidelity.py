@@ -696,8 +696,13 @@ class QueryFidelityAuditor:
     ) -> FidelityReport:
         reviewed: dict[str, tuple[str, ...]] = {}
         for entry in getattr(plan, "expansion_trace", ()):
-            if isinstance(entry, Mapping) and entry.get("source") == "reviewed_user_terms":
-                reviewed[str(entry.get("concept"))] = tuple(str(item) for item in (entry.get("terms") or ()))
+            if not isinstance(entry, Mapping):
+                continue
+            if entry.get("source") in ("reviewed_user_terms", "reviewed_term_mapping"):
+                terms = tuple(str(item) for item in (entry.get("terms") or ()))
+                if not terms:
+                    terms = tuple(str(item) for item in (entry.get("mesh_terms") or ()))
+                reviewed[str(entry.get("concept"))] = terms
         slots = extract_slots(plan.original_question, reviewed=reviewed, lexicon=self.lexicon)
 
         products_reviewed = (*plan.english_terms, *plan.mesh_terms)

@@ -1,0 +1,12 @@
+﻿patient_id,姓名,性别,出生日期,胎龄天数,出生体重g,出生方式,是否多胎,母亲ID,数据来源,synthetic
+neo-his-apnea-001,张子涵,男,2026-11-07,216,1478,顺产,否,MOTHER-NEO-HIS-APNEA,synthetic_neonatal_his,true
+neo-his-bpd-001,黄一诺,女,2026-03-25,195,1020,剖宫产,否,MOTHER-NEO-HIS-BPD,synthetic_neonatal_his,true
+neo-his-gbs-001,赵浩然,女,2026-10-02,281,3335,顺产,否,MOTHER-NEO-HIS-GBS,synthetic_neonatal_his,true
+neo-his-hypoglycemia-001,赵安然,男,2026-04-05,,1936,顺产,否,MOTHER-NEO-HIS-HYPOGLYCEMIA,synthetic_neonatal_his,true
+neo-his-jaundice-001,黄若溪,女,2026-07-15,248,2329,顺产,否,MOTHER-NEO-HIS-JAUNDICE,synthetic_neonatal_his,true
+neo-his-pneumonia-001,王梓萱,女,2026-09-11,272,3291,顺产,否,MOTHER-NEO-HIS-PNEUMONIA,synthetic_neonatal_his,true
+neo-his-pphn-001,吴梓萱,男,2026-06-12,272,3340,顺产,否,MOTHER-NEO-HIS-PPHN,synthetic_neonatal_his,true
+neo-his-rds-001,王宇轩,男,2026-03-10,211,1515,剖宫产,否,MOTHER-NEO-HIS-RDS,synthetic_neonatal_his,true
+neo-his-rds-retro-001,王子涵,男,2026-02-25,211,1451,剖宫产,否,MOTHER-NEO-HIS-RDS-RETRO,synthetic_neonatal_his,true
+neo-his-rds-severe-001,李子涵,女,2026-04-22,192,991,剖宫产,否,MOTHER-NEO-HIS-RDS-SEVERE,synthetic_neonatal_his,true
+neo-his-ttn-001,吴安然,男,2026-08-20,272,3161,顺产,否,MOTHER-NEO-HIS-TTN,synthetic_neonatal_his,true

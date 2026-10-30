@@ -1,9 +1,14 @@
 {
-  "request_id": "research-fidelity-example-001",
-  "question": "2月龄婴儿发热的评估推荐是什么？",
-  "as_of": "2025-12-31",
-  "english_terms": ["fever", "infant"],
-  "mesh_terms": ["Fever", "Infant"],
+  "request_id": "research-fidelity-example-neo-001",
+  "question": "生后72小时总胆红素285 μmol/L的光疗指征是什么？",
+  "as_of": "2026-07-18",
+  "english_terms": [
+    "neonatal jaundice",
+    "phototherapy"
+  ],
+  "mesh_terms": [
+    "Jaundice, Neonatal"
+  ],
   "retrieval_method": "bm25,translate",
   "top_k": 6,
   "source_mode": "custom",

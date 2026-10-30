@@ -1,0 +1,3726 @@
+{
+  "experiment": "规则路由 v0 shadow/active 实验性运行",
+  "date": "2026-10-28",
+  "tree": "v6.7.0",
+  "corpus": "39 例合成演示病例（curated 9 + generated_his 30）× 演示来源库（合成指南/文献 + 指南元数据）",
+  "network": "未联网；离线检索",
+  "variants": {
+    "without_mapping_library": {
+      "summary": {
+        "n_cases": 39,
+        "rules": {
+          "guideline_recommendation_first": 29,
+          "default_all_sources": 10
+        },
+        "intents": {
+          "guideline_recommendation": 29,
+          "clinical_question": 10
+        },
+        "english_coverage": {
+          "True": 39
+        },
+        "pubmed_dropped_cases": 0,
+        "shadow_same_as_off": 39,
+        "active_same_as_off": 39,
+        "active_changed_case_ids": [],
+        "total_elapsed_s": 2.34
+      },
+      "rows": [
+        {
+          "case_id": "neo-rds",
+          "label": "RDS · 30周+2天 · 生后6小时 · CPAP FiO₂ 0.30（as_of 2026-03-10，RDS 2025版已发表）",
+          "clinical_intent": "guideline_recommendation",
+          "english_coverage": true,
+          "rule": "guideline_recommendation_first",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "syn-neo-rds-block-2",
+            "syn-neo-ttn-block-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "syn-neo-rds-block-2",
+            "syn-neo-ttn-block-1"
+          ],
+          "active_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "syn-neo-rds-block-2",
+            "syn-neo-ttn-block-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.065
+        },
+        {
+          "case_id": "neo-rds-retro",
+          "label": "RDS 回顾时点 · 同一病例结构 · as_of 2026-02-25（早于 RDS 2025版 2026-03-09 发表）",
+          "clinical_intent": "guideline_recommendation",
+          "english_coverage": true,
+          "rule": "guideline_recommendation_first",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "syn-neo-rds-block-2",
+            "syn-lit-rds-2",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-neo-ttn-block-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "syn-neo-rds-block-2",
+            "syn-lit-rds-2",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-neo-ttn-block-1"
+          ],
+          "active_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "syn-neo-rds-block-2",
+            "syn-lit-rds-2",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-neo-ttn-block-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.061
+        },
+        {
+          "case_id": "neo-pneumonia",
+          "label": "感染性肺炎 · 39周+1天 · 生后36小时 · 发热38.9℃ · 血培养待回报",
+          "clinical_intent": "guideline_recommendation",
+          "english_coverage": true,
+          "rule": "guideline_recommendation_first",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-pna-block-1",
+            "syn-lit-pna-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-jaundice-1",
+            "syn-neo-pna-block-2",
+            "syn-neo-gbs-block-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-pna-block-1",
+            "syn-lit-pna-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-jaundice-1",
+            "syn-neo-pna-block-2",
+            "syn-neo-gbs-block-1"
+          ],
+          "active_ids": [
+            "syn-neo-pna-block-1",
+            "syn-lit-pna-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-jaundice-1",
+            "syn-neo-pna-block-2",
+            "syn-neo-gbs-block-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.06
+        },
+        {
+          "case_id": "neo-ttn",
+          "label": "暂时性呼吸增快 · 38周+4天 · 生后8小时 · 胸片叶间裂积液",
+          "clinical_intent": "clinical_question",
+          "english_coverage": true,
+          "rule": "default_all_sources",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-ttn-block-1",
+            "syn-lit-ttn-1",
+            "syn-neo-pna-block-2",
+            "syn-lit-gbs-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2"
+          ],
+          "shadow_ids": [
+            "syn-neo-ttn-block-1",
+            "syn-lit-ttn-1",
+            "syn-neo-pna-block-2",
+            "syn-lit-gbs-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2"
+          ],
+          "active_ids": [
+            "syn-neo-ttn-block-1",
+            "syn-lit-ttn-1",
+            "syn-neo-pna-block-2",
+            "syn-lit-gbs-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.051
+        },
+        {
+          "case_id": "neo-jaundice",
+          "label": "新生儿黄疸 · 35周+3天 · 生后72小时 · 总胆红素285 μmol/L",
+          "clinical_intent": "guideline_recommendation",
+          "english_coverage": true,
+          "rule": "guideline_recommendation_first",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-jaundice-block-1",
+            "syn-lit-jaundice-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-hypo-1",
+            "syn-neo-pphn-block-1",
+            "syn-neo-gbs-block-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-jaundice-block-1",
+            "syn-lit-jaundice-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-hypo-1",
+            "syn-neo-pphn-block-1",
+            "syn-neo-gbs-block-1"
+          ],
+          "active_ids": [
+            "syn-neo-jaundice-block-1",
+            "syn-lit-jaundice-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-hypo-1",
+            "syn-neo-pphn-block-1",
+            "syn-neo-gbs-block-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.077
+        },
+        {
+          "case_id": "neo-pphn",
+          "label": "PPHN · 39周+0天 · 胎粪吸入 · 生后12小时 · iNO",
+          "clinical_intent": "clinical_question",
+          "english_coverage": true,
+          "rule": "default_all_sources",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-pphn-block-1",
+            "syn-lit-pphn-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-1",
+            "syn-neo-ttn-block-1",
+            "syn-lit-rds-2"
+          ],
+          "shadow_ids": [
+            "syn-neo-pphn-block-1",
+            "syn-lit-pphn-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-1",
+            "syn-neo-ttn-block-1",
+            "syn-lit-rds-2"
+          ],
+          "active_ids": [
+            "syn-neo-pphn-block-1",
+            "syn-lit-pphn-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-1",
+            "syn-neo-ttn-block-1",
+            "syn-lit-rds-2"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.06
+        },
+        {
+          "case_id": "neo-bpd",
+          "label": "BPD · 28周+0天 · 经后年龄36周 · 仍需CPAP",
+          "clinical_intent": "guideline_recommendation",
+          "english_coverage": true,
+          "rule": "guideline_recommendation_first",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-bpd-block-1",
+            "syn-lit-bpd-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-cn-meta",
+            "syn-neo-rds-block-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-bpd-block-1",
+            "syn-lit-bpd-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-cn-meta",
+            "syn-neo-rds-block-1"
+          ],
+          "active_ids": [
+            "syn-neo-bpd-block-1",
+            "syn-lit-bpd-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-cn-meta",
+            "syn-neo-rds-block-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.056
+        },
+        {
+          "case_id": "neo-hypoglycemia",
+          "label": "低血糖 · 胎龄未记录 · 出生体重2100 g · 生后2小时血糖2.1 mmol/L",
+          "clinical_intent": "guideline_recommendation",
+          "english_coverage": true,
+          "rule": "guideline_recommendation_first",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-hypoglycemia-block-1",
+            "syn-lit-hypo-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-jaundice-1",
+            "syn-neo-gbs-block-1",
+            "syn-neo-jaundice-block-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-hypoglycemia-block-1",
+            "syn-lit-hypo-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-jaundice-1",
+            "syn-neo-gbs-block-1",
+            "syn-neo-jaundice-block-1"
+          ],
+          "active_ids": [
+            "syn-neo-hypoglycemia-block-1",
+            "syn-lit-hypo-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-jaundice-1",
+            "syn-neo-gbs-block-1",
+            "syn-neo-jaundice-block-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.057
+        },
+        {
+          "case_id": "neo-gbs",
+          "label": "母体GBS阳性 · 40周+2天 · 生后12小时 · 无症状",
+          "clinical_intent": "clinical_question",
+          "english_coverage": true,
+          "rule": "default_all_sources",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-gbs-block-1",
+            "syn-lit-gbs-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-hypo-1",
+            "syn-neo-ttn-block-1",
+            "syn-lit-pna-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-gbs-block-1",
+            "syn-lit-gbs-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-hypo-1",
+            "syn-neo-ttn-block-1",
+            "syn-lit-pna-1"
+          ],
+          "active_ids": [
+            "syn-neo-gbs-block-1",
+            "syn-lit-gbs-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-hypo-1",
+            "syn-neo-ttn-block-1",
+            "syn-lit-pna-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.06
+        },
+        {
+          "case_id": "neo-his-gen-001-hypoglycemia",
+          "label": "HIS生成 · 新生儿低血糖 · 生后2小时 · 血糖2.1 mmol/L · 胎龄未记录（as_of 2026-04-07）",
+          "clinical_intent": "guideline_recommendation",
+          "english_coverage": true,
+          "rule": "guideline_recommendation_first",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-hypoglycemia-block-1",
+            "syn-lit-hypo-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-jaundice-1",
+            "syn-neo-gbs-block-1",
+            "syn-neo-jaundice-block-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-hypoglycemia-block-1",
+            "syn-lit-hypo-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-jaundice-1",
+            "syn-neo-gbs-block-1",
+            "syn-neo-jaundice-block-1"
+          ],
+          "active_ids": [
+            "syn-neo-hypoglycemia-block-1",
+            "syn-lit-hypo-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-jaundice-1",
+            "syn-neo-gbs-block-1",
+            "syn-neo-jaundice-block-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.056
+        },
+        {
+          "case_id": "neo-his-gen-002-hypoglycemia",
+          "label": "HIS生成 · 新生儿低血糖 · 生后2小时 · 血糖2.1 mmol/L · 胎龄未记录（as_of 2026-04-28）",
+          "clinical_intent": "guideline_recommendation",
+          "english_coverage": true,
+          "rule": "guideline_recommendation_first",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-hypoglycemia-block-1",
+            "syn-lit-hypo-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-jaundice-1",
+            "syn-neo-gbs-block-1",
+            "syn-neo-jaundice-block-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-hypoglycemia-block-1",
+            "syn-lit-hypo-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-jaundice-1",
+            "syn-neo-gbs-block-1",
+            "syn-neo-jaundice-block-1"
+          ],
+          "active_ids": [
+            "syn-neo-hypoglycemia-block-1",
+            "syn-lit-hypo-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-jaundice-1",
+            "syn-neo-gbs-block-1",
+            "syn-neo-jaundice-block-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.057
+        },
+        {
+          "case_id": "neo-his-gen-003-gbs",
+          "label": "HIS生成 · GBS 暴露 · 40周+1天 · 生后14小时 · 母体GBS阳性 · 无症状 · 血培养待回报（as_of 2026-10-06）",
+          "clinical_intent": "clinical_question",
+          "english_coverage": true,
+          "rule": "default_all_sources",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-gbs-block-1",
+            "syn-lit-gbs-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-hypo-1",
+            "syn-neo-ttn-block-1",
+            "syn-lit-pna-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-gbs-block-1",
+            "syn-lit-gbs-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-hypo-1",
+            "syn-neo-ttn-block-1",
+            "syn-lit-pna-1"
+          ],
+          "active_ids": [
+            "syn-neo-gbs-block-1",
+            "syn-lit-gbs-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-hypo-1",
+            "syn-neo-ttn-block-1",
+            "syn-lit-pna-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.061
+        },
+        {
+          "case_id": "neo-his-gen-004-rds-severe",
+          "label": "HIS生成 · 重症 RDS · 27周+3天 · 生后2小时 · IMV FiO₂ 0.40（as_of 2026-04-29）",
+          "clinical_intent": "guideline_recommendation",
+          "english_coverage": true,
+          "rule": "guideline_recommendation_first",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "syn-neo-rds-block-2",
+            "syn-neo-ttn-block-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "syn-neo-rds-block-2",
+            "syn-neo-ttn-block-1"
+          ],
+          "active_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "syn-neo-rds-block-2",
+            "syn-neo-ttn-block-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.064
+        },
+        {
+          "case_id": "neo-his-gen-005-hypoglycemia",
+          "label": "HIS生成 · 新生儿低血糖 · 生后2小时 · 血糖2.1 mmol/L · 胎龄未记录（as_of 2026-04-15）",
+          "clinical_intent": "guideline_recommendation",
+          "english_coverage": true,
+          "rule": "guideline_recommendation_first",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-hypoglycemia-block-1",
+            "syn-lit-hypo-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-jaundice-1",
+            "syn-neo-gbs-block-1",
+            "syn-neo-jaundice-block-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-hypoglycemia-block-1",
+            "syn-lit-hypo-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-jaundice-1",
+            "syn-neo-gbs-block-1",
+            "syn-neo-jaundice-block-1"
+          ],
+          "active_ids": [
+            "syn-neo-hypoglycemia-block-1",
+            "syn-lit-hypo-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-jaundice-1",
+            "syn-neo-gbs-block-1",
+            "syn-neo-jaundice-block-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.055
+        },
+        {
+          "case_id": "neo-his-gen-006-hypoglycemia",
+          "label": "HIS生成 · 新生儿低血糖 · 生后2小时 · 血糖2.2 mmol/L · 胎龄未记录（as_of 2026-04-16）",
+          "clinical_intent": "guideline_recommendation",
+          "english_coverage": true,
+          "rule": "guideline_recommendation_first",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-hypoglycemia-block-1",
+            "syn-lit-hypo-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-jaundice-1",
+            "syn-neo-gbs-block-1",
+            "syn-neo-jaundice-block-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-hypoglycemia-block-1",
+            "syn-lit-hypo-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-jaundice-1",
+            "syn-neo-gbs-block-1",
+            "syn-neo-jaundice-block-1"
+          ],
+          "active_ids": [
+            "syn-neo-hypoglycemia-block-1",
+            "syn-lit-hypo-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-jaundice-1",
+            "syn-neo-gbs-block-1",
+            "syn-neo-jaundice-block-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.055
+        },
+        {
+          "case_id": "neo-his-gen-007-ttn",
+          "label": "HIS生成 · 暂时性呼吸增快 · 38周+2天 · 生后10小时 · 胸片叶间裂积液（as_of 2026-09-19）",
+          "clinical_intent": "clinical_question",
+          "english_coverage": true,
+          "rule": "default_all_sources",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-ttn-block-1",
+            "syn-lit-ttn-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-gbs-1",
+            "syn-neo-pna-block-2",
+            "syn-lit-rds-2"
+          ],
+          "shadow_ids": [
+            "syn-neo-ttn-block-1",
+            "syn-lit-ttn-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-gbs-1",
+            "syn-neo-pna-block-2",
+            "syn-lit-rds-2"
+          ],
+          "active_ids": [
+            "syn-neo-ttn-block-1",
+            "syn-lit-ttn-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-gbs-1",
+            "syn-neo-pna-block-2",
+            "syn-lit-rds-2"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.051
+        },
+        {
+          "case_id": "neo-his-gen-008-rds-severe",
+          "label": "HIS生成 · 重症 RDS · 27周+4天 · 生后2小时 · IMV FiO₂ 0.40（as_of 2026-05-16）",
+          "clinical_intent": "guideline_recommendation",
+          "english_coverage": true,
+          "rule": "guideline_recommendation_first",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-cn-meta",
+            "syn-lit-rds-2",
+            "guide-neo-rds-2025-meta",
+            "syn-neo-rds-block-2"
+          ],
+          "shadow_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-cn-meta",
+            "syn-lit-rds-2",
+            "guide-neo-rds-2025-meta",
+            "syn-neo-rds-block-2"
+          ],
+          "active_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-cn-meta",
+            "syn-lit-rds-2",
+            "guide-neo-rds-2025-meta",
+            "syn-neo-rds-block-2"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.067
+        },
+        {
+          "case_id": "neo-his-gen-009-hypoglycemia",
+          "label": "HIS生成 · 新生儿低血糖 · 生后2小时 · 血糖2 mmol/L · 胎龄未记录（as_of 2026-05-02）",
+          "clinical_intent": "guideline_recommendation",
+          "english_coverage": true,
+          "rule": "guideline_recommendation_first",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-hypoglycemia-block-1",
+            "syn-lit-hypo-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-jaundice-1",
+            "syn-neo-gbs-block-1",
+            "syn-neo-jaundice-block-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-hypoglycemia-block-1",
+            "syn-lit-hypo-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-jaundice-1",
+            "syn-neo-gbs-block-1",
+            "syn-neo-jaundice-block-1"
+          ],
+          "active_ids": [
+            "syn-neo-hypoglycemia-block-1",
+            "syn-lit-hypo-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-jaundice-1",
+            "syn-neo-gbs-block-1",
+            "syn-neo-jaundice-block-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.058
+        },
+        {
+          "case_id": "neo-his-gen-010-hypoglycemia",
+          "label": "HIS生成 · 新生儿低血糖 · 生后2小时 · 血糖2.1 mmol/L · 胎龄未记录（as_of 2026-04-16）",
+          "clinical_intent": "guideline_recommendation",
+          "english_coverage": true,
+          "rule": "guideline_recommendation_first",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-hypoglycemia-block-1",
+            "syn-lit-hypo-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-jaundice-1",
+            "syn-neo-gbs-block-1",
+            "syn-neo-jaundice-block-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-hypoglycemia-block-1",
+            "syn-lit-hypo-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-jaundice-1",
+            "syn-neo-gbs-block-1",
+            "syn-neo-jaundice-block-1"
+          ],
+          "active_ids": [
+            "syn-neo-hypoglycemia-block-1",
+            "syn-lit-hypo-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-jaundice-1",
+            "syn-neo-gbs-block-1",
+            "syn-neo-jaundice-block-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.056
+        },
+        {
+          "case_id": "neo-his-gen-011-rds",
+          "label": "HIS生成 · RDS · 30周+2天 · 生后4小时 · CPAP FiO₂ 0.30（as_of 2026-03-15）",
+          "clinical_intent": "guideline_recommendation",
+          "english_coverage": true,
+          "rule": "guideline_recommendation_first",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "syn-neo-rds-block-2",
+            "syn-neo-ttn-block-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "syn-neo-rds-block-2",
+            "syn-neo-ttn-block-1"
+          ],
+          "active_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "syn-neo-rds-block-2",
+            "syn-neo-ttn-block-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.064
+        },
+        {
+          "case_id": "neo-his-gen-012-gbs",
+          "label": "HIS生成 · GBS 暴露 · 40周+3天 · 生后13小时 · 母体GBS阳性 · 无症状 · 血培养待回报（as_of 2026-10-09）",
+          "clinical_intent": "clinical_question",
+          "english_coverage": true,
+          "rule": "default_all_sources",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-gbs-block-1",
+            "syn-lit-gbs-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-hypo-1",
+            "syn-neo-ttn-block-1",
+            "syn-lit-pna-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-gbs-block-1",
+            "syn-lit-gbs-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-hypo-1",
+            "syn-neo-ttn-block-1",
+            "syn-lit-pna-1"
+          ],
+          "active_ids": [
+            "syn-neo-gbs-block-1",
+            "syn-lit-gbs-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-hypo-1",
+            "syn-neo-ttn-block-1",
+            "syn-lit-pna-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.062
+        },
+        {
+          "case_id": "neo-his-gen-013-apnea",
+          "label": "HIS生成 · 早产儿呼吸暂停 · 30周+6天 · 生后47小时 · 反复呼吸暂停（as_of 2026-11-23）",
+          "clinical_intent": "guideline_recommendation",
+          "english_coverage": true,
+          "rule": "guideline_recommendation_first",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "guide-neo-rds-2025-cn-meta",
+            "syn-lit-rds-1",
+            "syn-neo-ttn-block-1",
+            "syn-neo-rds-block-1"
+          ],
+          "shadow_ids": [
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "guide-neo-rds-2025-cn-meta",
+            "syn-lit-rds-1",
+            "syn-neo-ttn-block-1",
+            "syn-neo-rds-block-1"
+          ],
+          "active_ids": [
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "guide-neo-rds-2025-cn-meta",
+            "syn-lit-rds-1",
+            "syn-neo-ttn-block-1",
+            "syn-neo-rds-block-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.058
+        },
+        {
+          "case_id": "neo-his-gen-014-rds-severe",
+          "label": "HIS生成 · 重症 RDS · 28周+0天 · 生后2小时 · IMV FiO₂ 0.40（as_of 2026-04-29）",
+          "clinical_intent": "guideline_recommendation",
+          "english_coverage": true,
+          "rule": "guideline_recommendation_first",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "syn-neo-rds-block-2",
+            "syn-neo-ttn-block-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "syn-neo-rds-block-2",
+            "syn-neo-ttn-block-1"
+          ],
+          "active_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "syn-neo-rds-block-2",
+            "syn-neo-ttn-block-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.065
+        },
+        {
+          "case_id": "neo-his-gen-015-rds-severe",
+          "label": "HIS生成 · 重症 RDS · 27周+3天 · 生后2小时 · IMV FiO₂ 0.40（as_of 2026-04-24）",
+          "clinical_intent": "guideline_recommendation",
+          "english_coverage": true,
+          "rule": "guideline_recommendation_first",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "syn-neo-rds-block-2",
+            "syn-neo-ttn-block-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "syn-neo-rds-block-2",
+            "syn-neo-ttn-block-1"
+          ],
+          "active_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "syn-neo-rds-block-2",
+            "syn-neo-ttn-block-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.066
+        },
+        {
+          "case_id": "neo-his-gen-016-jaundice",
+          "label": "HIS生成 · 新生儿黄疸 · 35周+3天 · 生后3天 · 总胆红素278 μmol/L · 光疗（as_of 2026-07-29）",
+          "clinical_intent": "guideline_recommendation",
+          "english_coverage": true,
+          "rule": "guideline_recommendation_first",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-jaundice-block-1",
+            "syn-lit-jaundice-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-hypo-1",
+            "syn-neo-pphn-block-1",
+            "syn-neo-gbs-block-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-jaundice-block-1",
+            "syn-lit-jaundice-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-hypo-1",
+            "syn-neo-pphn-block-1",
+            "syn-neo-gbs-block-1"
+          ],
+          "active_ids": [
+            "syn-neo-jaundice-block-1",
+            "syn-lit-jaundice-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-hypo-1",
+            "syn-neo-pphn-block-1",
+            "syn-neo-gbs-block-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.055
+        },
+        {
+          "case_id": "neo-his-gen-017-rds-retro",
+          "label": "HIS生成 · RDS 回顾时点 · 30周+2天 · 生后8小时 · 早于 RDS 2025 发表（as_of 2026-02-25）",
+          "clinical_intent": "guideline_recommendation",
+          "english_coverage": true,
+          "rule": "guideline_recommendation_first",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "syn-neo-rds-block-2",
+            "syn-lit-rds-2",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-neo-ttn-block-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "syn-neo-rds-block-2",
+            "syn-lit-rds-2",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-neo-ttn-block-1"
+          ],
+          "active_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "syn-neo-rds-block-2",
+            "syn-lit-rds-2",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-neo-ttn-block-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.061
+        },
+        {
+          "case_id": "neo-his-gen-018-jaundice",
+          "label": "HIS生成 · 新生儿黄疸 · 35周+1天 · 生后2天 · 总胆红素280 μmol/L · 光疗（as_of 2026-07-30）",
+          "clinical_intent": "guideline_recommendation",
+          "english_coverage": true,
+          "rule": "guideline_recommendation_first",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-jaundice-block-1",
+            "syn-lit-jaundice-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-hypo-1",
+            "syn-neo-pphn-block-1",
+            "syn-neo-gbs-block-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-jaundice-block-1",
+            "syn-lit-jaundice-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-hypo-1",
+            "syn-neo-pphn-block-1",
+            "syn-neo-gbs-block-1"
+          ],
+          "active_ids": [
+            "syn-neo-jaundice-block-1",
+            "syn-lit-jaundice-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-hypo-1",
+            "syn-neo-pphn-block-1",
+            "syn-neo-gbs-block-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.055
+        },
+        {
+          "case_id": "neo-his-gen-019-rds",
+          "label": "HIS生成 · RDS · 30周+4天 · 生后8小时 · CPAP FiO₂ 0.30（as_of 2026-04-07）",
+          "clinical_intent": "guideline_recommendation",
+          "english_coverage": true,
+          "rule": "guideline_recommendation_first",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "syn-neo-rds-block-2",
+            "syn-neo-ttn-block-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "syn-neo-rds-block-2",
+            "syn-neo-ttn-block-1"
+          ],
+          "active_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "syn-neo-rds-block-2",
+            "syn-neo-ttn-block-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.065
+        },
+        {
+          "case_id": "neo-his-gen-020-ttn",
+          "label": "HIS生成 · 暂时性呼吸增快 · 38周+6天 · 生后7小时 · 胸片叶间裂积液（as_of 2026-08-22）",
+          "clinical_intent": "clinical_question",
+          "english_coverage": true,
+          "rule": "default_all_sources",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-ttn-block-1",
+            "syn-lit-ttn-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-gbs-1",
+            "syn-neo-pna-block-2",
+            "syn-lit-rds-2"
+          ],
+          "shadow_ids": [
+            "syn-neo-ttn-block-1",
+            "syn-lit-ttn-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-gbs-1",
+            "syn-neo-pna-block-2",
+            "syn-lit-rds-2"
+          ],
+          "active_ids": [
+            "syn-neo-ttn-block-1",
+            "syn-lit-ttn-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-gbs-1",
+            "syn-neo-pna-block-2",
+            "syn-lit-rds-2"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.052
+        },
+        {
+          "case_id": "neo-his-gen-021-pneumonia",
+          "label": "HIS生成 · 感染性肺炎 · 39周+3天 · 生后37小时 · 发热38.7℃ · 血培养待回报（as_of 2026-10-01）",
+          "clinical_intent": "guideline_recommendation",
+          "english_coverage": true,
+          "rule": "guideline_recommendation_first",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-pna-block-1",
+            "syn-lit-pna-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-hypo-1",
+            "syn-neo-pna-block-2",
+            "syn-neo-gbs-block-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-pna-block-1",
+            "syn-lit-pna-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-hypo-1",
+            "syn-neo-pna-block-2",
+            "syn-neo-gbs-block-1"
+          ],
+          "active_ids": [
+            "syn-neo-pna-block-1",
+            "syn-lit-pna-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-hypo-1",
+            "syn-neo-pna-block-2",
+            "syn-neo-gbs-block-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.06
+        },
+        {
+          "case_id": "neo-his-gen-022-rds-retro",
+          "label": "HIS生成 · RDS 回顾时点 · 30周+2天 · 生后5小时 · 早于 RDS 2025 发表（as_of 2026-02-25）",
+          "clinical_intent": "guideline_recommendation",
+          "english_coverage": true,
+          "rule": "guideline_recommendation_first",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "syn-neo-rds-block-2",
+            "syn-lit-rds-2",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-neo-ttn-block-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "syn-neo-rds-block-2",
+            "syn-lit-rds-2",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-neo-ttn-block-1"
+          ],
+          "active_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "syn-neo-rds-block-2",
+            "syn-lit-rds-2",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-neo-ttn-block-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.061
+        },
+        {
+          "case_id": "neo-his-gen-023-jaundice",
+          "label": "HIS生成 · 新生儿黄疸 · 35周+2天 · 生后2天 · 总胆红素288 μmol/L · 光疗（as_of 2026-08-04）",
+          "clinical_intent": "guideline_recommendation",
+          "english_coverage": true,
+          "rule": "guideline_recommendation_first",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-jaundice-block-1",
+            "syn-lit-jaundice-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-hypo-1",
+            "syn-neo-pphn-block-1",
+            "syn-neo-gbs-block-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-jaundice-block-1",
+            "syn-lit-jaundice-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-hypo-1",
+            "syn-neo-pphn-block-1",
+            "syn-neo-gbs-block-1"
+          ],
+          "active_ids": [
+            "syn-neo-jaundice-block-1",
+            "syn-lit-jaundice-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-hypo-1",
+            "syn-neo-pphn-block-1",
+            "syn-neo-gbs-block-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.057
+        },
+        {
+          "case_id": "neo-his-gen-024-rds",
+          "label": "HIS生成 · RDS · 30周+4天 · 生后5小时 · CPAP FiO₂ 0.30（as_of 2026-04-08）",
+          "clinical_intent": "guideline_recommendation",
+          "english_coverage": true,
+          "rule": "guideline_recommendation_first",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "syn-neo-rds-block-2",
+            "syn-neo-ttn-block-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "syn-neo-rds-block-2",
+            "syn-neo-ttn-block-1"
+          ],
+          "active_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "syn-neo-rds-block-2",
+            "syn-neo-ttn-block-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.064
+        },
+        {
+          "case_id": "neo-his-gen-025-pphn",
+          "label": "HIS生成 · PPHN · 39周+2天 · 生后13小时 · iNO 20 ppm · 导管前后 SpO₂ 差异（as_of 2026-06-24）",
+          "clinical_intent": "clinical_question",
+          "english_coverage": true,
+          "rule": "default_all_sources",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-pphn-block-1",
+            "syn-lit-pphn-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-1",
+            "syn-neo-ttn-block-1",
+            "syn-lit-rds-2"
+          ],
+          "shadow_ids": [
+            "syn-neo-pphn-block-1",
+            "syn-lit-pphn-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-1",
+            "syn-neo-ttn-block-1",
+            "syn-lit-rds-2"
+          ],
+          "active_ids": [
+            "syn-neo-pphn-block-1",
+            "syn-lit-pphn-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-1",
+            "syn-neo-ttn-block-1",
+            "syn-lit-rds-2"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.063
+        },
+        {
+          "case_id": "neo-his-gen-026-ttn",
+          "label": "HIS生成 · 暂时性呼吸增快 · 38周+3天 · 生后6小时 · 胸片叶间裂积液（as_of 2026-09-02）",
+          "clinical_intent": "clinical_question",
+          "english_coverage": true,
+          "rule": "default_all_sources",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-ttn-block-1",
+            "syn-lit-ttn-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-gbs-1",
+            "syn-neo-pna-block-2",
+            "syn-lit-rds-2"
+          ],
+          "shadow_ids": [
+            "syn-neo-ttn-block-1",
+            "syn-lit-ttn-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-gbs-1",
+            "syn-neo-pna-block-2",
+            "syn-lit-rds-2"
+          ],
+          "active_ids": [
+            "syn-neo-ttn-block-1",
+            "syn-lit-ttn-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-gbs-1",
+            "syn-neo-pna-block-2",
+            "syn-lit-rds-2"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.051
+        },
+        {
+          "case_id": "neo-his-gen-027-rds",
+          "label": "HIS生成 · RDS · 30周+0天 · 生后6小时 · CPAP FiO₂ 0.30（as_of 2026-04-06）",
+          "clinical_intent": "guideline_recommendation",
+          "english_coverage": true,
+          "rule": "guideline_recommendation_first",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "syn-neo-rds-block-2",
+            "syn-neo-ttn-block-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "syn-neo-rds-block-2",
+            "syn-neo-ttn-block-1"
+          ],
+          "active_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "syn-neo-rds-block-2",
+            "syn-neo-ttn-block-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.064
+        },
+        {
+          "case_id": "neo-his-gen-028-bpd",
+          "label": "HIS生成 · BPD · 27周+6天 · 生后55天（约8周） · 经后年龄36周 · 仍需CPAP（as_of 2026-06-05）",
+          "clinical_intent": "guideline_recommendation",
+          "english_coverage": true,
+          "rule": "guideline_recommendation_first",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-bpd-block-1",
+            "syn-lit-bpd-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-cn-meta",
+            "syn-neo-rds-block-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-bpd-block-1",
+            "syn-lit-bpd-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-cn-meta",
+            "syn-neo-rds-block-1"
+          ],
+          "active_ids": [
+            "syn-neo-bpd-block-1",
+            "syn-lit-bpd-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-cn-meta",
+            "syn-neo-rds-block-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.059
+        },
+        {
+          "case_id": "neo-his-gen-029-gbs",
+          "label": "HIS生成 · GBS 暴露 · 40周+0天 · 生后12小时 · 母体GBS阳性 · 无症状 · 血培养待回报（as_of 2026-10-17）",
+          "clinical_intent": "clinical_question",
+          "english_coverage": true,
+          "rule": "default_all_sources",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-gbs-block-1",
+            "syn-lit-gbs-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-hypo-1",
+            "syn-neo-ttn-block-1",
+            "syn-lit-pna-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-gbs-block-1",
+            "syn-lit-gbs-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-hypo-1",
+            "syn-neo-ttn-block-1",
+            "syn-lit-pna-1"
+          ],
+          "active_ids": [
+            "syn-neo-gbs-block-1",
+            "syn-lit-gbs-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-hypo-1",
+            "syn-neo-ttn-block-1",
+            "syn-lit-pna-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.062
+        },
+        {
+          "case_id": "neo-his-gen-030-rds-severe",
+          "label": "HIS生成 · 重症 RDS · 27周+3天 · 生后2小时 · IMV FiO₂ 0.40（as_of 2026-04-26）",
+          "clinical_intent": "guideline_recommendation",
+          "english_coverage": true,
+          "rule": "guideline_recommendation_first",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "syn-neo-rds-block-2",
+            "syn-neo-ttn-block-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "syn-neo-rds-block-2",
+            "syn-neo-ttn-block-1"
+          ],
+          "active_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "syn-neo-rds-block-2",
+            "syn-neo-ttn-block-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.065
+        }
+      ]
+    },
+    "with_mapping_library": {
+      "summary": {
+        "n_cases": 39,
+        "rules": {
+          "guideline_recommendation_first": 29,
+          "default_all_sources": 10
+        },
+        "intents": {
+          "guideline_recommendation": 29,
+          "clinical_question": 10
+        },
+        "english_coverage": {
+          "True": 39
+        },
+        "pubmed_dropped_cases": 0,
+        "shadow_same_as_off": 39,
+        "active_same_as_off": 39,
+        "active_changed_case_ids": [],
+        "total_elapsed_s": 2.77
+      },
+      "rows": [
+        {
+          "case_id": "neo-rds",
+          "label": "RDS · 30周+2天 · 生后6小时 · CPAP FiO₂ 0.30（as_of 2026-03-10，RDS 2025版已发表）",
+          "clinical_intent": "guideline_recommendation",
+          "english_coverage": true,
+          "rule": "guideline_recommendation_first",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "syn-neo-rds-block-2",
+            "syn-neo-ttn-block-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "syn-neo-rds-block-2",
+            "syn-neo-ttn-block-1"
+          ],
+          "active_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "syn-neo-rds-block-2",
+            "syn-neo-ttn-block-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.071
+        },
+        {
+          "case_id": "neo-rds-retro",
+          "label": "RDS 回顾时点 · 同一病例结构 · as_of 2026-02-25（早于 RDS 2025版 2026-03-09 发表）",
+          "clinical_intent": "guideline_recommendation",
+          "english_coverage": true,
+          "rule": "guideline_recommendation_first",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "syn-neo-rds-block-2",
+            "syn-lit-rds-2",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-neo-ttn-block-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "syn-neo-rds-block-2",
+            "syn-lit-rds-2",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-neo-ttn-block-1"
+          ],
+          "active_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "syn-neo-rds-block-2",
+            "syn-lit-rds-2",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-neo-ttn-block-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.069
+        },
+        {
+          "case_id": "neo-pneumonia",
+          "label": "感染性肺炎 · 39周+1天 · 生后36小时 · 发热38.9℃ · 血培养待回报",
+          "clinical_intent": "guideline_recommendation",
+          "english_coverage": true,
+          "rule": "guideline_recommendation_first",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-pna-block-1",
+            "syn-lit-pna-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-jaundice-1",
+            "syn-neo-pna-block-2",
+            "syn-neo-gbs-block-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-pna-block-1",
+            "syn-lit-pna-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-jaundice-1",
+            "syn-neo-pna-block-2",
+            "syn-neo-gbs-block-1"
+          ],
+          "active_ids": [
+            "syn-neo-pna-block-1",
+            "syn-lit-pna-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-jaundice-1",
+            "syn-neo-pna-block-2",
+            "syn-neo-gbs-block-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.08
+        },
+        {
+          "case_id": "neo-ttn",
+          "label": "暂时性呼吸增快 · 38周+4天 · 生后8小时 · 胸片叶间裂积液",
+          "clinical_intent": "clinical_question",
+          "english_coverage": true,
+          "rule": "default_all_sources",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-ttn-block-1",
+            "syn-lit-ttn-1",
+            "syn-neo-pna-block-2",
+            "syn-lit-gbs-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2"
+          ],
+          "shadow_ids": [
+            "syn-neo-ttn-block-1",
+            "syn-lit-ttn-1",
+            "syn-neo-pna-block-2",
+            "syn-lit-gbs-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2"
+          ],
+          "active_ids": [
+            "syn-neo-ttn-block-1",
+            "syn-lit-ttn-1",
+            "syn-neo-pna-block-2",
+            "syn-lit-gbs-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.054
+        },
+        {
+          "case_id": "neo-jaundice",
+          "label": "新生儿黄疸 · 35周+3天 · 生后72小时 · 总胆红素285 μmol/L",
+          "clinical_intent": "guideline_recommendation",
+          "english_coverage": true,
+          "rule": "guideline_recommendation_first",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-jaundice-block-1",
+            "syn-lit-jaundice-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-hypo-1",
+            "syn-neo-pphn-block-1",
+            "syn-neo-rds-block-2"
+          ],
+          "shadow_ids": [
+            "syn-neo-jaundice-block-1",
+            "syn-lit-jaundice-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-hypo-1",
+            "syn-neo-pphn-block-1",
+            "syn-neo-rds-block-2"
+          ],
+          "active_ids": [
+            "syn-neo-jaundice-block-1",
+            "syn-lit-jaundice-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-hypo-1",
+            "syn-neo-pphn-block-1",
+            "syn-neo-rds-block-2"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.108
+        },
+        {
+          "case_id": "neo-pphn",
+          "label": "PPHN · 39周+0天 · 胎粪吸入 · 生后12小时 · iNO",
+          "clinical_intent": "clinical_question",
+          "english_coverage": true,
+          "rule": "default_all_sources",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-pphn-block-1",
+            "syn-lit-pphn-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-1",
+            "syn-neo-ttn-block-1",
+            "syn-lit-rds-2"
+          ],
+          "shadow_ids": [
+            "syn-neo-pphn-block-1",
+            "syn-lit-pphn-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-1",
+            "syn-neo-ttn-block-1",
+            "syn-lit-rds-2"
+          ],
+          "active_ids": [
+            "syn-neo-pphn-block-1",
+            "syn-lit-pphn-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-1",
+            "syn-neo-ttn-block-1",
+            "syn-lit-rds-2"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.078
+        },
+        {
+          "case_id": "neo-bpd",
+          "label": "BPD · 28周+0天 · 经后年龄36周 · 仍需CPAP",
+          "clinical_intent": "guideline_recommendation",
+          "english_coverage": true,
+          "rule": "guideline_recommendation_first",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-bpd-block-1",
+            "syn-lit-bpd-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-cn-meta",
+            "syn-neo-rds-block-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-bpd-block-1",
+            "syn-lit-bpd-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-cn-meta",
+            "syn-neo-rds-block-1"
+          ],
+          "active_ids": [
+            "syn-neo-bpd-block-1",
+            "syn-lit-bpd-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-cn-meta",
+            "syn-neo-rds-block-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.064
+        },
+        {
+          "case_id": "neo-hypoglycemia",
+          "label": "低血糖 · 胎龄未记录 · 出生体重2100 g · 生后2小时血糖2.1 mmol/L",
+          "clinical_intent": "guideline_recommendation",
+          "english_coverage": true,
+          "rule": "guideline_recommendation_first",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-hypoglycemia-block-1",
+            "syn-lit-hypo-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-jaundice-1",
+            "syn-neo-gbs-block-1",
+            "syn-neo-jaundice-block-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-hypoglycemia-block-1",
+            "syn-lit-hypo-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-jaundice-1",
+            "syn-neo-gbs-block-1",
+            "syn-neo-jaundice-block-1"
+          ],
+          "active_ids": [
+            "syn-neo-hypoglycemia-block-1",
+            "syn-lit-hypo-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-jaundice-1",
+            "syn-neo-gbs-block-1",
+            "syn-neo-jaundice-block-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.062
+        },
+        {
+          "case_id": "neo-gbs",
+          "label": "母体GBS阳性 · 40周+2天 · 生后12小时 · 无症状",
+          "clinical_intent": "clinical_question",
+          "english_coverage": true,
+          "rule": "default_all_sources",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-gbs-block-1",
+            "syn-lit-gbs-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-hypo-1",
+            "syn-neo-ttn-block-1",
+            "syn-lit-pna-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-gbs-block-1",
+            "syn-lit-gbs-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-hypo-1",
+            "syn-neo-ttn-block-1",
+            "syn-lit-pna-1"
+          ],
+          "active_ids": [
+            "syn-neo-gbs-block-1",
+            "syn-lit-gbs-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-hypo-1",
+            "syn-neo-ttn-block-1",
+            "syn-lit-pna-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.079
+        },
+        {
+          "case_id": "neo-his-gen-001-hypoglycemia",
+          "label": "HIS生成 · 新生儿低血糖 · 生后2小时 · 血糖2.1 mmol/L · 胎龄未记录（as_of 2026-04-07）",
+          "clinical_intent": "guideline_recommendation",
+          "english_coverage": true,
+          "rule": "guideline_recommendation_first",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-hypoglycemia-block-1",
+            "syn-lit-hypo-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-jaundice-1",
+            "syn-neo-gbs-block-1",
+            "syn-neo-jaundice-block-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-hypoglycemia-block-1",
+            "syn-lit-hypo-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-jaundice-1",
+            "syn-neo-gbs-block-1",
+            "syn-neo-jaundice-block-1"
+          ],
+          "active_ids": [
+            "syn-neo-hypoglycemia-block-1",
+            "syn-lit-hypo-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-jaundice-1",
+            "syn-neo-gbs-block-1",
+            "syn-neo-jaundice-block-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.063
+        },
+        {
+          "case_id": "neo-his-gen-002-hypoglycemia",
+          "label": "HIS生成 · 新生儿低血糖 · 生后2小时 · 血糖2.1 mmol/L · 胎龄未记录（as_of 2026-04-28）",
+          "clinical_intent": "guideline_recommendation",
+          "english_coverage": true,
+          "rule": "guideline_recommendation_first",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-hypoglycemia-block-1",
+            "syn-lit-hypo-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-jaundice-1",
+            "syn-neo-gbs-block-1",
+            "syn-neo-jaundice-block-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-hypoglycemia-block-1",
+            "syn-lit-hypo-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-jaundice-1",
+            "syn-neo-gbs-block-1",
+            "syn-neo-jaundice-block-1"
+          ],
+          "active_ids": [
+            "syn-neo-hypoglycemia-block-1",
+            "syn-lit-hypo-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-jaundice-1",
+            "syn-neo-gbs-block-1",
+            "syn-neo-jaundice-block-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.062
+        },
+        {
+          "case_id": "neo-his-gen-003-gbs",
+          "label": "HIS生成 · GBS 暴露 · 40周+1天 · 生后14小时 · 母体GBS阳性 · 无症状 · 血培养待回报（as_of 2026-10-06）",
+          "clinical_intent": "clinical_question",
+          "english_coverage": true,
+          "rule": "default_all_sources",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-gbs-block-1",
+            "syn-lit-gbs-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-hypo-1",
+            "syn-neo-ttn-block-1",
+            "syn-lit-pna-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-gbs-block-1",
+            "syn-lit-gbs-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-hypo-1",
+            "syn-neo-ttn-block-1",
+            "syn-lit-pna-1"
+          ],
+          "active_ids": [
+            "syn-neo-gbs-block-1",
+            "syn-lit-gbs-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-hypo-1",
+            "syn-neo-ttn-block-1",
+            "syn-lit-pna-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.08
+        },
+        {
+          "case_id": "neo-his-gen-004-rds-severe",
+          "label": "HIS生成 · 重症 RDS · 27周+3天 · 生后2小时 · IMV FiO₂ 0.40（as_of 2026-04-29）",
+          "clinical_intent": "guideline_recommendation",
+          "english_coverage": true,
+          "rule": "guideline_recommendation_first",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "syn-neo-rds-block-2",
+            "syn-neo-ttn-block-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "syn-neo-rds-block-2",
+            "syn-neo-ttn-block-1"
+          ],
+          "active_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "syn-neo-rds-block-2",
+            "syn-neo-ttn-block-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.072
+        },
+        {
+          "case_id": "neo-his-gen-005-hypoglycemia",
+          "label": "HIS生成 · 新生儿低血糖 · 生后2小时 · 血糖2.1 mmol/L · 胎龄未记录（as_of 2026-04-15）",
+          "clinical_intent": "guideline_recommendation",
+          "english_coverage": true,
+          "rule": "guideline_recommendation_first",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-hypoglycemia-block-1",
+            "syn-lit-hypo-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-jaundice-1",
+            "syn-neo-gbs-block-1",
+            "syn-neo-jaundice-block-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-hypoglycemia-block-1",
+            "syn-lit-hypo-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-jaundice-1",
+            "syn-neo-gbs-block-1",
+            "syn-neo-jaundice-block-1"
+          ],
+          "active_ids": [
+            "syn-neo-hypoglycemia-block-1",
+            "syn-lit-hypo-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-jaundice-1",
+            "syn-neo-gbs-block-1",
+            "syn-neo-jaundice-block-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.062
+        },
+        {
+          "case_id": "neo-his-gen-006-hypoglycemia",
+          "label": "HIS生成 · 新生儿低血糖 · 生后2小时 · 血糖2.2 mmol/L · 胎龄未记录（as_of 2026-04-16）",
+          "clinical_intent": "guideline_recommendation",
+          "english_coverage": true,
+          "rule": "guideline_recommendation_first",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-hypoglycemia-block-1",
+            "syn-lit-hypo-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-jaundice-1",
+            "syn-neo-gbs-block-1",
+            "syn-neo-jaundice-block-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-hypoglycemia-block-1",
+            "syn-lit-hypo-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-jaundice-1",
+            "syn-neo-gbs-block-1",
+            "syn-neo-jaundice-block-1"
+          ],
+          "active_ids": [
+            "syn-neo-hypoglycemia-block-1",
+            "syn-lit-hypo-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-jaundice-1",
+            "syn-neo-gbs-block-1",
+            "syn-neo-jaundice-block-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.062
+        },
+        {
+          "case_id": "neo-his-gen-007-ttn",
+          "label": "HIS生成 · 暂时性呼吸增快 · 38周+2天 · 生后10小时 · 胸片叶间裂积液（as_of 2026-09-19）",
+          "clinical_intent": "clinical_question",
+          "english_coverage": true,
+          "rule": "default_all_sources",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-ttn-block-1",
+            "syn-lit-ttn-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-gbs-1",
+            "syn-neo-pna-block-2",
+            "syn-lit-rds-2"
+          ],
+          "shadow_ids": [
+            "syn-neo-ttn-block-1",
+            "syn-lit-ttn-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-gbs-1",
+            "syn-neo-pna-block-2",
+            "syn-lit-rds-2"
+          ],
+          "active_ids": [
+            "syn-neo-ttn-block-1",
+            "syn-lit-ttn-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-gbs-1",
+            "syn-neo-pna-block-2",
+            "syn-lit-rds-2"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.055
+        },
+        {
+          "case_id": "neo-his-gen-008-rds-severe",
+          "label": "HIS生成 · 重症 RDS · 27周+4天 · 生后2小时 · IMV FiO₂ 0.40（as_of 2026-05-16）",
+          "clinical_intent": "guideline_recommendation",
+          "english_coverage": true,
+          "rule": "guideline_recommendation_first",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-cn-meta",
+            "syn-lit-rds-2",
+            "guide-neo-rds-2025-meta",
+            "syn-neo-rds-block-2"
+          ],
+          "shadow_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-cn-meta",
+            "syn-lit-rds-2",
+            "guide-neo-rds-2025-meta",
+            "syn-neo-rds-block-2"
+          ],
+          "active_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-cn-meta",
+            "syn-lit-rds-2",
+            "guide-neo-rds-2025-meta",
+            "syn-neo-rds-block-2"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.078
+        },
+        {
+          "case_id": "neo-his-gen-009-hypoglycemia",
+          "label": "HIS生成 · 新生儿低血糖 · 生后2小时 · 血糖2 mmol/L · 胎龄未记录（as_of 2026-05-02）",
+          "clinical_intent": "guideline_recommendation",
+          "english_coverage": true,
+          "rule": "guideline_recommendation_first",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-hypoglycemia-block-1",
+            "syn-lit-hypo-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-jaundice-1",
+            "syn-neo-gbs-block-1",
+            "syn-neo-jaundice-block-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-hypoglycemia-block-1",
+            "syn-lit-hypo-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-jaundice-1",
+            "syn-neo-gbs-block-1",
+            "syn-neo-jaundice-block-1"
+          ],
+          "active_ids": [
+            "syn-neo-hypoglycemia-block-1",
+            "syn-lit-hypo-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-jaundice-1",
+            "syn-neo-gbs-block-1",
+            "syn-neo-jaundice-block-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.066
+        },
+        {
+          "case_id": "neo-his-gen-010-hypoglycemia",
+          "label": "HIS生成 · 新生儿低血糖 · 生后2小时 · 血糖2.1 mmol/L · 胎龄未记录（as_of 2026-04-16）",
+          "clinical_intent": "guideline_recommendation",
+          "english_coverage": true,
+          "rule": "guideline_recommendation_first",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-hypoglycemia-block-1",
+            "syn-lit-hypo-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-jaundice-1",
+            "syn-neo-gbs-block-1",
+            "syn-neo-jaundice-block-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-hypoglycemia-block-1",
+            "syn-lit-hypo-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-jaundice-1",
+            "syn-neo-gbs-block-1",
+            "syn-neo-jaundice-block-1"
+          ],
+          "active_ids": [
+            "syn-neo-hypoglycemia-block-1",
+            "syn-lit-hypo-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-jaundice-1",
+            "syn-neo-gbs-block-1",
+            "syn-neo-jaundice-block-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.064
+        },
+        {
+          "case_id": "neo-his-gen-011-rds",
+          "label": "HIS生成 · RDS · 30周+2天 · 生后4小时 · CPAP FiO₂ 0.30（as_of 2026-03-15）",
+          "clinical_intent": "guideline_recommendation",
+          "english_coverage": true,
+          "rule": "guideline_recommendation_first",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "syn-neo-rds-block-2",
+            "syn-neo-ttn-block-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "syn-neo-rds-block-2",
+            "syn-neo-ttn-block-1"
+          ],
+          "active_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "syn-neo-rds-block-2",
+            "syn-neo-ttn-block-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.073
+        },
+        {
+          "case_id": "neo-his-gen-012-gbs",
+          "label": "HIS生成 · GBS 暴露 · 40周+3天 · 生后13小时 · 母体GBS阳性 · 无症状 · 血培养待回报（as_of 2026-10-09）",
+          "clinical_intent": "clinical_question",
+          "english_coverage": true,
+          "rule": "default_all_sources",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-gbs-block-1",
+            "syn-lit-gbs-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-hypo-1",
+            "syn-neo-ttn-block-1",
+            "syn-lit-pna-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-gbs-block-1",
+            "syn-lit-gbs-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-hypo-1",
+            "syn-neo-ttn-block-1",
+            "syn-lit-pna-1"
+          ],
+          "active_ids": [
+            "syn-neo-gbs-block-1",
+            "syn-lit-gbs-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-hypo-1",
+            "syn-neo-ttn-block-1",
+            "syn-lit-pna-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.08
+        },
+        {
+          "case_id": "neo-his-gen-013-apnea",
+          "label": "HIS生成 · 早产儿呼吸暂停 · 30周+6天 · 生后47小时 · 反复呼吸暂停（as_of 2026-11-23）",
+          "clinical_intent": "guideline_recommendation",
+          "english_coverage": true,
+          "rule": "guideline_recommendation_first",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "guide-neo-rds-2025-cn-meta",
+            "syn-lit-hypo-1",
+            "syn-neo-ttn-block-1",
+            "syn-neo-jaundice-block-1"
+          ],
+          "shadow_ids": [
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "guide-neo-rds-2025-cn-meta",
+            "syn-lit-hypo-1",
+            "syn-neo-ttn-block-1",
+            "syn-neo-jaundice-block-1"
+          ],
+          "active_ids": [
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "guide-neo-rds-2025-cn-meta",
+            "syn-lit-hypo-1",
+            "syn-neo-ttn-block-1",
+            "syn-neo-jaundice-block-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.075
+        },
+        {
+          "case_id": "neo-his-gen-014-rds-severe",
+          "label": "HIS生成 · 重症 RDS · 28周+0天 · 生后2小时 · IMV FiO₂ 0.40（as_of 2026-04-29）",
+          "clinical_intent": "guideline_recommendation",
+          "english_coverage": true,
+          "rule": "guideline_recommendation_first",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "syn-neo-rds-block-2",
+            "syn-neo-ttn-block-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "syn-neo-rds-block-2",
+            "syn-neo-ttn-block-1"
+          ],
+          "active_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "syn-neo-rds-block-2",
+            "syn-neo-ttn-block-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.072
+        },
+        {
+          "case_id": "neo-his-gen-015-rds-severe",
+          "label": "HIS生成 · 重症 RDS · 27周+3天 · 生后2小时 · IMV FiO₂ 0.40（as_of 2026-04-24）",
+          "clinical_intent": "guideline_recommendation",
+          "english_coverage": true,
+          "rule": "guideline_recommendation_first",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "syn-neo-rds-block-2",
+            "syn-neo-ttn-block-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "syn-neo-rds-block-2",
+            "syn-neo-ttn-block-1"
+          ],
+          "active_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "syn-neo-rds-block-2",
+            "syn-neo-ttn-block-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.072
+        },
+        {
+          "case_id": "neo-his-gen-016-jaundice",
+          "label": "HIS生成 · 新生儿黄疸 · 35周+3天 · 生后3天 · 总胆红素278 μmol/L · 光疗（as_of 2026-07-29）",
+          "clinical_intent": "guideline_recommendation",
+          "english_coverage": true,
+          "rule": "guideline_recommendation_first",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-jaundice-block-1",
+            "syn-lit-jaundice-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-hypo-1",
+            "syn-neo-pphn-block-1",
+            "syn-neo-gbs-block-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-jaundice-block-1",
+            "syn-lit-jaundice-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-hypo-1",
+            "syn-neo-pphn-block-1",
+            "syn-neo-gbs-block-1"
+          ],
+          "active_ids": [
+            "syn-neo-jaundice-block-1",
+            "syn-lit-jaundice-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-hypo-1",
+            "syn-neo-pphn-block-1",
+            "syn-neo-gbs-block-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.074
+        },
+        {
+          "case_id": "neo-his-gen-017-rds-retro",
+          "label": "HIS生成 · RDS 回顾时点 · 30周+2天 · 生后8小时 · 早于 RDS 2025 发表（as_of 2026-02-25）",
+          "clinical_intent": "guideline_recommendation",
+          "english_coverage": true,
+          "rule": "guideline_recommendation_first",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "syn-neo-rds-block-2",
+            "syn-lit-rds-2",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-neo-ttn-block-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "syn-neo-rds-block-2",
+            "syn-lit-rds-2",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-neo-ttn-block-1"
+          ],
+          "active_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "syn-neo-rds-block-2",
+            "syn-lit-rds-2",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-neo-ttn-block-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.068
+        },
+        {
+          "case_id": "neo-his-gen-018-jaundice",
+          "label": "HIS生成 · 新生儿黄疸 · 35周+1天 · 生后2天 · 总胆红素280 μmol/L · 光疗（as_of 2026-07-30）",
+          "clinical_intent": "guideline_recommendation",
+          "english_coverage": true,
+          "rule": "guideline_recommendation_first",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-jaundice-block-1",
+            "syn-lit-jaundice-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-hypo-1",
+            "syn-neo-pphn-block-1",
+            "syn-neo-gbs-block-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-jaundice-block-1",
+            "syn-lit-jaundice-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-hypo-1",
+            "syn-neo-pphn-block-1",
+            "syn-neo-gbs-block-1"
+          ],
+          "active_ids": [
+            "syn-neo-jaundice-block-1",
+            "syn-lit-jaundice-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-hypo-1",
+            "syn-neo-pphn-block-1",
+            "syn-neo-gbs-block-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.075
+        },
+        {
+          "case_id": "neo-his-gen-019-rds",
+          "label": "HIS生成 · RDS · 30周+4天 · 生后8小时 · CPAP FiO₂ 0.30（as_of 2026-04-07）",
+          "clinical_intent": "guideline_recommendation",
+          "english_coverage": true,
+          "rule": "guideline_recommendation_first",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "syn-neo-rds-block-2",
+            "syn-neo-ttn-block-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "syn-neo-rds-block-2",
+            "syn-neo-ttn-block-1"
+          ],
+          "active_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "syn-neo-rds-block-2",
+            "syn-neo-ttn-block-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.07
+        },
+        {
+          "case_id": "neo-his-gen-020-ttn",
+          "label": "HIS生成 · 暂时性呼吸增快 · 38周+6天 · 生后7小时 · 胸片叶间裂积液（as_of 2026-08-22）",
+          "clinical_intent": "clinical_question",
+          "english_coverage": true,
+          "rule": "default_all_sources",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-ttn-block-1",
+            "syn-lit-ttn-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-gbs-1",
+            "syn-neo-pna-block-2",
+            "syn-lit-rds-2"
+          ],
+          "shadow_ids": [
+            "syn-neo-ttn-block-1",
+            "syn-lit-ttn-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-gbs-1",
+            "syn-neo-pna-block-2",
+            "syn-lit-rds-2"
+          ],
+          "active_ids": [
+            "syn-neo-ttn-block-1",
+            "syn-lit-ttn-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-gbs-1",
+            "syn-neo-pna-block-2",
+            "syn-lit-rds-2"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.054
+        },
+        {
+          "case_id": "neo-his-gen-021-pneumonia",
+          "label": "HIS生成 · 感染性肺炎 · 39周+3天 · 生后37小时 · 发热38.7℃ · 血培养待回报（as_of 2026-10-01）",
+          "clinical_intent": "guideline_recommendation",
+          "english_coverage": true,
+          "rule": "guideline_recommendation_first",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-pna-block-1",
+            "syn-lit-pna-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-hypo-1",
+            "syn-neo-pna-block-2",
+            "syn-neo-gbs-block-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-pna-block-1",
+            "syn-lit-pna-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-hypo-1",
+            "syn-neo-pna-block-2",
+            "syn-neo-gbs-block-1"
+          ],
+          "active_ids": [
+            "syn-neo-pna-block-1",
+            "syn-lit-pna-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-hypo-1",
+            "syn-neo-pna-block-2",
+            "syn-neo-gbs-block-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.079
+        },
+        {
+          "case_id": "neo-his-gen-022-rds-retro",
+          "label": "HIS生成 · RDS 回顾时点 · 30周+2天 · 生后5小时 · 早于 RDS 2025 发表（as_of 2026-02-25）",
+          "clinical_intent": "guideline_recommendation",
+          "english_coverage": true,
+          "rule": "guideline_recommendation_first",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "syn-neo-rds-block-2",
+            "syn-lit-rds-2",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-neo-ttn-block-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "syn-neo-rds-block-2",
+            "syn-lit-rds-2",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-neo-ttn-block-1"
+          ],
+          "active_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "syn-neo-rds-block-2",
+            "syn-lit-rds-2",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-neo-ttn-block-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.072
+        },
+        {
+          "case_id": "neo-his-gen-023-jaundice",
+          "label": "HIS生成 · 新生儿黄疸 · 35周+2天 · 生后2天 · 总胆红素288 μmol/L · 光疗（as_of 2026-08-04）",
+          "clinical_intent": "guideline_recommendation",
+          "english_coverage": true,
+          "rule": "guideline_recommendation_first",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-jaundice-block-1",
+            "syn-lit-jaundice-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-hypo-1",
+            "syn-neo-pphn-block-1",
+            "syn-neo-gbs-block-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-jaundice-block-1",
+            "syn-lit-jaundice-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-hypo-1",
+            "syn-neo-pphn-block-1",
+            "syn-neo-gbs-block-1"
+          ],
+          "active_ids": [
+            "syn-neo-jaundice-block-1",
+            "syn-lit-jaundice-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-hypo-1",
+            "syn-neo-pphn-block-1",
+            "syn-neo-gbs-block-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.075
+        },
+        {
+          "case_id": "neo-his-gen-024-rds",
+          "label": "HIS生成 · RDS · 30周+4天 · 生后5小时 · CPAP FiO₂ 0.30（as_of 2026-04-08）",
+          "clinical_intent": "guideline_recommendation",
+          "english_coverage": true,
+          "rule": "guideline_recommendation_first",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "syn-neo-rds-block-2",
+            "syn-neo-ttn-block-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "syn-neo-rds-block-2",
+            "syn-neo-ttn-block-1"
+          ],
+          "active_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "syn-neo-rds-block-2",
+            "syn-neo-ttn-block-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.074
+        },
+        {
+          "case_id": "neo-his-gen-025-pphn",
+          "label": "HIS生成 · PPHN · 39周+2天 · 生后13小时 · iNO 20 ppm · 导管前后 SpO₂ 差异（as_of 2026-06-24）",
+          "clinical_intent": "clinical_question",
+          "english_coverage": true,
+          "rule": "default_all_sources",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-pphn-block-1",
+            "syn-lit-pphn-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-1",
+            "syn-neo-ttn-block-1",
+            "syn-lit-rds-2"
+          ],
+          "shadow_ids": [
+            "syn-neo-pphn-block-1",
+            "syn-lit-pphn-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-1",
+            "syn-neo-ttn-block-1",
+            "syn-lit-rds-2"
+          ],
+          "active_ids": [
+            "syn-neo-pphn-block-1",
+            "syn-lit-pphn-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-1",
+            "syn-neo-ttn-block-1",
+            "syn-lit-rds-2"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.08
+        },
+        {
+          "case_id": "neo-his-gen-026-ttn",
+          "label": "HIS生成 · 暂时性呼吸增快 · 38周+3天 · 生后6小时 · 胸片叶间裂积液（as_of 2026-09-02）",
+          "clinical_intent": "clinical_question",
+          "english_coverage": true,
+          "rule": "default_all_sources",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-ttn-block-1",
+            "syn-lit-ttn-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-gbs-1",
+            "syn-neo-pna-block-2",
+            "syn-lit-rds-2"
+          ],
+          "shadow_ids": [
+            "syn-neo-ttn-block-1",
+            "syn-lit-ttn-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-gbs-1",
+            "syn-neo-pna-block-2",
+            "syn-lit-rds-2"
+          ],
+          "active_ids": [
+            "syn-neo-ttn-block-1",
+            "syn-lit-ttn-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-gbs-1",
+            "syn-neo-pna-block-2",
+            "syn-lit-rds-2"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.057
+        },
+        {
+          "case_id": "neo-his-gen-027-rds",
+          "label": "HIS生成 · RDS · 30周+0天 · 生后6小时 · CPAP FiO₂ 0.30（as_of 2026-04-06）",
+          "clinical_intent": "guideline_recommendation",
+          "english_coverage": true,
+          "rule": "guideline_recommendation_first",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "syn-neo-rds-block-2",
+            "syn-neo-ttn-block-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "syn-neo-rds-block-2",
+            "syn-neo-ttn-block-1"
+          ],
+          "active_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "syn-neo-rds-block-2",
+            "syn-neo-ttn-block-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.07
+        },
+        {
+          "case_id": "neo-his-gen-028-bpd",
+          "label": "HIS生成 · BPD · 27周+6天 · 生后55天（约8周） · 经后年龄36周 · 仍需CPAP（as_of 2026-06-05）",
+          "clinical_intent": "guideline_recommendation",
+          "english_coverage": true,
+          "rule": "guideline_recommendation_first",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-bpd-block-1",
+            "syn-lit-bpd-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-cn-meta",
+            "syn-neo-rds-block-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-bpd-block-1",
+            "syn-lit-bpd-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-cn-meta",
+            "syn-neo-rds-block-1"
+          ],
+          "active_ids": [
+            "syn-neo-bpd-block-1",
+            "syn-lit-bpd-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-cn-meta",
+            "syn-neo-rds-block-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.066
+        },
+        {
+          "case_id": "neo-his-gen-029-gbs",
+          "label": "HIS生成 · GBS 暴露 · 40周+0天 · 生后12小时 · 母体GBS阳性 · 无症状 · 血培养待回报（as_of 2026-10-17）",
+          "clinical_intent": "clinical_question",
+          "english_coverage": true,
+          "rule": "default_all_sources",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-gbs-block-1",
+            "syn-lit-gbs-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-hypo-1",
+            "syn-neo-ttn-block-1",
+            "syn-lit-pna-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-gbs-block-1",
+            "syn-lit-gbs-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-hypo-1",
+            "syn-neo-ttn-block-1",
+            "syn-lit-pna-1"
+          ],
+          "active_ids": [
+            "syn-neo-gbs-block-1",
+            "syn-lit-gbs-1",
+            "guide-neo-pneumonia-2025-meta",
+            "syn-lit-hypo-1",
+            "syn-neo-ttn-block-1",
+            "syn-lit-pna-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.08
+        },
+        {
+          "case_id": "neo-his-gen-030-rds-severe",
+          "label": "HIS生成 · 重症 RDS · 27周+3天 · 生后2小时 · IMV FiO₂ 0.40（as_of 2026-04-26）",
+          "clinical_intent": "guideline_recommendation",
+          "english_coverage": true,
+          "rule": "guideline_recommendation_first",
+          "selected_sources": [
+            "guideline",
+            "pubmed"
+          ],
+          "notes": [],
+          "off_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "syn-neo-rds-block-2",
+            "syn-neo-ttn-block-1"
+          ],
+          "shadow_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "syn-neo-rds-block-2",
+            "syn-neo-ttn-block-1"
+          ],
+          "active_ids": [
+            "syn-neo-rds-block-1",
+            "syn-lit-rds-1",
+            "guide-neo-rds-2025-meta",
+            "syn-lit-rds-2",
+            "syn-neo-rds-block-2",
+            "syn-neo-ttn-block-1"
+          ],
+          "shadow_same_as_off": true,
+          "active_same_as_off": true,
+          "active_source_order": [
+            "neonatal-guideline-metadata",
+            "neonatal-guideline-synthetic",
+            "neonatal-literature-synthetic"
+          ],
+          "elapsed_3_modes_s": 0.073
+        }
+      ]
+    }
+  },
+  "rule_coverage_probes": [
+    {
+      "probe_id": "no_english_no_library",
+      "question": "新生儿呼吸窘迫综合征如何处理？",
+      "mapping_library": false,
+      "clinical_intent": "clinical_question",
+      "english_coverage": false,
+      "rule": "no_english_drop_pubmed+default_all_sources",
+      "selected_sources": [
+        "guideline"
+      ],
+      "notes": [
+        "无英文覆盖：PubMed 分支跳过（否则零命中空转）。"
+      ],
+      "source_order_after": [
+        "neonatal-guideline-metadata",
+        "neonatal-guideline-synthetic"
+      ],
+      "off_ids": [
+        "guide-neo-rds-2025-cn-meta",
+        "syn-neo-rds-block-1",
+        "syn-neo-rds-block-2"
+      ],
+      "active_ids": [
+        "guide-neo-rds-2025-cn-meta",
+        "syn-neo-rds-block-1",
+        "syn-neo-rds-block-2"
+      ],
+      "active_same_as_off": true,
+      "shadow_same_as_off": true,
+      "off_kinds": [
+        "guideline",
+        "guideline",
+        "guideline"
+      ],
+      "active_kinds": [
+        "guideline",
+        "guideline",
+        "guideline"
+      ],
+      "off_connectors": 3,
+      "active_connectors": 2,
+      "off_candidates": 22,
+      "active_candidates": 13,
+      "off_warnings": 4,
+      "active_warnings": 0
+    },
+    {
+      "probe_id": "no_english_with_library",
+      "question": "新生儿呼吸窘迫综合征如何处理？",
+      "mapping_library": true,
+      "clinical_intent": "clinical_question",
+      "english_coverage": true,
+      "rule": "default_all_sources",
+      "selected_sources": [
+        "guideline",
+        "pubmed"
+      ],
+      "notes": [],
+      "source_order_after": [
+        "neonatal-guideline-metadata",
+        "neonatal-guideline-synthetic",
+        "neonatal-literature-synthetic"
+      ],
+      "off_ids": [
+        "guide-neo-rds-2025-cn-meta",
+        "syn-lit-rds-2",
+        "guide-neo-rds-2025-meta"
+      ],
+      "active_ids": [
+        "guide-neo-rds-2025-cn-meta",
+        "syn-lit-rds-2",
+        "guide-neo-rds-2025-meta"
+      ],
+      "active_same_as_off": true,
+      "shadow_same_as_off": true,
+      "off_kinds": [
+        "guideline",
+        "pubmed",
+        "guideline"
+      ],
+      "active_kinds": [
+        "guideline",
+        "pubmed",
+        "guideline"
+      ],
+      "off_connectors": 3,
+      "active_connectors": 3,
+      "off_candidates": 22,
+      "active_candidates": 22,
+      "off_warnings": 1,
+      "active_warnings": 1
+    },
+    {
+      "probe_id": "evidence_update",
+      "question": "新生儿呼吸窘迫综合征的最新研究证据有哪些？",
+      "mapping_library": true,
+      "clinical_intent": "evidence_update",
+      "english_coverage": true,
+      "rule": "evidence_update_pubmed_first",
+      "selected_sources": [
+        "pubmed",
+        "guideline"
+      ],
+      "notes": [],
+      "source_order_after": [
+        "neonatal-literature-synthetic",
+        "neonatal-guideline-metadata",
+        "neonatal-guideline-synthetic"
+      ],
+      "off_ids": [
+        "syn-lit-rds-2",
+        "guide-neo-rds-2025-cn-meta",
+        "syn-lit-rds-1"
+      ],
+      "active_ids": [
+        "syn-lit-rds-2",
+        "guide-neo-rds-2025-cn-meta",
+        "syn-lit-rds-1"
+      ],
+      "active_same_as_off": true,
+      "shadow_same_as_off": true,
+      "off_kinds": [
+        "pubmed",
+        "guideline",
+        "pubmed"
+      ],
+      "active_kinds": [
+        "pubmed",
+        "guideline",
+        "pubmed"
+      ],
+      "off_connectors": 3,
+      "active_connectors": 3,
+      "off_candidates": 22,
+      "active_candidates": 22,
+      "off_warnings": 1,
+      "active_warnings": 1
+    },
+    {
+      "probe_id": "drug_safety_with_english",
+      "question": "新生儿使用 ibuprofen 的安全性和不良反应有哪些？",
+      "mapping_library": true,
+      "clinical_intent": "drug_safety",
+      "english_coverage": true,
+      "rule": "drug_safety_pubmed_first",
+      "selected_sources": [
+        "pubmed",
+        "guideline"
+      ],
+      "notes": [],
+      "source_order_after": [
+        "neonatal-literature-synthetic",
+        "neonatal-guideline-metadata",
+        "neonatal-guideline-synthetic"
+      ],
+      "off_ids": [
+        "guide-neo-pneumonia-2025-meta",
+        "syn-neo-bpd-block-1",
+        "guide-neo-rds-2025-cn-meta"
+      ],
+      "active_ids": [
+        "guide-neo-pneumonia-2025-meta",
+        "syn-neo-bpd-block-1",
+        "guide-neo-rds-2025-cn-meta"
+      ],
+      "active_same_as_off": true,
+      "shadow_same_as_off": true,
+      "off_kinds": [
+        "guideline",
+        "guideline",
+        "guideline"
+      ],
+      "active_kinds": [
+        "guideline",
+        "guideline",
+        "guideline"
+      ],
+      "off_connectors": 3,
+      "active_connectors": 3,
+      "off_candidates": 22,
+      "active_candidates": 22,
+      "off_warnings": 3,
+      "active_warnings": 3
+    },
+    {
+      "probe_id": "drug_safety_no_english",
+      "question": "新生儿使用布洛芬的安全性和不良反应有哪些？",
+      "mapping_library": true,
+      "clinical_intent": "drug_safety",
+      "english_coverage": false,
+      "rule": "no_english_drop_pubmed+drug_safety_pubmed_first",
+      "selected_sources": [
+        "guideline"
+      ],
+      "notes": [
+        "无英文覆盖：PubMed 分支跳过（否则零命中空转）。"
+      ],
+      "source_order_after": [
+        "neonatal-guideline-metadata",
+        "neonatal-guideline-synthetic"
+      ],
+      "off_ids": [
+        "guide-neo-pneumonia-2025-meta",
+        "syn-neo-bpd-block-1",
+        "guide-neo-rds-2025-cn-meta"
+      ],
+      "active_ids": [
+        "guide-neo-pneumonia-2025-meta",
+        "syn-neo-bpd-block-1",
+        "guide-neo-rds-2025-cn-meta"
+      ],
+      "active_same_as_off": true,
+      "shadow_same_as_off": true,
+      "off_kinds": [
+        "guideline",
+        "guideline",
+        "guideline"
+      ],
+      "active_kinds": [
+        "guideline",
+        "guideline",
+        "guideline"
+      ],
+      "off_connectors": 3,
+      "active_connectors": 2,
+      "off_candidates": 22,
+      "active_candidates": 13,
+      "off_warnings": 5,
+      "active_warnings": 1
+    }
+  ],
+  "mapping_library_effect": {
+    "changed_decision_count": 0,
+    "changes": []
+  },
+  "registry_warnings": [],
+  "total_elapsed_s": 5.12,
+  "note": "shadow 模式只写 trace.route_decision，不改变返回；active 模式按决策收窄/重排来源。本实验只验证路由的可运行性、确定性与覆盖面，不评估检索质量提升——质量结论需 S8 人工标注查询集，本实验不构成证据。"
+}

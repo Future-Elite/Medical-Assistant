@@ -1,0 +1,29 @@
+﻿医嘱ID,就诊ID,药品编码,药品通用名,规格,剂量,频次,给药途径,开始时间,数量,单价,金额,数据来源,synthetic
+MED-NEO-HIS-GEN-004-RDS-SEVERE-01,VIS-NEO-HIS-GEN-004-RDS-SEVERE,N06BC01（ATC，待复核）,caffeine citrate,,maintenance,q24h,IV,2026-04-29,,,,synthetic_neonatal_his,true
+MED-NEO-HIS-GEN-004-RDS-SEVERE-02,VIS-NEO-HIS-GEN-004-RDS-SEVERE,R07AA02（ATC，待复核）,pulmonary surfactant,,200 mg/kg,,intratracheal,2026-04-29,,,,synthetic_neonatal_his,true
+MED-NEO-HIS-GEN-008-RDS-SEVERE-01,VIS-NEO-HIS-GEN-008-RDS-SEVERE,N06BC01（ATC，待复核）,caffeine citrate,,maintenance,q24h,IV,2026-05-16,,,,synthetic_neonatal_his,true
+MED-NEO-HIS-GEN-008-RDS-SEVERE-02,VIS-NEO-HIS-GEN-008-RDS-SEVERE,R07AA02（ATC，待复核）,pulmonary surfactant,,200 mg/kg,,intratracheal,2026-05-16,,,,synthetic_neonatal_his,true
+MED-NEO-HIS-GEN-011-RDS-01,VIS-NEO-HIS-GEN-011-RDS,N06BC01（ATC，待复核）,caffeine citrate,,loading,q24h,IV,2026-03-15,,,,synthetic_neonatal_his,true
+MED-NEO-HIS-GEN-011-RDS-02,VIS-NEO-HIS-GEN-011-RDS,R07AA02（ATC，待复核）,pulmonary surfactant,,,,,2026-03-15,,,,synthetic_neonatal_his,true
+MED-NEO-HIS-GEN-013-APNEA-01,VIS-NEO-HIS-GEN-013-APNEA,N06BC01（ATC，待复核）,caffeine citrate,,maintenance,q24h,IV,2026-11-22,,,,synthetic_neonatal_his,true
+MED-NEO-HIS-GEN-014-RDS-SEVERE-01,VIS-NEO-HIS-GEN-014-RDS-SEVERE,N06BC01（ATC，待复核）,caffeine citrate,,maintenance,q24h,IV,2026-04-29,,,,synthetic_neonatal_his,true
+MED-NEO-HIS-GEN-014-RDS-SEVERE-02,VIS-NEO-HIS-GEN-014-RDS-SEVERE,R07AA02（ATC，待复核）,pulmonary surfactant,,200 mg/kg,,intratracheal,2026-04-29,,,,synthetic_neonatal_his,true
+MED-NEO-HIS-GEN-015-RDS-SEVERE-01,VIS-NEO-HIS-GEN-015-RDS-SEVERE,N06BC01（ATC，待复核）,caffeine citrate,,maintenance,q24h,IV,2026-04-24,,,,synthetic_neonatal_his,true
+MED-NEO-HIS-GEN-015-RDS-SEVERE-02,VIS-NEO-HIS-GEN-015-RDS-SEVERE,R07AA02（ATC，待复核）,pulmonary surfactant,,200 mg/kg,,intratracheal,2026-04-24,,,,synthetic_neonatal_his,true
+MED-NEO-HIS-GEN-017-RDS-RETRO-01,VIS-NEO-HIS-GEN-017-RDS-RETRO,N06BC01（ATC，待复核）,caffeine citrate,,loading,q24h,IV,2026-02-25,,,,synthetic_neonatal_his,true
+MED-NEO-HIS-GEN-017-RDS-RETRO-02,VIS-NEO-HIS-GEN-017-RDS-RETRO,R07AA02（ATC，待复核）,pulmonary surfactant,,,,,2026-02-25,,,,synthetic_neonatal_his,true
+MED-NEO-HIS-GEN-019-RDS-01,VIS-NEO-HIS-GEN-019-RDS,N06BC01（ATC，待复核）,caffeine citrate,,loading,q24h,IV,2026-04-07,,,,synthetic_neonatal_his,true
+MED-NEO-HIS-GEN-019-RDS-02,VIS-NEO-HIS-GEN-019-RDS,R07AA02（ATC，待复核）,pulmonary surfactant,,,,,2026-04-07,,,,synthetic_neonatal_his,true
+MED-NEO-HIS-GEN-021-PNEUMONIA-01,VIS-NEO-HIS-GEN-021-PNEUMONIA,J01CA01（ATC，待复核）,ampicillin,,50 mg/kg/dose,q12h,IV,2026-09-30,,,,synthetic_neonatal_his,true
+MED-NEO-HIS-GEN-021-PNEUMONIA-02,VIS-NEO-HIS-GEN-021-PNEUMONIA,J01GB03（ATC，待复核）,gentamicin,,4 mg/kg/dose,q24h,IV,2026-09-30,,,,synthetic_neonatal_his,true
+MED-NEO-HIS-GEN-022-RDS-RETRO-01,VIS-NEO-HIS-GEN-022-RDS-RETRO,N06BC01（ATC，待复核）,caffeine citrate,,loading,q24h,IV,2026-02-25,,,,synthetic_neonatal_his,true
+MED-NEO-HIS-GEN-022-RDS-RETRO-02,VIS-NEO-HIS-GEN-022-RDS-RETRO,R07AA02（ATC，待复核）,pulmonary surfactant,,,,,2026-02-25,,,,synthetic_neonatal_his,true
+MED-NEO-HIS-GEN-024-RDS-01,VIS-NEO-HIS-GEN-024-RDS,N06BC01（ATC，待复核）,caffeine citrate,,loading,q24h,IV,2026-04-08,,,,synthetic_neonatal_his,true
+MED-NEO-HIS-GEN-024-RDS-02,VIS-NEO-HIS-GEN-024-RDS,R07AA02（ATC，待复核）,pulmonary surfactant,,,,,2026-04-08,,,,synthetic_neonatal_his,true
+MED-NEO-HIS-GEN-025-PPHN-01,VIS-NEO-HIS-GEN-025-PPHN,R07AX01（ATC，待复核）,inhaled nitric oxide,,20 ppm,,inhaled,2026-06-24,,,,synthetic_neonatal_his,true
+MED-NEO-HIS-GEN-025-PPHN-02,VIS-NEO-HIS-GEN-025-PPHN,R07AA02（ATC，待复核）,pulmonary surfactant,,200 mg/kg,,intratracheal,2026-06-24,,,,synthetic_neonatal_his,true
+MED-NEO-HIS-GEN-027-RDS-01,VIS-NEO-HIS-GEN-027-RDS,N06BC01（ATC，待复核）,caffeine citrate,,loading,q24h,IV,2026-04-06,,,,synthetic_neonatal_his,true
+MED-NEO-HIS-GEN-027-RDS-02,VIS-NEO-HIS-GEN-027-RDS,R07AA02（ATC，待复核）,pulmonary surfactant,,,,,2026-04-06,,,,synthetic_neonatal_his,true
+MED-NEO-HIS-GEN-028-BPD-01,VIS-NEO-HIS-GEN-028-BPD,N06BC01（ATC，待复核）,caffeine citrate,,maintenance,q24h,IV,2026-04-11,,,,synthetic_neonatal_his,true
+MED-NEO-HIS-GEN-030-RDS-SEVERE-01,VIS-NEO-HIS-GEN-030-RDS-SEVERE,N06BC01（ATC，待复核）,caffeine citrate,,maintenance,q24h,IV,2026-04-26,,,,synthetic_neonatal_his,true
+MED-NEO-HIS-GEN-030-RDS-SEVERE-02,VIS-NEO-HIS-GEN-030-RDS-SEVERE,R07AA02（ATC，待复核）,pulmonary surfactant,,200 mg/kg,,intratracheal,2026-04-26,,,,synthetic_neonatal_his,true
