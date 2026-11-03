@@ -1,51 +1,27 @@
 <template>
-  <el-container class="app">
-    <el-header class="app-header">
-      <div class="app-logo">HIS 模拟系统</div>
-      <el-menu class="app-menu" mode="horizontal" :default-active="activeMenu" router>
-        <el-menu-item index="/">患者列表</el-menu-item>
-        <el-menu-item index="/entry">录入</el-menu-item>
-        <el-menu-item index="/dashboard">看板</el-menu-item>
-        <el-menu-item index="/validation">校验报告</el-menu-item>
-      </el-menu>
-    </el-header>
-    <el-main>
-      <router-view />
-    </el-main>
-  </el-container>
+  <div class="his-shell">
+    <aside class="sidebar">
+      <router-link to="/" class="brand"><span class="brand-mark"><FirstAidKit /></span><span>新生儿 HIS<small>NEONATAL RECORDS</small></span></router-link>
+      <div class="nav-caption">病案工作台</div>
+      <nav><router-link v-for="item in navigation" :key="item.path" :to="item.path" :class="{ active: active === item.path }"><component :is="item.icon" /><span>{{ item.label }}</span></router-link></nav>
+      <div class="sidebar-note"><span class="status-dot"></span> 出院病案数据中心<p>保留原始小结<br>每条记录均可追溯来源</p></div>
+    </aside>
+    <section class="workspace">
+      <header class="topbar">
+        <span class="breadcrumb">新生儿科 <span>/</span> {{ navigation.find(n => n.path === active)?.label || '病案详情' }}</span>
+        <div class="dataset-selector"><span>当前数据集</span><el-select v-model="selectedBatch" placeholder="尚未导入数据" :disabled="!batches.length" style="width: 290px" aria-label="当前数据集"><el-option v-for="b in batches" :key="b.id" :value="b.id" :label="`#${b.id} ${b.fileName}`" /></el-select></div>
+      </header>
+      <main class="page-content"><router-view /></main>
+    </section>
+  </div>
 </template>
-
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-
+import { FirstAidKit, Files, DataAnalysis, DocumentChecked, UploadFilled } from '@element-plus/icons-vue'
+import { batches, selectedBatch, refreshBatches } from './api/neonatal'
 const route = useRoute()
-// 患者详情页（/patient/:id）仍归属「患者列表」菜单
-const activeMenu = computed(() => (route.path.startsWith('/patient/') ? '/' : route.path))
+const navigation = [{ path: '/', label: '新生儿病案', icon: Files }, { path: '/dashboard', label: '专科数据看板', icon: DataAnalysis }, { path: '/validation', label: '数据质量', icon: DocumentChecked }, { path: '/import', label: '数据导入', icon: UploadFilled }]
+const active = computed(() => route.path.startsWith('/neonatal/') ? '/' : route.path)
+onMounted(() => refreshBatches().catch(() => {}))
 </script>
-
-<style scoped>
-.app {
-  min-height: 100vh;
-}
-
-.app-header {
-  display: flex;
-  align-items: center;
-  gap: 24px;
-  padding: 0 24px;
-  background: #fff;
-  border-bottom: 1px solid #e4e7ed;
-}
-
-.app-logo {
-  font-size: 18px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.app-menu {
-  flex: 1;
-  border-bottom: none;
-}
-</style>

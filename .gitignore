@@ -15,20 +15,51 @@ target/
 node_modules/
 dist/
 *.log
+test-results/
+
+# Local clinical source data (retained on disk, never bundled into source or frontend).
+2024带孕周的出院小结汇总.xlsx
 
 # OS
 .DS_Store
 Thumbs.db
 
-# ===== 开源上传时排除：不进入 GitHub 仓库 =====
-# 文档 / spec / 计划 / 论文 / 参考资料
+# ===== Documentation: keep all project/spec/design/report documents local =====
+# These rules apply at every directory depth, including README and spec files.
+*.[mM][dD]
+*.[mM][dD][xX]
+*.markdown
+*.rst
+*.adoc
+*.asciidoc
+*.[tT][xX][tT]
+*.[pP][dD][fF]
+*.[dD][oO][cC]
+*.[dD][oO][cC][xX]
+*.odt
+*.rtf
+*.tex
+*.epub
+*.ppt
+*.pptx
+*.odp
+README
+CHANGELOG
+CONTRIBUTING
+AUTHORS
+
+# Text files used by build/runtime tooling are configuration, not documents.
+!requirements.txt
+!requirements-*.txt
+!CMakeLists.txt
+
+# Reference material and project documents (including spec/plan subdirectories).
 docs/
+doc/
+documentation/
 
-# SQL 目录里的评审说明文档
-backend/sql/AUTHOR-REVIEW-phase3.md
-
-# Claude Code 项目指令
-CLAUDE.md
+# Do not ignore executable source/configuration: .sql, .sh, .ps1, .bat, .cmd,
+# .py, .js, .mjs, .cjs, .vue, .html, package*.json, pom.xml or application*.yml.
 
 # Claude Code / 插件工具链本地状态（含记忆、设置、SDD 简报与评审）
 .claude/
