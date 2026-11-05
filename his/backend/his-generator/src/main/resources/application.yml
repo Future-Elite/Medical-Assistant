@@ -7,6 +7,8 @@ spring:
     password: his@2026
     driver-class-name: com.mysql.cj.jdbc.Driver
 generator:
+  # 新生儿系统不使用随机病人；仅显式传入 --generator.enabled=true 才运行旧生成器。
+  enabled: false
   patient-count: 10000
   # 生成前清空六张业务数据表（patient/visit/diagnosis/prescription/prescription_item/lab_test），
   # 字典表 drug / rule_config 不动；重复执行即为「重新生成」

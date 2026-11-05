@@ -4,10 +4,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 
 import java.util.Map;
 
 @Component
+@ConditionalOnProperty(name = "generator.enabled", havingValue = "true")
 @RequiredArgsConstructor
 public class GeneratorRunner implements CommandLineRunner {
 
