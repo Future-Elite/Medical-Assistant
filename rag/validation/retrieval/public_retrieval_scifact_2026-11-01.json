@@ -1,0 +1,1613 @@
+{
+  "tool": "tools/evaluate_public_retrieval.py",
+  "generated_at": "2026-11-01T12:15:29+00:00",
+  "dataset": "BEIR SciFact (official human qrels, test split)",
+  "paths_redacted": true,
+  "dataset_path": "<local dataset>/scifact",
+  "corpus_documents": 5183,
+  "queries": 20,
+  "top_k": 10,
+  "dense_warmup_ms": 1165542.19,
+  "dense_settings": {
+    "model": "BAAI/bge-m3",
+    "doc_max_length": 256,
+    "batch_size": 16
+  },
+  "results": [
+    {
+      "method": "bm25",
+      "queries": 20,
+      "ndcg_at_10": 0.6008,
+      "recall_at_10": 0.775,
+      "mrr_at_10": 0.5713,
+      "latency_ms": {
+        "mean": 7407.32,
+        "p50": 7587.7,
+        "p95": 8605.59,
+        "max": 8663.1
+      },
+      "rows": [
+        {
+          "query_id": "1",
+          "query": "0-dimensional biomaterials show inductive properties.",
+          "ranked": [
+            "36233757",
+            "18953920",
+            "42240424",
+            "59453688",
+            "21271817",
+            "1292369",
+            "43385013",
+            "3174305",
+            "121581019",
+            "40584205"
+          ],
+          "relevant": [
+            "31715818"
+          ],
+          "ndcg_at_10": 0.0,
+          "recall_at_10": 0.0,
+          "mrr_at_10": 0.0,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。",
+            "scifact：已排除 4007 条与查询无检索相关度（词面/语义均无命中）的候选。"
+          ]
+        },
+        {
+          "query_id": "3",
+          "query": "1,000 genomes project enables mapping of genetic sequence variation consisting of rare variants with larger penetrance effects than common variants.",
+          "ranked": [
+            "2739854",
+            "23389795",
+            "13519661",
+            "14717500",
+            "14019636",
+            "3672261",
+            "43334921",
+            "4632921",
+            "25571386",
+            "4378885"
+          ],
+          "relevant": [
+            "14717500"
+          ],
+          "ndcg_at_10": 0.4307,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 0.25,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。",
+            "scifact：已排除 5 条与查询无检索相关度（词面/语义均无命中）的候选。"
+          ]
+        },
+        {
+          "query_id": "5",
+          "query": "1/2000 in UK have abnormal PrP positivity.",
+          "ranked": [
+            "13734012",
+            "103007",
+            "32481310",
+            "14188138",
+            "13883546",
+            "11880289",
+            "33796570",
+            "7834603",
+            "4828631",
+            "24082820"
+          ],
+          "relevant": [
+            "13734012"
+          ],
+          "ndcg_at_10": 1.0,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 1.0,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。",
+            "scifact：已排除 67 条与查询无检索相关度（词面/语义均无命中）的候选。"
+          ]
+        },
+        {
+          "query_id": "13",
+          "query": "5% of perinatal mortality is due to low birth weight.",
+          "ranked": [
+            "7662395",
+            "26611834",
+            "34544514",
+            "5487448",
+            "1263446",
+            "19799455",
+            "4810810",
+            "25182647",
+            "30786800",
+            "11020675"
+          ],
+          "relevant": [
+            "1606628"
+          ],
+          "ndcg_at_10": 0.0,
+          "recall_at_10": 0.0,
+          "mrr_at_10": 0.0,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。",
+            "scifact：已排除 1 条与查询无检索相关度（词面/语义均无命中）的候选。"
+          ]
+        },
+        {
+          "query_id": "36",
+          "query": "A deficiency of vitamin B12 increases blood levels of homocysteine.",
+          "ranked": [
+            "11705328",
+            "42441846",
+            "9555784",
+            "13312471",
+            "33409100",
+            "23267371",
+            "38551172",
+            "16256507",
+            "18557974",
+            "3150030"
+          ],
+          "relevant": [
+            "11705328",
+            "5152028"
+          ],
+          "ndcg_at_10": 0.6131,
+          "recall_at_10": 0.5,
+          "mrr_at_10": 1.0,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。",
+            "scifact：已排除 4 条与查询无检索相关度（词面/语义均无命中）的候选。"
+          ]
+        },
+        {
+          "query_id": "42",
+          "query": "A high microerythrocyte count raises vulnerability to severe anemia in homozygous alpha (+)- thalassemia trait subjects.",
+          "ranked": [
+            "18174210",
+            "40913091",
+            "10326242",
+            "12428137",
+            "4353857",
+            "45218443",
+            "25182647",
+            "31514338",
+            "4449524",
+            "22482024"
+          ],
+          "relevant": [
+            "18174210"
+          ],
+          "ndcg_at_10": 1.0,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 1.0,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。",
+            "scifact：已排除 1 条与查询无检索相关度（词面/语义均无命中）的候选。"
+          ]
+        },
+        {
+          "query_id": "48",
+          "query": "A total of 1,000 people in the UK are asymptomatic carriers of vCJD infection.",
+          "ranked": [
+            "15648443",
+            "22309946",
+            "103007",
+            "8892905",
+            "18574146",
+            "11880289",
+            "26652147",
+            "32481310",
+            "1866911",
+            "26016929"
+          ],
+          "relevant": [
+            "13734012"
+          ],
+          "ndcg_at_10": 0.0,
+          "recall_at_10": 0.0,
+          "mrr_at_10": 0.0,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。"
+          ]
+        },
+        {
+          "query_id": "49",
+          "query": "ADAR1 binds to Dicer to cleave pre-miRNA.",
+          "ranked": [
+            "5953485",
+            "7029990",
+            "5409325",
+            "946756",
+            "41620295",
+            "14492964",
+            "2423940",
+            "5702790",
+            "39929509",
+            "24311787"
+          ],
+          "relevant": [
+            "5953485"
+          ],
+          "ndcg_at_10": 1.0,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 1.0,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。",
+            "scifact：已排除 286 条与查询无检索相关度（词面/语义均无命中）的候选。"
+          ]
+        },
+        {
+          "query_id": "50",
+          "query": "AIRE is expressed in some skin tumors.",
+          "ranked": [
+            "12580014",
+            "39559521",
+            "19343151",
+            "42279414",
+            "43014661",
+            "25738896",
+            "4561402",
+            "25344732",
+            "36653415",
+            "19427410"
+          ],
+          "relevant": [
+            "12580014"
+          ],
+          "ndcg_at_10": 1.0,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 1.0,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。",
+            "scifact：已排除 34 条与查询无检索相关度（词面/语义均无命中）的候选。"
+          ]
+        },
+        {
+          "query_id": "51",
+          "query": "ALDH1 expression is associated with better breast cancer outcomes.",
+          "ranked": [
+            "24341590",
+            "8963413",
+            "23830488",
+            "20280410",
+            "45638119",
+            "4414547",
+            "2140497",
+            "21439640",
+            "663464",
+            "42731834"
+          ],
+          "relevant": [
+            "45638119"
+          ],
+          "ndcg_at_10": 0.3869,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 0.2,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。",
+            "scifact：已排除 226 条与查询无检索相关度（词面/语义均无命中）的候选。"
+          ]
+        },
+        {
+          "query_id": "53",
+          "query": "ALDH1 expression is associated with poorer prognosis in breast cancer.",
+          "ranked": [
+            "10024681",
+            "15113221",
+            "20280410",
+            "45638119",
+            "42731834",
+            "21439640",
+            "12358173",
+            "4414547",
+            "2140497",
+            "25973484"
+          ],
+          "relevant": [
+            "45638119"
+          ],
+          "ndcg_at_10": 0.4307,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 0.25,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。",
+            "scifact：已排除 8 条与查询无检索相关度（词面/语义均无命中）的候选。"
+          ]
+        },
+        {
+          "query_id": "54",
+          "query": "AMP-activated protein kinase (AMPK) activation increases inflammation-related fibrosis in the lungs.",
+          "ranked": [
+            "24721866",
+            "3973445",
+            "9899292",
+            "1590744",
+            "22036571",
+            "32408470",
+            "7005276",
+            "9752604",
+            "19313533",
+            "49556906"
+          ],
+          "relevant": [
+            "49556906"
+          ],
+          "ndcg_at_10": 0.2891,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 0.1,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。",
+            "scifact：已排除 1 条与查询无检索相关度（词面/语义均无命中）的候选。"
+          ]
+        },
+        {
+          "query_id": "56",
+          "query": "APOE4 expression in iPSC-derived neurons increases AlphaBeta production and tau phosphorylation causing GABA neuron degeneration.",
+          "ranked": [
+            "4709641",
+            "22185730",
+            "33911859",
+            "35520219",
+            "24632480",
+            "22116439",
+            "32322418",
+            "14405193",
+            "13969173",
+            "26658659"
+          ],
+          "relevant": [
+            "4709641"
+          ],
+          "ndcg_at_10": 1.0,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 1.0,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。"
+          ]
+        },
+        {
+          "query_id": "57",
+          "query": "APOE4 expression in iPSC-derived neurons increases AlphaBeta production and tau phosphorylation, delaying GABA neuron degeneration.",
+          "ranked": [
+            "4709641",
+            "22185730",
+            "33911859",
+            "35520219",
+            "24632480",
+            "22116439",
+            "32322418",
+            "14405193",
+            "13969173",
+            "26658659"
+          ],
+          "relevant": [
+            "4709641"
+          ],
+          "ndcg_at_10": 1.0,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 1.0,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。"
+          ]
+        },
+        {
+          "query_id": "70",
+          "query": "Activation of PPM1D suppresses p53 function.",
+          "ranked": [
+            "5956380",
+            "24721866",
+            "4414547",
+            "2582169",
+            "35684881",
+            "4389394",
+            "46594244",
+            "11903247",
+            "43880096",
+            "21307488"
+          ],
+          "relevant": [
+            "4414547",
+            "5956380"
+          ],
+          "ndcg_at_10": 0.9197,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 1.0,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。",
+            "scifact：已排除 8 条与查询无检索相关度（词面/语义均无命中）的候选。"
+          ]
+        },
+        {
+          "query_id": "72",
+          "query": "Activator-inhibitor pairs are provided dorsally by Admpchordin.",
+          "ranked": [
+            "19071857",
+            "26652147",
+            "8317408",
+            "14637235",
+            "12087063",
+            "41811327",
+            "3203590",
+            "19651306",
+            "37727521",
+            "25886725"
+          ],
+          "relevant": [
+            "6076903"
+          ],
+          "ndcg_at_10": 0.0,
+          "recall_at_10": 0.0,
+          "mrr_at_10": 0.0,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。",
+            "scifact：已排除 732 条与查询无检索相关度（词面/语义均无命中）的候选。"
+          ]
+        },
+        {
+          "query_id": "75",
+          "query": "Active H. pylori urease has a polymeric structure that compromises two subunits, UreA and UreB.",
+          "ranked": [
+            "4387784",
+            "25657127",
+            "13965483",
+            "29214508",
+            "2837758",
+            "8654183",
+            "26488879",
+            "2052720",
+            "37768883",
+            "20330519"
+          ],
+          "relevant": [
+            "4387784"
+          ],
+          "ndcg_at_10": 1.0,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 1.0,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。",
+            "scifact：已排除 3 条与查询无检索相关度（词面/语义均无命中）的候选。"
+          ]
+        },
+        {
+          "query_id": "94",
+          "query": "Albendazole is used to treat lymphatic filariasis.",
+          "ranked": [
+            "17327939",
+            "26121646",
+            "9600826",
+            "293661",
+            "3446400",
+            "4961038",
+            "9634465",
+            "1215116",
+            "7662206",
+            "18275697"
+          ],
+          "relevant": [
+            "1215116"
+          ],
+          "ndcg_at_10": 0.3155,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 0.125,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。",
+            "scifact：已排除 93 条与查询无检索相关度（词面/语义均无命中）的候选。"
+          ]
+        },
+        {
+          "query_id": "99",
+          "query": "Alizarin forms hydrogen bonds with residues involved in PGAM1 substrate binding.",
+          "ranked": [
+            "35768199",
+            "18810195",
+            "1225513",
+            "56391045",
+            "12225214",
+            "25515662",
+            "5953485",
+            "43048059",
+            "27373088",
+            "43890638"
+          ],
+          "relevant": [
+            "18810195"
+          ],
+          "ndcg_at_10": 0.6309,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 0.5,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。",
+            "scifact：已排除 20 条与查询无检索相关度（词面/语义均无命中）的候选。"
+          ]
+        },
+        {
+          "query_id": "100",
+          "query": "All hematopoietic stem cells segregate their chromosomes randomly.",
+          "ranked": [
+            "4381486",
+            "92499",
+            "5107861",
+            "25516011",
+            "34982259",
+            "22973574",
+            "19583924",
+            "40234452",
+            "11900630",
+            "13116880"
+          ],
+          "relevant": [
+            "4381486"
+          ],
+          "ndcg_at_10": 1.0,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 1.0,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。",
+            "scifact：已排除 1906 条与查询无检索相关度（词面/语义均无命中）的候选。"
+          ]
+        }
+      ]
+    },
+    {
+      "method": "dense",
+      "queries": 20,
+      "ndcg_at_10": 0.6056,
+      "recall_at_10": 0.8,
+      "mrr_at_10": 0.5514,
+      "latency_ms": {
+        "mean": 3837.55,
+        "p50": 3829.84,
+        "p95": 4040.87,
+        "max": 4103.84
+      },
+      "warmup_ms": 1165542.19,
+      "rows": [
+        {
+          "query_id": "1",
+          "query": "0-dimensional biomaterials show inductive properties.",
+          "ranked": [
+            "20101846",
+            "35008773",
+            "2121272",
+            "4416964",
+            "82665667",
+            "10582939",
+            "86129154",
+            "9646449",
+            "19685306",
+            "4462419"
+          ],
+          "relevant": [
+            "31715818"
+          ],
+          "ndcg_at_10": 0.0,
+          "recall_at_10": 0.0,
+          "mrr_at_10": 0.0,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。",
+            "scifact：有 10 条入选候选仅由语义方法召回（词面零分）：Homogeneously dispersed multimetal oxyge、Neural induction and early patterning in、Stresses at the cell-to-substrate interf；语义相似不代表同一疾病/药物实体，请核对实体一致性（相似但错误是已知失败模式）。"
+          ]
+        },
+        {
+          "query_id": "3",
+          "query": "1,000 genomes project enables mapping of genetic sequence variation consisting of rare variants with larger penetrance effects than common variants.",
+          "ranked": [
+            "1388704",
+            "4378885",
+            "23389795",
+            "19058822",
+            "2739854",
+            "2359152",
+            "14717500",
+            "13914198",
+            "4632921",
+            "4325398"
+          ],
+          "relevant": [
+            "14717500"
+          ],
+          "ndcg_at_10": 0.3333,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 0.1429,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。",
+            "scifact：有 10 条入选候选仅由语义方法召回（词面零分）：The essence of SNPs.、Understanding mechanisms underlying huma、Common and rare variants in multifactori；语义相似不代表同一疾病/药物实体，请核对实体一致性（相似但错误是已知失败模式）。"
+          ]
+        },
+        {
+          "query_id": "5",
+          "query": "1/2000 in UK have abnormal PrP positivity.",
+          "ranked": [
+            "13734012",
+            "5691302",
+            "5850219",
+            "29745822",
+            "28738741",
+            "10300000",
+            "38784540",
+            "6421734",
+            "23124332",
+            "42291761"
+          ],
+          "relevant": [
+            "13734012"
+          ],
+          "ndcg_at_10": 1.0,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 1.0,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。",
+            "scifact：有 10 条入选候选仅由语义方法召回（词面零分）：Prevalent abnormal prion protein in huma、Antidepressant use and risk of adverse o、Prevalence, risk factors, and uptake of ；语义相似不代表同一疾病/药物实体，请核对实体一致性（相似但错误是已知失败模式）。"
+          ]
+        },
+        {
+          "query_id": "13",
+          "query": "5% of perinatal mortality is due to low birth weight.",
+          "ranked": [
+            "11748341",
+            "16204011",
+            "7662395",
+            "8529693",
+            "1263446",
+            "4791384",
+            "31942055",
+            "1606628",
+            "17450673",
+            "2613775"
+          ],
+          "relevant": [
+            "1606628"
+          ],
+          "ndcg_at_10": 0.3155,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 0.125,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。",
+            "scifact：有 10 条入选候选仅由语义方法召回（词面零分）：Evidence-based interventions for improve、Care Seeking for Neonatal Illness in Low、Perinatal mortality in rural China: retr；语义相似不代表同一疾病/药物实体，请核对实体一致性（相似但错误是已知失败模式）。"
+          ]
+        },
+        {
+          "query_id": "36",
+          "query": "A deficiency of vitamin B12 increases blood levels of homocysteine.",
+          "ranked": [
+            "3215494",
+            "16252863",
+            "25439264",
+            "18557974",
+            "33409100",
+            "37424881",
+            "12810152",
+            "11705328",
+            "27602752",
+            "21636085"
+          ],
+          "relevant": [
+            "11705328",
+            "5152028"
+          ],
+          "ndcg_at_10": 0.1934,
+          "recall_at_10": 0.5,
+          "mrr_at_10": 0.125,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。",
+            "scifact：有 10 条入选候选仅由语义方法召回（词面零分）：Hyperhomocysteinemia and atherosclerotic、Preventing coronary heart disease: B vit、Homocysteine Induces Trophoblast Cell De；语义相似不代表同一疾病/药物实体，请核对实体一致性（相似但错误是已知失败模式）。"
+          ]
+        },
+        {
+          "query_id": "42",
+          "query": "A high microerythrocyte count raises vulnerability to severe anemia in homozygous alpha (+)- thalassemia trait subjects.",
+          "ranked": [
+            "18174210",
+            "40913091",
+            "27889071",
+            "8385277",
+            "18256197",
+            "3215494",
+            "8317408",
+            "13959707",
+            "18344910",
+            "23013317"
+          ],
+          "relevant": [
+            "18174210"
+          ],
+          "ndcg_at_10": 1.0,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 1.0,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。",
+            "scifact：有 10 条入选候选仅由语义方法召回（词面零分）：Increased Microerythrocyte Count in Homo、GENOTYPING OF THALASSEMIA IN MICROCYTIC 、Microcytosis, iron deficiency and thalas；语义相似不代表同一疾病/药物实体，请核对实体一致性（相似但错误是已知失败模式）。"
+          ]
+        },
+        {
+          "query_id": "48",
+          "query": "A total of 1,000 people in the UK are asymptomatic carriers of vCJD infection.",
+          "ranked": [
+            "11349166",
+            "29955650",
+            "18617259",
+            "44624045",
+            "5114282",
+            "3413083",
+            "5835149",
+            "21700295",
+            "27063470",
+            "28738741"
+          ],
+          "relevant": [
+            "13734012"
+          ],
+          "ndcg_at_10": 0.0,
+          "recall_at_10": 0.0,
+          "mrr_at_10": 0.0,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。",
+            "scifact：有 10 条入选候选仅由语义方法召回（词面零分）：Lack of evidence of transfusion transmis、Study of infectious intestinal disease i、Research Letters；语义相似不代表同一疾病/药物实体，请核对实体一致性（相似但错误是已知失败模式）。"
+          ]
+        },
+        {
+          "query_id": "49",
+          "query": "ADAR1 binds to Dicer to cleave pre-miRNA.",
+          "ranked": [
+            "5953485",
+            "5702790",
+            "10207180",
+            "7029990",
+            "12652963",
+            "10423989",
+            "950306",
+            "32194449",
+            "18467982",
+            "8702697"
+          ],
+          "relevant": [
+            "5953485"
+          ],
+          "ndcg_at_10": 1.0,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 1.0,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。",
+            "scifact：有 10 条入选候选仅由语义方法召回（词面零分）：ADAR1 Forms a Complex with Dicer to Prom、Phosphate and R2D2 restrict the substrat、β-site amyloid precursor protein-cleavin；语义相似不代表同一疾病/药物实体，请核对实体一致性（相似但错误是已知失败模式）。"
+          ]
+        },
+        {
+          "query_id": "50",
+          "query": "AIRE is expressed in some skin tumors.",
+          "ranked": [
+            "12580014",
+            "25738896",
+            "13989491",
+            "20839751",
+            "18488986",
+            "2130391",
+            "42731834",
+            "39559521",
+            "31933981",
+            "15405204"
+          ],
+          "relevant": [
+            "12580014"
+          ],
+          "ndcg_at_10": 1.0,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 1.0,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。",
+            "scifact：有 10 条入选候选仅由语义方法召回（词面零分）：Keratin-dependent regulation of Aire and、Aire deficiency promotes TRP-1-specific 、Acids: Structures, Properties, and Funct；语义相似不代表同一疾病/药物实体，请核对实体一致性（相似但错误是已知失败模式）。"
+          ]
+        },
+        {
+          "query_id": "51",
+          "query": "ALDH1 expression is associated with better breast cancer outcomes.",
+          "ranked": [
+            "45638119",
+            "8963413",
+            "32001951",
+            "20839751",
+            "16734530",
+            "9239963",
+            "2931832",
+            "21439640",
+            "22401720",
+            "24341590"
+          ],
+          "relevant": [
+            "45638119"
+          ],
+          "ndcg_at_10": 1.0,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 1.0,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。",
+            "scifact：有 10 条入选候选仅由语义方法召回（词面零分）：ALDH1 is a marker of normal and malignan、PD-L1 expression in human cancers and it、Regulation of the expression of alkaline；语义相似不代表同一疾病/药物实体，请核对实体一致性（相似但错误是已知失败模式）。"
+          ]
+        },
+        {
+          "query_id": "53",
+          "query": "ALDH1 expression is associated with poorer prognosis in breast cancer.",
+          "ranked": [
+            "45638119",
+            "8963413",
+            "26561572",
+            "32001951",
+            "2140497",
+            "15113221",
+            "20839751",
+            "21439640",
+            "42731834",
+            "11271123"
+          ],
+          "relevant": [
+            "45638119"
+          ],
+          "ndcg_at_10": 1.0,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 1.0,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。",
+            "scifact：有 10 条入选候选仅由语义方法召回（词面零分）：ALDH1 is a marker of normal and malignan、PD-L1 expression in human cancers and it、RET, ROS1 and ALK fusions in lung cancer；语义相似不代表同一疾病/药物实体，请核对实体一致性（相似但错误是已知失败模式）。"
+          ]
+        },
+        {
+          "query_id": "54",
+          "query": "AMP-activated protein kinase (AMPK) activation increases inflammation-related fibrosis in the lungs.",
+          "ranked": [
+            "24721866",
+            "1590744",
+            "3973445",
+            "23974474",
+            "49556906",
+            "9899292",
+            "32408470",
+            "9752604",
+            "3419709",
+            "38533515"
+          ],
+          "relevant": [
+            "49556906"
+          ],
+          "ndcg_at_10": 0.3869,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 0.2,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。",
+            "scifact：有 10 条入选候选仅由语义方法召回（词面零分）：Activation of AMP-activated protein kina、AMP-Activated Protein Kinase: An Ubiquit、Phosphorylation of Janus kinase 1 (JAK1)；语义相似不代表同一疾病/药物实体，请核对实体一致性（相似但错误是已知失败模式）。"
+          ]
+        },
+        {
+          "query_id": "56",
+          "query": "APOE4 expression in iPSC-derived neurons increases AlphaBeta production and tau phosphorylation causing GABA neuron degeneration.",
+          "ranked": [
+            "4709641",
+            "7039855",
+            "22185730",
+            "6492658",
+            "58006489",
+            "3113630",
+            "1447990",
+            "21199527",
+            "4345605",
+            "22116439"
+          ],
+          "relevant": [
+            "4709641"
+          ],
+          "ndcg_at_10": 1.0,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 1.0,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。",
+            "scifact：有 10 条入选候选仅由语义方法召回（词面零分）：Gain of toxic Apolipoprotein E4 effects 、Neuronal activity regulates remyelinatio、PP2A regulates tau phosphorylation direc；语义相似不代表同一疾病/药物实体，请核对实体一致性（相似但错误是已知失败模式）。"
+          ]
+        },
+        {
+          "query_id": "57",
+          "query": "APOE4 expression in iPSC-derived neurons increases AlphaBeta production and tau phosphorylation, delaying GABA neuron degeneration.",
+          "ranked": [
+            "4709641",
+            "58006489",
+            "1447990",
+            "22185730",
+            "39545358",
+            "21199527",
+            "1122198",
+            "1070920",
+            "22116439",
+            "7039855"
+          ],
+          "relevant": [
+            "4709641"
+          ],
+          "ndcg_at_10": 1.0,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 1.0,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。",
+            "scifact：有 10 条入选候选仅由语义方法召回（词面零分）：Gain of toxic Apolipoprotein E4 effects 、Prostaglandin E2 mediates sensory nerve 、FOXO4 is necessary for neural differenti；语义相似不代表同一疾病/药物实体，请核对实体一致性（相似但错误是已知失败模式）。"
+          ]
+        },
+        {
+          "query_id": "70",
+          "query": "Activation of PPM1D suppresses p53 function.",
+          "ranked": [
+            "9169645",
+            "31624828",
+            "11903247",
+            "9483851",
+            "42489926",
+            "23974474",
+            "43880096",
+            "5956380",
+            "2582169",
+            "21557055"
+          ],
+          "relevant": [
+            "4414547",
+            "5956380"
+          ],
+          "ndcg_at_10": 0.1934,
+          "recall_at_10": 0.5,
+          "mrr_at_10": 0.125,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。",
+            "scifact：有 10 条入选候选仅由语义方法召回（词面零分）：Identification of a novel p53 functional、Control of signaling-mediated clearance 、Regulation of autophagy by cytoplasmic p；语义相似不代表同一疾病/药物实体，请核对实体一致性（相似但错误是已知失败模式）。"
+          ]
+        },
+        {
+          "query_id": "72",
+          "query": "Activator-inhibitor pairs are provided dorsally by Admpchordin.",
+          "ranked": [
+            "14362678",
+            "14296612",
+            "1070920",
+            "19313533",
+            "118568",
+            "6076903",
+            "10984005",
+            "2119889",
+            "4425507",
+            "40790033"
+          ],
+          "relevant": [
+            "6076903"
+          ],
+          "ndcg_at_10": 0.3562,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 0.1667,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。",
+            "scifact：有 10 条入选候选仅由语义方法召回（词面零分）：CaMKII induces permeability transition t、Dorsomorphin, a Selective Small Molecule、A neural basis for melanocortin-4 recept；语义相似不代表同一疾病/药物实体，请核对实体一致性（相似但错误是已知失败模式）。"
+          ]
+        },
+        {
+          "query_id": "75",
+          "query": "Active H. pylori urease has a polymeric structure that compromises two subunits, UreA and UreB.",
+          "ranked": [
+            "4387784",
+            "13965483",
+            "36233757",
+            "12149169",
+            "1226452",
+            "26488879",
+            "29224825",
+            "7465900",
+            "22703082",
+            "38805486"
+          ],
+          "relevant": [
+            "4387784"
+          ],
+          "ndcg_at_10": 1.0,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 1.0,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。",
+            "scifact：有 10 条入选候选仅由语义方法召回（词面零分）：Structure of the proton-gated urea chann、Prophylactic and therapeutic efficacy of、Purification and activation properties o；语义相似不代表同一疾病/药物实体，请核对实体一致性（相似但错误是已知失败模式）。"
+          ]
+        },
+        {
+          "query_id": "94",
+          "query": "Albendazole is used to treat lymphatic filariasis.",
+          "ranked": [
+            "25298276",
+            "32850528",
+            "32001951",
+            "12370881",
+            "8428837",
+            "27944135",
+            "33118292",
+            "39892135",
+            "39443128",
+            "5704562"
+          ],
+          "relevant": [
+            "1215116"
+          ],
+          "ndcg_at_10": 0.0,
+          "recall_at_10": 0.0,
+          "mrr_at_10": 0.0,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。",
+            "scifact：有 10 条入选候选仅由语义方法召回（词面零分）：Emerging role of bisphosphonates in the 、Amylase, Lipase, and Acute Pancreatitis 、Regulation of the expression of alkaline；语义相似不代表同一疾病/药物实体，请核对实体一致性（相似但错误是已知失败模式）。"
+          ]
+        },
+        {
+          "query_id": "99",
+          "query": "Alizarin forms hydrogen bonds with residues involved in PGAM1 substrate binding.",
+          "ranked": [
+            "11083121",
+            "43224840",
+            "31154082",
+            "26488879",
+            "2576811",
+            "21754541",
+            "18810195",
+            "40383969",
+            "23160444",
+            "3506723"
+          ],
+          "relevant": [
+            "18810195"
+          ],
+          "ndcg_at_10": 0.3333,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 0.1429,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。",
+            "scifact：有 10 条入选候选仅由语义方法召回（词面零分）：Formins: intermediates in signal-transdu、Dynamics of Microvillus Extension and Te、The binding of maize DHN1 to lipid vesic；语义相似不代表同一疾病/药物实体，请核对实体一致性（相似但错误是已知失败模式）。"
+          ]
+        },
+        {
+          "query_id": "100",
+          "query": "All hematopoietic stem cells segregate their chromosomes randomly.",
+          "ranked": [
+            "4381486",
+            "13116880",
+            "92499",
+            "25516011",
+            "10015292",
+            "14550841",
+            "41256402",
+            "7492420",
+            "12742164",
+            "22186938"
+          ],
+          "relevant": [
+            "4381486"
+          ],
+          "ndcg_at_10": 1.0,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 1.0,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。",
+            "scifact：有 10 条入选候选仅由语义方法召回（词面零分）：Haematopoietic stem cells do not asymmet、Hematopoietic stem cell: self-renewal ve、The journey of developing hematopoietic ；语义相似不代表同一疾病/药物实体，请核对实体一致性（相似但错误是已知失败模式）。"
+          ]
+        }
+      ]
+    },
+    {
+      "method": "hybrid",
+      "queries": 20,
+      "ndcg_at_10": 0.6364,
+      "recall_at_10": 0.775,
+      "mrr_at_10": 0.621,
+      "latency_ms": {
+        "mean": 7664.55,
+        "p50": 8274.24,
+        "p95": 8607.22,
+        "max": 8613.87
+      },
+      "warmup_ms": 1165542.19,
+      "rows": [
+        {
+          "query_id": "1",
+          "query": "0-dimensional biomaterials show inductive properties.",
+          "ranked": [
+            "21271817",
+            "36233757",
+            "18953920",
+            "59453688",
+            "42240424",
+            "121581019",
+            "43385013",
+            "16541762",
+            "1292369",
+            "3174305"
+          ],
+          "relevant": [
+            "31715818"
+          ],
+          "ndcg_at_10": 0.0,
+          "recall_at_10": 0.0,
+          "mrr_at_10": 0.0,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。"
+          ]
+        },
+        {
+          "query_id": "3",
+          "query": "1,000 genomes project enables mapping of genetic sequence variation consisting of rare variants with larger penetrance effects than common variants.",
+          "ranked": [
+            "2739854",
+            "23389795",
+            "14717500",
+            "13519661",
+            "14019636",
+            "4378885",
+            "4632921",
+            "14729253",
+            "10944947",
+            "3672261"
+          ],
+          "relevant": [
+            "14717500"
+          ],
+          "ndcg_at_10": 0.5,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 0.3333,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。"
+          ]
+        },
+        {
+          "query_id": "5",
+          "query": "1/2000 in UK have abnormal PrP positivity.",
+          "ranked": [
+            "13734012",
+            "103007",
+            "32481310",
+            "14188138",
+            "11880289",
+            "13883546",
+            "42291761",
+            "33796570",
+            "7834603",
+            "24082820"
+          ],
+          "relevant": [
+            "13734012"
+          ],
+          "ndcg_at_10": 1.0,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 1.0,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。"
+          ]
+        },
+        {
+          "query_id": "13",
+          "query": "5% of perinatal mortality is due to low birth weight.",
+          "ranked": [
+            "7662395",
+            "26611834",
+            "5487448",
+            "34544514",
+            "1263446",
+            "25182647",
+            "30786800",
+            "4810810",
+            "22815457",
+            "19799455"
+          ],
+          "relevant": [
+            "1606628"
+          ],
+          "ndcg_at_10": 0.0,
+          "recall_at_10": 0.0,
+          "mrr_at_10": 0.0,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。"
+          ]
+        },
+        {
+          "query_id": "36",
+          "query": "A deficiency of vitamin B12 increases blood levels of homocysteine.",
+          "ranked": [
+            "11705328",
+            "42441846",
+            "33409100",
+            "9555784",
+            "23267371",
+            "18557974",
+            "16252863",
+            "13312471",
+            "16256507",
+            "18256197"
+          ],
+          "relevant": [
+            "11705328",
+            "5152028"
+          ],
+          "ndcg_at_10": 0.6131,
+          "recall_at_10": 0.5,
+          "mrr_at_10": 1.0,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。"
+          ]
+        },
+        {
+          "query_id": "42",
+          "query": "A high microerythrocyte count raises vulnerability to severe anemia in homozygous alpha (+)- thalassemia trait subjects.",
+          "ranked": [
+            "18174210",
+            "40913091",
+            "45218443",
+            "10326242",
+            "8385277",
+            "10128893",
+            "12428137",
+            "4449524",
+            "38023457",
+            "18676539"
+          ],
+          "relevant": [
+            "18174210"
+          ],
+          "ndcg_at_10": 1.0,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 1.0,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。"
+          ]
+        },
+        {
+          "query_id": "48",
+          "query": "A total of 1,000 people in the UK are asymptomatic carriers of vCJD infection.",
+          "ranked": [
+            "22309946",
+            "15648443",
+            "18574146",
+            "32481310",
+            "103007",
+            "8892905",
+            "18617259",
+            "21700295",
+            "1866911",
+            "11880289"
+          ],
+          "relevant": [
+            "13734012"
+          ],
+          "ndcg_at_10": 0.0,
+          "recall_at_10": 0.0,
+          "mrr_at_10": 0.0,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。"
+          ]
+        },
+        {
+          "query_id": "49",
+          "query": "ADAR1 binds to Dicer to cleave pre-miRNA.",
+          "ranked": [
+            "5953485",
+            "7029990",
+            "5702790",
+            "5409325",
+            "946756",
+            "20943272",
+            "15659108",
+            "41620295",
+            "2423940",
+            "39929509"
+          ],
+          "relevant": [
+            "5953485"
+          ],
+          "ndcg_at_10": 1.0,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 1.0,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。"
+          ]
+        },
+        {
+          "query_id": "50",
+          "query": "AIRE is expressed in some skin tumors.",
+          "ranked": [
+            "12580014",
+            "39559521",
+            "25738896",
+            "4561402",
+            "42279414",
+            "43014661",
+            "12489130",
+            "18488986",
+            "301838",
+            "19736671"
+          ],
+          "relevant": [
+            "12580014"
+          ],
+          "ndcg_at_10": 1.0,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 1.0,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。"
+          ]
+        },
+        {
+          "query_id": "51",
+          "query": "ALDH1 expression is associated with better breast cancer outcomes.",
+          "ranked": [
+            "24341590",
+            "8963413",
+            "45638119",
+            "23830488",
+            "20280410",
+            "21439640",
+            "2140497",
+            "20839751",
+            "42731834",
+            "4414547"
+          ],
+          "relevant": [
+            "45638119"
+          ],
+          "ndcg_at_10": 0.5,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 0.3333,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。"
+          ]
+        },
+        {
+          "query_id": "53",
+          "query": "ALDH1 expression is associated with poorer prognosis in breast cancer.",
+          "ranked": [
+            "10024681",
+            "45638119",
+            "15113221",
+            "20280410",
+            "42731834",
+            "21439640",
+            "2140497",
+            "20839751",
+            "25973484",
+            "12358173"
+          ],
+          "relevant": [
+            "45638119"
+          ],
+          "ndcg_at_10": 0.6309,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 0.5,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。"
+          ]
+        },
+        {
+          "query_id": "54",
+          "query": "AMP-activated protein kinase (AMPK) activation increases inflammation-related fibrosis in the lungs.",
+          "ranked": [
+            "24721866",
+            "3973445",
+            "1590744",
+            "9899292",
+            "32408470",
+            "22036571",
+            "7005276",
+            "9752604",
+            "49556906",
+            "19313533"
+          ],
+          "relevant": [
+            "49556906"
+          ],
+          "ndcg_at_10": 0.301,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 0.1111,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。"
+          ]
+        },
+        {
+          "query_id": "56",
+          "query": "APOE4 expression in iPSC-derived neurons increases AlphaBeta production and tau phosphorylation causing GABA neuron degeneration.",
+          "ranked": [
+            "4709641",
+            "22185730",
+            "22116439",
+            "35520219",
+            "24632480",
+            "33911859",
+            "4345605",
+            "13969173",
+            "32322418",
+            "23974474"
+          ],
+          "relevant": [
+            "4709641"
+          ],
+          "ndcg_at_10": 1.0,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 1.0,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。"
+          ]
+        },
+        {
+          "query_id": "57",
+          "query": "APOE4 expression in iPSC-derived neurons increases AlphaBeta production and tau phosphorylation, delaying GABA neuron degeneration.",
+          "ranked": [
+            "4709641",
+            "22185730",
+            "22116439",
+            "35520219",
+            "24632480",
+            "33911859",
+            "4345605",
+            "32322418",
+            "10534299",
+            "33986200"
+          ],
+          "relevant": [
+            "4709641"
+          ],
+          "ndcg_at_10": 1.0,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 1.0,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。"
+          ]
+        },
+        {
+          "query_id": "70",
+          "query": "Activation of PPM1D suppresses p53 function.",
+          "ranked": [
+            "5956380",
+            "24721866",
+            "2582169",
+            "35684881",
+            "4414547",
+            "11903247",
+            "4389394",
+            "43880096",
+            "21307488",
+            "9169645"
+          ],
+          "relevant": [
+            "4414547",
+            "5956380"
+          ],
+          "ndcg_at_10": 0.8503,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 1.0,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。"
+          ]
+        },
+        {
+          "query_id": "72",
+          "query": "Activator-inhibitor pairs are provided dorsally by Admpchordin.",
+          "ranked": [
+            "19071857",
+            "26652147",
+            "8317408",
+            "14637235",
+            "3203590",
+            "12087063",
+            "41811327",
+            "236204",
+            "37727521",
+            "19651306"
+          ],
+          "relevant": [
+            "6076903"
+          ],
+          "ndcg_at_10": 0.0,
+          "recall_at_10": 0.0,
+          "mrr_at_10": 0.0,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。"
+          ]
+        },
+        {
+          "query_id": "75",
+          "query": "Active H. pylori urease has a polymeric structure that compromises two subunits, UreA and UreB.",
+          "ranked": [
+            "4387784",
+            "13965483",
+            "25657127",
+            "37768883",
+            "26488879",
+            "8654183",
+            "2837758",
+            "29214508",
+            "22703082",
+            "24705390"
+          ],
+          "relevant": [
+            "4387784"
+          ],
+          "ndcg_at_10": 1.0,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 1.0,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。"
+          ]
+        },
+        {
+          "query_id": "94",
+          "query": "Albendazole is used to treat lymphatic filariasis.",
+          "ranked": [
+            "17327939",
+            "26121646",
+            "9600826",
+            "293661",
+            "3446400",
+            "4961038",
+            "1215116",
+            "9634465",
+            "7662206",
+            "33569870"
+          ],
+          "relevant": [
+            "1215116"
+          ],
+          "ndcg_at_10": 0.3333,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 0.1429,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。"
+          ]
+        },
+        {
+          "query_id": "99",
+          "query": "Alizarin forms hydrogen bonds with residues involved in PGAM1 substrate binding.",
+          "ranked": [
+            "18810195",
+            "35768199",
+            "12225214",
+            "1225513",
+            "5953485",
+            "25515662",
+            "56391045",
+            "43048059",
+            "27373088",
+            "30208015"
+          ],
+          "relevant": [
+            "18810195"
+          ],
+          "ndcg_at_10": 1.0,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 1.0,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。"
+          ]
+        },
+        {
+          "query_id": "100",
+          "query": "All hematopoietic stem cells segregate their chromosomes randomly.",
+          "ranked": [
+            "4381486",
+            "92499",
+            "25516011",
+            "5107861",
+            "13116880",
+            "2701077",
+            "34982259",
+            "10015292",
+            "54561384",
+            "22186938"
+          ],
+          "relevant": [
+            "4381486"
+          ],
+          "ndcg_at_10": 1.0,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 1.0,
+          "warnings": [
+            "scifact：已按 DOI/PMID/标题去重 3 条候选。"
+          ]
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "Public English scientific claims; not a Chinese clinical or ChinaLLM patient evaluation.",
+    "Dense scores come from BGE-M3 with CLS pooling; document vectors are cached after the first query.",
+    "No reranker is applied in this run; RRF is the existing zero-signal-aware implementation."
+  ]
+}

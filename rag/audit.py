@@ -12,10 +12,11 @@ lexical heuristic.
 from __future__ import annotations
 
 import re
+import time
 from dataclasses import dataclass, field
 from typing import Any, Mapping, Protocol, Sequence
 
-from .config import get_config
+from .quality.metrics import METRICS
 from .models import EvidencePackage
 
 
@@ -35,74 +36,6 @@ class ClaimVerifier(Protocol):
     def verify(self, pairs: Sequence[tuple[str, str]]) -> Sequence[tuple[bool, float | None]]: ...
 
 
-
-@dataclass
-class MiniCheckVerifier:
-    """Lazy adapter for the official ``minicheck`` Python package.
-
-    Install the package and fill ``minicheck_model`` in ``config.py`` before enabling
-    this adapter.  The official scorer may download model weights on first use;
-    that is intentionally not done at import time or as an implicit fallback.
-    """
-
-    model_name: str | None = None
-    cache_dir: str | None = None
-    _scorer: Any = None
-    _load_error: str | None = None
-
-    def __post_init__(self) -> None:
-        config = get_config()
-        if self.model_name is None:
-            self.model_name = config.minicheck_model or None
-        if self.cache_dir is None:
-            self.cache_dir = config.minicheck_cache_dir or None
-
-    @property
-    def name(self) -> str:
-        return "minicheck"
-
-    @property
-    def available(self) -> bool:
-        return bool(self.model_name) and self._ensure_loaded()
-
-    @property
-    def unavailable_reason(self) -> str:
-        if not self.model_name:
-            return "未在 config.py 中配置 minicheck_model；未执行主张级模型校验。"
-        self._ensure_loaded()
-        return self._load_error or "MiniCheck 当前不可用。"
-
-    def verify(self, pairs: Sequence[tuple[str, str]]) -> Sequence[tuple[bool, float | None]]:
-        if not pairs:
-            return []
-        if not self.available:
-            raise RuntimeError(self.unavailable_reason)
-        claims = [claim for claim, _ in pairs]
-        documents = [document for _, document in pairs]
-        try:
-            labels, probabilities, _, _ = self._scorer.score(docs=documents, claims=claims)
-        except Exception as exc:
-            raise RuntimeError(f"MiniCheck 推理失败：{type(exc).__name__}") from exc
-        return [(bool(label), _probability(probability)) for label, probability in zip(labels, probabilities)]
-
-    def _ensure_loaded(self) -> bool:
-        if self._scorer is not None:
-            return True
-        if self._load_error or not self.model_name:
-            return False
-        try:
-            from minicheck.minicheck import MiniCheck  # type: ignore[import-not-found]
-
-            kwargs: dict[str, Any] = {"model_name": self.model_name}
-            if self.cache_dir:
-                kwargs["cache_dir"] = self.cache_dir
-            self._scorer = MiniCheck(**kwargs)
-            return True
-        except Exception as exc:
-            self._load_error = f"MiniCheck 未就绪：{type(exc).__name__}。"
-            return False
-
-
 @dataclass
 class GroundedAnswerAuditor:
     """Audits an answer only against citations belonging to one retrieval.
@@ -114,6 +47,7 @@ class GroundedAnswerAuditor:
 
     verifier: ClaimVerifier | None = None
     _checks: dict[tuple[str, str], tuple[bool, float | None]] = field(default_factory=dict, init=False, repr=False)
+    _translations: dict[str, str] = field(default_factory=dict, init=False, repr=False)
 
     def audit(self, *, package: EvidencePackage, answer: str, claim_records: Sequence[Mapping[str, Any]] | None = None) -> dict[str, Any]:
         answer = str(answer or "").strip()
@@ -157,13 +91,19 @@ class GroundedAnswerAuditor:
                 try:
                     missing = list(dict.fromkeys(pair for pair in pairs if pair not in self._checks))
                     if missing:
+                        verification_started = time.perf_counter()
                         new_results = list(self.verifier.verify(missing))
+                        METRICS.observe("claim_verification_duration_ms", (time.perf_counter() - verification_started) * 1000)
+                        METRICS.increment("claim_verification_pairs_total", len(missing))
                         if len(new_results) != len(missing):
                             raise RuntimeError("Verifier returned an incomplete result set")
                         if len(self._checks) + len(missing) > 512:
                             self._checks.clear()
+                            self._translations.clear()
                         self._checks.update(zip(missing, new_results))
+                        self._translations.update(dict(getattr(self.verifier, "last_translations", {}) or {}))
                     results = [self._checks[pair] for pair in pairs]
+                    METRICS.increment("claim_verification_checked_total", len(results))
                 except RuntimeError as exc:
                     verification_warning = str(exc)
             else:
@@ -171,27 +111,43 @@ class GroundedAnswerAuditor:
         elif rows:
             verification_warning = "回答中没有可用于证据校验的有效 citation_id。"
         per_link: dict[tuple[int, int], tuple[bool, float | None]] = dict(zip(pair_locations, results))
+        translations = dict(self._translations)
         for row_index, row in enumerate(rows):
             links = [per_link[(row_index, citation_index)] for citation_index in range(len(row["valid_citation_ids"])) if (row_index, citation_index) in per_link]
             row["citation_checks"] = [
                 {"citation_id": citation_id, "supported": supported, "score": score}
                 for citation_id, (supported, score) in zip(row["valid_citation_ids"], links)
             ]
+            translated = translations.get(row["verifier_claim"])
+            if translated:
+                row["verifier_claim_en"] = translated
+                row["translated_for_verification"] = True
             row["ragtruth_label"] = _ragtruth_label(row, links, bool(results))
+        translation_used = bool(translations)
+        limitations = [
+            "默认审计只校验引用结构与 citation_id 归属；未注入校验器时不判断语义支持。",
+            "当前 PubMed 摘要通常为英文；中文生成主张的跨语言校验效果尚未在本项目评测。",
+        ]
+        if translation_used:
+            limitations.append("中文主张经 zh→en 机器翻译后交给英文 MiniCheck；译文错误会影响判定，译文已逐条记录。")
         return {
             "retrieval_id": package.retrieval_id,
             "verifier": {
                 "name": self.verifier.name if self.verifier is not None else "none",
+                "model": getattr(self.verifier, "model_name", None),
                 "available": verifier_available,
                 "mode": "claim_verification" if verifier_available else "structural_only",
+                "translation": {
+                    "used": translation_used,
+                    "processor": getattr(self.verifier, "translator_name", None) if translation_used else None,
+                },
             },
             "claims": rows,
             "alce_like": _alce_like(rows, verification_completed=bool(results)),
-            "warnings": _warnings(verification_warning, rows),
-            "limitations": [
-                "默认审计只校验引用结构与 citation_id 归属；未注入校验器时不判断语义支持。",
-                "当前 PubMed 摘要通常为英文；中文生成主张的跨语言校验效果尚未在本项目评测。",
-            ],
+            "warnings": _warnings(verification_warning, rows) + (
+                ["中文主张经 zh→en 机器翻译后校验；译文错误会影响判定，逐条译文见 claims[].verifier_claim_en。"] if translation_used else []
+            ),
+            "limitations": limitations,
         }
 
 
@@ -333,3 +289,6 @@ def _probability(value: Any) -> float | None:
 
 
 
+
+# 兼容旧导入路径：MiniCheckVerifier 现位于 rag.quality.claim_verification。
+from .quality.claim_verification import MiniCheckVerifier  # noqa: E402,F401

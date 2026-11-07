@@ -99,5 +99,5 @@ class EvidenceRAG:
                 },
             },
             {"name": "open_citation", "description": "打开本次检索（同一 retrieval_id）中的版本化引文和原文定位；citation_id 必须属于该 retrieval_id。", "parameters": {"type": "object", "required": ["retrieval_id", "citation_id"], "properties": {"retrieval_id": {"type": "string", "description": "检索作用域 ID，来自 retrieve_evidence 结果。"}, "citation_id": {"type": "string", "description": "引用 ID（<retrieval_id>:cit-N）；跨检索使用会被拒绝。"}}}},
-            {"name": "audit_grounded_answer", "description": "以本次检索证据审计回答主张与引用（claim 级）；不生成诊疗结论，默认只做引用结构检查，语义支持标记 not_checked。", "parameters": {"type": "object", "required": ["retrieval_id", "answer"], "properties": {"retrieval_id": {"type": "string"}, "answer": {"type": "string", "description": "待审计回答；用 [citation_id] 标注引用，只能引用同一 retrieval_id 的 citation_id。"}}}},
+            {"name": "audit_grounded_answer", "description": "以本次检索证据审计回答主张与引用（claim 级）；不生成诊疗结论。默认只做引用结构检查，语义支持标记 not_checked；服务配置 MiniCheck 后做主张级语义校验，中文主张先经 zh→en 机器翻译并逐条留痕。", "parameters": {"type": "object", "required": ["retrieval_id", "answer"], "properties": {"retrieval_id": {"type": "string"}, "answer": {"type": "string", "description": "待审计回答；用 [citation_id] 标注引用，只能引用同一 retrieval_id 的 citation_id。"}}}},
         ]

@@ -5,7 +5,7 @@
   "description": "Agent 与只读检索层的对接契约：Agent 先获取带 as_of 的 HIS 快照，再调用 RAG 完成患者事实 + PubMed + 版本化指南的联合检索。检索分三层执行：按来源收集 → 分源独立排序（各自词表内 IDF/RRF/相关度门，跨来源分数不比较）→ 联合选择（来源可见性保证 + 意图配额 + 来源内排名轮转补齐 + 按来源内排名交错）。live 指南注册表只含新生儿指南元数据（成人 WHO 条目已移除）；新生儿演示档案（rag/demo/）是调用方库，需经 POST /api/demo/guidelines/load 显式加载。中英文字段语义见 language_rules：中文原始问题原样保留，审核术语优先使用 term_mapping（概念→english/mesh/aliases），english_terms/mesh_terms/user_terms 为兼容字段；question_english_terms 为系统自动提取。",
   "contract_metadata": {
     "contract_id": "chinallm.rag.agent",
-    "contract_version": "6.7.0",
+    "contract_version": "6.7.1",
     "status": "experimental"
   },
   "scope_and_safety": {
@@ -112,8 +112,8 @@
           "type": "integer",
           "minimum": 1,
           "maximum": 50,
-          "default": 8,
-          "description": "返回的引用条数上限。"
+          "default": 50,
+          "description": "返回的引用条数上限；默认 50。"
         },
         "patient_terms": {
           "type": "array",
@@ -996,10 +996,24 @@
           "description": "来源内排序分（不是跨来源可比分数，也不是证据质量）。"
         },
         "lexical_score": {
-          "type": "number"
+          "type": "number",
+          "description": "主词面方法的原始分。"
+        },
+        "lexical_norm_score": {
+          "type": ["number", "null"],
+          "description": "主词面分除以本来源最大值的归一值；用于复算 score。"
         },
         "fusion_score": {
-          "type": "number"
+          "type": "number",
+          "description": "RRF 原始和（Σ1/(60+rank)）。"
+        },
+        "fusion_norm_score": {
+          "type": ["number", "null"],
+          "description": "RRF 和除以最大值的归一值；用于复算 score。"
+        },
+        "base_score": {
+          "type": ["number", "null"],
+          "description": "无神经分数时的组合分；有神经分数时 score=0.70*base+0.30*semantic_score。"
         },
         "authority_score": {
           "type": "number",
@@ -1038,7 +1052,7 @@
             "integer",
             "null"
           ],
-          "description": "联合选择后的总排名（1 起）。"
+          "description": "重排前联合选择总排名（1 起）；最终列表顺序在重排后可能不同。"
         },
         "semantic_score": {
           "type": [

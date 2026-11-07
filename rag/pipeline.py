@@ -30,23 +30,27 @@ fact is explicit in the trace and warnings).
 """
 from __future__ import annotations
 
+import time
 from collections import defaultdict
+from collections.abc import Mapping
 from dataclasses import replace
 from datetime import datetime, timezone
 from uuid import uuid4
 
 from . import __version__
-from .applicability import assess_applicability
+from .quality.applicability import assess_applicability
 from .connectors import ConnectorRegistry
-from .evidence import extract_key_evidence_sentences
-from .fidelity import FidelityLexicon, QueryFidelityAuditor, ROUTE_LABELS
-from .gate import FidelityGate
+from .retrieval.evidence import extract_key_evidence_sentences
+from .quality.fidelity import FidelityLexicon, QueryFidelityAuditor, ROUTE_LABELS
+from .quality.gate import FidelityGate
 from .his import PatientSnapshot
+from .quality.mesh_linking import MESH_LINKING_MODES, apply_entity_linking
+from .quality.metrics import METRICS
 from .models import Citation, EvidencePackage, RetrievalRequest
-from .patient_retrieval import retrieve_patient_facts
-from .query import build_query_plan, review_query_plan
-from .ranking import deduplicate_documents, merge_joint_selection, rank_documents
-from .routing import ROUTING_MODES, decide_route
+from .retrieval.patient_retrieval import retrieve_patient_facts
+from .retrieval.query import build_query_plan, review_query_plan
+from .retrieval.ranking import deduplicate_documents, merge_joint_selection, rank_documents
+from .retrieval.routing import ROUTING_MODES, decide_route
 
 NEURAL_METHOD_SET = ("dense", "xlingual", "m3", "splade", "colbert")
 MULTILINGUAL_METHOD_SET = ("xlingual", "m3")
@@ -61,7 +65,12 @@ class EvidenceRetrievalPipeline:
                  rerank_pool: int = 0,
                  term_mapping_library=None,
                  applicability_preview: bool = False,
-                 routing_mode: str = "off"):
+                 routing_mode: str = "off",
+                 entity_linker=None,
+                 entity_linking_mode: str = "off",
+                 guideline_lifecycle=None,
+                 guideline_lifecycle_mode: str = "off",
+                 entity_linking_max_entry_terms: int = 2):
         """``neural_retrievers`` maps method name -> SemanticRetriever-style adapter
         for dense/xlingual/m3/splade/colbert/query2doc/translate. ``semantic_retriever``
         stays supported as the legacy single-dense slot; it is registered under
@@ -95,6 +104,17 @@ class EvidenceRetrievalPipeline:
         if mode not in ROUTING_MODES:
             raise ValueError("routing_mode must be one of: " + ", ".join(ROUTING_MODES))
         self.routing_mode = mode
+        linking_mode = str(entity_linking_mode or "off").strip().lower()
+        if linking_mode not in MESH_LINKING_MODES:
+            raise ValueError("entity_linking_mode must be one of: " + ", ".join(MESH_LINKING_MODES))
+        self.entity_linker = entity_linker
+        self.entity_linking_mode = linking_mode
+        self.entity_linking_max_entry_terms = max(0, int(entity_linking_max_entry_terms))
+        lifecycle_mode = str(guideline_lifecycle_mode or "off").strip().lower()
+        if lifecycle_mode not in {"off", "shadow", "active"}:
+            raise ValueError("guideline_lifecycle_mode must be one of: off, shadow, active")
+        self.guideline_lifecycle = guideline_lifecycle
+        self.guideline_lifecycle_mode = lifecycle_mode
         self.neural_retrievers: dict = dict(neural_retrievers or {})
         if semantic_retriever is not None and "dense" not in self.neural_retrievers:
             self.neural_retrievers["dense"] = semantic_retriever
@@ -124,6 +144,7 @@ class EvidenceRetrievalPipeline:
         from ``request.source_kinds``: the latter also reaches connector-level
         kind filters and cannot address one connector unambiguously.
         """
+        started = time.perf_counter()
         retrieval_id = f"retrieval-{uuid4().hex}"
         retrieved_at = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
         known_sources = self.registry.describe()
@@ -156,14 +177,25 @@ class EvidenceRetrievalPipeline:
                 request = replace(request, source_kinds=decision.selected_sources)
                 plan = build_query_plan(request, known_sources, library=self.term_mapping_library)
                 route_trace["source_order_after"] = list(plan.source_order)
+        warnings: list[str] = list(patient_trace.get("warnings", []))
+        warnings.extend(getattr(self.registry, "warnings", ()))
+        entity_trace: dict[str, object] | None = None
+        if self.entity_linker is not None and self.entity_linking_mode != "off":
+            plan, entity_trace = apply_entity_linking(
+                plan, self.entity_linker, mode=self.entity_linking_mode,
+                context=request.question, max_entry_terms=self.entity_linking_max_entry_terms,
+            )
+            if entity_trace.get("semantic_error"):
+                warnings.append(f"实体链接语义打分器未配置（not_configured）：{entity_trace['semantic_error']}；本次仅用词面/词表匹配。")
+            for verification in entity_trace.get("mapping_verifications", ()):
+                if verification.get("status") in {"conflict", "ambiguous"}:
+                    warnings.append(f"术语映射审核：概念 {verification.get('concept')} 的英文/MeSH 产物 {verification.get('status')}——{verification.get('reason') or ''}")
         selected_connectors = self.registry.selected(plan.source_order)
         if only_source_ids is not None:
             allowed_ids = {str(source_id) for source_id in only_source_ids}
             selected_connectors = [connector for connector in selected_connectors if connector.source_id in allowed_ids]
         english_source_present = any("pubmed" in set(connector.kinds) for connector in selected_connectors)
         documents = []
-        warnings: list[str] = list(patient_trace.get("warnings", []))
-        warnings.extend(getattr(self.registry, "warnings", ()))
         connector_trace: list[dict[str, object]] = []
         method_trace: list[dict[str, object]] = []
         kind_order: list[str] = []
@@ -260,24 +292,47 @@ class EvidenceRetrievalPipeline:
             for kind in connector.kinds:
                 if kind not in kind_order:
                     kind_order.append(kind)
+            search_started = time.perf_counter()
             try:
                 result = connector.search(plan, limit=max(request.top_k * 5, 50))
+                METRICS.observe(f"source_duration_ms_{connector.source_id}", (time.perf_counter() - search_started) * 1000)
+                METRICS.labeled_increment("source_search_total", source_id=connector.source_id, status="ok")
             except Exception as exc:
                 warning = str(exc).strip() or type(exc).__name__
+                METRICS.observe(f"source_duration_ms_{connector.source_id}", (time.perf_counter() - search_started) * 1000)
+                METRICS.labeled_increment("source_search_total", source_id=connector.source_id, status="error")
                 warnings.append(f"来源 {connector.source_id} 检索失败：{warning}。")
                 connector_trace.append({"source_id": connector.source_id, "status": "error", "error_type": type(exc).__name__, "error": warning[:500]})
                 continue
             documents.extend(result.documents)
             warnings.extend(result.warnings)
             connector_trace.append({"source_id": result.source_id, "status": "ok", "returned": len(result.documents),
-                                    "kind": list(connector.kinds), "query": getattr(connector, "last_query", None),
-                                    "date_filter": getattr(connector, "last_date_filter", None),
-                                    "cache_hit": bool(getattr(connector, "last_cache_hit", False))})
+                                    "kind": list(connector.kinds), "query": getattr(connector, "last_query", None)})
         deduped, duplicate_count, conflicts = deduplicate_documents(documents)
         if duplicate_count:
             warnings.append(f"已按 DOI/PMID/标题跨来源去重 {duplicate_count} 条候选。")
         if conflicts:
             warnings.append("检测到跨来源共享 DOI/PMID/标题的候选；已保留权威来源，但不能据此消除指南与文献的语义冲突。")
+        lifecycle_trace: dict[str, object] | None = None
+        if self.guideline_lifecycle is not None and self.guideline_lifecycle_mode != "off":
+            try:
+                deduped, lifecycle_trace = self.guideline_lifecycle.annotate(deduped, as_of=request.as_of)
+                for row in lifecycle_trace.get("documents", ()):
+                    if not isinstance(row, Mapping):
+                        continue
+                    status = row.get("lifecycle_status")
+                    document_id = row.get("document_id")
+                    if status == "retracted":
+                        warnings.append(f"指南生命周期：{document_id} 在查询截止时间前已撤回" + ("，已标记为 withdrawn。" if row.get("applied") else "（shadow，仅记录）。"))
+                    elif status == "superseded":
+                        warnings.append(f"指南生命周期：{document_id} 在查询截止时间前已有更新版本" + ("，已标记为 superseded。" if row.get("applied") else "（shadow，仅记录）。"))
+                    elif status == "corrected":
+                        warnings.append(f"指南生命周期：{document_id} 有勘误/关注声明；未撤回，阅读时需核对更正内容。")
+                for warning in lifecycle_trace.get("warnings", ()):
+                    warnings.append(f"指南生命周期：{warning}")
+            except Exception as exc:
+                warnings.append(f"指南生命周期检查失败（{type(exc).__name__}）；未应用撤回/更新状态。")
+                lifecycle_trace = {"mode": self.guideline_lifecycle_mode, "applied": False, "error_type": type(exc).__name__}
 
         neural_scores: dict[str, dict[str, float]] = {}
         neural_trace: list[dict[str, object]] = []
@@ -527,6 +582,13 @@ class EvidenceRetrievalPipeline:
         )
         if route_trace is not None:
             package = replace(package, trace={**package.trace, "route_decision": route_trace})
+        if entity_trace is not None:
+            package = replace(package, trace={**package.trace, "entity_linking": entity_trace})
+        if lifecycle_trace is not None:
+            package = replace(package, trace={**package.trace, "guideline_lifecycle": lifecycle_trace})
+        METRICS.observe("retrieval_duration_ms", (time.perf_counter() - started) * 1000)
+        METRICS.increment("retrieval_total")
+        METRICS.increment("retrieval_evidence_total", len(ranked))
         return package
 
 

@@ -1,0 +1,90 @@
+{
+  "profile": "neonatal_demo_v1",
+  "synthetic": true,
+  "generated_at": "2026-11-05T16:15:06+08:00",
+  "generator": ".tmp/ehr_to_his_demo.py",
+  "pipeline": [
+    "EHR Dreamer offline demo backend (backend='demo')",
+    "HIS API response fixtures (legacy timeline + neonatal discharge record)",
+    "contracts/agent_his_adapter.py build_payload()",
+    "rag.demo.load_demo_cases validation"
+  ],
+  "case_count": 50,
+  "patient_refs": [
+    "2001",
+    "2002",
+    "2003",
+    "2004",
+    "2005",
+    "2006",
+    "2007",
+    "2008",
+    "2009",
+    "2010",
+    "2011",
+    "2012",
+    "2013",
+    "2014",
+    "2015",
+    "2016",
+    "2017",
+    "2018",
+    "2019",
+    "2020",
+    "2021",
+    "2022",
+    "2023",
+    "2024",
+    "2025",
+    "2026",
+    "2027",
+    "2028",
+    "2029",
+    "2030",
+    "2031",
+    "2032",
+    "2033",
+    "2034",
+    "2035",
+    "2036",
+    "2037",
+    "2038",
+    "2039",
+    "2040",
+    "2041",
+    "2042",
+    "2043",
+    "2044",
+    "2045",
+    "2046",
+    "2047",
+    "2048",
+    "2049",
+    "2050"
+  ],
+  "scenario_counts": {
+    "rds": 25,
+    "pneumonia": 25
+  },
+  "his_alignment": {
+    "api_envelopes": "his/api/{patients,patient_timelines,admission_timelines}/",
+    "tables": "his/tables/*.csv (schema.sql + neonatal-schema.sql column names)",
+    "snapshot": "HIS facts are passed through unchanged (identifier fields dropped per contract); RAG-side values live in separate derived_* facts",
+    "derived_facts": [
+      "derived_birth: ga_days/ga_text/birth_weight_g/delivery_mode/multiple_birth",
+      "derived_respiratory_support: mode/fio2/cpap_cm_h2o/spo2_percent"
+    ]
+  },
+  "limitations": [
+    "HIS API responses are synthetic fixtures, not a running HIS server.",
+    "HIS facts are not modified; derived facts are separate and marked source_type=derived_from_ehr_input.",
+    "EHR backend=demo is a deterministic rule fixture, not learned patient dynamics.",
+    "Only pneumonia and RDS are covered; the former 9 curated themes are archived.",
+    "The two hash-reviewed guideline PDFs are absent; generation used static rule summaries.",
+    "All data is synthetic and is not clinical evidence or advice."
+  ],
+  "sha256": {
+    "neonatal_cases.json": "70600108c9dc6079aebd0b5d7553cd037cac0acd4fec165db9c1c2aacfc814f4",
+    "source/ehr_cases_raw.json": "6681f4cd26757c5fdfbb1407302afcafc1a50a5fc6a9a258d15d67e7025d8a21"
+  }
+}

@@ -51,7 +51,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Mapping, Sequence
 
 from .models import QueryPlan, RankedDocument, SourceDocument
-from .retrieval_adapters import SemanticSearchResult
+from .retrieval.retrieval_adapters import SemanticSearchResult
 
 
 def neural_dependencies_state() -> dict[str, str | bool]:

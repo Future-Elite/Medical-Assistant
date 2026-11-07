@@ -4,7 +4,7 @@
   "purpose": "真实新生儿指南适用性条件的待审草案（审核表/待审清单）：供新生儿科医生逐条核对后把 review_status 从 draft 翻成 reviewed 并确认 source 定位，才可参与 applicability 判定。",
   "rules": [
     "只含适用范围级条件（人群/胎龄/日龄/诊断主题/主体），不含任何治疗阈值——AAP 高胆红素的小时龄-胎龄-危险因素曲线、低血糖 <2.8/≤2.8 等阈值表达一律不结构化（见各条 do_not_structure）。",
-    "source.quote 取自本仓书目记录（指南书目记录 §5/§5b，2026-10-20 定向核查），不是指南正文；卷期页未逐条复核。医生核对时应以指南原文/官方页面为准更正。",
+    "source.quote 取自本项目书目记录（§5/§5b，2026-10-20 定向核查），不是指南正文；卷期页未逐条复核。医生核对时应以指南原文/官方页面为准更正。",
     "review_status 全部为 draft：按 applicability 语义不参与判定、结果只出 unknown——这是有意的，翻成 reviewed 之前不允许任何 match/mismatch 结论。",
     "字段名（ga_days/pna_hours/diagnosis/pma_weeks/gbs_status 等）是草案命名，审核时须与 PatientSnapshot 实际字段对照；pma_weeks 由调用方派生（PMA 不写入快照），缺失时按 unknown 处理。",
     "subject_role 严格区分 patient/mother（GBS 条目必须母婴分离）。",
