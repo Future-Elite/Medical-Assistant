@@ -1,18 +1,18 @@
 import { useEffect, useState } from "react";
 import { WorkbenchProvider, useWorkbench } from "./state/workbench";
-import { CommandPalette, RunLog, Sidebar, ToastStack, Topbar } from "./components/AppShell";
-import { Notice } from "./components/primitives";
-import { FlowTrack } from "./components/WorkflowTrack";
+import { CommandPalette, RunLog, Sidebar, ToastStack, Topbar } from "./components/Shell";
+import { Notice } from "./components/ui";
+import { FlowTrack } from "./components/FlowTrack";
 import {
   CasePanel,
   MethodPanel,
   QuestionPanel,
   ScopePanel,
   TermsPanel,
-} from "./panels/PreparationPanels";
-import { RequestPanel, RunPanel } from "./panels/ExecutionPanels";
+} from "./panels/PreparePanels";
+import { RequestPanel, RunPanel } from "./panels/ExecutePanels";
 import { ResultsPanel } from "./panels/ResultsPanel";
-import { AuditPanel, GuidelinesPanel } from "./panels/GuidelinePanel";
+import { AuditPanel, GuidelinesPanel } from "./panels/GuidelinesPanel";
 
 function CurrentPanel() {
   const { step } = useWorkbench();

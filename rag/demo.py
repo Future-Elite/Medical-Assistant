@@ -1,8 +1,9 @@
 """Neonatal demo profile: synthetic cases + a caller-style guideline library.
 
 The demo assets live in ``data/`` at the repository root as plain JSON so
-they can be reviewed, diffed and replaced without touching code.  The 50 cases
-are EHR-generated; their
+they can be reviewed, diffed and replaced without touching code.  When that
+directory is absent (a clean release checkout does not ship it), the package
+fallback ``rag/demo/`` is used instead.  The 50 default cases are EHR-generated; their
 ``patient_snapshot`` payloads are mapped from HIS API fixtures by
 ``contracts/agent_his_adapter.py`` (legacy HIS timeline + neonatal discharge
 record).  This module only validates and loads them; it never registers
@@ -24,11 +25,13 @@ from .his import snapshot_from_dict
 from .models import RetrievalRequest
 
 DEMO_PROFILE = "neonatal_demo_v1"
+APPLICABILITY_DEMO_PROFILE = "neonatal_applicability_demo_v1"
 # 仓库级 data/ 不随发布分支分发；缺失时使用包内最小演示资产。
 _REPO_DATA = Path(__file__).resolve().parent.parent / "data"
 _PACKAGE_DEMO = Path(__file__).resolve().parent / "demo"
 DEMO_DIR = _REPO_DATA if _REPO_DATA.is_dir() else _PACKAGE_DEMO
 CASES_FILE = "neonatal_cases.json"
+APPLICABILITY_CASES_FILE = "applicability_chain_cases.json"
 GUIDELINES_FILE = "neonatal_guidelines.json"  # 演示资产文件名；内容含指南元数据、合成指南块与合成文献
 
 # Fields of ``RetrievalRequest`` that a demo preset may set.  ``request_id``
@@ -72,8 +75,10 @@ def _validate_case_set(cases: list[Any], seen: set[str]) -> None:
 def load_demo_cases(directory: str | Path | None = None) -> dict[str, Any]:
     """Load and validate every demo case; raises ValueError with the case id.
 
-    The default directory is ``data/`` at the repository root and contains the single
-    50-case EHR/HIS-aligned archive.  Passing an explicit directory reads only
+    The default directory is ``data/`` at the repository root (package
+    ``demo/`` when that is absent) and contains the 50-case
+    EHR/HIS-aligned archive.  The 5 applicability-chain demo cases live in a
+    separate file and are loaded by ``load_applicability_cases()``.  Passing an explicit directory reads only
     that directory's ``neonatal_cases.json``.
     """
     base_dir = demo_directory(directory)
@@ -85,6 +90,26 @@ def load_demo_cases(directory: str | Path | None = None) -> dict[str, Any]:
     cases = payload.get("cases")
     if not isinstance(cases, list) or not cases:
         raise ValueError("demo profile requires a non-empty 'cases' array")
+    _validate_case_set(cases, set())
+    return payload
+
+
+def load_applicability_cases(directory: str | Path | None = None) -> dict[str, Any]:
+    """Load the small synthetic case set used to exercise applicability stop paths.
+
+    This is deliberately separate from ``neonatal_cases.json``: the 50-case
+    EHR/HIS archive has its own contract, while these cases only provide the
+    few derived facts needed to reach different resolver branches.
+    """
+    base_dir = demo_directory(directory)
+    payload = json.loads((base_dir / APPLICABILITY_CASES_FILE).read_text(encoding="utf-8"))
+    if payload.get("profile") != APPLICABILITY_DEMO_PROFILE:
+        raise ValueError(f"applicability demo profile must be {APPLICABILITY_DEMO_PROFILE}")
+    if payload.get("synthetic") is not True:
+        raise ValueError("applicability demo profile must be marked synthetic=true")
+    cases = payload.get("cases")
+    if not isinstance(cases, list) or not cases:
+        raise ValueError("applicability demo profile requires a non-empty 'cases' array")
     _validate_case_set(cases, set())
     return payload
 

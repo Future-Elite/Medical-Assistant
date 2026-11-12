@@ -7,7 +7,7 @@ output (query plan, ranked documents, warnings, trace).
 
 Usage (from the repository root)::
 
-    python3 tools/run_compatibility_diff.py --baseline <v6.7.0 tree> --current <v6.7.1 tree>
+    python3 tools/run_compatibility_diff.py --baseline <v6.7.1 tree> --current <v6.7.2 tree>
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_OUTPUT = REPO_ROOT / "rag" / "validation" / "兼容性差分_v6.7.0_v6.7.1_2026-11-01.json"
+DEFAULT_OUTPUT = REPO_ROOT / "rag" / "validation" / "compat" / "compat_diff_v6.7.1_v6.7.2_2026-11-07.json"
 
 PROBE = r'''
 import json

@@ -1,0 +1,156 @@
+{
+  "schema_version": "v672-dataset-v1",
+  "generated_at": "2026-11-07T09:07:08Z",
+  "source": {
+    "file_name": "<hospital discharge export>.xlsx",
+    "sha256": "d1fa801378d43fb452ebcbdacba1efd3968beaa2be4ba23bc4a764da6e310076",
+    "sheet": "Sheet1",
+    "rows": 4675,
+    "unique_admissions": 4535,
+    "exact_duplicate_rows_removed": 0,
+    "merged_multi_row_admissions": 140,
+    "paths_redacted": true
+  },
+  "build": {
+    "seed": 42,
+    "salt_version": "v1",
+    "criteria_fixture": "registry_scope_criteria.json",
+    "criteria_fixture_sha256": "a9a14c22769da9baffe103a8f3975a6d0f91ab0a82bd102658bfb0944f6b8cc3",
+    "code_sha256": "b24b4cee013e8a0c",
+    "label_source": "rule",
+    "clinical_review": false
+  },
+  "split_counts": {
+    "unused": 2835,
+    "test": 500,
+    "train": 1000,
+    "dev": 200
+  },
+  "case_type_counts": {
+    "A": 100,
+    "D": 100,
+    "GA": 100,
+    "B": 100,
+    "C": 100
+  },
+  "guideline_status_counts": {
+    "pdf-neo-feeding-vlbw-2015": {
+      "unknown": 1579,
+      "mismatch": 2776,
+      "possible_match": 180
+    },
+    "pdf-neo-human-milk-fortification-2019": {
+      "unknown": 1036,
+      "possible_match": 1381,
+      "mismatch": 2118
+    },
+    "pdf-neo-parenteral-nutrition-2012": {
+      "unknown": 1036,
+      "possible_match": 1381,
+      "mismatch": 2118
+    },
+    "pdf-neo-pocus-espnic-2020": {
+      "unknown": 2212,
+      "mismatch": 343,
+      "possible_match": 1980
+    }
+  },
+  "criterion_reason_counts": {
+    "not_recorded": 5746,
+    "value_contradicted": 7355,
+    "value_satisfied": 4922,
+    "unclassified_support": 117
+  },
+  "missing_field_counts": {
+    "derived_birth.birth_weight_g": 1579,
+    "derived_birth.ga_days": 2072,
+    "derived_respiratory_support.mode": 2212
+  },
+  "coverage_size_counts": {
+    "0": 2228,
+    "2": 327,
+    "1": 926,
+    "4": 180,
+    "3": 874
+  },
+  "fact_status_counts": {
+    "sex": {
+      "observed_positive": 1700
+    },
+    "pna_days": {
+      "observed_positive": 1696,
+      "not_recorded": 4
+    },
+    "ga": {
+      "observed_positive": 1566,
+      "not_recorded": 134
+    },
+    "admission_diagnosis": {
+      "observed_positive": 1203,
+      "uncertain": 497
+    },
+    "discharge_diagnosis": {
+      "observed_positive": 1666,
+      "uncertain": 33,
+      "not_recorded": 1
+    },
+    "outcome": {
+      "observed_positive": 1698,
+      "not_recorded": 2
+    },
+    "los_days": {
+      "observed_positive": 1682,
+      "not_recorded": 18
+    },
+    "max_tbil": {
+      "observed_positive": 1640,
+      "not_recorded": 60
+    },
+    "phototherapy": {
+      "observed_positive": 1320,
+      "not_recorded": 380
+    },
+    "antibiotic": {
+      "not_recorded": 639,
+      "observed_positive": 1039,
+      "observed_negative": 22
+    },
+    "hearing_screen": {
+      "not_recorded": 1255,
+      "observed_positive": 441,
+      "observed_negative": 4
+    },
+    "respiratory_support_level": {
+      "observed_negative": 98,
+      "observed_positive": 1054,
+      "not_recorded": 548
+    }
+  },
+  "counts": {
+    "test_cases": 500,
+    "counterfactual_pairs": 500,
+    "synthetic_questions": 500,
+    "fact_qrels": 20400
+  },
+  "overlap": {
+    "train_test": 0,
+    "dev_test": 0,
+    "train_dev": 0
+  },
+  "flags": {
+    "ga_column_missing_text_present": 209,
+    "ga_column_text_conflict": 11,
+    "jaundice_mentioned": 4502,
+    "uncertain_diagnosis": 859,
+    "respiratory_unclassified": 117,
+    "time_unparseable": 16
+  },
+  "caveats": [
+    "labels are rule-derived silver, not clinical ground truth",
+    "criteria fixture is synthetic_fixture copied from local guideline scope proxies",
+    "real patient text is written only to this private directory",
+    "test subsets are patient-level disjoint from train/dev"
+  ],
+  "private_output_dir_name": "v6.7.2_dataset_2026-11-07",
+  "id_level": "admission_number"
+}

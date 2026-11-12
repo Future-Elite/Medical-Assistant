@@ -1,0 +1,124 @@
+{
+  "function": "v672_fact_dense_eval",
+  "dataset": "v6.7.2_dataset_2026-11-07",
+  "model": "multilingual-e5-base (Hugging Face snapshot)",
+  "device": "cpu",
+  "max_length": 128,
+  "qrel_rows": 20400,
+  "evaluated_rows": 17329,
+  "missing_gold": 30,
+  "missing_patient": 0,
+  "not_recorded_rows": 3041,
+  "metrics": {
+    "recall@1": 0.3399,
+    "recall@3": 0.6914,
+    "recall@5": 0.923,
+    "mrr@10": 0.5467,
+    "ndcg@10": 0.657,
+    "answer_hit@1": 0.3543
+  },
+  "by_fact_type": {
+    "admission_diagnosis": {
+      "rows": 1694,
+      "recall@1": 0.1269,
+      "mrr@10": 0.4219,
+      "ndcg@10": 0.5647
+    },
+    "antibiotic": {
+      "rows": 1061,
+      "recall@1": 0.0009,
+      "mrr@10": 0.2378,
+      "ndcg@10": 0.4182
+    },
+    "discharge_diagnosis": {
+      "rows": 1699,
+      "recall@1": 0.6009,
+      "mrr@10": 0.7774,
+      "ndcg@10": 0.8346
+    },
+    "ga": {
+      "rows": 1560,
+      "recall@1": 0.0,
+      "mrr@10": 0.2658,
+      "ndcg@10": 0.4411
+    },
+    "hearing_screen": {
+      "rows": 445,
+      "recall@1": 0.0,
+      "mrr@10": 0.118,
+      "ndcg@10": 0.308
+    },
+    "los_days": {
+      "rows": 1682,
+      "recall@1": 0.1427,
+      "mrr@10": 0.4265,
+      "ndcg@10": 0.5679
+    },
+    "max_tbil": {
+      "rows": 1634,
+      "recall@1": 0.0129,
+      "mrr@10": 0.2604,
+      "ndcg@10": 0.4366
+    },
+    "outcome": {
+      "rows": 1698,
+      "recall@1": 0.0088,
+      "mrr@10": 0.3615,
+      "ndcg@10": 0.5211
+    },
+    "phototherapy": {
+      "rows": 1320,
+      "recall@1": 0.0568,
+      "mrr@10": 0.4272,
+      "ndcg@10": 0.572
+    },
+    "pna_days": {
+      "rows": 1690,
+      "recall@1": 0.9852,
+      "mrr@10": 0.9926,
+      "ndcg@10": 0.9945
+    },
+    "respiratory_support_level": {
+      "rows": 1152,
+      "recall@1": 0.8186,
+      "mrr@10": 0.8919,
+      "ndcg@10": 0.9187
+    },
+    "sex": {
+      "rows": 1694,
+      "recall@1": 1.0,
+      "mrr@10": 1.0,
+      "ndcg@10": 1.0
+    }
+  },
+  "status_counts": {
+    "observed_positive": 16705,
+    "not_recorded": 3041,
+    "observed_negative": 124,
+    "uncertain": 530
+  },
+  "caveats": [
+    "零样本通用多语言 E5，不是临床模型，也没有在本数据上训练。",
+    "只测病历记录定位；answer_hit@1 只是答案串出现在 top1 文本，不是结构化答案正确性。",
+    "问题来自模板；模板与字段措辞差异会限制上限。",
+    "not_recorded 行没有可检索记录，单独计数，不当作拒答准确率。",
+    "CPU 推理，max_length=128；长文本被截断。"
+  ],
+  "bm25_comparison": {
+    "bm25": {
+      "recall@1": 0.1874,
+      "recall@3": 0.4996,
+      "recall@5": 0.6175,
+      "mrr@10": 0.3967,
+      "ndcg@10": 0.537,
+      "answer_hit@1": 0.1801
+    },
+    "dense_minus_bm25": {
+      "recall@1": 0.1525,
+      "recall@3": 0.1918,
+      "recall@5": 0.3055,
+      "mrr@10": 0.15,
+      "ndcg@10": 0.12
+    }
+  }
+}

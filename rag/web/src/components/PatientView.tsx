@@ -1,5 +1,5 @@
-import { collectionColors, collectionLabels } from "../lib/formatting";
-import { Empty } from "./primitives";
+import { collectionColors, collectionLabels } from "../lib/format";
+import { Empty } from "./ui";
 import type { Dict, PatientSnapshot } from "../types";
 
 function formatTime(value: unknown): string {
@@ -10,7 +10,7 @@ function formatTime(value: unknown): string {
 
 export function SnapshotView({ snapshot }: { snapshot: PatientSnapshot | null }) {
   if (!snapshot) {
-    return <Empty title="尚未载入快照">在 01 步骤点击“载入快照”后显示可见事实。</Empty>;
+    return <Empty title="尚未载入快照" />;
   }
   const facts = snapshot.facts || [];
   const groups: Record<string, Dict[]> = {};
@@ -91,7 +91,7 @@ export function SnapshotView({ snapshot }: { snapshot: PatientSnapshot | null })
 
 export function PatientHitsView({ pkg }: { pkg: any }) {
   const hits: Dict[] = pkg?.patient_hits || [];
-  if (!hits.length) return <Empty title="无患者事实命中">本次检索未命中本地患者事实。</Empty>;
+  if (!hits.length) return <Empty title="无患者事实命中" />;
   return (
     <div className="fact-group">
       <div className="fact-group-head">

@@ -169,7 +169,7 @@ def run(output: Path) -> dict:
     artifact = {
         "experiment": "规则路由 v0 shadow/active 实验性运行",
         "date": date.today().isoformat(),
-        "tree": "v6.7.1",
+        "tree": "v6.7.2",
         "corpus": "50 例 EHR 生成、HIS 对齐演示病例（25 肺炎 + 25 RDS）× 演示来源库（合成指南/文献 + 指南元数据）",
         "network": "未联网；离线检索",
         "variants": {

@@ -233,16 +233,8 @@ class GuidelineParsingSource:
             raise GuidelineParsingError(
                 f"未找到 guideline_parsing：{package}；请确认它与 rag/ 位于同一版本目录"
             )
-        # 始终把本仓库版本目录放在最前，避免临时目录中的同名包抢先命中。
-        sys.path[:] = [entry for entry in sys.path if entry != str(version_root)]
-        sys.path.insert(0, str(version_root))
-        # 测试或调用方可能已加载其他目录下的同名包；逐个清理不在本仓库的模块。
-        for key in list(sys.modules):
-            if key != "guideline_parsing" and not key.startswith("guideline_parsing."):
-                continue
-            module_file = getattr(sys.modules.get(key), "__file__", "") or ""
-            if not Path(module_file).resolve().is_relative_to(package):
-                del sys.modules[key]
+        if str(version_root) not in sys.path:
+            sys.path.insert(0, str(version_root))
         try:
             import guideline_parsing.chunker as chunker  # type: ignore[import-not-found]
             import guideline_parsing.pdf_to_markdown as pdf_to_markdown  # type: ignore[import-not-found]

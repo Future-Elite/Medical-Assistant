@@ -31,6 +31,7 @@ from .retrieval.query import (
 )
 
 
+# 兼容旧 Agent：调用方按轮次通过 ContextVar 注入缓存；未设置时不缓存。
 PUBMED_SEARCH_CACHE: ContextVar[dict | None] = ContextVar("pubmed_search_cache", default=None)
 
 

@@ -19,10 +19,10 @@ Retrieval is organized in three stages:
    rank so no single source consumes all of ``top_k``.
 
 query fidelity research layer (see the paper's method section): when a request selects a
-non-``off`` fidelity gate policy, a :class:`~rag.fidelity.QueryFidelityAuditor`
+non-``off`` fidelity gate policy, a :class:`~rag.quality.fidelity.QueryFidelityAuditor`
 audits the *query-conversion products* (reviewed mapping terms, machine
 translation variants, explicit multilingual terms) before fusion, and a
-:class:`~rag.gate.FidelityGate` optionally down-weights or rejects the
+:class:`~rag.quality.gate.FidelityGate` optionally down-weights or rejects the
 affected route's signal. The audit and every decision are traced in
 ``trace.query_fidelity``; the query plan itself is never silently rewritten
 (rejected translation variants are dropped from retrieval input only, and the
@@ -90,7 +90,7 @@ class EvidenceRetrievalPipeline:
         pipeline behaves exactly as before: reranking only reorders the already
         selected ``top_k``.
 
-        ``term_mapping_library`` (optional :class:`~rag.term_mapping_library.TermMappingLibrary`)
+        ``term_mapping_library`` (optional :class:`~rag.quality.term_mapping_library.TermMappingLibrary`)
         adds reusable mapping rows to every request's query planning; request
         rows win on concept collision. ``None`` (default) keeps the
         request-only mapping semantics."""

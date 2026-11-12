@@ -1,0 +1,64 @@
+{
+  "function": "v672_industrial_pilot",
+  "graph_guideline": "pdf-neo-feeding-vlbw-2015",
+  "graph_version": "2015",
+  "cases": 180,
+  "field_engine": {
+    "possible_match": 178,
+    "unknown": 2
+  },
+  "graph_scope": {
+    "match": 178,
+    "unknown": 2
+  },
+  "recommendation_status": {
+    "vlbw-advance": {
+      "insufficient_data": 180
+    },
+    "vlbw-milk": {
+      "applicable": 156,
+      "insufficient_data": 24
+    },
+    "vlbw-tolerance": {
+      "applicable": 156,
+      "applicable_with_caution": 14,
+      "insufficient_data": 10
+    },
+    "vlbw-trophic": {
+      "insufficient_data": 155,
+      "needs_review": 24,
+      "exception_triggered": 1
+    }
+  },
+  "extra_findings": {
+    "hard_exception_cases": 1,
+    "related_condition_cases": 24,
+    "time_window_not_evaluable_cases": 180
+  },
+  "documented_evidence": {
+    "milk": {
+      "母乳+强化": 107,
+      "母乳": 41,
+      "捐赠母乳": 10,
+      "not_recorded": 22
+    },
+    "tolerance": {
+      "tolerant": 158,
+      "intolerance": 14,
+      "not_recorded": 8
+    }
+  },
+  "audit": {
+    "cases_with_record_paths": 180,
+    "cases_with_all_recommendation_locators": 180,
+    "cases_total": 180
+  },
+  "caveats": [
+    "单份指南、单病种范围；不是指南库。",
+    "文本证据来自出院小结，是回顾性文档审计，不是床旁判断。",
+    "exception/related 是待复核信号，不是停喂或临床不适用结论。",
+    "时间窗需要的出生/开奶/全量喂养时间多数缺失，缺失记 unknown。",
+    "未调用 LLM 判断；模型槽位为空。",
+    "BM25 是词面检索，不是语义模型。"
+  ]
+}

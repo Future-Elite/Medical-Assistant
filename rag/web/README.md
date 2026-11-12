@@ -18,11 +18,11 @@ npm run dev        # 开发服务器 http://127.0.0.1:5173，/api 代理到 127.
 |---|---|
 | `src/App.tsx` | 应用外壳与步骤路由 |
 | `src/state/workbench.tsx` | 全局状态、真实 API 动作、流程状态与启动加载 |
-| `src/api/http-client.ts` | HTTP 封装、API 调用日志、错误字段（`error_id`/`exception_type`） |
-| `src/panels/` | 01–10 步骤视图：准备（`PreparationPanels`）、执行（`ExecutionPanels`）、结果（`ResultsPanel`）、指南与审计（`GuidelinePanel`） |
-| `src/components/` | 应用外壳、工作流轨道、运行记录、命令面板、检索诊断、证据详情、患者快照视图 |
+| `src/api/client.ts` | HTTP 封装、API 调用日志、错误字段（`error_id`/`exception_type`） |
+| `src/panels/` | 01–10 步骤视图：准备（`PreparePanels`）、执行（`ExecutePanels`）、结果（`ResultsPanel`）、指南与审计（`GuidelinesPanel`） |
+| `src/components/` | 文件头、档案索引、底部运行记录、命令面板、诊断卡、证据详情、患者事实视图 |
 | `src/styles/` | 设计令牌（`tokens.css`）与布局/组件/面板样式 |
-| `src/lib/formatting.ts` | 标签、分数、JSON 解析与展示辅助 |
+| `src/lib/format.ts` | 标签、分数、JSON 解析与展示辅助 |
 
 ## 视觉方向
 

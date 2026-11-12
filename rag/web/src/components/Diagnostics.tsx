@@ -1,6 +1,6 @@
-import { Badge } from "./primitives";
+import { Badge } from "./ui";
 import { Icon } from "./Icon";
-import { kindLabels, rankDelta, score } from "../lib/formatting";
+import { kindLabels, rankDelta, score } from "../lib/format";
 import type { Dict } from "../types";
 
 function DiagCard({

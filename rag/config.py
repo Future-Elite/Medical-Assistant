@@ -56,7 +56,7 @@ class RAGConfig:
     custom_sources_path: str = ""
     # 可选：指南解析产出的分块 JSONL。
     # 指向单个 *_chunks.jsonl、导出库 JSON 或递归搜索的目录；仅 custom 模式
-    # 注册。环境变量 RAG_GUIDELINE_CHUNKS 可覆盖。见 guideline_chunks.py。
+    # 注册。环境变量 RAG_GUIDELINE_CHUNKS 可覆盖。见 sources/guideline_chunks.py。
     guideline_chunks_path: str = ""
     # 可选：指南解析数据目录（与 rag/ 同级的 guideline_parsing 输出）。
     # 布局：guidelines/（manifest + PDF/Markdown）、parsed_markdown/、

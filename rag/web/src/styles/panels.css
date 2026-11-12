@@ -980,3 +980,92 @@
   font-size: 10px;
   font-weight: 500;
 }
+
+/* 指南适用性链路 */
+.applicability-chain {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.chain-step {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 10px;
+  min-width: 0;
+}
+.chain-rail {
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+.chain-line {
+  position: absolute;
+  top: 26px;
+  bottom: 0;
+  width: 1px;
+  background: var(--rule-strong);
+}
+.chain-dot {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 50%;
+  background: var(--sheet);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+}
+.chain-step.done .chain-dot {
+  border-color: var(--forest);
+  background: var(--forest-soft);
+  color: var(--forest);
+}
+.chain-step.stopped .chain-dot {
+  border-color: var(--ochre);
+  background: var(--ochre-soft);
+  color: var(--ochre);
+}
+.chain-step.stop .chain-dot {
+  border-color: var(--cinnabar);
+  background: var(--cinnabar-soft);
+  color: var(--cinnabar);
+}
+.chain-card {
+  min-width: 0;
+  padding: 1px 0 18px;
+}
+.chain-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.chain-head b {
+  font-size: 13px;
+  color: var(--ink);
+}
+.chain-headline {
+  margin-top: 4px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}
+.chain-detail {
+  margin-top: 3px;
+  font-size: 12px;
+  line-height: 1.65;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.chain-step.stop .chain-card {
+  padding-left: 10px;
+  border-left: 2px solid var(--cinnabar);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--cinnabar-soft);
+}

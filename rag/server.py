@@ -49,6 +49,7 @@ from rag.custom_sources import CustomSourceLibrary, SOURCE_MODES, load_custom_li
 from rag.sources.guideline_chunks import load_guideline_chunk_library
 from rag.sources.guideline_source import GuidelineParsingError, GuidelineParsingSource
 from rag.demo import (
+    load_applicability_cases,
     load_demo_cases,
     load_demo_guidelines,
     register_demo_guidelines,
@@ -880,6 +881,7 @@ class RAGRequestHandler(BaseHTTPRequestHandler):
                 "rag_version": __version__,
                 "demo_profile": get_config().demo_profile,
                 "demo_cases_available": True,
+                "applicability_cases_available": True,
                 "demo_guidelines_loaded": any(
                     item["source_id"].startswith("neonatal-guideline-") for item in CUSTOM_LIBRARY.describe()
                 ),
@@ -1035,6 +1037,16 @@ class RAGRequestHandler(BaseHTTPRequestHandler):
                 "note": "全部病例为合成数据，仅用于界面与流程测试；不是真实患者，也不构成诊疗建议。",
             })
             return
+        if path == "/api/demo/applicability-cases":
+            demo = load_applicability_cases()
+            self._send_json({
+                "profile": demo["profile"],
+                "synthetic": True,
+                "cases": demo["cases"],
+                "case_sets": demo.get("case_sets", {}),
+                "note": demo.get("note", ""),
+            })
+            return
         if path == "/api/demo/guidelines":
             self._send_json({
                 "profile": get_config().demo_profile,
@@ -1177,6 +1189,11 @@ class RAGRequestHandler(BaseHTTPRequestHandler):
                 result = tool.retrieve_evidence(payload)
                 self.retrieval_tools[result["retrieval_id"]] = tool
                 self._send_json(result)
+                return
+            if path == "/api/applicability":
+                mode = str(payload.get("source_mode") or self.source_mode)
+                tool = self._tool_for(mode)
+                self._send_json(tool.resolve_applicability_workflow(payload))
                 return
             if path == "/api/citation":
                 self._send_json(self._tool_for_retrieval(str(payload.get("retrieval_id") or "")).open_citation(payload))

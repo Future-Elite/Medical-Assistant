@@ -5,6 +5,7 @@
 | 文件 | 用途 |
 |---|---|
 | `neonatal_cases.json` | 50 例合成病例与检索预设 |
+| `applicability_chain_cases.json` | 5 例指南适用性链路演示病例（只含各停止分支所需的最小事实，不并入 50 例档案） |
 | `neonatal_guidelines.json` | 演示指南库（元数据 + 合成块 + 合成文献） |
 | `manifest.json`、`case_index.csv` | 数据清单与索引 |
 | `mesh_lexicon_neonatal_2026.json` | NLM MeSH 2026 新生儿域词表快照 |

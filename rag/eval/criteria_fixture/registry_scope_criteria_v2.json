@@ -1,0 +1,145 @@
+{
+  "purpose": "evaluation fixture v2: four original local guidelines + AAP 2022 hyperbilirubinemia scope/table_lookup; not clinical review",
+  "fixture_version": "v672-criteria-v2",
+  "guidelines": [
+    {
+      "document_id": "pdf-neo-feeding-vlbw-2015",
+      "title": "极低出生体重儿喂养指南（2015）",
+      "pmid": "25580815",
+      "doi": "10.3390/nu7010423",
+      "published_at": "2015-01-08",
+      "logic": "all_of",
+      "criteria": [
+        {
+          "criterion_id": "vlbw-birth-weight",
+          "field": "derived_birth.birth_weight_g",
+          "operator": "lt",
+          "value": 1500,
+          "unit": "g",
+          "subject_role": "patient",
+          "label": "极低出生体重（<1500 g）",
+          "review_status": "synthetic_fixture",
+          "source": {
+            "locator": "1 Introduction（第 2 页）"
+          },
+          "notes": "AI-drafted scope proxy; not a clinical review."
+        }
+      ]
+    },
+    {
+      "document_id": "pdf-neo-human-milk-fortification-2019",
+      "title": "人乳强化指南（2019）",
+      "pmid": "30968003",
+      "doi": "10.3389/fped.2019.00076",
+      "published_at": "2019-03-22",
+      "logic": "all_of",
+      "criteria": [
+        {
+          "criterion_id": "preterm-ga",
+          "field": "derived_birth.ga_days",
+          "operator": "lt",
+          "value": 259,
+          "unit": "days",
+          "subject_role": "patient",
+          "label": "早产（<37周）",
+          "review_status": "synthetic_fixture",
+          "source": {
+            "locator": "METHODS（第 2 页）"
+          },
+          "notes": "AI-drafted scope proxy; not a clinical review."
+        }
+      ]
+    },
+    {
+      "document_id": "pdf-neo-parenteral-nutrition-2012",
+      "title": "早产儿肠外营养指南（2012）",
+      "pmid": "24548745",
+      "doi": "10.1186/1471-2431-14-48",
+      "published_at": "2014-02-18",
+      "logic": "all_of",
+      "criteria": [
+        {
+          "criterion_id": "preterm-ga-pn",
+          "field": "derived_birth.ga_days",
+          "operator": "lt",
+          "value": 259,
+          "unit": "days",
+          "subject_role": "patient",
+          "label": "早产儿肠外营养",
+          "review_status": "synthetic_fixture",
+          "source": {
+            "locator": "Background（第 4 页）"
+          },
+          "notes": "AI-drafted scope proxy; not a clinical review."
+        }
+      ]
+    },
+    {
+      "document_id": "pdf-neo-pocus-espnic-2020",
+      "title": "新生儿重症超声（POCUS）指南（2020）",
+      "pmid": "32093763",
+      "doi": "10.1186/s13054-020-2787-9",
+      "published_at": "2020-02-24",
+      "logic": "all_of",
+      "criteria": [
+        {
+          "criterion_id": "critically-ill-support",
+          "field": "derived_respiratory_support.mode",
+          "operator": "contains_any",
+          "subject_role": "patient",
+          "label": "接受呼吸支持（重症监护场景代理）",
+          "review_status": "synthetic_fixture",
+          "source": {
+            "locator": "Introduction（第 2 页）"
+          },
+          "notes": "AI-drafted scope proxy; not a clinical review.",
+          "value": [
+            "氧疗",
+            "CPAP",
+            "NIPPV",
+            "机械通气"
+          ]
+        }
+      ]
+    },
+    {
+      "document_id": "pdf-aap-hyperbilirubinemia-2022",
+      "title": "AAP 2022 新生儿高胆红素血症指南（≥35周）",
+      "logic": "all_of",
+      "access": "metadata_only",
+      "doi": "10.1542/peds.2022-058859",
+      "pmid": "35927462",
+      "notes": "Non-OA. Structured scope proxy from public summary; hour-specific thresholds are table/curve and require manual lookup.",
+      "criteria": [
+        {
+          "criterion_id": "aap-ga-35w",
+          "field": "derived_birth.ga_days",
+          "operator": "ge",
+          "value": 245,
+          "unit": "days",
+          "subject_role": "patient",
+          "label": "胎龄≥35周",
+          "review_status": "synthetic_fixture",
+          "source": {
+            "locator": "AAP 2022, scope: 35 or more weeks of gestation; DOI 10.1542/peds.2022-058859"
+          },
+          "notes": "Scope proxy; not a clinical review."
+        },
+        {
+          "criterion_id": "aap-bili-table",
+          "field": "derived_labs.max_tbil_umol_l",
+          "operator": "table_lookup",
+          "value": "AAP 2022 hour-specific phototherapy threshold (Figures 1-2)",
+          "unit": "μmol/L",
+          "subject_role": "patient",
+          "label": "小时龄胆红素阈值（需查表/曲线）",
+          "review_status": "synthetic_fixture",
+          "source": {
+            "locator": "AAP 2022, Figures 1-2 / hour-specific thresholds"
+          },
+          "notes": "Do not compare to a single threshold; table/curve lookup required."
+        }
+      ]
+    }
+  ]
+}

@@ -8,12 +8,12 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { ApiError, postJson, requestJson, setApiLogger } from "../api/http-client";
+import { ApiError, postJson, requestJson, setApiLogger } from "../api/client";
 import {
   parseJsonObject,
   parseTermMapping,
   caseDisplayLabel,
-} from "../lib/formatting";
+} from "../lib/format";
 import type {
   ApiLogEntry,
   BadgeTone,
@@ -146,6 +146,10 @@ interface Workbench {
   applicabilityResult: Dict | null;
   applicabilityError: string | null;
   checkApplicability: () => Promise<void>;
+  applicabilityWorkflowResult: Dict | null;
+  applicabilityWorkflowError: string | null;
+  runApplicabilityWorkflow: (executeExternal?: boolean, includeIndustrialGraph?: boolean) => Promise<void>;
+  resumeApplicabilityWorkflow: (facts: Dict[]) => Promise<void>;
 
   saveLiveGuideline: (doc: Dict) => Promise<void>;
   openGuidelineChunk: (sourceId: string, chunkId: string) => Promise<void>;
@@ -295,6 +299,8 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
 
   const [applicabilityResult, setApplicabilityResult] = useState<Dict | null>(null);
   const [applicabilityError, setApplicabilityError] = useState<string | null>(null);
+  const [applicabilityWorkflowResult, setApplicabilityWorkflowResult] = useState<Dict | null>(null);
+  const [applicabilityWorkflowError, setApplicabilityWorkflowError] = useState<string | null>(null);
 
   const [auditAnswer, setAuditAnswer] = useState("");
   const [auditResult, setAuditResult] = useState<Dict | null>(null);
@@ -455,6 +461,8 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
     setSnapshotState("未载入");
     setApplicabilityResult(null);
     setApplicabilityError(null);
+    setApplicabilityWorkflowResult(null);
+    setApplicabilityWorkflowError(null);
   }, []);
 
   const applyCase = useCallback(
@@ -467,8 +475,11 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
 
   const loadCases = useCallback(async () => {
     try {
-      const data = await requestJson("/api/demo/cases");
-      const rows: DemoCase[] = data.cases || [];
+      const [data, chain] = await Promise.all([
+        requestJson("/api/demo/cases"),
+        requestJson("/api/demo/applicability-cases").catch(() => ({ cases: [] })),
+      ]);
+      const rows: DemoCase[] = [...(data.cases || []), ...(chain.cases || [])];
       setCases(rows);
       if (rows.length) applyCaseRecord(rows[0]);
     } catch (error) {
@@ -912,6 +923,49 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
     }
   }, [selectedGuidelineId, currentCase]);
 
+  const runApplicabilityWorkflow = useCallback(async (executeExternal = false, includeIndustrialGraph = false) => {
+    if (!selectedGuidelineId) {
+      setApplicabilityWorkflowError("先选择目标指南");
+      return;
+    }
+    if (!currentCase) {
+      setApplicabilityWorkflowError("先在 01 步骤选择病例");
+      return;
+    }
+    setApplicabilityWorkflowError(null);
+    try {
+      const data = await postJson("/api/applicability", {
+        patient_snapshot: currentCase.snapshot,
+        question: form.question.trim() || "该指南是否适用？",
+        target_guideline_id: selectedGuidelineId,
+        execute_external: executeExternal,
+        include_industrial_graph: includeIndustrialGraph,
+      });
+      setApplicabilityWorkflowResult(data);
+    } catch (error) {
+      setApplicabilityWorkflowError((error as Error).message);
+      setApplicabilityWorkflowResult(null);
+    }
+  }, [selectedGuidelineId, currentCase, form.question]);
+
+  const resumeApplicabilityWorkflow = useCallback(async (facts: Dict[]) => {
+    const resolutionId = applicabilityWorkflowResult?.resolution_id;
+    if (!resolutionId) {
+      setApplicabilityWorkflowError("没有可续跑的解析");
+      return;
+    }
+    setApplicabilityWorkflowError(null);
+    try {
+      const data = await postJson("/api/applicability", {
+        resolution_id: resolutionId,
+        supplied_facts: facts,
+      });
+      setApplicabilityWorkflowResult(data);
+    } catch (error) {
+      setApplicabilityWorkflowError((error as Error).message);
+    }
+  }, [applicabilityWorkflowResult]);
+
   const saveLiveGuideline = useCallback(
     async (doc: Dict) => {
       const meta = doc.metadata || {};
@@ -1143,6 +1197,10 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
     applicabilityResult,
     applicabilityError,
     checkApplicability,
+    applicabilityWorkflowResult,
+    applicabilityWorkflowError,
+    runApplicabilityWorkflow,
+    resumeApplicabilityWorkflow,
     saveLiveGuideline,
     openGuidelineChunk,
     auditAnswer,

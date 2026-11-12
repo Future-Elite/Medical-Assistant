@@ -1,5 +1,5 @@
 import { useWorkbench } from "../state/workbench";
-import { Badge, Empty, Field, Metric, Notice, PageHeader } from "../components/primitives";
+import { Badge, Empty, Field, Metric, Notice, PageHeader } from "../components/ui";
 import { Icon } from "../components/Icon";
 
 export function RequestPanel() {
@@ -10,7 +10,6 @@ export function RequestPanel() {
       <PageHeader
         kicker="执行 · 请求组装"
         title="请求组装"
-        description="工作台把 01–05 的输入组装为 RetrievalRequest；这里展示即将发送的真实请求体。"
         actions={
           <Badge tone={requestPreview.error ? "error" : request?.question ? "ready" : ""}>
             {requestPreview.error ? "JSON 错误" : request?.question ? "可执行" : "待组装"}
@@ -24,9 +23,6 @@ export function RequestPanel() {
             <div className="endpoint-card">
               <span className="endpoint-method">POST</span>
               <div className="endpoint-path">/api/retrieve</div>
-              <div className="hint" style={{ marginTop: 8 }}>
-                返回 EvidencePackage：ranked_documents、citations、patient_hits、trace 与 warnings。
-              </div>
             </div>
             <div className="subcard">
               <div className="subcard-title">请求摘要</div>
@@ -103,7 +99,6 @@ export function RunPanel() {
       <PageHeader
         kicker="执行 · 检索"
         title="执行检索"
-        description="一次检索依次完成分源收集、来源内排序、联合选择与引用生成；也可运行逐轮控制器。"
         actions={
           <Badge tone={running ? "running" : runError ? "error" : pkg ? "done" : ""}>
             {running ? "执行中" : runError ? "失败" : pkg ? "完成" : "待执行"}
@@ -114,7 +109,6 @@ export function RunPanel() {
         <div className="card">
           <div className="card-head">
             <h3>检索流水线</h3>
-            <span className="hint">只读 · 不生成临床结论</span>
           </div>
           <div className="card-body stack">
             <div className={`pipeline ${running ? "running" : ""}`.trim()}>
@@ -157,7 +151,7 @@ export function RunPanel() {
                 <Metric label="成功来源" value={(pkg.trace?.connector_trace || []).filter((row: any) => row.status === "ok").length} />
               </div>
             ) : (
-              <Empty title="尚未执行">执行后在这里显示本次输出摘要。</Empty>
+              <Empty title="尚未执行" />
             )}
           </div>
         </div>
@@ -228,7 +222,6 @@ export function RunPanel() {
                 <Icon name="refresh" size={14} />
                 {controllerRunning ? "控制器运行中…" : "运行逐轮控制器"}
               </button>
-              <span className="hint">阈值与停止原因是检索层启发式，不是临床充分性。</span>
             </div>
             {controllerResult ? (
               controllerResult.error ? (
@@ -241,7 +234,6 @@ export function RunPanel() {
                     {controllerResult.final?.rounds ?? 0} · 证据{" "}
                     {controllerResult.final?.evidence_count ?? 0} · 预算{" "}
                     {controllerResult.final?.budget_spent ?? 0}
-                    <div className="hint">详细轮次见 08 结果页“逐轮控制”选项卡。</div>
                   </div>
                 </div>
               )

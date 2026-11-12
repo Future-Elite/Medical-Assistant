@@ -287,8 +287,5 @@ def _probability(value: Any) -> float | None:
         return None
 
 
-
-
-
 # 兼容旧导入路径：MiniCheckVerifier 现位于 rag.quality.claim_verification。
 from .quality.claim_verification import MiniCheckVerifier  # noqa: E402,F401

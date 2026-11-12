@@ -1,11 +1,11 @@
 import { useMemo } from "react";
 import { useWorkbench } from "../state/workbench";
-import { Badge, CodeBlock, Empty, Metric, Notice, PageHeader, Tabs } from "../components/primitives";
+import { Badge, CodeBlock, Empty, Metric, Notice, PageHeader, Tabs } from "../components/ui";
 import { Icon } from "../components/Icon";
 import { EvidenceDetail } from "../components/EvidenceDetail";
-import { PatientHitsView, SnapshotView } from "../components/PatientSnapshotView";
-import { DiagnosticsGrid } from "../components/RetrievalDiagnostics";
-import { kindLabels, rankDelta, score } from "../lib/formatting";
+import { PatientHitsView, SnapshotView } from "../components/PatientView";
+import { DiagnosticsGrid } from "../components/Diagnostics";
+import { kindLabels, rankDelta, score } from "../lib/format";
 import type { Dict } from "../types";
 
 function EvidenceList() {
@@ -121,7 +121,7 @@ function ApplicabilityTab() {
   const { pkg, openGuidelineChunk } = useWorkbench();
   const rows: Dict[] = pkg?.applicability || [];
   if (!rows.length) {
-    return <Empty title="无结构化适用条件">本次返回的指南没有可核对的结构化 applicability 条件。</Empty>;
+    return <Empty title="无结构化适用条件" />;
   }
   const labels: Record<string, string> = {
     possible_match: "可能匹配",
@@ -143,7 +143,6 @@ function ApplicabilityTab() {
 
   return (
     <div className="stack">
-      <div className="hint">本次核对 {rows.length} 份指南的结构化条件。</div>
       {rows.map((row, index) => {
         const ranked = (pkg.ranked_documents || []).find(
           (item: Dict) => item.document.document_id === row.document_id,
@@ -211,9 +210,6 @@ function ApplicabilityTab() {
               {!(row.criteria || []).length ? (
                 <div className="hint">指南未提供结构化适用条件。</div>
               ) : null}
-              <div className="hint" style={{ marginTop: 6 }}>
-                字段核对 · 非临床判定
-              </div>
             </div>
           </section>
         );
@@ -225,7 +221,7 @@ function ApplicabilityTab() {
 function ControllerTab() {
   const { controllerResult } = useWorkbench();
   if (!controllerResult) {
-    return <Empty title="尚未运行">在 07 执行检索页运行逐轮控制器后显示轮次与停止原因。</Empty>;
+    return <Empty title="尚未运行" />;
   }
   if (controllerResult.error) {
     return <Notice tone="error">{controllerResult.error}</Notice>;
@@ -284,7 +280,7 @@ function ControllerTab() {
           )
           .join(" · ") || "—"}
       </div>
-      <div className="hint">启发式停止 · 非临床充分性 · 停止原因 {stop.reason || "—"}</div>
+      <div className="hint">停止原因 {stop.reason || "—"}</div>
     </div>
   );
 }
@@ -339,7 +335,6 @@ export function ResultsPanel() {
         <PageHeader
           kicker="结果 · 证据"
           title="证据结果"
-          description="检索返回的证据包按来源分组，并附引文、患者事实、适用性与诊断轨迹。"
           actions={<Badge>未检索</Badge>}
         />
         <Empty
@@ -351,7 +346,6 @@ export function ResultsPanel() {
             </button>
           }
         >
-          完成 01–06 的输入后执行检索，结果会显示在这里。
         </Empty>
       </>
     );

@@ -10,7 +10,11 @@ from http.client import HTTPConnection
 from pathlib import Path
 
 from rag import __version__
+from rag.quality.guideline_lifecycle_index import DEFAULT_CACHE_PATH
 from rag.server import RAGRequestHandler, ThreadingHTTPServer
+
+# 仓库级 data/ 不随发布分支分发；缺生命周期缓存时跳过依赖真实缓存的用例。
+_LIFECYCLE_CACHE = DEFAULT_CACHE_PATH.is_file()
 
 
 def _document_dict(document):
@@ -96,7 +100,18 @@ class GuiContractTests(unittest.TestCase):
             "entity_linking", "guideline_lifecycle", "rerank_trace",
             # 09 指南解析
             "applicability", "criterion_id", "试算预览", "病历实际",
-            "对得上", "字段核对 · 非临床判定", "chunk_id", "section_path",
+            "对得上", "chunk_id", "section_path",
+            # 09 适用性解析完整流程（/api/applicability + 续跑 + 并列检索）
+            "指南适用性链路", "ApplicabilityChain", "目标指南", "目标主题", "查表", "停在这里", "停止",
+            "/api/applicability", "execute_external",
+            "补事实并续跑", "information_requests", "parallel_retrieval",
+            "coverage_guidelines", "population_qualifiers", "status_families",
+            "lifecycle_status", "stop_reason",
+            # 工业级图试点 + 生命周期并列
+            "工业级图试点", "include_industrial_graph", "industrial_graph",
+            "evidence_level", "lifecycle_checked_at",
+            "主张级裁定", "claim_adjudication", "counterfactual_certificate",
+            "minimal_changes",
             # 10 审计
             "/api/citation", "/api/audit", "citation_completeness",
             "citation_precision", "not_checked",
@@ -302,7 +317,55 @@ class HttpContractTests(unittest.TestCase):
         self.assertEqual(health["gui"]["entry"], "/")
         status, tools = self.request("GET", "/api/tools")
         self.assertEqual(status, 200)
-        self.assertEqual({item["name"] for item in tools["tools"]}, {"retrieve_evidence", "open_citation", "audit_grounded_answer"})
+        self.assertEqual({item["name"] for item in tools["tools"]}, {"retrieve_evidence", "open_citation", "audit_grounded_answer", "resolve_guideline_applicability", "resolve_applicability_workflow"})
+
+    def test_applicability_endpoint_executes_local_resolution(self):
+        status, payload = self.request("POST", "/api/applicability", {
+            "question": "肠外营养指南是否适用？",
+            "patient_snapshot": {
+                "patient_ref": "synthetic-http",
+                "as_of": "2026-01-08",
+                "facts": [{
+                    "collection": "derived_birth",
+                    "fields": {"ga_days": 266, "birth_weight_g": 3200, "pna_days": 5, "data_status": "observed_positive"},
+                }],
+            },
+            "target_guideline_id": "pdf-neo-parenteral-nutrition-2012",
+            "execute_external": False,
+        })
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["outcome"], "scope_mismatch")
+        self.assertEqual(payload["evidence"], [])
+        self.assertEqual(payload["rounds"][-1]["reason"], "search_backend_not_provided")
+        self.assertEqual(payload["next_action"]["type"], "scope_mismatch")
+        self.assertIn("target_detail", payload)
+
+    @unittest.skipUnless(_LIFECYCLE_CACHE, "guideline lifecycle cache is not shipped")
+    def test_applicability_endpoint_returns_lifecycle_and_industrial_graph(self):
+        status, payload = self.request("POST", "/api/applicability", {
+            "question": "极低出生体重儿喂养指南是否适用？",
+            "patient_snapshot": {
+                "patient_ref": "synthetic-http-graph",
+                "as_of": "2024-06-10",
+                "facts": [{
+                    "collection": "derived_birth",
+                    "fields": {"birth_weight_g": 1010, "ga_days": 210, "data_status": "observed_positive"},
+                }],
+            },
+            "target_guideline_id": "pdf-neo-feeding-vlbw-2015",
+            "execute_external": False,
+            "include_industrial_graph": True,
+        })
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["parallel_retrieval"]["lifecycle_status"], "current")
+        self.assertEqual(
+            payload["parallel_retrieval"]["lifecycle"]["pdf-neo-feeding-vlbw-2015"]["pmid"],
+            "25580815",
+        )
+        self.assertEqual(payload["industrial_graph"]["guideline_id"], "pdf-neo-feeding-vlbw-2015")
+        self.assertEqual(payload["industrial_graph"]["scope"]["status"], "match")
+        self.assertTrue(payload["industrial_graph"]["recommendations"])
+        self.assertTrue(payload["industrial_graph"]["claim_adjudication"]["claims"])
 
     def test_industrial_settings_endpoint(self):
         status, payload = self.request("POST", "/api/settings/industrial", {
@@ -373,6 +436,13 @@ class HttpContractTests(unittest.TestCase):
         self.assertIn("neo-ehr-001-pneumonia", case_ids)
         self.assertIn("neo-ehr-002-rds", case_ids)
         self.assertIn("neo-ehr-010-rds", case_ids)
+        status, chain = self.request("GET", "/api/demo/applicability-cases")
+        self.assertEqual(status, 200)
+        self.assertEqual(chain["profile"], "neonatal_applicability_demo_v1")
+        self.assertTrue(chain["synthetic"])
+        self.assertEqual(len(chain["cases"]), 5)
+        self.assertIn("neo-chain-01-vlbw-match", {case["case_id"] for case in chain["cases"]})
+        self.assertIn("neo-chain-04-pocus-no-coverage", {case["case_id"] for case in chain["cases"]})
         status, guidelines = self.request("GET", "/api/demo/guidelines")
         self.assertEqual(status, 200)
         source_ids = {item["source_id"] for item in guidelines["guidelines"]}

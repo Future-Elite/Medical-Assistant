@@ -1,0 +1,129 @@
+{
+  "function": "v672_claim_adjudication",
+  "guideline_id": "pdf-neo-feeding-vlbw-2015",
+  "cases": 180,
+  "claims": 720,
+  "verdicts": {
+    "insufficient_evidence": 369,
+    "concordant": 326,
+    "guideline_review": 24,
+    "guideline_exception": 1
+  },
+  "certificates": {
+    "requires_unstructured_data": 361,
+    "not_needed": 326,
+    "review_dominates": 24,
+    "flippable": 8,
+    "exception_dominates": 1
+  },
+  "audit": {
+    "claims_with_patient_evidence": 509,
+    "claims_with_guideline_locator": 720,
+    "claims_with_record_path": 705,
+    "claims_total": 720
+  },
+  "pair_certificate_validation": {
+    "pairs_checked": 500,
+    "forward_pairs": 246,
+    "field_hit": 246,
+    "direction_match": 246,
+    "direction_ci95": [
+      1.0,
+      1.0
+    ],
+    "minimality_1field": 246,
+    "mean_nodes_expanded": 8.073,
+    "mean_total_cost": 1.061,
+    "reverse_pairs": 254,
+    "reverse_no_flip": 254,
+    "examples": [
+      {
+        "pair_id": "cf-0001",
+        "changed_field": "birth_weight_g",
+        "certificate_fields": [
+          "derived_birth.birth_weight_g"
+        ],
+        "certificate_size": 1,
+        "predicted": "scope_match",
+        "expected": "possible_match"
+      },
+      {
+        "pair_id": "cf-0002",
+        "changed_field": "birth_weight_g",
+        "certificate_fields": [
+          "derived_birth.birth_weight_g"
+        ],
+        "certificate_size": 1,
+        "predicted": "scope_match",
+        "expected": "possible_match"
+      },
+      {
+        "pair_id": "cf-0003",
+        "changed_field": "birth_weight_g",
+        "certificate_fields": [
+          "derived_birth.birth_weight_g"
+        ],
+        "certificate_size": 1,
+        "predicted": "scope_match",
+        "expected": "possible_match"
+      }
+    ],
+    "note": "规则一致性检查；证书与反事实对使用同一套规则，不是临床因果验证。反向对（before 已匹配）不要求证书翻转。"
+  },
+  "heldout_certificate_validation": {
+    "pairs_checked": 200,
+    "forward_pairs": 100,
+    "field_hit": 100,
+    "direction_match": 100,
+    "direction_ci95": [
+      1.0,
+      1.0
+    ],
+    "minimality_1field": 100,
+    "mean_nodes_expanded": 9.2,
+    "mean_total_cost": 1.11,
+    "reverse_pairs": 100,
+    "reverse_no_flip": 100,
+    "examples": [
+      {
+        "pair_id": "heldout-cf-0001",
+        "changed_field": "birth_weight_g",
+        "certificate_fields": [
+          "derived_birth.birth_weight_g"
+        ],
+        "certificate_size": 1,
+        "predicted": "scope_match",
+        "expected": "possible_match"
+      },
+      {
+        "pair_id": "heldout-cf-0002",
+        "changed_field": "birth_weight_g",
+        "certificate_fields": [
+          "derived_birth.birth_weight_g"
+        ],
+        "certificate_size": 1,
+        "predicted": "scope_match",
+        "expected": "possible_match"
+      },
+      {
+        "pair_id": "heldout-cf-0004",
+        "changed_field": "birth_weight_g",
+        "certificate_fields": [
+          "derived_birth.birth_weight_g"
+        ],
+        "certificate_size": 1,
+        "predicted": "scope_match",
+        "expected": "possible_match"
+      }
+    ],
+    "note": "规则一致性检查；证书与反事实对使用同一套规则，不是临床因果验证。反向对（before 已匹配）不要求证书翻转。"
+  },
+  "caveats": [
+    "单份指南、VLBW 范围；不是指南库。",
+    "主张级裁定只判指南建议适用性，不是临床结论。",
+    "反事实证书只搜索已有结构化字段，不猜时间/文本缺失。",
+    "证书与规则派生反事实对使用同一套规则，一致性检查不是临床因果验证。",
+    "held-out 对来自 dev/test 患者，不参与训练；仍是规则派生，不是临床反事实。",
+    "未调用 LLM；模型判断未执行。"
+  ]
+}

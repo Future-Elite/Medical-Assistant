@@ -1,7 +1,7 @@
 """Query-side fidelity audit tests (query fidelity research layer).
 
 Offline and deterministic: no models, no network. They pin the labelled
-contract of ``rag/fidelity.py`` — slot extraction, per-route audits, level
+contract of ``rag/quality/fidelity.py`` — slot extraction, per-route audits, level
 mapping — and deliberately do NOT assert on medical correctness beyond the
 lexicon/suffix rules the baseline implements (quality vs human annotation is
 an experiment; see the paper's experiment protocol).

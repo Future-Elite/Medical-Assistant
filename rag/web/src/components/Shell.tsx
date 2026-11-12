@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "./Icon";
-import { Badge, StatusRow } from "./primitives";
+import { Badge, StatusRow } from "./ui";
 import { STEP_ORDER, useWorkbench, type ThemeChoice } from "../state/workbench";
-import { NAV_GROUPS, STEP_META, stepNumber } from "../lib/workflow-steps";
-import { sourceLabels } from "../lib/formatting";
+import { NAV_GROUPS, STEP_META, stepNumber } from "../lib/steps";
+import { sourceLabels } from "../lib/format";
 import type { StepKey } from "../types";
 
 const THEME_LABELS: Record<ThemeChoice, string> = {

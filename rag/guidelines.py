@@ -335,7 +335,6 @@ def who_guideline_metadata_registry() -> tuple[SourceDocument, ...]:
     return (who_hypertension_metadata(), who_diabetes_glucose_metadata())
 
 
-
 def describe_registry(records: Sequence[SourceDocument]) -> list[dict[str, object]]:
     """Audit-friendly summary; used by health output and tests."""
     return [

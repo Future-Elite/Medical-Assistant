@@ -37,7 +37,7 @@ class _MappingExpansion:
 def build_query_plan(request: RetrievalRequest, known_sources: list[dict[str, object]], library=None) -> QueryPlan:
     """Build the query plan.
 
-    ``library`` (optional :class:`~rag.term_mapping_library.TermMappingLibrary`)
+    ``library`` (optional :class:`~rag.quality.term_mapping_library.TermMappingLibrary`)
     adds reusable mapping rows: request ``term_mapping`` rows win on concept
     collision, library rows cover concepts the request did not supply. Library
     expansions are traced with ``origin=library`` and never masquerade as

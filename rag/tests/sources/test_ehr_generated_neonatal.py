@@ -71,7 +71,6 @@ def _expected_facts(patient: dict, timeline: dict, admission: dict) -> list[dict
     return facts
 
 
-@unittest.skipUnless(DATA.is_dir(), "仓库级 data/ 不随发布分支分发")
 class EhrHisDemoTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:

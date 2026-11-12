@@ -1,7 +1,7 @@
 """v6.7.0 重排升级：重排候选池（rerank_pool）+ Qwen3Reranker 适配器。
 
 离线测试约束：不加载神经模型、不联网。Qwen3Reranker 只测注入打分路径与
-纯打分函数（真实模型 smoke 在可选依赖环境单独验收）；重排池默认 0（legacy 语义），
+纯打分函数（真实模型 smoke 在独立环境单独验收）；重排池默认 0（legacy 语义），
 仅当请求 rerank=true 且池 > 0 时改变候选流。
 """
 import math

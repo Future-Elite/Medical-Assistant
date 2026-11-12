@@ -244,8 +244,8 @@ class LexiconMergeTests(unittest.TestCase):
             "metadata": {"source": "dataset_labels:t.json", "review_status": "dataset_derived",
                          "mesh_review_status": "needs_review", "label_count": 100},
         }]
-        name, entries = module.load_lexicon(
-            Path(__file__).resolve().parents[2] / "contracts" / "examples" / "term_lexicon_neonatal_example.json")
+        name, entries = module.load_lexicon(Path(
+            Path(__file__).resolve().parents[2] / "contracts" / "examples" / "term_lexicon_neonatal_example.json"))
         merged, stats = module.merge_lexicon(rows, name, entries)
         # 词表 13 行：新生儿肺炎已有→补充；气胸/胸腔积液/肺不张是纯别名行→补不了新行（跳过留痕）；其余 9 行新建
         self.assertEqual(stats["rows_created"], 9)

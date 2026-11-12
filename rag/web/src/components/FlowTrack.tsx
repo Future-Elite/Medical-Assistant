@@ -1,5 +1,5 @@
 import { STEP_ORDER, useWorkbench } from "../state/workbench";
-import { STEP_META, stepNumber } from "../lib/workflow-steps";
+import { STEP_META, stepNumber } from "../lib/steps";
 import { Icon } from "./Icon";
 
 /**

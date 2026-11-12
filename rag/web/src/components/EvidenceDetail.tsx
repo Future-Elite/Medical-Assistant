@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useWorkbench } from "../state/workbench";
-import { Badge, Empty } from "./primitives";
+import { Badge, Empty } from "./ui";
 import { Icon } from "./Icon";
-import { kindLabels, rankDelta, score } from "../lib/formatting";
+import { kindLabels, rankDelta, score } from "../lib/format";
 import type { Dict } from "../types";
 
 export function EvidenceDetail({ index }: { index: number | null }) {
@@ -17,7 +17,7 @@ export function EvidenceDetail({ index }: { index: number | null }) {
           <Badge>未选择</Badge>
         </div>
         <div className="detail-body">
-          <Empty title="未选择证据">从左侧列表选择一条证据查看引文与分数构成。</Empty>
+          <Empty title="未选择证据" />
         </div>
       </aside>
     );

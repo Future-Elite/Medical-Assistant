@@ -1,0 +1,496 @@
+{
+  "profile": "neonatal_applicability_demo_v1",
+  "synthetic": true,
+  "note": "仅用于展示指南适用性链路的合成病例；不是真实患者，不构成诊疗建议。",
+  "case_sets": {
+    "applicability_chain": 5
+  },
+  "cases": [
+    {
+      "case_id": "neo-chain-01-vlbw-match",
+      "label": "链路演示 · 选 VLBW 喂养 → 条件满足（1200 g / 30周）",
+      "synthetic": true,
+      "snapshot": {
+        "patient_ref": "chain-01",
+        "as_of": "2026-01-10",
+        "source": "synthetic_chain_demo",
+        "facts": [
+          {
+            "collection": "patient",
+            "event_type": "PATIENT",
+            "record_path": "synthetic:chain-01:patient",
+            "field_path": "synthetic:chain-01:patient",
+            "fields": {
+              "gender": "女",
+              "birthDate": "2025-12-01"
+            },
+            "time": "2025-12-01T08:00:00+08:00",
+            "source_type": "synthetic_demo"
+          },
+          {
+            "collection": "admission",
+            "event_type": "ADMISSION",
+            "record_path": "synthetic:chain-01:admission",
+            "field_path": "synthetic:chain-01:admission",
+            "fields": {
+              "admissionDiagnosis": "极低出生体重儿，喂养评估",
+              "admissionTime": "2025-12-01 09:00"
+            },
+            "time": "2025-12-01T09:00:00+08:00",
+            "source_type": "synthetic_demo"
+          },
+          {
+            "collection": "derived_birth",
+            "event_type": "DERIVED",
+            "record_path": "synthetic:chain-01:derived_birth",
+            "field_path": "synthetic:chain-01:derived_birth",
+            "fields": {
+              "subject_role": "patient",
+              "data_status": "observed_positive",
+              "birth_weight_g": 1200,
+              "ga_text": "30周",
+              "derivation": "synthetic_chain_demo",
+              "ga_days": 210
+            },
+            "time": "2025-12-01T08:00:00+08:00",
+            "source_type": "derived_from_ehr_input"
+          },
+          {
+            "collection": "derived_respiratory_support",
+            "event_type": "DERIVED",
+            "record_path": "synthetic:chain-01:derived_respiratory_support",
+            "field_path": "synthetic:chain-01:derived_respiratory_support",
+            "fields": {
+              "subject_role": "patient",
+              "data_status": "observed_negative",
+              "mode": "无",
+              "derivation": "synthetic_chain_demo"
+            },
+            "time": "2026-01-05T08:00:00+08:00",
+            "source_type": "derived_from_ehr_input"
+          }
+        ]
+      },
+      "preset": {
+        "question": "该早产儿出生体重 1200 g、胎龄 30 周，是否适用极低出生体重儿喂养指南？",
+        "task": "clinical_question",
+        "query_language": "zh",
+        "clinical_intent": "guideline_recommendation",
+        "patient_terms": [
+          "极低出生体重儿喂养"
+        ],
+        "term_mapping": [
+          {
+            "concept": "极低出生体重儿喂养",
+            "english": [
+              "very low birth weight infant feeding"
+            ],
+            "mesh": [
+              "Infant, Very Low Birth Weight"
+            ]
+          }
+        ],
+        "facets": {},
+        "filters": {},
+        "source_kinds": [
+          "guideline"
+        ],
+        "source_mode": "live",
+        "retrieval_method": "bm25",
+        "rerank": false,
+        "fidelity_gate": "off",
+        "top_k": 6,
+        "as_of": "2026-01-10"
+      }
+    },
+    {
+      "case_id": "neo-chain-02-vlbw-coverage",
+      "label": "链路演示 · 选 VLBW 喂养 → 同类指南覆盖（1800 g / 31周）",
+      "synthetic": true,
+      "snapshot": {
+        "patient_ref": "chain-02",
+        "as_of": "2026-01-10",
+        "source": "synthetic_chain_demo",
+        "facts": [
+          {
+            "collection": "patient",
+            "event_type": "PATIENT",
+            "record_path": "synthetic:chain-02:patient",
+            "field_path": "synthetic:chain-02:patient",
+            "fields": {
+              "gender": "女",
+              "birthDate": "2025-12-01"
+            },
+            "time": "2025-12-01T08:00:00+08:00",
+            "source_type": "synthetic_demo"
+          },
+          {
+            "collection": "admission",
+            "event_type": "ADMISSION",
+            "record_path": "synthetic:chain-02:admission",
+            "field_path": "synthetic:chain-02:admission",
+            "fields": {
+              "admissionDiagnosis": "早产儿，体重未达 VLBW，喂养评估",
+              "admissionTime": "2025-12-01 09:00"
+            },
+            "time": "2025-12-01T09:00:00+08:00",
+            "source_type": "synthetic_demo"
+          },
+          {
+            "collection": "derived_birth",
+            "event_type": "DERIVED",
+            "record_path": "synthetic:chain-02:derived_birth",
+            "field_path": "synthetic:chain-02:derived_birth",
+            "fields": {
+              "subject_role": "patient",
+              "data_status": "observed_positive",
+              "birth_weight_g": 1800,
+              "ga_text": "31周",
+              "derivation": "synthetic_chain_demo",
+              "ga_days": 220
+            },
+            "time": "2025-12-01T08:00:00+08:00",
+            "source_type": "derived_from_ehr_input"
+          },
+          {
+            "collection": "derived_respiratory_support",
+            "event_type": "DERIVED",
+            "record_path": "synthetic:chain-02:derived_respiratory_support",
+            "field_path": "synthetic:chain-02:derived_respiratory_support",
+            "fields": {
+              "subject_role": "patient",
+              "data_status": "observed_negative",
+              "mode": "无",
+              "derivation": "synthetic_chain_demo"
+            },
+            "time": "2026-01-05T08:00:00+08:00",
+            "source_type": "derived_from_ehr_input"
+          }
+        ]
+      },
+      "preset": {
+        "question": "该早产儿出生体重 1800 g、胎龄 31 周，极低出生体重儿喂养指南不匹配时，是否有人乳强化或肠外营养指南可覆盖？",
+        "task": "clinical_question",
+        "query_language": "zh",
+        "clinical_intent": "guideline_recommendation",
+        "patient_terms": [
+          "早产儿喂养"
+        ],
+        "term_mapping": [
+          {
+            "concept": "早产儿喂养",
+            "english": [
+              "preterm infant feeding"
+            ],
+            "mesh": [
+              "Infant, Premature"
+            ]
+          }
+        ],
+        "facets": {},
+        "filters": {},
+        "source_kinds": [
+          "guideline"
+        ],
+        "source_mode": "live",
+        "retrieval_method": "bm25",
+        "rerank": false,
+        "fidelity_gate": "off",
+        "top_k": 6,
+        "as_of": "2026-01-10"
+      }
+    },
+    {
+      "case_id": "neo-chain-03-human-milk-missing-ga",
+      "label": "链路演示 · 选人乳强化 → 缺胎龄，暂停补事实",
+      "synthetic": true,
+      "snapshot": {
+        "patient_ref": "chain-03",
+        "as_of": "2026-01-10",
+        "source": "synthetic_chain_demo",
+        "facts": [
+          {
+            "collection": "patient",
+            "event_type": "PATIENT",
+            "record_path": "synthetic:chain-03:patient",
+            "field_path": "synthetic:chain-03:patient",
+            "fields": {
+              "gender": "女",
+              "birthDate": "2025-12-01"
+            },
+            "time": "2025-12-01T08:00:00+08:00",
+            "source_type": "synthetic_demo"
+          },
+          {
+            "collection": "admission",
+            "event_type": "ADMISSION",
+            "record_path": "synthetic:chain-03:admission",
+            "field_path": "synthetic:chain-03:admission",
+            "fields": {
+              "admissionDiagnosis": "早产儿，出生胎龄仅有文本记录",
+              "admissionTime": "2025-12-01 09:00"
+            },
+            "time": "2025-12-01T09:00:00+08:00",
+            "source_type": "synthetic_demo"
+          },
+          {
+            "collection": "derived_birth",
+            "event_type": "DERIVED",
+            "record_path": "synthetic:chain-03:derived_birth",
+            "field_path": "synthetic:chain-03:derived_birth",
+            "fields": {
+              "subject_role": "patient",
+              "data_status": "observed_positive",
+              "birth_weight_g": 1800,
+              "ga_text": "30周（文本记录）",
+              "derivation": "synthetic_chain_demo"
+            },
+            "time": "2025-12-01T08:00:00+08:00",
+            "source_type": "derived_from_ehr_input"
+          },
+          {
+            "collection": "derived_respiratory_support",
+            "event_type": "DERIVED",
+            "record_path": "synthetic:chain-03:derived_respiratory_support",
+            "field_path": "synthetic:chain-03:derived_respiratory_support",
+            "fields": {
+              "subject_role": "patient",
+              "data_status": "observed_negative",
+              "mode": "无",
+              "derivation": "synthetic_chain_demo"
+            },
+            "time": "2026-01-05T08:00:00+08:00",
+            "source_type": "derived_from_ehr_input"
+          }
+        ]
+      },
+      "preset": {
+        "question": "该早产儿出生体重 1800 g，结构化胎龄缺失，是否适用人乳强化指南？",
+        "task": "clinical_question",
+        "query_language": "zh",
+        "clinical_intent": "guideline_recommendation",
+        "patient_terms": [
+          "人乳强化"
+        ],
+        "term_mapping": [
+          {
+            "concept": "人乳强化",
+            "english": [
+              "human milk fortification"
+            ],
+            "mesh": [
+              "Milk, Human"
+            ]
+          }
+        ],
+        "facets": {},
+        "filters": {},
+        "source_kinds": [
+          "guideline"
+        ],
+        "source_mode": "live",
+        "retrieval_method": "bm25",
+        "rerank": false,
+        "fidelity_gate": "off",
+        "top_k": 6,
+        "as_of": "2026-01-10"
+      }
+    },
+    {
+      "case_id": "neo-chain-04-pocus-no-coverage",
+      "label": "链路演示 · 选 POCUS → 无覆盖，外部检索停止",
+      "synthetic": true,
+      "snapshot": {
+        "patient_ref": "chain-04",
+        "as_of": "2026-01-10",
+        "source": "synthetic_chain_demo",
+        "facts": [
+          {
+            "collection": "patient",
+            "event_type": "PATIENT",
+            "record_path": "synthetic:chain-04:patient",
+            "field_path": "synthetic:chain-04:patient",
+            "fields": {
+              "gender": "女",
+              "birthDate": "2025-12-01"
+            },
+            "time": "2025-12-01T08:00:00+08:00",
+            "source_type": "synthetic_demo"
+          },
+          {
+            "collection": "admission",
+            "event_type": "ADMISSION",
+            "record_path": "synthetic:chain-04:admission",
+            "field_path": "synthetic:chain-04:admission",
+            "fields": {
+              "admissionDiagnosis": "足月儿，无呼吸支持",
+              "admissionTime": "2025-12-01 09:00"
+            },
+            "time": "2025-12-01T09:00:00+08:00",
+            "source_type": "synthetic_demo"
+          },
+          {
+            "collection": "derived_birth",
+            "event_type": "DERIVED",
+            "record_path": "synthetic:chain-04:derived_birth",
+            "field_path": "synthetic:chain-04:derived_birth",
+            "fields": {
+              "subject_role": "patient",
+              "data_status": "observed_positive",
+              "birth_weight_g": 3000,
+              "ga_text": "38周",
+              "derivation": "synthetic_chain_demo",
+              "ga_days": 270
+            },
+            "time": "2025-12-01T08:00:00+08:00",
+            "source_type": "derived_from_ehr_input"
+          },
+          {
+            "collection": "derived_respiratory_support",
+            "event_type": "DERIVED",
+            "record_path": "synthetic:chain-04:derived_respiratory_support",
+            "field_path": "synthetic:chain-04:derived_respiratory_support",
+            "fields": {
+              "subject_role": "patient",
+              "data_status": "observed_negative",
+              "mode": "无",
+              "derivation": "synthetic_chain_demo"
+            },
+            "time": "2026-01-05T08:00:00+08:00",
+            "source_type": "derived_from_ehr_input"
+          }
+        ]
+      },
+      "preset": {
+        "question": "该新生儿无呼吸支持，是否适用新生儿重症超声（POCUS）指南？",
+        "task": "clinical_question",
+        "query_language": "zh",
+        "clinical_intent": "guideline_recommendation",
+        "patient_terms": [
+          "新生儿重症超声"
+        ],
+        "term_mapping": [
+          {
+            "concept": "新生儿重症超声",
+            "english": [
+              "point-of-care ultrasound",
+              "neonatal POCUS"
+            ],
+            "mesh": [
+              "Ultrasonography"
+            ]
+          }
+        ],
+        "facets": {},
+        "filters": {},
+        "source_kinds": [
+          "guideline"
+        ],
+        "source_mode": "live",
+        "retrieval_method": "bm25",
+        "rerank": false,
+        "fidelity_gate": "off",
+        "top_k": 6,
+        "as_of": "2026-01-10"
+      }
+    },
+    {
+      "case_id": "neo-chain-05-pocus-match",
+      "label": "链路演示 · 选 POCUS → 条件满足（CPAP）",
+      "synthetic": true,
+      "snapshot": {
+        "patient_ref": "chain-05",
+        "as_of": "2026-01-10",
+        "source": "synthetic_chain_demo",
+        "facts": [
+          {
+            "collection": "patient",
+            "event_type": "PATIENT",
+            "record_path": "synthetic:chain-05:patient",
+            "field_path": "synthetic:chain-05:patient",
+            "fields": {
+              "gender": "女",
+              "birthDate": "2025-12-01"
+            },
+            "time": "2025-12-01T08:00:00+08:00",
+            "source_type": "synthetic_demo"
+          },
+          {
+            "collection": "admission",
+            "event_type": "ADMISSION",
+            "record_path": "synthetic:chain-05:admission",
+            "field_path": "synthetic:chain-05:admission",
+            "fields": {
+              "admissionDiagnosis": "足月儿，呼吸支持中",
+              "admissionTime": "2025-12-01 09:00"
+            },
+            "time": "2025-12-01T09:00:00+08:00",
+            "source_type": "synthetic_demo"
+          },
+          {
+            "collection": "derived_birth",
+            "event_type": "DERIVED",
+            "record_path": "synthetic:chain-05:derived_birth",
+            "field_path": "synthetic:chain-05:derived_birth",
+            "fields": {
+              "subject_role": "patient",
+              "data_status": "observed_positive",
+              "birth_weight_g": 3000,
+              "ga_text": "38周",
+              "derivation": "synthetic_chain_demo",
+              "ga_days": 270
+            },
+            "time": "2025-12-01T08:00:00+08:00",
+            "source_type": "derived_from_ehr_input"
+          },
+          {
+            "collection": "derived_respiratory_support",
+            "event_type": "DERIVED",
+            "record_path": "synthetic:chain-05:derived_respiratory_support",
+            "field_path": "synthetic:chain-05:derived_respiratory_support",
+            "fields": {
+              "subject_role": "patient",
+              "data_status": "observed_positive",
+              "mode": "CPAP",
+              "derivation": "synthetic_chain_demo"
+            },
+            "time": "2026-01-05T08:00:00+08:00",
+            "source_type": "derived_from_ehr_input"
+          }
+        ]
+      },
+      "preset": {
+        "question": "该新生儿正在接受 CPAP，是否适用新生儿重症超声（POCUS）指南？",
+        "task": "clinical_question",
+        "query_language": "zh",
+        "clinical_intent": "guideline_recommendation",
+        "patient_terms": [
+          "新生儿重症超声"
+        ],
+        "term_mapping": [
+          {
+            "concept": "新生儿重症超声",
+            "english": [
+              "point-of-care ultrasound",
+              "neonatal POCUS"
+            ],
+            "mesh": [
+              "Ultrasonography"
+            ]
+          }
+        ],
+        "facets": {},
+        "filters": {},
+        "source_kinds": [
+          "guideline"
+        ],
+        "source_mode": "live",
+        "retrieval_method": "bm25",
+        "rerank": false,
+        "fidelity_gate": "off",
+        "top_k": 6,
+        "as_of": "2026-01-10"
+      }
+    }
+  ]
+}

@@ -550,7 +550,7 @@ class LocalGuidelinePdfConnector(KnowledgeConnector):
 
     source_id: str = "guideline-pdf-local"
     kinds: tuple[str, ...] = ("guideline",)
-    directory: Path = field(default_factory=lambda: Path(__file__).resolve().parent.parent / "data" / "guideline_parsing" / "guidelines")
+    directory: Path = field(default_factory=lambda: Path(__file__).resolve().parents[2] / "data" / "guideline_parsing" / "guidelines")
     manifest: Mapping[str, Any] | None = None
     #: Upper bound for one guideline; keeps a single PDF from filling top_k.
     max_chunks_per_guideline: int = 8

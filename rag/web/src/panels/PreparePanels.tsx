@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useWorkbench } from "../state/workbench";
-import { Badge, Empty, Field, Notice, PageHeader, StatusRow } from "../components/primitives";
+import { Badge, Empty, Field, Notice, PageHeader, StatusRow } from "../components/ui";
 import { Icon } from "../components/Icon";
-import { SnapshotView } from "../components/PatientSnapshotView";
-import { caseDisplayLabel, parseTermMapping } from "../lib/formatting";
+import { SnapshotView } from "../components/PatientView";
+import { caseDisplayLabel, parseTermMapping } from "../lib/format";
 
 function StepKicker({ index }: { index: number }) {
   return <span>步骤 {String(index).padStart(2, "0")} / 10</span>;
@@ -72,7 +72,6 @@ export function CasePanel() {
       <PageHeader
         kicker="准备 · 病例与快照"
         title="病例与快照"
-        description="选择合成病例或手动载入 HIS 快照；所有事实由调用方随请求传入，服务端不持有患者数据。"
         actions={<Badge tone={snapshot ? "done" : ""}>{snapshotState}</Badge>}
       />
       <div className="page-body">
@@ -90,11 +89,22 @@ export function CasePanel() {
                   onChange={(event) => applyCase(event.target.value)}
                 >
                   <option value="">— 手动输入 —</option>
-                  {cases.map((item) => (
-                    <option key={item.case_id} value={item.case_id}>
-                      {caseDisplayLabel(item.label)}
-                    </option>
-                  ))}
+                  {cases.filter((item) => item.case_id.startsWith("neo-chain-")).length ? (
+                    <optgroup label="链路演示（合成）">
+                      {cases.filter((item) => item.case_id.startsWith("neo-chain-")).map((item) => (
+                        <option key={item.case_id} value={item.case_id}>
+                          {caseDisplayLabel(item.label)}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ) : null}
+                  <optgroup label="EHR 演示（合成）">
+                    {cases.filter((item) => !item.case_id.startsWith("neo-chain-")).map((item) => (
+                      <option key={item.case_id} value={item.case_id}>
+                        {caseDisplayLabel(item.label)}
+                      </option>
+                    ))}
+                  </optgroup>
                 </select>
               </Field>
               <Field label="patient_ref">
@@ -165,7 +175,6 @@ export function QuestionPanel() {
       <PageHeader
         kicker="准备 · 问题与意图"
         title="问题与意图"
-        description="填写检索问题、任务类型与临床意图。意图会影响外部来源的路由与联合选择。"
       />
       <div className="page-body">
         <div className="card">
@@ -245,14 +254,12 @@ export function TermsPanel() {
       <PageHeader
         kicker="准备 · 术语与映射"
         title="术语与映射"
-        description="中文概念 → 英文 / MeSH / 别名的显式绑定。请求行优先于映射库行，逐行可审计。"
         actions={<Badge tone={mapping.error ? "error" : "ready"}>{mapping.error ? "JSON 错误" : `${mapping.rows.length} 行`}</Badge>}
       />
       <div className="page-body">
         <div className="card">
           <div className="card-head">
             <h3>术语输入</h3>
-            <span className="hint">needs_review · 映射库行须人工核验</span>
           </div>
           <div className="card-body stack">
             <div className="form-grid c2">
@@ -344,10 +351,9 @@ export function TermsPanel() {
                     <StatusRow label="MeSH 最佳匹配" value={mesh.mesh_top_match ?? 0} />
                     <StatusRow label="未找到" value={mesh.not_found ?? 0} />
                   </div>
-                  <span className="hint">库行 provenance 不是人工金标准；启用前须人工核验。</span>
                 </div>
               ) : (
-                <Empty title="未配置映射库">设置 term_mapping_library_path 后显示概念与 MeSH 核验状态。</Empty>
+                <Empty title="未配置映射库" />
               )}
             </div>
           </div>
@@ -371,7 +377,6 @@ export function ScopePanel() {
       <PageHeader
         kicker="准备 · 范围与过滤"
         title="范围与过滤"
-        description="限定检索来源与返回规模。source_mode 只决定外部来源集合，患者事实始终本地检索。"
       />
       <div className="page-body">
         <div className="card">
@@ -481,14 +486,12 @@ export function MethodPanel() {
       <PageHeader
         kicker="准备 · 检索方法与门控"
         title="检索方法与门控"
-        description="选择检索器、查询保真门控与重排；实体链接、指南版本治理与主张校验按需调整，默认值适用于常规检索。"
         actions={<Badge tone={health ? "ready" : ""}>{health ? "已读取" : "待读取"}</Badge>}
       />
       <div className="page-body">
         <div className="card">
           <div className="card-head">
             <h3>检索与门控</h3>
-            <span className="hint">RRF 组合方法与单方法等价可选</span>
           </div>
           <div className="card-body stack">
             <div className="form-grid c2">
@@ -583,7 +586,6 @@ export function MethodPanel() {
             <div className="subcard">
               <div className="subcard-title">
                 <span>校验与治理</span>
-                <span className="hint">默认值适用于常规检索</span>
               </div>
               <div className="form-grid c3">
                 <Field label="实体链接">

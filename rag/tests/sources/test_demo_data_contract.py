@@ -22,7 +22,7 @@ from rag.his import filter_snapshot, snapshot_from_dict
 from rag.models import RetrievalRequest
 from rag.pipeline import EvidenceRetrievalPipeline
 
-DATA_DIR = Path(__file__).resolve().parents[2] / "demo"
+DATA_DIR = Path(__file__).resolve().parents[3] / "data"
 HIS_COLLECTIONS = {
     "patient", "visit", "admission", "diagnosis", "neonatal_record",
     "neonatal_summary", "neonatal_diagnosis", "vital_sign", "lab_test", "order",

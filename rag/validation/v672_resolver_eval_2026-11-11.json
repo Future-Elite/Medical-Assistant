@@ -1,0 +1,83 @@
+{
+  "case_count": 500,
+  "local_abcd": {
+    "n": 400,
+    "correct": 329,
+    "rate": 0.8225
+  },
+  "target_status": {
+    "n": 300,
+    "correct": 300,
+    "accuracy": 1.0
+  },
+  "per_case_type": {
+    "GA": {
+      "n": 100,
+      "correct": 0,
+      "rate": 0.0,
+      "outcomes": {
+        "evidence_gap": 94,
+        "needs_information": 6
+      }
+    },
+    "D": {
+      "n": 100,
+      "correct": 100,
+      "rate": 1.0,
+      "outcomes": {
+        "evidence_gap": 100
+      }
+    },
+    "A": {
+      "n": 100,
+      "correct": 29,
+      "rate": 0.29,
+      "outcomes": {
+        "resolved": 29,
+        "scope_mismatch": 71
+      }
+    },
+    "B": {
+      "n": 100,
+      "correct": 100,
+      "rate": 1.0,
+      "outcomes": {
+        "scope_mismatch": 100
+      }
+    },
+    "C": {
+      "n": 100,
+      "correct": 100,
+      "rate": 1.0,
+      "outcomes": {
+        "needs_information": 100
+      }
+    }
+  },
+  "ga": {
+    "n": 100,
+    "handled": 0,
+    "reason": "current resolver has no free-text GA extraction action"
+  },
+  "dataset_dir_name": "v6.7.2_dataset_2026-11-07",
+  "dataset_sha256": "1808741bbd14f868f6a38be4c2ff0fdf37964e16a7956136efad92dffd875560",
+  "generated_at": "2026-11-11T13:42:24.242627+00:00",
+  "mode": "offline_applicability_workflow",
+  "external_search": false,
+  "input_contract": "question, snapshot and target/topic identity; no gold status, missing fields or coverage",
+  "scoring": {
+    "A": "resolved with exactly the same-family coverage set; cross-family-only cases intentionally stop",
+    "B": "scope_mismatch with no possible local coverage and no selected guideline",
+    "C": "needs_information with exactly the gold missing-field set",
+    "D": "evidence_gap without local substitution or an unconfigured external search",
+    "GA": "unhandled because the current resolver has no free-text GA extraction action"
+  },
+  "caveats": [
+    "rule-based local workflow evaluation, not a complete online RAG evaluation",
+    "gold and workflow use related structured criteria; results are not independent clinical labels",
+    "500 cases are a balanced diagnostic subset, not prevalence",
+    "split is admission-level, not patient-level",
+    "no external retrieval quality is measured in this offline run",
+    "not clinical accuracy or clinical validation"
+  ]
+}

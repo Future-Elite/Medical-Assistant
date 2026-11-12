@@ -1,6 +1,6 @@
 """Fidelity gate: graded disposition of query-side routes before fusion (research, v0).
 
-The gate consumes a :class:`~rag.fidelity.FidelityReport` and derives, per
+The gate consumes a :class:`~rag.quality.fidelity.FidelityReport` and derives, per
 conversion route, a :class:`GateDecision` under one of five policies:
 
 ===========  ==================================================================

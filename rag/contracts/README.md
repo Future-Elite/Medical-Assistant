@@ -401,6 +401,6 @@ POST /api/demo/guidelines/load     显式登记演示指南库（写入 custom �
 
 **问题参与检索（中英文规则）：**
 - 问题中的英文词（≥2 字符、含字母、过滤常见功能词与纯数值）自动加入英文检索词，记录在 `trace.query_plan.question_english_terms`，并随 `trace.external_terms` 发往实时 PubMed；
-- 问题中的中文片段通过 CJK 二元组参与匹配（可直接命中中文来源），分词与 `patient_retrieval`/`evidence` 一致；
+- 问题中的中文片段通过 CJK 二元组参与匹配（可直接命中中文来源），分词与 `retrieval/patient_retrieval`/`retrieval/evidence` 一致；
 - 中文概念展开为英文仅使用调用方审核的 `term_mapping`（或兼容 `user_terms`）映射，不自动翻译；未命中映射的中文概念不会生成英文查询词；
 - 实时 PubMed 在没有任何英文词时，优先退回概念中的 ASCII 词，其次才是中文片段。

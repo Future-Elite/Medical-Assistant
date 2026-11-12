@@ -31,7 +31,7 @@ _UNARY_OPERATORS = frozenset({"exists"})
 _NUMERIC_OPERATORS = frozenset({"gt", "ge", "lt", "le", "between"})
 _EQUALITY_OPERATORS = frozenset({"eq", "ne", "in", "not_in"})
 _TEXT_OPERATORS = frozenset({"contains", "contains_any", "contains_all"})
-_SUPPORTED_OPERATORS = _UNARY_OPERATORS | _NUMERIC_OPERATORS | _EQUALITY_OPERATORS | _TEXT_OPERATORS
+_SUPPORTED_OPERATORS = _UNARY_OPERATORS | _NUMERIC_OPERATORS | _EQUALITY_OPERATORS | _TEXT_OPERATORS | {"table_lookup"}
 _CRITERIA_LOGIC = frozenset({"all_of", "any_of"})
 _FIELD_ALIASES = {
     "diagnosis": ("diagnoses", "name"),
@@ -196,6 +196,19 @@ def _judge(criterion: _Criterion, snapshot: PatientSnapshot, base: Mapping[str, 
             **base, status="unknown",
             reason=f"不支持的操作符 {criterion.operator!r}；未判定。",
         )
+    if criterion.operator == "table_lookup":
+        if not observed:
+            return ApplicabilityCriterionResult(
+                **base, status="unknown",
+                reason="患者事实中没有可用的该字段记录；不能查表。",
+            )
+        paths = tuple(dict.fromkeys(fact.record_path for fact, _ in observed))
+        return ApplicabilityCriterionResult(
+            **base, status="unknown",
+            observed_value="; ".join(_render(value) for _, value in observed),
+            patient_record_paths=paths,
+            reason="该条件需要查表/曲线（table_lookup），系统不自动比较单一阈值；请核对指南原文、表格或曲线。",
+        )
     if not observed:
         reason = "患者事实中没有可用的该字段记录。"
         if suppressed:
@@ -349,6 +362,9 @@ def _numeric_satisfies(value: Any, criterion: _Criterion) -> bool | None:
 
 def _unknown_reason(results: tuple[ApplicabilityCriterionResult, ...], *, any_of: bool) -> str:
     unknown = [result for result in results if result.status == "unknown"]
+    lookup = [result for result in unknown if result.operator == "table_lookup"]
+    if lookup:
+        return ("any_of 条件下没有匹配项；" if any_of else "") + "部分条件需要查表/曲线（table_lookup），系统不自动比较单一阈值；请核对指南原文与表格。"
     blocked = [
         result for result in unknown
         if result.review_status not in _PARTICIPATING_REVIEW_STATUSES or not result.source_locator
