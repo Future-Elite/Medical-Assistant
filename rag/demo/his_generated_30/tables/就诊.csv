@@ -1,0 +1,31 @@
+﻿就诊ID,patient_id,就诊类型,科室,机构ID,医生ID,开始时间,结束时间,就诊原因,数据来源,synthetic
+VIS-NEO-HIS-GEN-001-HYPOGLYCEMIA,neo-his-gen-001-001,住院,新生儿科,INST-NEO-001,DOC-NEO-003,2026-04-07,2026-04-07,HIS生成 · 新生儿低血糖 · 生后2小时 · 血糖2.1 mmol/L · 胎龄未记录（as_of 2026-04-07）,synthetic_neonatal_his,true
+VIS-NEO-HIS-GEN-002-HYPOGLYCEMIA,neo-his-gen-002-001,住院,新生儿科,INST-NEO-001,DOC-NEO-002,2026-04-28,2026-04-28,HIS生成 · 新生儿低血糖 · 生后2小时 · 血糖2.1 mmol/L · 胎龄未记录（as_of 2026-04-28）,synthetic_neonatal_his,true
+VIS-NEO-HIS-GEN-003-GBS,neo-his-gen-003-001,住院,新生儿科,INST-NEO-001,DOC-NEO-001,2026-10-06,2026-10-06,HIS生成 · GBS 暴露 · 40周+1天 · 生后14小时 · 母体GBS阳性 · 无症状 · 血培养待回报（as_of 2026-10-06）,synthetic_neonatal_his,true
+VIS-NEO-HIS-GEN-004-RDS-SEVERE,neo-his-gen-004-001,住院,新生儿科,INST-NEO-001,DOC-NEO-002,2026-04-29,2026-04-29,HIS生成 · 重症 RDS · 27周+3天 · 生后2小时 · IMV FiO₂ 0.40（as_of 2026-04-29）,synthetic_neonatal_his,true
+VIS-NEO-HIS-GEN-005-HYPOGLYCEMIA,neo-his-gen-005-001,住院,新生儿科,INST-NEO-001,DOC-NEO-001,2026-04-15,2026-04-15,HIS生成 · 新生儿低血糖 · 生后2小时 · 血糖2.1 mmol/L · 胎龄未记录（as_of 2026-04-15）,synthetic_neonatal_his,true
+VIS-NEO-HIS-GEN-006-HYPOGLYCEMIA,neo-his-gen-006-001,住院,新生儿科,INST-NEO-001,DOC-NEO-002,2026-04-16,2026-04-16,HIS生成 · 新生儿低血糖 · 生后2小时 · 血糖2.2 mmol/L · 胎龄未记录（as_of 2026-04-16）,synthetic_neonatal_his,true
+VIS-NEO-HIS-GEN-007-TTN,neo-his-gen-007-001,住院,新生儿科,INST-NEO-001,DOC-NEO-003,2026-09-19,2026-09-19,HIS生成 · 暂时性呼吸增快 · 38周+2天 · 生后10小时 · 胸片叶间裂积液（as_of 2026-09-19）,synthetic_neonatal_his,true
+VIS-NEO-HIS-GEN-008-RDS-SEVERE,neo-his-gen-008-001,住院,新生儿科,INST-NEO-001,DOC-NEO-002,2026-05-16,2026-05-16,HIS生成 · 重症 RDS · 27周+4天 · 生后2小时 · IMV FiO₂ 0.40（as_of 2026-05-16）,synthetic_neonatal_his,true
+VIS-NEO-HIS-GEN-009-HYPOGLYCEMIA,neo-his-gen-009-001,住院,新生儿科,INST-NEO-001,DOC-NEO-003,2026-05-02,2026-05-02,HIS生成 · 新生儿低血糖 · 生后2小时 · 血糖2 mmol/L · 胎龄未记录（as_of 2026-05-02）,synthetic_neonatal_his,true
+VIS-NEO-HIS-GEN-010-HYPOGLYCEMIA,neo-his-gen-010-001,住院,新生儿科,INST-NEO-001,DOC-NEO-001,2026-04-16,2026-04-16,HIS生成 · 新生儿低血糖 · 生后2小时 · 血糖2.1 mmol/L · 胎龄未记录（as_of 2026-04-16）,synthetic_neonatal_his,true
+VIS-NEO-HIS-GEN-011-RDS,neo-his-gen-011-001,住院,新生儿科,INST-NEO-001,DOC-NEO-003,2026-03-15,2026-03-15,HIS生成 · RDS · 30周+2天 · 生后4小时 · CPAP FiO₂ 0.30（as_of 2026-03-15）,synthetic_neonatal_his,true
+VIS-NEO-HIS-GEN-012-GBS,neo-his-gen-012-001,住院,新生儿科,INST-NEO-001,DOC-NEO-002,2026-10-09,2026-10-09,HIS生成 · GBS 暴露 · 40周+3天 · 生后13小时 · 母体GBS阳性 · 无症状 · 血培养待回报（as_of 2026-10-09）,synthetic_neonatal_his,true
+VIS-NEO-HIS-GEN-013-APNEA,neo-his-gen-013-001,住院,新生儿科,INST-NEO-001,DOC-NEO-003,2026-11-22,2026-11-23,HIS生成 · 早产儿呼吸暂停 · 30周+6天 · 生后47小时 · 反复呼吸暂停（as_of 2026-11-23）,synthetic_neonatal_his,true
+VIS-NEO-HIS-GEN-014-RDS-SEVERE,neo-his-gen-014-001,住院,新生儿科,INST-NEO-001,DOC-NEO-002,2026-04-29,2026-04-29,HIS生成 · 重症 RDS · 28周+0天 · 生后2小时 · IMV FiO₂ 0.40（as_of 2026-04-29）,synthetic_neonatal_his,true
+VIS-NEO-HIS-GEN-015-RDS-SEVERE,neo-his-gen-015-001,住院,新生儿科,INST-NEO-001,DOC-NEO-001,2026-04-24,2026-04-24,HIS生成 · 重症 RDS · 27周+3天 · 生后2小时 · IMV FiO₂ 0.40（as_of 2026-04-24）,synthetic_neonatal_his,true
+VIS-NEO-HIS-GEN-016-JAUNDICE,neo-his-gen-016-001,住院,新生儿科,INST-NEO-001,DOC-NEO-003,2026-07-26,2026-07-29,HIS生成 · 新生儿黄疸 · 35周+3天 · 生后3天 · 总胆红素278 μmol/L · 光疗（as_of 2026-07-29）,synthetic_neonatal_his,true
+VIS-NEO-HIS-GEN-017-RDS-RETRO,neo-his-gen-017-001,住院,新生儿科,INST-NEO-001,DOC-NEO-001,2026-02-25,2026-02-25,HIS生成 · RDS 回顾时点 · 30周+2天 · 生后8小时 · 早于 RDS 2025 发表（as_of 2026-02-25）,synthetic_neonatal_his,true
+VIS-NEO-HIS-GEN-018-JAUNDICE,neo-his-gen-018-001,住院,新生儿科,INST-NEO-001,DOC-NEO-001,2026-07-28,2026-07-30,HIS生成 · 新生儿黄疸 · 35周+1天 · 生后2天 · 总胆红素280 μmol/L · 光疗（as_of 2026-07-30）,synthetic_neonatal_his,true
+VIS-NEO-HIS-GEN-019-RDS,neo-his-gen-019-001,住院,新生儿科,INST-NEO-001,DOC-NEO-001,2026-04-07,2026-04-07,HIS生成 · RDS · 30周+4天 · 生后8小时 · CPAP FiO₂ 0.30（as_of 2026-04-07）,synthetic_neonatal_his,true
+VIS-NEO-HIS-GEN-020-TTN,neo-his-gen-020-001,住院,新生儿科,INST-NEO-001,DOC-NEO-002,2026-08-22,2026-08-22,HIS生成 · 暂时性呼吸增快 · 38周+6天 · 生后7小时 · 胸片叶间裂积液（as_of 2026-08-22）,synthetic_neonatal_his,true
+VIS-NEO-HIS-GEN-021-PNEUMONIA,neo-his-gen-021-001,住院,新生儿科,INST-NEO-001,DOC-NEO-003,2026-09-30,2026-10-01,HIS生成 · 感染性肺炎 · 39周+3天 · 生后37小时 · 发热38.7℃ · 血培养待回报（as_of 2026-10-01）,synthetic_neonatal_his,true
+VIS-NEO-HIS-GEN-022-RDS-RETRO,neo-his-gen-022-001,住院,新生儿科,INST-NEO-001,DOC-NEO-001,2026-02-25,2026-02-25,HIS生成 · RDS 回顾时点 · 30周+2天 · 生后5小时 · 早于 RDS 2025 发表（as_of 2026-02-25）,synthetic_neonatal_his,true
+VIS-NEO-HIS-GEN-023-JAUNDICE,neo-his-gen-023-001,住院,新生儿科,INST-NEO-001,DOC-NEO-002,2026-08-02,2026-08-04,HIS生成 · 新生儿黄疸 · 35周+2天 · 生后2天 · 总胆红素288 μmol/L · 光疗（as_of 2026-08-04）,synthetic_neonatal_his,true
+VIS-NEO-HIS-GEN-024-RDS,neo-his-gen-024-001,住院,新生儿科,INST-NEO-001,DOC-NEO-002,2026-04-08,2026-04-08,HIS生成 · RDS · 30周+4天 · 生后5小时 · CPAP FiO₂ 0.30（as_of 2026-04-08）,synthetic_neonatal_his,true
+VIS-NEO-HIS-GEN-025-PPHN,neo-his-gen-025-001,住院,新生儿科,INST-NEO-001,DOC-NEO-002,2026-06-24,2026-06-24,HIS生成 · PPHN · 39周+2天 · 生后13小时 · iNO 20 ppm · 导管前后 SpO₂ 差异（as_of 2026-06-24）,synthetic_neonatal_his,true
+VIS-NEO-HIS-GEN-026-TTN,neo-his-gen-026-001,住院,新生儿科,INST-NEO-001,DOC-NEO-003,2026-09-02,2026-09-02,HIS生成 · 暂时性呼吸增快 · 38周+3天 · 生后6小时 · 胸片叶间裂积液（as_of 2026-09-02）,synthetic_neonatal_his,true
+VIS-NEO-HIS-GEN-027-RDS,neo-his-gen-027-001,住院,新生儿科,INST-NEO-001,DOC-NEO-001,2026-04-06,2026-04-06,HIS生成 · RDS · 30周+0天 · 生后6小时 · CPAP FiO₂ 0.30（as_of 2026-04-06）,synthetic_neonatal_his,true
+VIS-NEO-HIS-GEN-028-BPD,neo-his-gen-028-001,住院,新生儿科,INST-NEO-001,DOC-NEO-002,2026-04-11,2026-06-05,HIS生成 · BPD · 27周+6天 · 生后55天（约8周） · 经后年龄36周 · 仍需CPAP（as_of 2026-06-05）,synthetic_neonatal_his,true
+VIS-NEO-HIS-GEN-029-GBS,neo-his-gen-029-001,住院,新生儿科,INST-NEO-001,DOC-NEO-001,2026-10-17,2026-10-17,HIS生成 · GBS 暴露 · 40周+0天 · 生后12小时 · 母体GBS阳性 · 无症状 · 血培养待回报（as_of 2026-10-17）,synthetic_neonatal_his,true
+VIS-NEO-HIS-GEN-030-RDS-SEVERE,neo-his-gen-030-001,住院,新生儿科,INST-NEO-001,DOC-NEO-002,2026-04-26,2026-04-26,HIS生成 · 重症 RDS · 27周+3天 · 生后2小时 · IMV FiO₂ 0.40（as_of 2026-04-26）,synthetic_neonatal_his,true

@@ -49,15 +49,15 @@ class MethodTokenTests(unittest.TestCase):
 
 class TranslateMethodTests(unittest.TestCase):
     def test_translate_adds_variant_and_keeps_original_question(self):
-        question = "该患者高血压的初始降压药物应该如何选择？"
-        stub = TranslateStub({question: "How should initial antihypertensive therapy be chosen for this patient with hypertension?"})
+        question = "该患儿新生儿呼吸窘迫综合征的肺表面活性物质指征是什么？"
+        stub = TranslateStub({question: "What is the surfactant indication for neonatal respiratory distress syndrome?"})
         package = build_pipeline(neural_retrievers={"translate": stub}).retrieve(
             RetrievalRequest.from_dict({"question": question, "retrieval_method": "translate", "top_k": 4}))
         self.assertEqual(stub.calls, 1)
         self.assertEqual(package.query_plan.original_question, question)
         variants = package.query_plan.variants
         self.assertIn(question, variants)
-        self.assertTrue(any("antihypertensive" in variant for variant in variants))
+        self.assertTrue(any("surfactant" in variant for variant in variants))
         sources = {entry["source"] for entry in package.query_plan.expansion_trace}
         self.assertIn("machine_translation_zh_en", sources)
         states = {item["method"]: item["status"] for item in package.trace["method_trace"]}
@@ -65,14 +65,14 @@ class TranslateMethodTests(unittest.TestCase):
 
     def test_translate_unconfigured_reports_not_configured(self):
         package = build_pipeline().retrieve(
-            RetrievalRequest.from_dict({"question": "高血压", "retrieval_method": "translate"}))
+            RetrievalRequest.from_dict({"question": "新生儿肺炎", "retrieval_method": "translate"}))
         states = {item["method"]: item["status"] for item in package.trace["method_trace"]}
         self.assertEqual(states.get("translate"), "not_configured")
         self.assertTrue(any("translate" in warning and "not_configured" in warning for warning in package.warnings))
 
     def test_translate_numeric_mismatch_is_warned(self):
-        question = "2月龄婴儿发热的评估推荐是什么？"
-        stub = TranslateStub({question: "What are the recommendations for fever assessment in infants?"})
+        question = "生后72小时总胆红素285 μmol/L如何处理？"
+        stub = TranslateStub({question: "How should jaundice be managed in a newborn?"})
         package = build_pipeline(neural_retrievers={"translate": stub}).retrieve(
             RetrievalRequest.from_dict({"question": question, "retrieval_method": "translate", "top_k": 4}))
         self.assertTrue(any("数字/单位" in warning for warning in package.warnings))
@@ -84,7 +84,7 @@ class XlingualMethodTests(unittest.TestCase):
     def test_xlingual_uses_neural_slot_and_fuses_via_rrf(self):
         stub = DeterministicSemanticStub({doc.identity_key(): 0.9 if index == 0 else 0.2 for index, doc in enumerate(SYNTHETIC_PUBMED)})
         package = build_pipeline(neural_retrievers={"xlingual": stub}).retrieve(
-            RetrievalRequest.from_dict({"question": "hypertension", "retrieval_method": "bm25,xlingual", "top_k": 4}))
+            RetrievalRequest.from_dict({"question": "respiratory distress syndrome", "retrieval_method": "bm25,xlingual", "top_k": 4}))
         states = {item["method"]: item["status"] for item in package.trace["method_trace"]}
         self.assertEqual(states.get("xlingual"), "ok")
         first = package.ranked_documents[0]
@@ -93,7 +93,7 @@ class XlingualMethodTests(unittest.TestCase):
 
     def test_xlingual_unconfigured_reports_not_configured(self):
         package = build_pipeline().retrieve(
-            RetrievalRequest.from_dict({"question": "hypertension", "retrieval_method": "xlingual"}))
+            RetrievalRequest.from_dict({"question": "respiratory distress syndrome", "retrieval_method": "xlingual"}))
         states = {item["method"]: item["status"] for item in package.trace["method_trace"]}
         self.assertEqual(states.get("xlingual"), "not_configured")
 

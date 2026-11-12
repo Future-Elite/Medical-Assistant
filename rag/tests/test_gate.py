@@ -17,8 +17,8 @@ from rag.tests.fixtures import SYNTHETIC_PUBMED
 
 def _lexicon() -> FidelityLexicon:
     return FidelityLexicon([
-        TermEntry("高血压", ("hypertension",), "disease"),
-        TermEntry("二甲双胍", ("metformin",), "drug"),
+        TermEntry("新生儿呼吸窘迫综合征", ("respiratory distress syndrome",), "disease"),
+        TermEntry("氨茶碱", ("aminophylline",), "drug"),
     ])
 
 
@@ -38,10 +38,10 @@ def _pipeline(**kwargs):
     return EvidenceRetrievalPipeline(registry, **kwargs)
 
 
-QUESTION = "该患者高血压使用二甲双胍，2月龄，未记录过敏"
-BAD_TRANSLATION = "The patient has hypertension and takes dichotomy."
-# metformin missing -> suspected_drop (drug, L3); 2月龄 missing -> numeric_loss (L2).
-GOOD_TRANSLATION = "The patient has hypertension and takes metformin, aged 2 months, no recorded allergy."
+QUESTION = "该患儿新生儿呼吸窘迫综合征使用氨茶碱，2月龄，未记录过敏"
+BAD_TRANSLATION = "The infant has respiratory distress syndrome and takes dichotomy."
+# aminophylline missing -> suspected_drop (drug, L3); 2月龄 missing -> numeric_loss (L2).
+GOOD_TRANSLATION = "The infant has respiratory distress syndrome and takes aminophylline, aged 2 months, no recorded allergy."
 
 
 class GatePolicyTests(unittest.TestCase):
@@ -54,8 +54,8 @@ class GatePolicyTests(unittest.TestCase):
             FidelityGate(policy="downweight", penalty=1.5)
 
     def test_policy_matrix(self):
-        slots = extract_slots("高血压使用二甲双胍", lexicon=_lexicon())
-        report_translation = audit_translation(slots, ("The patient takes dichotomy.",), _lexicon())
+        slots = extract_slots("新生儿呼吸窘迫综合征使用氨茶碱", lexicon=_lexicon())
+        report_translation = audit_translation(slots, ("The infant takes dichotomy.",), _lexicon())
         self.assertEqual(report_translation.level, "L3")
 
         from rag.fidelity import FidelityReport
@@ -154,13 +154,13 @@ class PipelineIntegrationTests(unittest.TestCase):
         }))
         decisions = {item["route"]: item["action"] for item in package.trace["query_fidelity"]["decisions"]}
         self.assertEqual(decisions["translate"], "pass")
-        self.assertTrue(any("metformin" in variant for variant in package.query_plan.variants))
+        self.assertTrue(any("aminophylline" in variant for variant in package.query_plan.variants))
 
     def test_reviewed_mapping_action_demoted_to_warn(self):
         """The quality-upper-bound branch is never down-weighted/rejected in v0."""
         pipeline = _pipeline(fidelity_lexicon=_lexicon())
         package = pipeline.retrieve(RetrievalRequest.from_dict({
-            "question": QUESTION, "english_terms": ["hypertension"],  # metformin missing -> L3 drop
+            "question": QUESTION, "english_terms": ["respiratory distress syndrome"],  # aminophylline missing -> L3 drop
             "top_k": 4, "fidelity_gate": "reject",
         }))
         decisions = {item["route"]: item["action"] for item in package.trace["query_fidelity"]["decisions"]}
@@ -178,16 +178,16 @@ class PipelineIntegrationTests(unittest.TestCase):
         from rag.retrieval_adapters import DeterministicSemanticStub
         stub = DeterministicSemanticStub({doc.identity_key(): 0.9 for doc in SYNTHETIC_PUBMED})
         lexicon = FidelityLexicon([
-            TermEntry("高血压", ("hypertension",), "disease"),
-            TermEntry("二甲双胍", ("metformin",), "drug"),
-            TermEntry("哮喘", ("asthma",), "disease"),
+            TermEntry("新生儿呼吸窘迫综合征", ("respiratory distress syndrome",), "disease"),
+            TermEntry("氨茶碱", ("aminophylline",), "drug"),
+            TermEntry("新生儿肺炎", ("neonatal pneumonia",), "disease"),
             TermEntry("疫苗", ("vaccine",), "medical"),
         ])
-        # L3: fabricated disease entity (asthma) for a question that never mentions it
+        # L3: fabricated disease entity (neonatal pneumonia) for a question that never mentions it
         pipeline = _pipeline(neural_retrievers={"xlingual": stub}, fidelity_lexicon=lexicon)
         package = pipeline.retrieve(RetrievalRequest.from_dict({
             "question": QUESTION, "retrieval_method": "bm25,xlingual",
-            "english_terms": ["hypertension", "metformin", "asthma"],
+            "english_terms": ["respiratory distress syndrome", "aminophylline", "neonatal pneumonia"],
             "top_k": 4, "fidelity_gate": "downweight",
         }))
         decisions = {item["route"]: item["action"] for item in package.trace["query_fidelity"]["decisions"]}
@@ -198,9 +198,9 @@ class PipelineIntegrationTests(unittest.TestCase):
         # L2: fabricated non-primary entity (vaccine) -> downweight with penalty
         pipeline = _pipeline(neural_retrievers={"xlingual": stub}, fidelity_lexicon=lexicon)
         package = pipeline.retrieve(RetrievalRequest.from_dict({
-            "question": "该患者高血压的用药如何调整",
+            "question": "该患儿新生儿呼吸窘迫综合征的用药如何调整",
             "retrieval_method": "bm25,xlingual",
-            "english_terms": ["hypertension", "vaccine"],
+            "english_terms": ["respiratory distress syndrome", "vaccine"],
             "top_k": 4, "fidelity_gate": "downweight",
         }))
         decisions = {item["route"]: item["action"] for item in package.trace["query_fidelity"]["decisions"]}

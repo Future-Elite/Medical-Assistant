@@ -1,0 +1,7 @@
+﻿支持ID,就诊ID,模式,FiO2,PEEP_cmH2O,频率,流量,开始时间,结束时间,数据来源,synthetic
+SUP-NEO-HIS-APNEA-01,VIS-NEO-HIS-APNEA,CPAP,0.21,5,,6,2026-11-07T04:30:00+08:00,,synthetic_neonatal_his,true
+SUP-NEO-HIS-BPD-01,VIS-NEO-HIS-BPD,CPAP,0.25,5,,,2026-03-25T04:30:00+08:00,,synthetic_neonatal_his,true
+SUP-NEO-HIS-PPHN-01,VIS-NEO-HIS-PPHN,IMV,1.0,5,40,,2026-06-12T04:30:00+08:00,,synthetic_neonatal_his,true
+SUP-NEO-HIS-RDS-01,VIS-NEO-HIS-RDS,CPAP,0.30,6,,7,2026-03-10T04:30:00+08:00,,synthetic_neonatal_his,true
+SUP-NEO-HIS-RDS-RETRO-01,VIS-NEO-HIS-RDS-RETRO,CPAP,0.30,6,,7,2026-02-25T04:30:00+08:00,,synthetic_neonatal_his,true
+SUP-NEO-HIS-RDS-SEVERE-01,VIS-NEO-HIS-RDS-SEVERE,IMV,0.40,6,40,,2026-04-22T04:30:00+08:00,,synthetic_neonatal_his,true

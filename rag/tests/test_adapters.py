@@ -13,7 +13,7 @@ class AdapterTests(unittest.TestCase):
         registry.register(InMemoryConnector("pubmed", ("pubmed",), SYNTHETIC_PUBMED))
         scores = {SYNTHETIC_PUBMED[0].identity_key(): 0.9, SYNTHETIC_PUBMED[1].identity_key(): 0.2}
         pipeline = EvidenceRetrievalPipeline(registry, semantic_retriever=DeterministicSemanticStub(scores))
-        package = pipeline.retrieve(RetrievalRequest.from_dict({"question": "hypertension", "top_k": 2}))
+        package = pipeline.retrieve(RetrievalRequest.from_dict({"question": "respiratory distress syndrome", "top_k": 2}))
         self.assertEqual(package.trace["semantic_trace"]["status"], "ok")
         self.assertEqual(package.trace["semantic_trace"]["retriever_id"], "deterministic-semantic-stub")
         self.assertTrue(any("RRF" in explanation for explanation in package.ranked_documents[0].rank_explanation))

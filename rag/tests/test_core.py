@@ -11,15 +11,17 @@ from rag.query import build_query_plan
 class ContractTests(unittest.TestCase):
     def test_request_and_unknown_source_fields(self):
         request = RetrievalRequest.from_dict({
-            "question": "高血压指南推荐吗？", "request_id": "c1", "english_terms": ["hypertension"],
-            "mesh_terms": ["Hypertension"], "facets": {"population": ["adults"]},
+            "question": "新生儿呼吸窘迫综合征的指南推荐吗？", "request_id": "c1",
+            "english_terms": ["respiratory distress syndrome"],
+            "mesh_terms": ["Respiratory Distress Syndrome, Newborn"],
+            "facets": {"population": ["preterm infants"]},
         })
         self.assertEqual(request.request_id, "c1")
-        self.assertEqual(request.english_terms, ("hypertension",))
+        self.assertEqual(request.english_terms, ("respiratory distress syndrome",))
         doc = SYNTHETIC_GUIDELINES[0]
         restored = type(doc).from_dict({"document_id": "x", "kind": "guideline", "title": "x", "text": "x", "custom": 1})
         self.assertEqual(restored.metadata["custom"], 1)
-        self.assertEqual(doc.version_id, "2024")
+        self.assertEqual(doc.version_id, "2025")
 
     def test_guideline_connector_rejects_non_guideline(self):
         with self.assertRaises(ValueError):
@@ -68,6 +70,7 @@ class AgentInterfaceContractTests(unittest.TestCase):
         self.assertIn("cross-encoder", props["rerank"]["description"])
         self.assertIn("查询保真门控", props["fidelity_gate"]["description"])
         self.assertIn("trace.query_fidelity", props["fidelity_gate"]["description"])
+        self.assertIn("新生儿", retrieve["description"])
 
     def test_example_requests_are_runnable_and_match_documented_behavior(self):
         import json, pathlib
@@ -77,14 +80,17 @@ class AgentInterfaceContractTests(unittest.TestCase):
         examples = pathlib.Path(__file__).resolve().parents[1] / "contracts" / "examples"
         # 示例经 custom 来源路径执行：测试 fixtures 按调用方库的方式注册（产品无内置语料）。
         tool = fixture_tool()
-        diabetes = json.loads((examples / "agent_joint_retrieval_request_diabetes.json").read_text(encoding="utf-8"))
-        result = tool.retrieve_evidence(diabetes)
-        self.assertIn("2型糖尿病", diabetes["user_terms"])
-        self.assertEqual(set(result["trace"]["query_plan"]["english_terms"]), {"type 2 diabetes", "metformin"})
+        pneumonia = json.loads((examples / "agent_joint_retrieval_request_pneumonia.json").read_text(encoding="utf-8"))
+        result = tool.retrieve_evidence(pneumonia)
+        self.assertIn("新生儿感染性肺炎", pneumonia["user_terms"])
+        self.assertEqual(
+            set(result["trace"]["query_plan"]["english_terms"]),
+            {"neonatal pneumonia", "chest radiograph", "blood culture"},
+        )
         question_english = json.loads((examples / "agent_joint_retrieval_request_question_english.json").read_text(encoding="utf-8"))
         result2 = tool.retrieve_evidence(question_english)
-        self.assertEqual(result2["trace"]["query_plan"]["question_english_terms"], ["metformin"])
-        self.assertEqual(set(result2["trace"]["external_terms"]), {"type 2 diabetes", "metformin"})
+        self.assertEqual(result2["trace"]["query_plan"]["question_english_terms"], ["surfactant"])
+        self.assertIn("neonatal respiratory distress syndrome", result2["trace"]["external_terms"])
 
     def test_fidelity_example_is_runnable(self):
         import json, pathlib
@@ -110,24 +116,25 @@ class QueryTests(unittest.TestCase):
 
     def test_bilingual_terms_and_guideline_routing(self):
         request = RetrievalRequest.from_dict({
-            "question": "高血压的指南推荐是什么？", "patient_terms": ["高血压"],
-            "user_terms": {"高血压": ["hypertension"]}, "mesh_terms": ["Hypertension"],
+            "question": "新生儿呼吸窘迫综合征的指南推荐是什么？", "patient_terms": ["新生儿呼吸窘迫综合征"],
+            "user_terms": {"新生儿呼吸窘迫综合征": ["respiratory distress syndrome"]},
+            "mesh_terms": ["Respiratory Distress Syndrome, Newborn"],
         })
         plan = build_query_plan(request, self.sources)
-        self.assertIn("hypertension", plan.english_terms)
+        self.assertIn("respiratory distress syndrome", plan.english_terms)
         self.assertEqual(plan.source_order[0], "guideline-fixture")
         self.assertEqual(plan.clinical_intent, "guideline_recommendation")
 
     def test_update_intent_preserves_facets(self):
-        request = RetrievalRequest.from_dict({"question": "最新证据更新", "facets": {"outcome": ["blood pressure"]}})
+        request = RetrievalRequest.from_dict({"question": "最新证据更新", "facets": {"outcome": ["oxygenation"]}})
         plan = build_query_plan(request, self.sources)
         self.assertEqual(plan.clinical_intent, "evidence_update")
-        self.assertEqual(plan.facets["outcome"], ("blood pressure",))
+        self.assertEqual(plan.facets["outcome"], ("oxygenation",))
 
 
 class BM25Tests(unittest.TestCase):
     def test_title_and_mesh_fields_rank_expected_document(self):
-        request = RetrievalRequest.from_dict({"question": "hypertension"})
+        request = RetrievalRequest.from_dict({"question": "respiratory distress syndrome"})
         scores = score_documents(request_plan(request), SYNTHETIC_PUBMED)
         ordered = sorted(scores.items(), key=lambda item: (-item[1].score, item[0]))
         self.assertEqual(ordered[0][0], SYNTHETIC_PUBMED[0].identity_key())
@@ -141,23 +148,23 @@ class BM25Tests(unittest.TestCase):
     def test_cjk_bigram_matching(self):
         from rag.tests.fixtures import SYNTHETIC_GUIDELINES
 
-        cn_doc = next(doc for doc in SYNTHETIC_GUIDELINES if doc.document_id == "guide-cn-asthma-2025")
-        hit = score_documents(request_plan(RetrievalRequest.from_dict({"question": "哮喘长期管理"})), (cn_doc,))
+        cn_doc = next(doc for doc in SYNTHETIC_GUIDELINES if doc.document_id == "guide-jnd-2025")
+        hit = score_documents(request_plan(RetrievalRequest.from_dict({"question": "光疗阈值与胆红素监测"})), (cn_doc,))
         self.assertGreater(hit[cn_doc.identity_key()].score, 0.0)
-        # 单字/无关词不产生匹配（"黄疸" 与儿童哮喘指南无共同二元组）
-        miss = score_documents(request_plan(RetrievalRequest.from_dict({"question": "黄疸"})), (cn_doc,))
+        # 无关病种不产生匹配（肺炎与黄疸指南无共同二元组）
+        miss = score_documents(request_plan(RetrievalRequest.from_dict({"question": "肺炎"})), (cn_doc,))
         self.assertEqual(miss[cn_doc.identity_key()].score, 0.0)
 
     def test_question_english_terms_extraction(self):
         from rag.query import _question_english_terms
 
-        terms = _question_english_terms("What is the effect of metformin on HbA1c levels? 38.9")
-        self.assertEqual(terms, ("effect", "metformin", "hba1c", "levels"))
-        request = RetrievalRequest.from_dict({"question": "该患者 metformin 治疗2型糖尿病的证据？"})
+        terms = _question_english_terms("What is the effect of surfactant on FiO2 levels? 0.30")
+        self.assertEqual(terms, ("effect", "surfactant", "fio2", "levels"))
+        request = RetrievalRequest.from_dict({"question": "该患儿 surfactant 治疗新生儿呼吸窘迫综合征的证据？"})
         plan = build_query_plan(request, [{"source_id": "pubmed-fixture", "kinds": ["pubmed"]}])
-        self.assertIn("metformin", plan.question_english_terms)
+        self.assertIn("surfactant", plan.question_english_terms)
         # 中文概念不因存在英文词而被翻译
-        self.assertNotIn("糖尿病", plan.question_english_terms)
+        self.assertNotIn("呼吸窘迫", plan.question_english_terms)
 
 
 def request_plan(request):

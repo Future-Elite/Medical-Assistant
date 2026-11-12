@@ -1,0 +1,1489 @@
+{
+  "sources": [
+    {
+      "source_id": "neonatal-guideline-metadata",
+      "kinds": [
+        "guideline"
+      ],
+      "description": "经书目核验的新生儿指南元数据（仅元数据，不含全文）",
+      "version": "2026-10-28",
+      "documents": [
+        {
+          "document_id": "guide-neo-pneumonia-2025-meta",
+          "kind": "guideline",
+          "title": "基层医疗卫生机构常见新生儿疾病诊疗指南：新生儿感染性肺炎（2025年）",
+          "text": "官方书目元数据记录，仅用于来源定位；未登记全文，不提供推荐原文。Bibliographic metadata only; full text not indexed.",
+          "url": "https://www.zgddek.com/CN/10.7499/j.issn.1008-8830.2412164",
+          "published_at": "2025-09-01",
+          "locator": "中国当代儿科杂志 2025;27(9):1027-1037",
+          "version_id": "2025",
+          "population": "新生儿感染性肺炎（基层指南）",
+          "status": "unknown",
+          "doi": "10.7499/j.issn.1008-8830.2412164",
+          "pmid": "40962511",
+          "metadata": {
+            "content_mode": "metadata_only",
+            "full_text_allowed": false,
+            "rights_basis": "source_page_requires_verification",
+            "official": true,
+            "publisher": "中国当代儿科杂志",
+            "stable_id": "PMCID PMC12447934",
+            "mesh_terms": "Pneumonia; Infant, Newborn",
+            "keywords": "neonatal infectious pneumonia",
+            "language": "zh",
+            "synthetic": false,
+            "applicability_criteria": [
+              {
+                "criterion_id": "neonatal_period",
+                "field": "pna_hours",
+                "operator": "le",
+                "required": true,
+                "value": 672,
+                "unit": "hours",
+                "label": "新生儿期（生后 ≤ 28 天）",
+                "source": {
+                  "locator": "指南标题/适用人群",
+                  "quote": "新生儿感染性肺炎"
+                },
+                "review_status": "scope_only"
+              },
+              {
+                "criterion_id": "pneumonia_diagnosis",
+                "field": "diagnosis",
+                "operator": "contains_any",
+                "required": true,
+                "value": [
+                  "肺炎",
+                  "pneumonia"
+                ],
+                "label": "诊断包含肺炎",
+                "source": {
+                  "locator": "指南标题",
+                  "quote": "新生儿感染性肺炎"
+                },
+                "review_status": "scope_only"
+              }
+            ],
+            "applicability_notes": "适用范围条件仅来自指南标题/适用人群，不包含治疗阈值。"
+          }
+        },
+        {
+          "document_id": "guide-neo-rds-2025-meta",
+          "kind": "guideline",
+          "title": "European Consensus Guidelines on the Management of Respiratory Distress Syndrome: 2025",
+          "text": "Official bibliographic metadata record; full text not indexed. 2025 update published 2026-03-09.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/41802129/",
+          "published_at": "2026-03-09",
+          "locator": "Neonatology 2026;123(4):514-539",
+          "version_id": "2025",
+          "population": "早产儿呼吸窘迫综合征",
+          "status": "current",
+          "doi": "10.1159/000551062",
+          "pmid": "41802129",
+          "metadata": {
+            "content_mode": "metadata_only",
+            "full_text_allowed": false,
+            "rights_basis": "source_page_requires_verification",
+            "official": true,
+            "publisher": "Neonatology",
+            "stable_id": "PMCID PMC13038240",
+            "version_label": "2025 update (7th edition)",
+            "mesh_terms": "Respiratory Distress Syndrome, Newborn",
+            "keywords": "RDS preterm infant",
+            "language": "en",
+            "synthetic": false,
+            "applicability_criteria": [
+              {
+                "criterion_id": "preterm_infant",
+                "field": "ga_days",
+                "operator": "lt",
+                "required": true,
+                "value": 259,
+                "unit": "days",
+                "label": "早产儿（出生胎龄 < 37 周）",
+                "source": {
+                  "locator": "指南标题/适用人群",
+                  "quote": "preterm infants"
+                },
+                "review_status": "scope_only"
+              },
+              {
+                "criterion_id": "rds_diagnosis",
+                "field": "diagnosis",
+                "operator": "contains_any",
+                "required": true,
+                "value": [
+                  "呼吸窘迫综合征",
+                  "RDS",
+                  "respiratory distress syndrome"
+                ],
+                "label": "诊断包含呼吸窘迫综合征",
+                "source": {
+                  "locator": "指南标题",
+                  "quote": "Respiratory Distress Syndrome"
+                },
+                "review_status": "scope_only"
+              }
+            ],
+            "applicability_notes": "适用范围条件仅来自指南标题/适用人群；胎龄阈值为早产儿定义，不是治疗阈值。"
+          }
+        },
+        {
+          "document_id": "guide-neo-rds-2025-cn-meta",
+          "kind": "guideline",
+          "title": "《欧洲新生儿呼吸窘迫综合征管理共识指南2025版》解读",
+          "text": "中文解读文章的官方书目元数据记录；未登记全文，不提供推荐原文。",
+          "url": "https://www.zgddek.com/CN/10.7499/j.issn.1008-8830.2603060",
+          "published_at": "2026-05-01",
+          "locator": "中国当代儿科杂志 2026;28(5):529-535",
+          "version_id": "2025",
+          "population": "早产儿呼吸窘迫综合征（中文解读）",
+          "status": "unknown",
+          "doi": "10.7499/j.issn.1008-8830.2603060",
+          "pmid": "42130350",
+          "metadata": {
+            "content_mode": "metadata_only",
+            "full_text_allowed": false,
+            "rights_basis": "source_page_requires_verification",
+            "official": false,
+            "publisher": "中国当代儿科杂志",
+            "stable_id": "PMCID PMC13173480",
+            "source_role": "secondary_interpretation",
+            "mesh_terms": "Respiratory Distress Syndrome, Newborn",
+            "keywords": "RDS 指南解读",
+            "language": "zh",
+            "synthetic": false,
+            "applicability_criteria": [
+              {
+                "criterion_id": "preterm_infant",
+                "field": "ga_days",
+                "operator": "lt",
+                "required": true,
+                "value": 259,
+                "unit": "days",
+                "label": "早产儿（出生胎龄 < 37 周）",
+                "source": {
+                  "locator": "指南标题/适用人群",
+                  "quote": "早产儿呼吸窘迫综合征"
+                },
+                "review_status": "scope_only"
+              },
+              {
+                "criterion_id": "rds_diagnosis",
+                "field": "diagnosis",
+                "operator": "contains_any",
+                "required": true,
+                "value": [
+                  "呼吸窘迫综合征",
+                  "RDS",
+                  "respiratory distress syndrome"
+                ],
+                "label": "诊断包含呼吸窘迫综合征",
+                "source": {
+                  "locator": "指南标题",
+                  "quote": "呼吸窘迫综合征"
+                },
+                "review_status": "scope_only"
+              }
+            ],
+            "applicability_notes": "适用范围条件仅来自指南标题/适用人群；胎龄阈值为早产儿定义，不是治疗阈值。"
+          }
+        },
+        {
+          "document_id": "guide-neo-hyperbilirubinemia-2022-meta",
+          "kind": "guideline",
+          "title": "Clinical Practice Guideline Revision: Management of Hyperbilirubinemia in the Newborn Infant 35 or More Weeks of Gestation",
+          "text": "官方书目元数据记录，仅用于来源定位；未登记全文，不提供推荐原文。Bibliographic metadata only; full text not indexed.",
+          "url": "https://doi.org/10.1542/peds.2022-058859",
+          "published_at": "2022-08-05",
+          "locator": "Pediatrics 2022;150(3):e2022058859",
+          "version_id": "2022",
+          "population": "胎龄 ≥35 周新生儿高胆红素血症",
+          "status": "current",
+          "doi": "10.1542/peds.2022-058859",
+          "pmid": "35927462",
+          "metadata": {
+            "content_mode": "metadata_only",
+            "full_text_allowed": false,
+            "rights_basis": "open_access_cc_by_nc",
+            "license": "cc by-nc",
+            "official": true,
+            "publisher": "Pediatrics",
+            "mesh_terms": "Hyperbilirubinemia, Neonatal; Infant, Newborn",
+            "keywords": "neonatal hyperbilirubinemia; jaundice; phototherapy",
+            "language": "en",
+            "synthetic": false,
+            "topic_keys": [
+              "hyperbilirubinemia",
+              "jaundice",
+              "高胆红素血症",
+              "黄疸"
+            ],
+            "applicability_criteria": [
+              {
+                "criterion_id": "ga_ge_35_weeks",
+                "field": "ga_days",
+                "operator": "ge",
+                "required": true,
+                "value": 245,
+                "label": "胎龄 ≥35 周（≥245 天）",
+                "source": {
+                  "locator": "指南标题/适用人群",
+                  "quote": "35 or More Weeks of Gestation"
+                },
+                "review_status": "scope_only",
+                "unit": "days"
+              },
+              {
+                "criterion_id": "hyperbilirubinemia_diagnosis",
+                "field": "diagnosis",
+                "operator": "contains_any",
+                "required": true,
+                "value": [
+                  "高胆红素血症",
+                  "黄疸",
+                  "hyperbilirubinemia",
+                  "jaundice"
+                ],
+                "label": "诊断包含高胆红素血症/黄疸",
+                "source": {
+                  "locator": "指南标题/适用人群",
+                  "quote": "hyperbilirubinemia"
+                },
+                "review_status": "scope_only"
+              }
+            ],
+            "applicability_notes": "仅标题/适用人群级条件；光疗阈值等治疗阈值不结构化。"
+          }
+        },
+        {
+          "document_id": "guide-neo-rds-2022-meta",
+          "kind": "guideline",
+          "title": "European Consensus Guidelines on the Management of Respiratory Distress Syndrome: 2022 Update",
+          "text": "官方书目元数据记录，仅用于来源定位；未登记全文，不提供推荐原文。Bibliographic metadata only; full text not indexed.",
+          "url": "https://doi.org/10.1159/000528914",
+          "published_at": "2023-01-01",
+          "locator": "Neonatology 2023;120(1):3-23",
+          "version_id": "2022",
+          "population": "早产儿呼吸窘迫综合征",
+          "status": "current",
+          "doi": "10.1159/000528914",
+          "pmid": "36863329",
+          "metadata": {
+            "content_mode": "metadata_only",
+            "full_text_allowed": false,
+            "rights_basis": "open_access_cc_by",
+            "license": "cc by",
+            "official": true,
+            "publisher": "Neonatology",
+            "mesh_terms": "Respiratory Distress Syndrome, Newborn",
+            "keywords": "RDS; preterm infant; surfactant",
+            "language": "en",
+            "synthetic": false,
+            "topic_keys": [
+              "respiratory distress syndrome",
+              "RDS",
+              "呼吸窘迫综合征"
+            ],
+            "stable_id": "PMCID PMC10064400",
+            "applicability_criteria": [
+              {
+                "criterion_id": "preterm_infant",
+                "field": "ga_days",
+                "operator": "lt",
+                "required": true,
+                "value": 259,
+                "label": "早产儿（出生胎龄 < 37 周）",
+                "source": {
+                  "locator": "指南标题/适用人群",
+                  "quote": "preterm infants"
+                },
+                "review_status": "scope_only",
+                "unit": "days"
+              },
+              {
+                "criterion_id": "rds_diagnosis",
+                "field": "diagnosis",
+                "operator": "contains_any",
+                "required": true,
+                "value": [
+                  "呼吸窘迫综合征",
+                  "RDS",
+                  "respiratory distress syndrome"
+                ],
+                "label": "诊断包含呼吸窘迫综合征",
+                "source": {
+                  "locator": "指南标题/适用人群",
+                  "quote": "Respiratory Distress Syndrome"
+                },
+                "review_status": "scope_only"
+              }
+            ],
+            "applicability_notes": "仅标题/适用人群级条件；治疗阈值不结构化。"
+          }
+        },
+        {
+          "document_id": "guide-neo-surfactant-2014-meta",
+          "kind": "guideline",
+          "title": "Surfactant Replacement Therapy for Preterm and Term Neonates With Respiratory Distress",
+          "text": "官方书目元数据记录，仅用于来源定位；未登记全文，不提供推荐原文。Bibliographic metadata only; full text not indexed.",
+          "url": "https://doi.org/10.1542/peds.2013-3443",
+          "published_at": "2014-01-01",
+          "locator": "Pediatrics 2014;133(1):156-163",
+          "version_id": "2014",
+          "population": "早产儿与足月儿呼吸窘迫",
+          "status": "unknown",
+          "doi": "10.1542/peds.2013-3443",
+          "pmid": "24379227",
+          "metadata": {
+            "content_mode": "metadata_only",
+            "full_text_allowed": false,
+            "rights_basis": "open_access_cc_by_nc_nd",
+            "license": "cc by-nc-nd",
+            "official": true,
+            "publisher": "Pediatrics",
+            "mesh_terms": "Surface-Active Agents; Respiratory Distress Syndrome, Newborn",
+            "keywords": "surfactant; respiratory distress",
+            "language": "en",
+            "synthetic": false,
+            "topic_keys": [
+              "surfactant",
+              "respiratory distress",
+              "肺表面活性物质",
+              "呼吸窘迫"
+            ],
+            "applicability_criteria": [
+              {
+                "criterion_id": "rds_or_distress",
+                "field": "diagnosis",
+                "operator": "contains_any",
+                "required": true,
+                "value": [
+                  "呼吸窘迫综合征",
+                  "呼吸窘迫",
+                  "RDS",
+                  "respiratory distress syndrome"
+                ],
+                "label": "诊断包含呼吸窘迫综合征/呼吸窘迫",
+                "source": {
+                  "locator": "指南标题/适用人群",
+                  "quote": "Respiratory Distress"
+                },
+                "review_status": "scope_only"
+              }
+            ],
+            "applicability_notes": "仅标题/适用人群级条件；不包含给药剂量与时机阈值。"
+          }
+        },
+        {
+          "document_id": "guide-neo-hypoglycemia-pes-2015-meta",
+          "kind": "guideline",
+          "title": "Recommendations from the Pediatric Endocrine Society for Evaluation and Management of Persistent Hypoglycemia in Neonates, Infants, and Children",
+          "text": "官方书目元数据记录，仅用于来源定位；未登记全文，不提供推荐原文。Bibliographic metadata only; full text not indexed.",
+          "url": "https://doi.org/10.1016/j.jpeds.2015.03.057",
+          "published_at": "2015-08-01",
+          "locator": "J Pediatr 2015;167(2):238-245",
+          "version_id": "2015",
+          "population": "新生儿、婴儿与儿童持续性低血糖",
+          "status": "current",
+          "doi": "10.1016/j.jpeds.2015.03.057",
+          "pmid": "25957977",
+          "metadata": {
+            "content_mode": "metadata_only",
+            "full_text_allowed": false,
+            "rights_basis": "open_access_cc_by_nc_nd",
+            "license": "cc by-nc-nd",
+            "official": true,
+            "publisher": "The Journal of Pediatrics",
+            "mesh_terms": "Hypoglycemia; Infant, Newborn",
+            "keywords": "persistent hypoglycemia; neonatal hypoglycemia",
+            "language": "en",
+            "synthetic": false,
+            "topic_keys": [
+              "hypoglycemia",
+              "低血糖",
+              "新生儿低血糖"
+            ],
+            "stable_id": "PMCID PMC11891912",
+            "applicability_criteria": [
+              {
+                "criterion_id": "neonatal_period",
+                "field": "pna_hours",
+                "operator": "le",
+                "required": true,
+                "value": 672,
+                "label": "新生儿期（生后 ≤ 28 天）",
+                "source": {
+                  "locator": "指南标题/适用人群",
+                  "quote": "Neonates"
+                },
+                "review_status": "scope_only",
+                "unit": "hours"
+              },
+              {
+                "criterion_id": "hypoglycemia_diagnosis",
+                "field": "diagnosis",
+                "operator": "contains_any",
+                "required": true,
+                "value": [
+                  "低血糖",
+                  "hypoglycemia"
+                ],
+                "label": "诊断包含低血糖",
+                "source": {
+                  "locator": "指南标题/适用人群",
+                  "quote": "Hypoglycemia"
+                },
+                "review_status": "scope_only"
+              }
+            ],
+            "applicability_notes": "仅标题/适用人群级条件；血糖阈值与治疗方案不结构化。"
+          }
+        },
+        {
+          "document_id": "guide-neo-bpd-2019-meta",
+          "kind": "guideline",
+          "title": "The Diagnosis of Bronchopulmonary Dysplasia in Very Preterm Infants: An Evidence-based Approach",
+          "text": "官方书目元数据记录，仅用于来源定位；未登记全文，不提供推荐原文。Bibliographic metadata only; full text not indexed.",
+          "url": "https://doi.org/10.1164/rccm.201812-2348OC",
+          "published_at": "2019-09-15",
+          "locator": "Am J Respir Crit Care Med 2019;200(6):751-759",
+          "version_id": "2019",
+          "population": "极早产儿支气管肺发育不良",
+          "status": "current",
+          "doi": "10.1164/rccm.201812-2348OC",
+          "pmid": "30995069",
+          "metadata": {
+            "content_mode": "metadata_only",
+            "full_text_allowed": false,
+            "rights_basis": "open_access_cc_by_nc_nd",
+            "license": "cc by-nc-nd",
+            "official": true,
+            "publisher": "American Journal of Respiratory and Critical Care Medicine",
+            "mesh_terms": "Bronchopulmonary Dysplasia; Infant, Premature",
+            "keywords": "bronchopulmonary dysplasia; BPD; preterm",
+            "language": "en",
+            "synthetic": false,
+            "topic_keys": [
+              "bronchopulmonary dysplasia",
+              "BPD",
+              "支气管肺发育不良"
+            ],
+            "stable_id": "PMCID PMC6775872",
+            "applicability_criteria": [
+              {
+                "criterion_id": "preterm_infant",
+                "field": "ga_days",
+                "operator": "lt",
+                "required": true,
+                "value": 259,
+                "label": "早产儿（出生胎龄 < 37 周）",
+                "source": {
+                  "locator": "指南标题/适用人群",
+                  "quote": "Very Preterm Infants"
+                },
+                "review_status": "scope_only",
+                "unit": "days"
+              },
+              {
+                "criterion_id": "bpd_diagnosis",
+                "field": "diagnosis",
+                "operator": "contains_any",
+                "required": true,
+                "value": [
+                  "支气管肺发育不良",
+                  "BPD",
+                  "bronchopulmonary dysplasia"
+                ],
+                "label": "诊断包含支气管肺发育不良",
+                "source": {
+                  "locator": "指南标题/适用人群",
+                  "quote": "Bronchopulmonary Dysplasia"
+                },
+                "review_status": "scope_only"
+              }
+            ],
+            "applicability_notes": "仅标题/适用人群级条件；氧依赖与影像分级阈值不结构化。"
+          }
+        },
+        {
+          "document_id": "guide-neo-pocus-2020-meta",
+          "kind": "guideline",
+          "title": "International Evidence-Based Guidelines on Point of Care Ultrasound (POCUS) for Critically Ill Neonates and Children",
+          "text": "官方书目元数据记录，仅用于来源定位；未登记全文，不提供推荐原文。Bibliographic metadata only; full text not indexed.",
+          "url": "https://doi.org/10.1186/s13054-020-2787-9",
+          "published_at": "2020-02-24",
+          "locator": "Crit Care 2020;24(1):65",
+          "version_id": "2020",
+          "population": "危重新生儿与儿童的床旁超声",
+          "status": "current",
+          "doi": "10.1186/s13054-020-2787-9",
+          "pmid": "32093763",
+          "metadata": {
+            "content_mode": "metadata_only",
+            "full_text_allowed": false,
+            "rights_basis": "open_access_cc_by",
+            "license": "cc by",
+            "official": true,
+            "publisher": "Critical Care",
+            "mesh_terms": "Ultrasonography; Infant, Newborn; Critical Illness",
+            "keywords": "POCUS; neonatal ultrasound",
+            "language": "en",
+            "synthetic": false,
+            "topic_keys": [
+              "POCUS",
+              "point of care ultrasound",
+              "床旁超声",
+              "新生儿超声"
+            ],
+            "stable_id": "PMCID PMC7041196",
+            "applicability_criteria": [
+              {
+                "criterion_id": "neonatal_period",
+                "field": "pna_hours",
+                "operator": "le",
+                "required": true,
+                "value": 672,
+                "label": "新生儿期（生后 ≤ 28 天）",
+                "source": {
+                  "locator": "指南标题/适用人群",
+                  "quote": "Neonates"
+                },
+                "review_status": "scope_only",
+                "unit": "hours"
+              }
+            ],
+            "applicability_notes": "仅范围级条件；超声指征与操作规范不结构化。"
+          }
+        },
+        {
+          "document_id": "guide-neo-feeding-vlbw-2015-meta",
+          "kind": "guideline",
+          "title": "Guidelines for Feeding Very Low Birth Weight Infants",
+          "text": "官方书目元数据记录，仅用于来源定位；未登记全文，不提供推荐原文。Bibliographic metadata only; full text not indexed.",
+          "url": "https://doi.org/10.3390/nu7010423",
+          "published_at": "2015-01-08",
+          "locator": "Nutrients 2015;7(1):423-442",
+          "version_id": "2015",
+          "population": "极低出生体重儿喂养",
+          "status": "current",
+          "doi": "10.3390/nu7010423",
+          "pmid": "25580815",
+          "metadata": {
+            "content_mode": "metadata_only",
+            "full_text_allowed": false,
+            "rights_basis": "open_access_cc_by",
+            "license": "cc by",
+            "official": true,
+            "publisher": "Nutrients",
+            "mesh_terms": "Infant, Very Low Birth Weight; Enteral Nutrition",
+            "keywords": "VLBW; enteral feeding; human milk",
+            "language": "en",
+            "synthetic": false,
+            "topic_keys": [
+              "feeding",
+              "nutrition",
+              "VLBW",
+              "极低出生体重",
+              "喂养"
+            ],
+            "stable_id": "PMCID PMC4303848",
+            "applicability_criteria": [
+              {
+                "criterion_id": "vlbw_birth_weight",
+                "field": "birth_weight_g",
+                "operator": "lt",
+                "required": true,
+                "value": 1500,
+                "label": "极低出生体重（<1500 g）",
+                "source": {
+                  "locator": "指南标题/适用人群",
+                  "quote": "Very Low Birth Weight"
+                },
+                "review_status": "scope_only",
+                "unit": "g"
+              },
+              {
+                "criterion_id": "preterm_infant",
+                "field": "ga_days",
+                "operator": "lt",
+                "required": true,
+                "value": 259,
+                "label": "早产儿（出生胎龄 < 37 周）",
+                "source": {
+                  "locator": "指南标题/适用人群",
+                  "quote": "preterm infants"
+                },
+                "review_status": "scope_only",
+                "unit": "days"
+              }
+            ],
+            "applicability_notes": "仅定义级条件；喂养量与加奶速度不结构化。"
+          }
+        },
+        {
+          "document_id": "guide-neo-late-preterm-2013-meta",
+          "kind": "guideline",
+          "title": "Multidisciplinary Guidelines for the Care of Late Preterm Infants",
+          "text": "官方书目元数据记录，仅用于来源定位；未登记全文，不提供推荐原文。Bibliographic metadata only; full text not indexed.",
+          "url": "https://doi.org/10.1038/jp.2013.53",
+          "published_at": "2013-07-01",
+          "locator": "J Perinatol 2013;33 Suppl 2:S5-S22",
+          "version_id": "2013",
+          "population": "晚期早产儿（34–36 周）",
+          "status": "unknown",
+          "doi": "10.1038/jp.2013.53",
+          "pmid": "23803627",
+          "metadata": {
+            "content_mode": "metadata_only",
+            "full_text_allowed": false,
+            "rights_basis": "open_access_cc_by_nc_nd",
+            "license": "cc by-nc-nd",
+            "official": true,
+            "publisher": "Journal of Perinatology",
+            "mesh_terms": "Infant, Premature; Infant, Newborn",
+            "keywords": "late preterm; 34-36 weeks",
+            "language": "en",
+            "synthetic": false,
+            "topic_keys": [
+              "late preterm",
+              "晚期早产",
+              "34-36 weeks"
+            ],
+            "stable_id": "PMCID PMC3697041",
+            "applicability_criteria": [
+              {
+                "criterion_id": "late_preterm_ga",
+                "field": "ga_days",
+                "operator": "between",
+                "required": true,
+                "value": [
+                  245,
+                  259
+                ],
+                "label": "晚期早产（34–36 周）",
+                "source": {
+                  "locator": "指南标题/适用人群",
+                  "quote": "Late Preterm Infants"
+                },
+                "review_status": "scope_only",
+                "unit": "days"
+              }
+            ],
+            "applicability_notes": "仅定义级条件；不包含具体治疗阈值。"
+          }
+        }
+      ]
+    },
+    {
+      "source_id": "neonatal-guideline-synthetic",
+      "kinds": [
+        "guideline"
+      ],
+      "description": "合成指南块（仅流程测试，不是真实推荐）",
+      "version": "synthetic-2026-10-17",
+      "documents": [
+        {
+          "document_id": "syn-neo-rds-block-1",
+          "kind": "guideline",
+          "title": "合成指南 · 呼吸窘迫综合征的肺表面活性物质条件",
+          "text": "合成指南（非临床推荐）：本块说明“胎龄、呼吸支持方式、FiO2 与病情进展共同构成条件”的结构；示例条件为 30周+2天、CPAP 下 FiO2 0.30、病情进展，是否给肺表面活性物质须由医生结合原文判断。",
+          "url": "https://example.invalid/neonatal-demo/",
+          "published_at": "2025-04-01",
+          "updated_at": "2025-04-01",
+          "locator": "合成样例·RDS 呼吸支持条件块",
+          "version_id": "2025",
+          "recommendation_id": "RDS-SYN-3",
+          "population": "早产儿（合成样例）",
+          "status": "current",
+          "metadata": {
+            "content_mode": "synthetic_fixture",
+            "full_text_allowed": true,
+            "rights_basis": "synthetic-fixture-not-clinical",
+            "official": false,
+            "synthetic": true,
+            "keywords": "respiratory distress syndrome RDS pulmonary surfactant CPAP FiO2 preterm",
+            "mesh_terms": "Respiratory Distress Syndrome, Newborn; Pulmonary Surfactants",
+            "language": "zh",
+            "disclaimer": "项目合成指南块，仅用于流程测试；不是真实指南推荐，不得用于临床。",
+            "applicability_criteria": [
+              {
+                "criterion_id": "rds_diagnosis",
+                "field": "diagnosis",
+                "operator": "contains_any",
+                "required": true,
+                "value": [
+                  "呼吸窘迫综合征",
+                  "RDS",
+                  "respiratory distress syndrome"
+                ],
+                "label": "诊断包含呼吸窘迫综合征",
+                "source": {
+                  "locator": "合成指南正文",
+                  "quote": "新生儿呼吸窘迫综合征"
+                },
+                "review_status": "synthetic_fixture"
+              },
+              {
+                "criterion_id": "ga_documented",
+                "field": "ga_days",
+                "operator": "exists",
+                "required": true,
+                "label": "已记录出生胎龄",
+                "source": {
+                  "locator": "合成指南正文",
+                  "quote": "胎龄"
+                },
+                "review_status": "synthetic_fixture"
+              },
+              {
+                "criterion_id": "support_documented",
+                "field": "respiratory_support.mode",
+                "operator": "exists",
+                "required": true,
+                "label": "已记录呼吸支持方式",
+                "source": {
+                  "locator": "合成指南正文",
+                  "quote": "呼吸支持方式"
+                },
+                "review_status": "synthetic_fixture"
+              },
+              {
+                "criterion_id": "fio2_documented",
+                "field": "respiratory_support.fio2",
+                "operator": "exists",
+                "required": false,
+                "label": "已记录 FiO2",
+                "source": {
+                  "locator": "合成指南正文",
+                  "quote": "FiO2"
+                },
+                "review_status": "synthetic_fixture"
+              }
+            ],
+            "applicability_notes": "合成条件只用于流程测试，不是临床阈值。"
+          }
+        },
+        {
+          "document_id": "syn-neo-rds-block-2",
+          "kind": "guideline",
+          "title": "合成指南 · 呼吸窘迫综合征的产前转运与抗菌药管理",
+          "text": "合成指南（非临床推荐）：高风险孕妇转至有诊治经验的围产中心；已经验使用抗菌药的婴儿，若培养阴性且无败血症证据，可在24–36小时后停用。",
+          "url": "https://example.invalid/neonatal-demo/",
+          "published_at": "2025-04-01",
+          "updated_at": "2025-04-01",
+          "locator": "合成样例·RDS 产前与抗菌药块",
+          "version_id": "2025",
+          "recommendation_id": "RDS-SYN-5",
+          "population": "孕妇/早产儿（合成样例）",
+          "status": "current",
+          "metadata": {
+            "content_mode": "synthetic_fixture",
+            "full_text_allowed": true,
+            "rights_basis": "synthetic-fixture-not-clinical",
+            "official": false,
+            "synthetic": true,
+            "keywords": " antenatal transfer antibiotics culture negative RDS newborn",
+            "mesh_terms": "Respiratory Distress Syndrome, Newborn; Anti-Bacterial Agents",
+            "language": "zh",
+            "disclaimer": "项目合成指南块，仅用于流程测试；不是真实指南推荐，不得用于临床。",
+            "applicability_criteria": [
+              {
+                "criterion_id": "rds_diagnosis",
+                "field": "diagnosis",
+                "operator": "contains_any",
+                "required": true,
+                "value": [
+                  "呼吸窘迫综合征",
+                  "RDS",
+                  "respiratory distress syndrome"
+                ],
+                "label": "诊断包含呼吸窘迫综合征",
+                "source": {
+                  "locator": "合成指南正文",
+                  "quote": "呼吸窘迫综合征"
+                },
+                "review_status": "synthetic_fixture"
+              },
+              {
+                "criterion_id": "culture_documented",
+                "field": "culture_status",
+                "operator": "exists",
+                "required": false,
+                "label": "已记录培养状态",
+                "source": {
+                  "locator": "合成指南正文",
+                  "quote": "培养阴性"
+                },
+                "review_status": "synthetic_fixture"
+              }
+            ],
+            "applicability_notes": "合成条件只用于流程测试，不是临床阈值。"
+          }
+        },
+        {
+          "document_id": "syn-neo-pna-block-1",
+          "kind": "guideline",
+          "title": "合成指南 · 感染性肺炎的诊断与影像",
+          "text": "合成指南（非临床推荐）：诊断需综合围产高危因素、临床表现、实验室与影像；胸片与肺超声可用于支持判断，CT 不作为常规初筛。",
+          "url": "https://example.invalid/neonatal-demo/",
+          "published_at": "2025-09-01",
+          "updated_at": "2025-09-01",
+          "locator": "合成样例·肺炎诊断与影像块",
+          "version_id": "2025",
+          "recommendation_id": "PNA-SYN-10",
+          "population": "新生儿（合成样例）",
+          "status": "current",
+          "metadata": {
+            "content_mode": "synthetic_fixture",
+            "full_text_allowed": true,
+            "rights_basis": "synthetic-fixture-not-clinical",
+            "official": false,
+            "synthetic": true,
+            "keywords": "neonatal pneumonia diagnosis chest radiograph lung ultrasound CT",
+            "mesh_terms": "Pneumonia; Infant, Newborn",
+            "language": "zh",
+            "disclaimer": "项目合成指南块，仅用于流程测试；不是真实指南推荐，不得用于临床。",
+            "applicability_criteria": [
+              {
+                "criterion_id": "pneumonia_diagnosis",
+                "field": "diagnosis",
+                "operator": "contains_any",
+                "required": true,
+                "value": [
+                  "肺炎",
+                  "pneumonia"
+                ],
+                "label": "诊断包含肺炎",
+                "source": {
+                  "locator": "合成指南正文",
+                  "quote": "感染性肺炎"
+                },
+                "review_status": "synthetic_fixture"
+              },
+              {
+                "criterion_id": "imaging_documented",
+                "field": "imaging.modality",
+                "operator": "exists",
+                "required": false,
+                "label": "已记录影像检查",
+                "source": {
+                  "locator": "合成指南正文",
+                  "quote": "影像"
+                },
+                "review_status": "synthetic_fixture"
+              }
+            ],
+            "applicability_notes": "合成条件只用于流程测试，不是临床阈值。"
+          }
+        },
+        {
+          "document_id": "syn-neo-pna-block-2",
+          "kind": "guideline",
+          "title": "合成指南 · 感染性肺炎的鉴别与转诊",
+          "text": "合成指南（非临床推荐）：需与暂时性呼吸增快、呼吸窘迫综合征、胎粪吸入及先天性心脏病等鉴别；重症感染或治疗效果不佳时应评估转诊。",
+          "url": "https://example.invalid/neonatal-demo/",
+          "published_at": "2025-09-01",
+          "updated_at": "2025-09-01",
+          "locator": "合成样例·肺炎鉴别与转诊块",
+          "version_id": "2025",
+          "recommendation_id": "PNA-SYN-12",
+          "population": "新生儿（合成样例）",
+          "status": "current",
+          "metadata": {
+            "content_mode": "synthetic_fixture",
+            "full_text_allowed": true,
+            "rights_basis": "synthetic-fixture-not-clinical",
+            "official": false,
+            "synthetic": true,
+            "keywords": "neonatal pneumonia differential diagnosis TTN RDS meconium referral",
+            "mesh_terms": "Pneumonia; Infant, Newborn",
+            "language": "zh",
+            "disclaimer": "项目合成指南块，仅用于流程测试；不是真实指南推荐，不得用于临床。",
+            "applicability_criteria": [
+              {
+                "criterion_id": "pneumonia_diagnosis",
+                "field": "diagnosis",
+                "operator": "contains_any",
+                "required": true,
+                "value": [
+                  "肺炎",
+                  "pneumonia"
+                ],
+                "label": "诊断包含肺炎",
+                "source": {
+                  "locator": "合成指南正文",
+                  "quote": "感染性肺炎"
+                },
+                "review_status": "synthetic_fixture"
+              }
+            ],
+            "applicability_notes": "合成条件只用于流程测试，不是临床阈值。"
+          }
+        },
+        {
+          "document_id": "syn-neo-jaundice-block-1",
+          "kind": "guideline",
+          "title": "合成指南 · 高胆红素血症的光疗阈值结构",
+          "text": "合成指南（非临床推荐）：光疗阈值随出生胎龄、生后小时数和胆红素水平变化；本块只说明数值与条件绑定，示例数值不代表任何真实阈值。",
+          "url": "https://example.invalid/neonatal-demo/",
+          "published_at": "2025-03-10",
+          "updated_at": "2025-03-10",
+          "locator": "合成样例·黄疸光疗块",
+          "version_id": "2025",
+          "recommendation_id": "JND-SYN-4",
+          "population": "新生儿黄疸（合成样例）",
+          "status": "current",
+          "metadata": {
+            "content_mode": "synthetic_fixture",
+            "full_text_allowed": true,
+            "rights_basis": "synthetic-fixture-not-clinical",
+            "official": false,
+            "synthetic": true,
+            "keywords": "neonatal jaundice hyperbilirubinemia phototherapy bilirubin threshold",
+            "mesh_terms": "Jaundice, Neonatal; Phototherapy",
+            "language": "zh",
+            "disclaimer": "项目合成指南块，仅用于流程测试；不是真实指南推荐，不得用于临床。",
+            "applicability_criteria": [
+              {
+                "criterion_id": "jaundice_diagnosis",
+                "field": "diagnosis",
+                "operator": "contains_any",
+                "required": true,
+                "value": [
+                  "黄疸",
+                  "高胆红素血症",
+                  "hyperbilirubinemia"
+                ],
+                "label": "诊断包含黄疸/高胆红素血症",
+                "source": {
+                  "locator": "合成指南正文",
+                  "quote": "光疗阈值"
+                },
+                "review_status": "synthetic_fixture"
+              },
+              {
+                "criterion_id": "bilirubin_documented",
+                "field": "labs.total_bilirubin_umol_l",
+                "operator": "exists",
+                "required": true,
+                "label": "已记录总胆红素",
+                "source": {
+                  "locator": "合成指南正文",
+                  "quote": "胆红素水平"
+                },
+                "review_status": "synthetic_fixture"
+              },
+              {
+                "criterion_id": "ga_documented",
+                "field": "ga_days",
+                "operator": "exists",
+                "required": false,
+                "label": "已记录出生胎龄",
+                "source": {
+                  "locator": "合成指南正文",
+                  "quote": "出生胎龄"
+                },
+                "review_status": "synthetic_fixture"
+              },
+              {
+                "criterion_id": "pna_documented",
+                "field": "pna_hours",
+                "operator": "exists",
+                "required": false,
+                "label": "已记录生后小时数",
+                "source": {
+                  "locator": "合成指南正文",
+                  "quote": "生后小时数"
+                },
+                "review_status": "synthetic_fixture"
+              }
+            ],
+            "applicability_notes": "合成条件只用于流程测试，不是临床阈值。"
+          }
+        },
+        {
+          "document_id": "syn-neo-ttn-block-1",
+          "kind": "guideline",
+          "title": "合成指南 · 暂时性呼吸增快的鉴别",
+          "text": "合成指南（非临床推荐）：暂时性呼吸增快多见于足月或近足月儿，出生后早期起病，病程与围产背景是鉴别维度；影像表现支持但不能单独排除感染或呼吸窘迫综合征。",
+          "url": "https://example.invalid/neonatal-demo/",
+          "published_at": "2025-02-01",
+          "updated_at": "2025-02-01",
+          "locator": "合成样例·TTN 鉴别块",
+          "version_id": "2025",
+          "recommendation_id": "TTN-SYN-1",
+          "population": "新生儿（合成样例）",
+          "status": "current",
+          "metadata": {
+            "content_mode": "synthetic_fixture",
+            "full_text_allowed": true,
+            "rights_basis": "synthetic-fixture-not-clinical",
+            "official": false,
+            "synthetic": true,
+            "keywords": "transient tachypnea of the newborn TTN differential infection RDS",
+            "mesh_terms": "Transient Tachypnea of the Newborn",
+            "language": "zh",
+            "disclaimer": "项目合成指南块，仅用于流程测试；不是真实指南推荐，不得用于临床。",
+            "applicability_criteria": [
+              {
+                "criterion_id": "ttn_diagnosis",
+                "field": "diagnosis",
+                "operator": "contains_any",
+                "required": true,
+                "value": [
+                  "暂时性呼吸增快",
+                  "TTN",
+                  "transient tachypnea"
+                ],
+                "label": "诊断包含暂时性呼吸增快",
+                "source": {
+                  "locator": "合成指南正文",
+                  "quote": "暂时性呼吸增快"
+                },
+                "review_status": "synthetic_fixture"
+              },
+              {
+                "criterion_id": "ga_documented",
+                "field": "ga_days",
+                "operator": "exists",
+                "required": false,
+                "label": "已记录出生胎龄",
+                "source": {
+                  "locator": "合成指南正文",
+                  "quote": "足月或近足月儿"
+                },
+                "review_status": "synthetic_fixture"
+              }
+            ],
+            "applicability_notes": "合成条件只用于流程测试，不是临床阈值。"
+          }
+        },
+        {
+          "document_id": "syn-neo-pphn-block-1",
+          "kind": "guideline",
+          "title": "合成指南 · 持续性肺动脉高压的氧合与吸入一氧化氮",
+          "text": "合成指南（非临床推荐）：持续性肺动脉高压需结合导管前后血氧差、超声与氧合指数评估；吸入一氧化氮的指征须核对原文。",
+          "url": "https://example.invalid/neonatal-demo/",
+          "published_at": "2025-01-10",
+          "updated_at": "2025-01-10",
+          "locator": "合成样例·PPHN 氧合块",
+          "version_id": "2025",
+          "recommendation_id": "PPHN-SYN-2",
+          "population": "新生儿（合成样例）",
+          "status": "current",
+          "metadata": {
+            "content_mode": "synthetic_fixture",
+            "full_text_allowed": true,
+            "rights_basis": "synthetic-fixture-not-clinical",
+            "official": false,
+            "synthetic": true,
+            "keywords": "persistent pulmonary hypertension newborn PPHN inhaled nitric oxide oxygenation",
+            "mesh_terms": "Persistent Fetal Circulation Syndrome; Nitric Oxide",
+            "language": "zh",
+            "disclaimer": "项目合成指南块，仅用于流程测试；不是真实指南推荐，不得用于临床。",
+            "applicability_criteria": [
+              {
+                "criterion_id": "pphn_diagnosis",
+                "field": "diagnosis",
+                "operator": "contains_any",
+                "required": true,
+                "value": [
+                  "肺动脉高压",
+                  "PPHN",
+                  "pulmonary hypertension"
+                ],
+                "label": "诊断包含肺动脉高压",
+                "source": {
+                  "locator": "合成指南正文",
+                  "quote": "持续性肺动脉高压"
+                },
+                "review_status": "synthetic_fixture"
+              },
+              {
+                "criterion_id": "preductal_spo2",
+                "field": "vitals.preductal_spo2_percent",
+                "operator": "exists",
+                "required": false,
+                "label": "已记录导管前 SpO2",
+                "source": {
+                  "locator": "合成指南正文",
+                  "quote": "导管前后血氧差"
+                },
+                "review_status": "synthetic_fixture"
+              },
+              {
+                "criterion_id": "echo_documented",
+                "field": "imaging.modality",
+                "operator": "exists",
+                "required": false,
+                "label": "已记录超声检查",
+                "source": {
+                  "locator": "合成指南正文",
+                  "quote": "超声"
+                },
+                "review_status": "synthetic_fixture"
+              }
+            ],
+            "applicability_notes": "合成条件只用于流程测试，不是临床阈值。"
+          }
+        },
+        {
+          "document_id": "syn-neo-bpd-block-1",
+          "kind": "guideline",
+          "title": "合成指南 · 支气管肺发育不良的定义与评估时点",
+          "text": "合成指南（非临床推荐）：支气管肺发育不良的定义随评估时点、氧疗与呼吸支持条件变化；必须同时标注定义来源和版本，不能拼接不同体系。",
+          "url": "https://example.invalid/neonatal-demo/",
+          "published_at": "2025-04-01",
+          "updated_at": "2025-04-01",
+          "locator": "合成样例·BPD 定义块",
+          "version_id": "2025",
+          "recommendation_id": "BPD-SYN-1",
+          "population": "早产儿（合成样例）",
+          "status": "current",
+          "metadata": {
+            "content_mode": "synthetic_fixture",
+            "full_text_allowed": true,
+            "rights_basis": "synthetic-fixture-not-clinical",
+            "official": false,
+            "synthetic": true,
+            "keywords": "bronchopulmonary dysplasia BPD definition postmenstrual age oxygen respiratory support",
+            "mesh_terms": "Bronchopulmonary Dysplasia",
+            "language": "zh",
+            "disclaimer": "项目合成指南块，仅用于流程测试；不是真实指南推荐，不得用于临床。",
+            "applicability_criteria": [
+              {
+                "criterion_id": "bpd_diagnosis",
+                "field": "diagnosis",
+                "operator": "contains_any",
+                "required": true,
+                "value": [
+                  "支气管肺发育不良",
+                  "BPD",
+                  "bronchopulmonary dysplasia"
+                ],
+                "label": "诊断包含支气管肺发育不良",
+                "source": {
+                  "locator": "合成指南正文",
+                  "quote": "支气管肺发育不良"
+                },
+                "review_status": "synthetic_fixture"
+              },
+              {
+                "criterion_id": "ga_documented",
+                "field": "ga_days",
+                "operator": "exists",
+                "required": false,
+                "label": "已记录出生胎龄",
+                "source": {
+                  "locator": "合成指南正文",
+                  "quote": "早产儿"
+                },
+                "review_status": "synthetic_fixture"
+              },
+              {
+                "criterion_id": "pna_documented",
+                "field": "pna_hours",
+                "operator": "exists",
+                "required": false,
+                "label": "已记录生后小时数",
+                "source": {
+                  "locator": "合成指南正文",
+                  "quote": "评估时点"
+                },
+                "review_status": "synthetic_fixture"
+              }
+            ],
+            "applicability_notes": "合成条件只用于流程测试，不是临床阈值。"
+          }
+        },
+        {
+          "document_id": "syn-neo-hypoglycemia-block-1",
+          "kind": "guideline",
+          "title": "合成指南 · 低血糖筛查与喂养",
+          "text": "合成指南（非临床推荐）：低出生体重、早产、母亲糖代谢异常等是筛查线索；血糖值与测量时点、喂养状态必须绑定。示例数值不代表真实阈值。",
+          "url": "https://example.invalid/neonatal-demo/",
+          "published_at": "2025-05-01",
+          "updated_at": "2025-05-01",
+          "locator": "合成样例·低血糖筛查块",
+          "version_id": "2025",
+          "recommendation_id": "HYPO-SYN-1",
+          "population": "新生儿（合成样例）",
+          "status": "current",
+          "metadata": {
+            "content_mode": "synthetic_fixture",
+            "full_text_allowed": true,
+            "rights_basis": "synthetic-fixture-not-clinical",
+            "official": false,
+            "synthetic": true,
+            "keywords": "neonatal hypoglycemia blood glucose screening feeding low birth weight",
+            "mesh_terms": "Hypoglycemia; Infant, Newborn",
+            "language": "zh",
+            "disclaimer": "项目合成指南块，仅用于流程测试；不是真实指南推荐，不得用于临床。",
+            "applicability_criteria": [
+              {
+                "criterion_id": "hypoglycemia_diagnosis",
+                "field": "diagnosis",
+                "operator": "contains_any",
+                "required": true,
+                "value": [
+                  "低血糖",
+                  "hypoglycemia"
+                ],
+                "label": "诊断包含低血糖",
+                "source": {
+                  "locator": "合成指南正文",
+                  "quote": "低血糖"
+                },
+                "review_status": "synthetic_fixture"
+              },
+              {
+                "criterion_id": "glucose_documented",
+                "field": "labs.glucose_mmol_l",
+                "operator": "exists",
+                "required": true,
+                "label": "已记录血糖",
+                "source": {
+                  "locator": "合成指南正文",
+                  "quote": "血糖值"
+                },
+                "review_status": "synthetic_fixture"
+              },
+              {
+                "criterion_id": "pna_documented",
+                "field": "pna_hours",
+                "operator": "exists",
+                "required": false,
+                "label": "已记录生后小时数",
+                "source": {
+                  "locator": "合成指南正文",
+                  "quote": "测量时点"
+                },
+                "review_status": "synthetic_fixture"
+              }
+            ],
+            "applicability_notes": "合成条件只用于流程测试，不是临床阈值。"
+          }
+        },
+        {
+          "document_id": "syn-neo-gbs-block-1",
+          "kind": "guideline",
+          "title": "合成指南 · B族链球菌定植与早期感染评估",
+          "text": "合成指南（非临床推荐）：母体B族链球菌定植、胎膜早破时长、产时抗生素与患儿症状需分开记录；“培养待回报”“未记录”“阴性”是不同状态。",
+          "url": "https://example.invalid/neonatal-demo/",
+          "published_at": "2025-06-01",
+          "updated_at": "2025-06-01",
+          "locator": "合成样例·GBS 早期感染评估块",
+          "version_id": "2025",
+          "recommendation_id": "GBS-SYN-1",
+          "population": "无症状新生儿（合成样例）",
+          "status": "current",
+          "metadata": {
+            "content_mode": "synthetic_fixture",
+            "full_text_allowed": true,
+            "rights_basis": "synthetic-fixture-not-clinical",
+            "official": false,
+            "synthetic": true,
+            "keywords": "group B streptococcus early-onset sepsis asymptomatic newborn blood culture",
+            "mesh_terms": "Streptococcal Infections; Infant, Newborn; Sepsis",
+            "language": "zh",
+            "disclaimer": "项目合成指南块，仅用于流程测试；不是真实指南推荐，不得用于临床。",
+            "applicability_criteria": [
+              {
+                "criterion_id": "maternal_gbs_positive",
+                "field": "maternal.gbs_status",
+                "operator": "in",
+                "required": true,
+                "value": [
+                  "positive"
+                ],
+                "subject_role": "mother",
+                "label": "母体 GBS 定植阳性",
+                "source": {
+                  "locator": "合成指南正文",
+                  "quote": "母体B族链球菌定植"
+                },
+                "review_status": "synthetic_fixture"
+              },
+              {
+                "criterion_id": "culture_documented",
+                "field": "labs.culture_status",
+                "operator": "exists",
+                "required": false,
+                "label": "已记录培养状态",
+                "source": {
+                  "locator": "合成指南正文",
+                  "quote": "培养待回报"
+                },
+                "review_status": "synthetic_fixture"
+              },
+              {
+                "criterion_id": "gbs_diagnosis",
+                "field": "diagnosis",
+                "operator": "contains_any",
+                "required": false,
+                "value": [
+                  "B族链球菌",
+                  "GBS",
+                  "group B streptococcus"
+                ],
+                "label": "诊断包含 GBS 感染",
+                "source": {
+                  "locator": "合成指南正文",
+                  "quote": "早期感染评估"
+                },
+                "review_status": "synthetic_fixture"
+              }
+            ],
+            "applicability_notes": "合成条件只用于流程测试，不是临床阈值。"
+          }
+        }
+      ]
+    },
+    {
+      "source_id": "neonatal-literature-synthetic",
+      "kinds": [
+        "pubmed"
+      ],
+      "description": "合成文献条目（仅流程测试，不是真实研究）",
+      "version": "synthetic-2026-10-17",
+      "documents": [
+        {
+          "document_id": "syn-lit-rds-1",
+          "kind": "pubmed",
+          "title": "合成试验：pulmonary surfactant strategies for respiratory distress syndrome",
+          "text": "合成随机试验 compared pulmonary surfactant strategies for respiratory distress syndrome in preterm babies; outcomes 仅用于流程验证.",
+          "pmid": "90002001",
+          "published_at": "2025-06-01",
+          "locator": "Abstract",
+          "metadata": {
+            "synthetic": true,
+            "journal": "Synthetic Journal",
+            "mesh_terms": "Respiratory Distress Syndrome; Pulmonary Surfactants",
+            "keywords": "surfactant CPAP preterm"
+          }
+        },
+        {
+          "document_id": "syn-lit-rds-2",
+          "kind": "pubmed",
+          "title": "合成队列：respiratory distress syndrome guideline update evidence",
+          "text": "合成队列 examined evidence published after the prior respiratory distress syndrome guideline.",
+          "pmid": "90002002",
+          "published_at": "2026-02-03",
+          "locator": "Abstract",
+          "metadata": {
+            "synthetic": true,
+            "journal": "Synthetic Journal",
+            "mesh_terms": "Respiratory Distress Syndrome",
+            "keywords": "guideline update RDS"
+          }
+        },
+        {
+          "document_id": "syn-lit-pna-1",
+          "kind": "pubmed",
+          "title": "合成队列：chest radiograph and lung ultrasound in infectious pneumonia",
+          "text": "合成队列 described chest radiograph and lung ultrasound findings in infectious pneumonia.",
+          "pmid": "90002003",
+          "published_at": "2025-08-10",
+          "locator": "Abstract",
+          "metadata": {
+            "synthetic": true,
+            "journal": "Synthetic Journal",
+            "mesh_terms": "Pneumonia",
+            "keywords": "pneumonia chest radiograph lung ultrasound blood culture"
+          }
+        },
+        {
+          "document_id": "syn-lit-jaundice-1",
+          "kind": "pubmed",
+          "title": "合成试验：phototherapy thresholds for hyperbilirubinemia",
+          "text": "合成试验 compared phototherapy strategies for hyperbilirubinemia; total bilirubin outcomes 仅用于流程验证.",
+          "pmid": "90002004",
+          "published_at": "2025-05-12",
+          "locator": "Abstract",
+          "metadata": {
+            "synthetic": true,
+            "journal": "Synthetic Journal",
+            "mesh_terms": "Jaundice; Phototherapy",
+            "keywords": "bilirubin phototherapy neonatal jaundice"
+          }
+        },
+        {
+          "document_id": "syn-lit-ttn-1",
+          "kind": "pubmed",
+          "title": "合成队列：transient tachypnea in near-term babies",
+          "text": "合成队列 described the clinical course of transient tachypnea in near-term babies.",
+          "pmid": "90002005",
+          "published_at": "2025-07-08",
+          "locator": "Abstract",
+          "metadata": {
+            "synthetic": true,
+            "journal": "Synthetic Journal",
+            "mesh_terms": "Transient Tachypnea",
+            "keywords": "TTN tachypnea near-term"
+          }
+        },
+        {
+          "document_id": "syn-lit-pphn-1",
+          "kind": "pubmed",
+          "title": "合成试验：inhaled nitric oxide for persistent pulmonary hypertension",
+          "text": "合成试验 examined inhaled nitric oxide and oxygenation targets in persistent pulmonary hypertension.",
+          "pmid": "90002006",
+          "published_at": "2025-04-02",
+          "locator": "Abstract",
+          "metadata": {
+            "synthetic": true,
+            "journal": "Synthetic Journal",
+            "mesh_terms": "Persistent Fetal Circulation Syndrome; Nitric Oxide",
+            "keywords": "PPHN inhaled nitric oxide oxygenation"
+          }
+        },
+        {
+          "document_id": "syn-lit-bpd-1",
+          "kind": "pubmed",
+          "title": "合成队列：bronchopulmonary dysplasia definition and postmenstrual age",
+          "text": "合成队列 compared bronchopulmonary dysplasia definitions at different postmenstrual ages among preterm survivors.",
+          "pmid": "90002007",
+          "published_at": "2025-10-01",
+          "locator": "Abstract",
+          "metadata": {
+            "synthetic": true,
+            "journal": "Synthetic Journal",
+            "mesh_terms": "Bronchopulmonary Dysplasia",
+            "keywords": "BPD postmenstrual age preterm survivors"
+          }
+        },
+        {
+          "document_id": "syn-lit-hypo-1",
+          "kind": "pubmed",
+          "title": "合成队列：blood glucose screening for neonatal hypoglycemia",
+          "text": "合成队列 evaluated blood glucose screening and feeding support for neonatal hypoglycemia in low birth weight infants.",
+          "pmid": "90002008",
+          "published_at": "2025-09-18",
+          "locator": "Abstract",
+          "metadata": {
+            "synthetic": true,
+            "journal": "Synthetic Journal",
+            "mesh_terms": "Hypoglycemia; Blood Glucose",
+            "keywords": "blood glucose screening low birth weight"
+          }
+        },
+        {
+          "document_id": "syn-lit-gbs-1",
+          "kind": "pubmed",
+          "title": "合成队列：group B streptococcus colonisation and early-onset sepsis evaluation",
+          "text": "合成队列 described evaluation of asymptomatic newborns after maternal group B streptococcus colonisation and prolonged rupture of membranes.",
+          "pmid": "90002009",
+          "published_at": "2025-11-02",
+          "locator": "Abstract",
+          "metadata": {
+            "synthetic": true,
+            "journal": "Synthetic Journal",
+            "mesh_terms": "Streptococcal Infections; Sepsis",
+            "keywords": "group B streptococcus early-onset sepsis asymptomatic blood culture"
+          }
+        }
+      ]
+    }
+  ]
+}

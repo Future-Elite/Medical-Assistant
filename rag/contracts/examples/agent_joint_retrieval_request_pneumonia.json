@@ -1,0 +1,62 @@
+{
+  "request_id": "agent-neo-pna-001",
+  "question": "该患儿新生儿感染性肺炎的影像检查有哪些指南推荐？",
+  "as_of": "2026-09-12",
+  "top_k": 6,
+  "source_kinds": [
+    "guideline",
+    "pubmed"
+  ],
+  "patient_snapshot": {
+    "patient_ref": "syn-neo-002",
+    "as_of": "2026-09-12",
+    "source": "synthetic_neonatal_chart",
+    "reviewed_external_terms": [
+      "neonatal pneumonia",
+      "chest radiograph"
+    ],
+    "facts": [
+      {
+        "collection": "diagnoses",
+        "event_type": "diagnosis",
+        "record_path": "diagnoses[0]",
+        "field_path": "diagnoses[0].name",
+        "time": "2026-09-11",
+        "fields": {
+          "subject_role": "patient",
+          "name": "新生儿感染性肺炎",
+          "data_status": "observed_positive"
+        }
+      },
+      {
+        "collection": "labs",
+        "event_type": "culture",
+        "record_path": "labs[1]",
+        "field_path": "labs[1].culture_status",
+        "time": "2026-09-11",
+        "fields": {
+          "subject_role": "patient",
+          "specimen": "blood",
+          "culture_status": "pending",
+          "data_status": "pending"
+        }
+      }
+    ]
+  },
+  "english_terms": [
+    "neonatal pneumonia",
+    "chest radiograph",
+    "blood culture"
+  ],
+  "mesh_terms": [
+    "Pneumonia, Infant, Newborn"
+  ],
+  "user_terms": {
+    "新生儿感染性肺炎": [
+      "neonatal pneumonia"
+    ],
+    "血培养": [
+      "blood culture"
+    ]
+  }
+}

@@ -24,7 +24,7 @@ from rag.tests.helpers import fixture_library, fixture_registry
 def _documents(**overrides):
     document = {
         "document_id": "local-1", "kind": "guideline", "title": "本地指南（示例）",
-        "text": "对高血压成人患者的示例推荐。", "version_id": "2025",
+        "text": "对新生儿感染性肺炎患儿的示例推荐。", "version_id": "2025",
         "recommendation_id": "1.1", "locator": "第一章",
     }
     document.update(overrides)
@@ -92,8 +92,8 @@ class LibraryTests(unittest.TestCase):
         registry = fixture_library().build_registry()[0]
         pipeline = EvidenceRetrievalPipeline(registry)
         package = pipeline.retrieve(RetrievalRequest.from_dict({
-            "question": "该患者高血压的指南推荐是什么？", "as_of": "2025-12-31", "top_k": 4,
-            "english_terms": ["hypertension"], "source_mode": "custom",
+            "question": "该患儿新生儿感染性肺炎的指南推荐是什么？", "as_of": "2026-09-12", "top_k": 4,
+            "english_terms": ["neonatal pneumonia"], "source_mode": "custom",
         }))
         self.assertTrue(package.citations)
         source_ids = {citation.source_id for citation in package.citations}
@@ -115,7 +115,7 @@ class LibraryTests(unittest.TestCase):
         self.assertTrue(any("version" in warning for warning in warnings))
         pipeline = EvidenceRetrievalPipeline(registry)
         package = pipeline.retrieve(RetrievalRequest.from_dict({
-            "question": "高血压成人患者的推荐", "as_of": "2025-12-31", "top_k": 4,
+            "question": "新生儿感染性肺炎患儿的推荐", "as_of": "2026-09-12", "top_k": 4,
             "filters": {"guideline_version": "2025"}, "source_mode": "custom",
         }))
         kept = {item.document.document_id for item in package.ranked_documents}
@@ -128,7 +128,7 @@ class LibraryTests(unittest.TestCase):
         registry, _ = fixture_library().build_registry()
         pipeline = EvidenceRetrievalPipeline(registry)
         package = pipeline.retrieve(RetrievalRequest.from_dict({
-            "question": "高血压指南推荐", "as_of": "2025-12-31", "top_k": 4,
+            "question": "新生儿肺炎指南推荐", "as_of": "2026-09-12", "top_k": 4,
             "filters": {"guideline_version": "1999"}, "source_mode": "custom",
         }))
         self.assertTrue(any("未找到请求的指南版本" in warning for warning in package.warnings))

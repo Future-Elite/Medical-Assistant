@@ -28,9 +28,9 @@ class MetricTests(unittest.TestCase):
         self.assertEqual(entity_correct_recall({"d1"}, ["d1"], 5, route_entities_correct=False), 0.0)
 
     def test_wrong_entity_contamination(self):
-        doc_topics = {"d1": {"hypertension"}, "d2": {"asthma"}, "d3": {"hypertension"}}
-        self.assertAlmostEqual(wrong_entity_contamination("hypertension", doc_topics, ["d1", "d2"], 2), 0.5)
-        self.assertAlmostEqual(wrong_entity_contamination("hypertension", doc_topics, [], 2), 0.0)
+        doc_topics = {"d1": {"neonatal pneumonia"}, "d2": {"neonatal jaundice"}, "d3": {"neonatal pneumonia"}}
+        self.assertAlmostEqual(wrong_entity_contamination("neonatal pneumonia", doc_topics, ["d1", "d2"], 2), 0.5)
+        self.assertAlmostEqual(wrong_entity_contamination("neonatal pneumonia", doc_topics, [], 2), 0.0)
 
     def test_gate_cost(self):
         decisions = [

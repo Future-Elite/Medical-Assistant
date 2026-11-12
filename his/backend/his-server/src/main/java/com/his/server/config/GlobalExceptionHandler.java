@@ -26,6 +26,16 @@ import java.util.stream.Collectors;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(IllegalArgumentException.class)
+    public Result<Void> handleArgument(IllegalArgumentException e) {
+        return Result.fail(400, e.getMessage());
+    }
+
+    @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
+    public Result<Void> handleUploadSize(org.springframework.web.multipart.MaxUploadSizeExceededException e) {
+        return Result.fail(400, "上传文件不能超过 50 MB");
+    }
+
     /** {@code @RequestBody + @Valid} 校验失败：400 + 可读的字段提示。 */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public Result<Void> handleMethodArgumentNotValid(MethodArgumentNotValidException e) {

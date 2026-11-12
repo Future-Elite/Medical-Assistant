@@ -4,6 +4,9 @@ import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import Mock
+
+from gradio.state_holder import SessionState
 
 from interface import ChatInterface, create_demo
 
@@ -11,6 +14,38 @@ from interface import ChatInterface, create_demo
 class AuditLogTest(unittest.TestCase):
     def test_demo_builds_with_installed_gradio(self):
         self.assertIsNotNone(create_demo(object(), {}))
+
+    def test_browser_initialization_reset_and_next_message_use_distinct_threads(self):
+        agent = SimpleNamespace(
+            reset=Mock(),
+            run_turn=Mock(return_value={"answer": "test response", "status": "observed", "turn_id": "test-turn"}),
+        )
+        demo = create_demo(agent, {})
+        functions = {fn.name: (key, fn) for key, fn in demo.fns.items()}
+        interface = functions["process_message"][1].fn.__self__
+        state_id = functions["_new_id"][1].outputs[0]._id
+        first, second = SessionState(demo), SessionState(demo)
+
+        async def exercise():
+            await demo.process_api(functions["_new_id"][0], [], state=first)
+            await demo.process_api(functions["_new_id"][0], [], state=second)
+            self.assertNotEqual(first[state_id], second[state_id])
+            other_id = second[state_id]
+            for action in ("new_thread", "clear_chat"):
+                old_id = first[state_id]
+                await demo.process_api(functions[action][0], [None], state=first)
+                new_id = first[state_id]
+                self.assertNotEqual(new_id, old_id)
+                self.assertEqual(second[state_id], other_id)
+                agent.reset.assert_called_with(old_id)
+                async for _ in interface.process_message("test", None, [], new_id):
+                    pass
+                self.assertEqual(agent.run_turn.call_args.args[1], new_id)
+
+        with tempfile.TemporaryDirectory() as directory:
+            interface.audit_path = Path(directory) / "audit.jsonl"
+            asyncio.run(exercise())
+            self.assertFalse(interface.audit_path.exists())
 
     def test_medical_event_card_summarizes_sources_and_keeps_details(self):
         title, content = ChatInterface._format_medical_event("evidence_search", {

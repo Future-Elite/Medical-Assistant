@@ -1156,7 +1156,7 @@ def create_demo(agent, tools_dict):
                     "</p>"
                 )
 
-        thread_state = gr.State(value=interface._new_id())
+        thread_state = gr.State(value=interface._new_id)
 
         # Event handlers
         def clear_chat(thread_id):

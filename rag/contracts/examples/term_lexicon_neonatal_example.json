@@ -1,0 +1,30 @@
+{
+  "lexicon": "neonatal_term_lexicon_v1",
+  "purpose": "术语词表补充源（词典扩展版示例实例）：给映射库补简称/英文/MeSH 候选、收表外概念。机制通用——真实部署可换成 CMeSH/ICD 中文等授权词表的本地导出文件（受限词表不入仓库，调用方自备）。",
+  "disclaimer": "本文件是人工整理的示例词表：英文/MeSH 均为候选（needs_review），不是人工金标准，使用前须人工核验；不含任何病例内容。",
+  "entries": [
+    {"concept": "新生儿肺炎", "aliases": ["肺炎"], "english": [], "mesh": [],
+     "note": "补常用简称：问题裸写“肺炎”此前命不中“新生儿肺炎”概念"},
+    {"concept": "新生儿呼吸窘迫综合征", "aliases": ["RDS", "呼吸窘迫综合征", "新生儿呼吸窘迫"], "english": ["respiratory distress syndrome of newborn"], "mesh": [],
+     "note": "补缩写与常见写法"},
+    {"concept": "湿肺", "aliases": ["暂时性呼吸急促", "新生儿暂时性呼吸急促"], "english": ["wet lung of newborn"], "mesh": [],
+     "note": "补俗称与中文标准名"},
+    {"concept": "支气管肺发育不良", "aliases": ["慢性肺病", "新生儿慢性肺病"], "english": ["chronic lung disease of prematurity"], "mesh": [],
+     "note": "补同义临床叫法"},
+    {"concept": "气胸", "aliases": ["新生儿气胸"], "english": [], "mesh": []},
+    {"concept": "胸腔积液", "aliases": ["新生儿胸腔积液"], "english": [], "mesh": []},
+    {"concept": "肺不张", "aliases": ["新生儿肺不张", "肺膨胀不全"], "english": [], "mesh": []},
+    {"concept": "新生儿高胆红素血症", "aliases": ["黄疸", "新生儿黄疸"], "english": ["neonatal hyperbilirubinemia", "neonatal jaundice"], "mesh": ["Hyperbilirubinemia, Neonatal"],
+     "note": "表外概念（指南主题：AAP 高胆红素血症 2022）；mesh 为候选待核"},
+    {"concept": "新生儿低血糖", "aliases": ["低血糖"], "english": ["neonatal hypoglycemia"], "mesh": ["Hypoglycemia"],
+     "note": "表外概念（指南主题：CPS 低血糖 2019）"},
+    {"concept": "新生儿持续性肺动脉高压", "aliases": ["PPHN", "持续性肺动脉高压"], "english": ["persistent pulmonary hypertension of the newborn"], "mesh": ["Persistent Fetal Circulation Syndrome"],
+     "note": "表外概念（指南主题：PPHN 2021）；mesh 为候选待核"},
+    {"concept": "新生儿呼吸暂停", "aliases": ["呼吸暂停", "早产儿呼吸暂停"], "english": ["neonatal apnea", "apnea of prematurity"], "mesh": ["Apnea"],
+     "note": "表外概念（指南主题：Apnea of Prematurity 2015）"},
+    {"concept": "B族链球菌感染", "aliases": ["GBS", "B族链球菌", "B组链球菌"], "english": ["group B streptococcal infection"], "mesh": ["Streptococcal Infections, Group B"],
+     "note": "表外概念（指南主题：GBS 2019）；母婴主体分离在适用性侧处理"},
+    {"concept": "早产后呼吸疾病", "aliases": ["PPRD", "早产后呼吸问题"], "english": ["post-prematurity respiratory disease"], "mesh": [],
+     "note": "表外概念（指南主题：ATS PPRD 2021）"}
+  ]
+}

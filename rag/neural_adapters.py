@@ -20,6 +20,9 @@ Model routing (documented, not implied):
 - ``splade``   -> naver/splade-cocondenser-ensembledistil (sparse lexical weights)
 - ``colbert``  -> colbert-ir/colbertv2.0 (late-interaction MaxSim)
 - ``rerank``   -> MedCPT Cross-Encoder (query-passage pair scoring)
+- ``qwen3_reranker`` -> Qwen/Qwen3-Reranker-0.6B (pointwise generative yes/no
+  scoring; multilingual, the Chinese question stays visible). Local cache
+  weights only unless ``RAG_ALLOW_MODEL_DOWNLOAD=1``; needs transformers>=4.51.
 - ``query2doc``-> any injected text generator; a small local seq2seq model can
   serve as the demo generator. Without a generator the method is not_configured.
 - ``xlingual`` -> intfloat/multilingual-e5-base. A multilingual bi-encoder that
@@ -352,6 +355,177 @@ class MedCPTReranker:
             replace(candidates[index], reranker_id=self.reranker_id, reranker_score=round(scores[index], 6))
             for index in order
         ]
+
+
+# Frozen scoring protocol for Qwen3-Reranker. The instruction is part of the
+# scoring protocol (not a tuning knob): changing it changes scores, so it is a
+# constant and any change is a protocol revision. English per the model card's
+# multilingual guidance; the query/document pair keeps the original Chinese.
+QWEN3_RERANKER_INSTRUCTION = (
+    "Given a clinical question and a document, decide whether the document "
+    "contains evidence relevant to the question. Match disease, drug, population "
+    "and numeric conditions, not just topical similarity. "
+    "Answer yes or no."
+)
+
+
+def yes_no_probability(logit_true: float, logit_false: float) -> float:
+    """P(yes) from the yes/no token logits (restricted softmax; model-card protocol)."""
+    maximum = max(logit_true, logit_false)
+    exp_true = math.exp(logit_true - maximum)
+    exp_false = math.exp(logit_false - maximum)
+    return exp_true / (exp_true + exp_false)
+
+
+@dataclass
+class Qwen3Reranker:
+    """Qwen3-Reranker pointwise generative reranker (multilingual).
+
+    Scoring per the model card: chat-template each (query, document) pair under
+    the frozen :data:`QWEN3_RERANKER_INSTRUCTION`, read the final-position
+    ``yes``/``no`` token logits, and rank by ``yes_no_probability`` descending.
+
+    Unlike the MedCPT cross-encoder, the query text here keeps the Chinese
+    original question (plus reviewed English terms) — the point of this adapter
+    for cross-lingual retrieval. Offline-first like every adapter: local cache
+    only unless ``RAG_ALLOW_MODEL_DOWNLOAD=1``. Requires ``transformers>=4.51``
+    (Qwen3 architecture). Tests inject ``score_pairs`` and never load the model.
+    """
+
+    model_name: str = "Qwen/Qwen3-Reranker-0.6B"
+    reranker_id: str = "qwen3-reranker"
+    cache_dir: str | None = None
+    max_length: int = 4096
+    batch_size: int = 4
+    score_pairs: Callable[[Sequence[tuple[str, str]]], Sequence[float]] | None = None
+    _model: Any = field(default=None, repr=False)
+    _tokenizer: Any = field(default=None, repr=False)
+    _torch: Any = field(default=None, repr=False)
+    _load_error: str | None = field(default=None, repr=False)
+
+    @property
+    def available(self) -> bool:
+        if self.score_pairs is not None:
+            return True
+        return self._ensure_loaded()
+
+    @property
+    def unavailable_reason(self) -> str:
+        if self._load_error:
+            return self._load_error
+        deps = neural_dependencies_state()
+        if not (deps["torch"] and deps["transformers"]):
+            return str(deps.get("detail") or "torch/transformers 未安装。")
+        return "Qwen3-Reranker 模型未加载。"
+
+    def _ensure_loaded(self) -> bool:
+        if self._model is not None and self._tokenizer is not None:
+            return True
+        if self._load_error:
+            return False
+        deps = neural_dependencies_state()
+        if not (deps["torch"] and deps["transformers"]):
+            self._load_error = str(deps.get("detail") or "torch/transformers 未安装。")
+            return False
+        try:
+            import transformers
+
+            version = str(getattr(transformers, "__version__", "") or "")
+            if _version_tuple(version) < (4, 51):
+                self._load_error = f"Qwen3-Reranker 需要 transformers>=4.51（当前 {version or '未知'}）。"
+                return False
+        except Exception as exc:  # pragma: no cover - depends on environment
+            self._load_error = f"transformers 版本检查失败：{type(exc).__name__}。"
+            return False
+        try:
+            import torch
+            from transformers import AutoModelForCausalLM, AutoTokenizer
+
+            self._tokenizer = _prefer_local_load(AutoTokenizer, self.model_name, cache_dir=self.cache_dir)
+            self._model = _prefer_local_load(AutoModelForCausalLM, self.model_name, cache_dir=self.cache_dir).eval()
+            self._torch = torch
+            self._yes_no_ids(self._tokenizer)  # 显式失败：词表缺 yes/no 时不允许加载成功
+            return True
+        except Exception as exc:  # pragma: no cover - environment dependent
+            self._load_error = f"Qwen3-Reranker 加载失败：{type(exc).__name__}。"
+            return False
+
+    @staticmethod
+    def _yes_no_ids(tokenizer: Any) -> tuple[int, int]:
+        true_id = tokenizer.convert_tokens_to_ids("yes")
+        false_id = tokenizer.convert_tokens_to_ids("no")
+        unk = getattr(tokenizer, "unk_token_id", None)
+        if true_id == unk or false_id == unk or true_id == false_id:
+            raise RuntimeError("tokenizer 词表缺少独立的 yes/no 词元，无法按模型卡协议打分")
+        return int(true_id), int(false_id)
+
+    def _score_model(self, pairs: Sequence[tuple[str, str]]) -> list[float]:
+        import torch
+
+        tokenizer = self._tokenizer
+        true_id, false_id = self._yes_no_ids(tokenizer)
+        scores: list[float] = []
+        for start in range(0, len(pairs), self.batch_size):
+            batch = pairs[start:start + self.batch_size]
+            # 官方 chat template 期望三个角色：system（指令）/ query / document；
+            # 拼进 user 消息会让 query_text/document_text 为空（模板只从对应角色取内容）。
+            texts = [
+                tokenizer.apply_chat_template(
+                    [
+                        {"role": "system", "content": QWEN3_RERANKER_INSTRUCTION},
+                        {"role": "query", "content": query},
+                        {"role": "document", "content": document},
+                    ],
+                    tokenize=False,
+                )
+                for query, document in batch
+            ]
+            encoded = tokenizer(
+                list(texts), padding=True, truncation=True, max_length=self.max_length, return_tensors="pt",
+            )
+            with torch.no_grad():
+                logits = self._model(**encoded).logits
+            # 取每行 attention_mask 最后一个真实 token 位置的 logits（兼容左/右填充）。
+            attention = encoded["attention_mask"]
+            for index in range(len(batch)):
+                last_position = int(attention[index].nonzero()[-1])
+                last = logits[index, last_position]
+                scores.append(yes_no_probability(float(last[true_id]), float(last[false_id])))
+        return scores
+
+    def rank(self, plan: QueryPlan, candidates: Sequence[RankedDocument]) -> Sequence[RankedDocument]:
+        from dataclasses import replace
+
+        if not candidates:
+            return candidates
+        query = (_multilingual_query_text(plan) or plan.original_question or "").strip()
+        if not query:
+            return candidates
+        pairs = [(query, _document_text(item.document)) for item in candidates]
+        if self.score_pairs is not None:
+            values = [float(value) for value in self.score_pairs(pairs)]
+            if len(values) != len(candidates):
+                raise ValueError("score_pairs must return one score per candidate")
+            scores = values
+        else:
+            if not self._ensure_loaded():
+                raise RuntimeError(self.unavailable_reason)
+            scores = self._score_model(pairs)
+        order = sorted(range(len(candidates)), key=lambda index: (-scores[index], candidates[index].document.identity_key()))
+        return [
+            replace(candidates[index], reranker_id=self.reranker_id, reranker_score=round(scores[index], 6))
+            for index in order
+        ]
+
+
+def _version_tuple(version: str) -> tuple[int, ...]:
+    parts: list[int] = []
+    for token in str(version).split("."):
+        digits = "".join(ch for ch in token if ch.isdigit())
+        if not digits:
+            break
+        parts.append(int(digits))
+    return tuple(parts) or (0,)
 
 
 def _splade_encode(model: Any, tokenizer: Any, torch: Any, texts: Sequence[str], max_length: int = 256) -> Any:
@@ -949,15 +1123,15 @@ class LocalQuery2DocExpander:
 def build_neural_registry(
     *,
     cache_dir: str | None = None,
-    enable: Sequence[str] = ("dense", "xlingual", "m3", "splade", "colbert", "query2doc", "translate", "cross_encoder"),
+    enable: Sequence[str] = ("dense", "xlingual", "m3", "splade", "colbert", "query2doc", "translate", "cross_encoder", "qwen3_reranker"),
 ) -> dict[str, Any]:
     """Construct neural adapters (without loading models).
 
     Returns a mapping used by the server/pipeline:
     ``{"dense": MedCPTDenseRetriever, "xlingual": MultilingualE5Retriever,
        "m3": BgeM3Retriever, "splade": ..., "colbert": ...,
-       "cross_encoder": MedCPTReranker, "query2doc": LocalQuery2DocExpander,
-       "translate": LocalZhEnTranslator}``
+       "cross_encoder": MedCPTReranker, "qwen3_reranker": Qwen3Reranker,
+       "query2doc": LocalQuery2DocExpander, "translate": LocalZhEnTranslator}``
     filtered by ``enable``. Construction is cheap; models load lazily on first
     use. Availability must be probed separately (``available``) and reported in
     the trace; nothing loads at import time.
@@ -979,6 +1153,8 @@ def build_neural_registry(
         registry["translate"] = LocalZhEnTranslator(cache_dir=cache_dir)
     if "cross_encoder" in enable:
         registry["cross_encoder"] = MedCPTReranker(cache_dir=cache_dir)
+    if "qwen3_reranker" in enable:
+        registry["qwen3_reranker"] = Qwen3Reranker(cache_dir=cache_dir)
     return registry
 
 

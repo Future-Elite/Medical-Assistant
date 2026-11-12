@@ -1,0 +1,13 @@
+{
+  "compared": "v6.6.5 vs v6.7.0（v6.7.0 默认配置：rerank_pool=0、reranker_model=medcpt 语义等价路径）",
+  "date": "2026-10-27",
+  "scenario_policy_pairs": 30,
+  "mismatched_pairs": [],
+  "frozen_semantics_identical": true,
+  "normalization": [
+    "retrieval_id",
+    "retrieved_at",
+    "rag_version 字符串（6.6.5/6.7.0 → VERSION）"
+  ],
+  "note": "stub reranker 由探针注入，两棵树同一实现；v6.7.0 新路径（rerank_pool>0 / qwen3 重排器）不在本差分范围，属显式启用的新行为。"
+}

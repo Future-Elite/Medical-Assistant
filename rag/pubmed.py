@@ -6,12 +6,13 @@ reviewed query terms; it never receives or serializes a PatientSnapshot.
 from __future__ import annotations
 
 import json
-from contextvars import ContextVar
+import re
 import socket
 import urllib.error
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
+from contextvars import ContextVar
 from dataclasses import dataclass
 from datetime import date
 from typing import Any, Callable, Mapping
@@ -19,8 +20,16 @@ from typing import Any, Callable, Mapping
 from .config import get_config
 from .connectors import KnowledgeConnector
 from .models import QueryPlan, SearchResult, SourceDocument
+from .query import (
+    expanded_mapping_entries,
+    is_generic_population,
+    is_unit_term,
+    mapping_active,
+    population_clause,
+    primary_mapping_entry,
+    primary_topic,
+)
 
-# The Agent supplies a fresh cache for each user turn; standalone RAG is uncached.
 PUBMED_SEARCH_CACHE: ContextVar[dict | None] = ContextVar("pubmed_search_cache", default=None)
 
 
@@ -49,6 +58,8 @@ class PubMedConnector(KnowledgeConnector):
             raise ValueError("PubMed timeout must be positive")
         self.email = str(config.ncbi_email or "")
         self.api_key = str(config.ncbi_api_key or "")
+        self.last_date_filter: dict[str, str] = {}
+        self.last_cache_hit = False
 
     def search(self, plan: QueryPlan, *, limit: int) -> SearchResult:
         limit = max(1, min(int(limit), self.max_results))
@@ -65,19 +76,25 @@ class PubMedConnector(KnowledgeConnector):
         return result
 
     def _search(self, plan: QueryPlan, *, limit: int, date_params: Mapping[str, str] | None = None) -> SearchResult:
+        limit = max(1, min(int(limit), self.max_results))
         warnings: list[str] = []
         if not self.email:
             warnings.append("PubMed 请求未在 config.py 设置 ncbi_email；建议配置有效邮箱以符合 NCBI 使用规范。")
         params = self._base_params()
-        self.last_query = _safe_term(plan)
-        params.update({"db": "pubmed", "retmode": "json", "retmax": str(limit), "sort": "relevance", "term": self.last_query})
+        params.update({"db": "pubmed", "retmode": "json", "retmax": str(limit), "sort": "relevance"})
         params.update(date_params or {})
-        raw = self._request("esearch", params)
-        try:
-            payload = json.loads(raw.decode("utf-8"))
-            ids = [str(value) for value in payload.get("esearchresult", {}).get("idlist", []) if str(value).strip()]
-        except (UnicodeDecodeError, json.JSONDecodeError, AttributeError) as exc:
-            raise PubMedError("PubMed ESearch JSON 解析失败", stage="esearch_parse") from exc
+        query = _safe_term(plan)
+        if not query:
+            self.last_query = ""
+            return SearchResult(self.source_id, (), (*warnings, "没有可用的英文检索词；未向 PubMed 发送查询。"))
+        self.last_query = query
+        ids = self._esearch_ids(params, query)
+        if not ids:
+            # 主词过窄时退回同义词组，但单位词永远不会进入查询。
+            fallback = _mapped_fallback_term(plan) if mapping_active(plan) else _fallback_term(plan)
+            if fallback and fallback != query:
+                self.last_query = fallback
+                ids = self._esearch_ids(params, fallback)
         if not ids:
             return SearchResult(self.source_id, (), (*warnings, "PubMed 没有返回 PMID。"))
         fetch_params = self._base_params()
@@ -97,6 +114,16 @@ class PubMedConnector(KnowledgeConnector):
             if before != len(documents):
                 warnings.append(f"已按规范化发表日期移除 {before - len(documents)} 条超出请求时间窗口或日期不明的 PubMed 记录。")
         return SearchResult(self.source_id, tuple(documents), tuple(warnings))
+
+    def _esearch_ids(self, params: Mapping[str, str], query: str) -> list[str]:
+        request_params = dict(params)
+        request_params["term"] = query
+        raw = self._request("esearch", request_params)
+        try:
+            payload = json.loads(raw.decode("utf-8"))
+            return [str(value) for value in payload.get("esearchresult", {}).get("idlist", []) if str(value).strip()]
+        except (UnicodeDecodeError, json.JSONDecodeError, AttributeError) as exc:
+            raise PubMedError("PubMed ESearch JSON 解析失败", stage="esearch_parse") from exc
 
     def _base_params(self) -> dict[str, str]:
         params = {"tool": self.tool_name}
@@ -130,24 +157,6 @@ class PubMedConnector(KnowledgeConnector):
             raise PubMedError("PubMed network or timeout error", stage=endpoint, retryable=True) from exc
 
 
-def _safe_term(plan: QueryPlan) -> str:
-    # 审核术语优先，其次问题内直接提取的英文词（question_english_terms），最后 MeSH。
-    terms = list(dict.fromkeys((*plan.english_terms, *plan.question_english_terms, *plan.mesh_terms)))
-    dynamic = [text.strip() for text in plan.machine_translations if str(text).strip()][:3]
-    if not terms and not dynamic:
-        # 没有英文术语时，优先使用问题/概念中的纯 ASCII 词（PubMed 对中文检索差），
-        # 确实没有英文词时才退回中文片段；绝不序列化患者快照。
-        ascii_concepts = [item for item in plan.concepts if str(item).isascii() and _safe_ascii_or_cjk(item)]
-        terms = ascii_concepts or [item for item in plan.concepts if _safe_ascii_or_cjk(item)]
-    # Only reviewed/derived question terms are used for the live request; never serialize patient snapshot.
-    baseline = " AND ".join('"' + item.replace('"', "") + '"' for item in terms[:12])
-    if dynamic:
-        # Execute the targeted route first. Broadening is a separate Agent call,
-        # with a new query and an explicit evidence gap, never a broad OR branch.
-        return dynamic[0]
-    return baseline
-
-
 def _publication_date_params(plan: QueryPlan) -> tuple[dict[str, str], dict[str, str]]:
     raw_from = str(plan.filters.get("publication_from") or "").strip()
     raw_to = str(plan.filters.get("publication_to") or "").strip()
@@ -173,13 +182,195 @@ def _publication_date_params(plan: QueryPlan) -> tuple[dict[str, str], dict[str,
     return params, trace
 
 
+def _safe_term(plan: QueryPlan) -> str:
+    """Build a precise PubMed query: disease topic AND neonatal population.
+
+    The first reviewed topic term is the disease anchor; synonyms are only a
+    fallback when the anchor returns no PMIDs. Units such as ``mmol/L`` are
+    removed because numeric conditions are not indexed as text.
+
+    When a reviewed mapping table supplied the terms, the query keeps the
+    concept binding and uses PubMed field tags (``[tiab]`` for English,
+    ``[MeSH Terms]`` for MeSH) instead of one undifferentiated quoted list.
+    """
+    if mapping_active(plan):
+        mapped = _mapped_safe_term(plan)
+        if mapped:
+            return mapped
+    primary = primary_topic(plan)
+    if primary:
+        # The disease anchor, plus at most two non-unit English words that
+        # actually appeared in the question. Reviewed synonyms stay fallback-only.
+        terms = [primary]
+        terms.extend(
+            term for term in plan.question_english_terms
+            if len(str(term).strip()) >= 4
+            and not is_unit_term(term)
+            and not is_generic_population(term)
+        )
+        terms = list(dict.fromkeys(str(term).strip() for term in terms if str(term).strip()))[:3]
+        query = _quoted(terms[0]) if len(terms) == 1 else "(" + " OR ".join(_quoted(term) for term in terms) + ")"
+        population = population_clause(plan)
+        if population:
+            query += f" AND ({population})"
+        return query
+    return _fallback_term(plan)
+
+
+def _mapped_safe_term(plan: QueryPlan) -> str:
+    """PubMed query for the reviewed mapping path (concept first, then tags)."""
+    entry = primary_mapping_entry(plan)
+    if entry is None:
+        return ""
+    clauses: list[str] = []
+    for term in entry.english:
+        cleaned = str(term).strip()
+        if not cleaned or is_unit_term(cleaned) or is_generic_population(cleaned):
+            continue
+        clause = f"{_quoted(cleaned)}[tiab]"
+        if clause not in clauses:
+            clauses.append(clause)
+    for term in entry.mesh:
+        cleaned = str(term).strip()
+        if not cleaned or is_unit_term(cleaned):
+            continue
+        clause = f"{_quoted(cleaned)}[MeSH Terms]"
+        if clause not in clauses:
+            clauses.append(clause)
+    # Question English words still participate, but only as a bounded recall
+    # extension; they never displace the reviewed concept anchor.
+    for term in plan.question_english_terms:
+        cleaned = str(term).strip()
+        if len(cleaned) < 4 or is_unit_term(cleaned) or is_generic_population(cleaned):
+            continue
+        clause = f"{_quoted(cleaned)}[tiab]"
+        if clause not in clauses:
+            clauses.append(clause)
+        if len(clauses) >= 5:
+            break
+    if not clauses:
+        return ""
+    query = "(" + " OR ".join(clauses) + ")"
+    population = _mapped_population_clause(plan)
+    if population:
+        query += f" AND ({population})"
+    return query
+
+
+def _mapped_population_clause(plan: QueryPlan) -> str:
+    """Population restriction derived from the mapping table when available.
+
+    A population row (for example ``早产儿``) keeps its reviewed English/MeSH
+    products; otherwise the legacy keyword heuristic is tagged with ``[tiab]``.
+    """
+    clauses: list[str] = []
+    population_markers = ("新生儿", "早产", "婴儿", "newborn", "neonat", "infant", "preterm")
+    for entry in expanded_mapping_entries(plan):
+        english = [str(term).strip() for term in entry.english if str(term).strip() and not is_unit_term(term)]
+        # Only a row made up entirely of generic population terms is a
+        # population row.  A disease row may legitimately carry one population
+        # synonym (e.g. ``preterm infant``) without becoming the population
+        # filter for the whole query.
+        is_population = bool(english) and all(is_generic_population(term) for term in english)
+        if not is_population and not english:
+            is_population = any(marker in entry.concept.lower() for marker in population_markers)
+        if not is_population:
+            continue
+        for term in english:
+            clause = f"{_quoted(term)}[tiab]"
+            if clause not in clauses:
+                clauses.append(clause)
+        for term in entry.mesh:
+            cleaned = str(term).strip()
+            if not cleaned or is_unit_term(cleaned):
+                continue
+            clause = f"{_quoted(cleaned)}[MeSH Terms]"
+            if clause not in clauses:
+                clauses.append(clause)
+    if clauses:
+        return " OR ".join(clauses)
+    legacy = population_clause(plan)
+    if not legacy:
+        return ""
+    return " OR ".join(f"{_quoted(token.strip())}[tiab]" for token in legacy.split(" OR ") if token.strip())
+
+
+def _mapped_fallback_term(plan: QueryPlan) -> str:
+    """Broad OR fallback that keeps mapping concept products tagged."""
+    clauses: list[str] = []
+    for entry in expanded_mapping_entries(plan):
+        for term in entry.english:
+            cleaned = str(term).strip()
+            if cleaned and not is_unit_term(cleaned):
+                clause = f"{_quoted(cleaned)}[tiab]"
+                if clause not in clauses:
+                    clauses.append(clause)
+        for term in entry.mesh:
+            cleaned = str(term).strip()
+            if cleaned and not is_unit_term(cleaned):
+                clause = f"{_quoted(cleaned)}[MeSH Terms]"
+                if clause not in clauses:
+                    clauses.append(clause)
+    for term in (*plan.question_english_terms, *plan.english_terms, *plan.mesh_terms):
+        cleaned = str(term).strip()
+        if cleaned and not is_unit_term(cleaned):
+            clause = f"{_quoted(cleaned)}[tiab]"
+            if clause not in clauses:
+                clauses.append(clause)
+    if not clauses:
+        return _fallback_term(plan)
+    expression = "(" + " OR ".join(clauses[:12]) + ")"
+    population = _mapped_population_clause(plan)
+    if population:
+        expression += f" AND ({population})"
+    return expression
+
+
+def _fallback_term(plan: QueryPlan) -> str:
+    candidates = [
+        term for term in (*plan.english_terms, *plan.mesh_terms, *plan.question_english_terms)
+        if not is_unit_term(str(term))
+    ]
+    if not candidates:
+        # Snapshot-derived reviewed terms are already allowed to leave the
+        # process; use the ASCII concepts only, never raw Chinese records.
+        candidates = [
+            str(item) for item in plan.concepts
+            if str(item).isascii() and _safe_ascii_or_cjk(str(item)) and not is_unit_term(str(item))
+        ]
+    candidates = list(dict.fromkeys(str(term).strip() for term in candidates if str(term).strip()))[:8]
+    dynamic = [text.strip() for text in plan.machine_translations if str(text).strip()][:3]
+    if not candidates:
+        if len(dynamic) == 1:
+            return dynamic[0]
+        return " OR ".join(f"({text})" for text in dynamic)
+    expression = "(" + " OR ".join(_quoted(term) for term in candidates) + ")"
+    population = population_clause(plan)
+    if population:
+        expression += f" AND ({population})"
+    return expression
+
+
+def _quoted(term: str) -> str:
+    return '"' + str(term).replace('"', "") + '"'
+
+
 def _safe_ascii_or_cjk(value: str) -> bool:
     return bool(value and len(value) <= 80 and not any(token in value for token in ("patient_ref", "病历", "身份证", "住院号")))
 
 
+# EFetch 的 DOCTYPE 只声明外部 DTD；实体声明不是正常响应的一部分，
+# 一旦出现就可能被上游用来触发实体扩展，因此在解析前直接拒绝。
+_PUBMED_ENTITY_DECL = re.compile(rb"<!ENTITY\b", re.IGNORECASE)
+_PUBMED_DOCTYPE = re.compile(rb"<!DOCTYPE\b(?:[^>\[]|\[.*?\])*?>", re.DOTALL | re.IGNORECASE)
+
+
 def _parse_efetch(raw: bytes, source_id: str) -> tuple[list[SourceDocument], int]:
+    if _PUBMED_ENTITY_DECL.search(raw):
+        raise PubMedError("PubMed EFetch XML 包含不允许的实体声明", stage="efetch_parse")
+    payload = _PUBMED_DOCTYPE.sub(b"", raw, count=1)
     try:
-        root = ET.fromstring(raw)
+        root = ET.fromstring(payload)
     except (ET.ParseError, UnicodeDecodeError) as exc:
         raise PubMedError("PubMed EFetch XML 解析失败", stage="efetch_parse") from exc
     documents: list[SourceDocument] = []

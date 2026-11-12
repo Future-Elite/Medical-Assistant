@@ -1,0 +1,573 @@
+{
+  "library": "neonatal_term_mapping_v1",
+  "generated_from": [
+    {
+      "source": "test.json",
+      "rows": 1434,
+      "label_pairs": 1405
+    },
+    {
+      "source": "train.json",
+      "rows": 4219,
+      "label_pairs": 3711
+    },
+    {
+      "source": "val.json",
+      "rows": 625,
+      "label_pairs": 553
+    }
+  ],
+  "skipped_files": [
+    "test0.json: conversations schema（诊断串无分隔，本版跳过）",
+    "train0.json: conversations schema（诊断串无分隔，本版跳过）",
+    "val0.json: conversations schema（诊断串无分隔，本版跳过）"
+  ],
+  "lexicon": {
+    "lexicon": "neonatal_term_lexicon_v1",
+    "rows_created": 6,
+    "rows_supplemented": 7,
+    "rows_skipped_no_terms": []
+  },
+  "mesh_enrichment": {
+    "source": "ncbi_mesh_esummary",
+    "statuses": {
+      "mesh_grounded": 11,
+      "not_found": 1,
+      "mesh_top_match": 1
+    }
+  },
+  "disclaimer": "dataset_derived 英文/别名来自数据集标签，词表补充与 mesh 候选一律 needs_review，均不是人工金标准，使用前须人工核验；不含任何病例内容。",
+  "rows": [
+    {
+      "concept": "B族链球菌感染",
+      "aliases": [
+        "GBS",
+        "B族链球菌",
+        "B组链球菌",
+        "Streptococcal Infections",
+        "Infection, Streptococcal",
+        "Streptococcal Infection",
+        "Infections, Streptococcal",
+        "Group A Streptococcal Infections"
+      ],
+      "english": [
+        "group B streptococcal infection"
+      ],
+      "mesh": [
+        "Streptococcal Infections"
+      ],
+      "metadata": {
+        "source": "lexicon:neonatal_term_lexicon_v1",
+        "review_status": "needs_review",
+        "mesh_review_status": "mesh_grounded",
+        "label_count": 0,
+        "supplemented_by": [
+          "neonatal_term_lexicon_v1"
+        ],
+        "mesh_ui": "D013290",
+        "mesh_source": "ncbi_mesh_esummary",
+        "mesh_scope_note": "Infections with bacteria of the genus STREPTOCOCCUS.",
+        "mesh_before": [
+          "Streptococcal Infections, Group B"
+        ],
+        "mesh_entry_terms": [
+          "Streptococcal Infections",
+          "Infection, Streptococcal",
+          "Streptococcal Infection",
+          "Infections, Streptococcal",
+          "Group A Streptococcal Infections"
+        ]
+      }
+    },
+    {
+      "concept": "支气管肺发育不良",
+      "aliases": [
+        "BPD",
+        "慢性肺病",
+        "新生儿慢性肺病",
+        "Dysplasia, Bronchopulmonary"
+      ],
+      "english": [
+        "Bronchopulmonary Dysplasia",
+        "chronic lung disease of prematurity"
+      ],
+      "mesh": [
+        "Bronchopulmonary Dysplasia"
+      ],
+      "metadata": {
+        "source": "dataset_labels:test.json",
+        "review_status": "dataset_derived",
+        "mesh_review_status": "mesh_grounded",
+        "label_count": 422,
+        "lexicon_additions": {
+          "aliases": [
+            "慢性肺病",
+            "新生儿慢性肺病"
+          ],
+          "english": [
+            "chronic lung disease of prematurity"
+          ]
+        },
+        "supplemented_by": [
+          "neonatal_term_lexicon_v1"
+        ],
+        "mesh_ui": "D001997",
+        "mesh_source": "ncbi_mesh_esummary",
+        "mesh_scope_note": "A chronic lung disease developed after OXYGEN INHALATION THERAPY or mechanical ventilation (VENTILATION, MECHANICAL) usually occurring in certain premature infants (INFANT, PREMATURE) or newborn infants with respiratory distress syndrome (R",
+        "mesh_before": [
+          "Bronchopulmonary Dysplasia"
+        ],
+        "mesh_entry_terms": [
+          "Dysplasia, Bronchopulmonary"
+        ]
+      }
+    },
+    {
+      "concept": "新生儿低血糖",
+      "aliases": [
+        "低血糖",
+        "Hypoglycemia",
+        "Fasting Hypoglycemia",
+        "Hypoglycemia, Fasting",
+        "Postabsorptive Hypoglycemia",
+        "Hypoglycemia, Postabsorptive"
+      ],
+      "english": [
+        "neonatal hypoglycemia"
+      ],
+      "mesh": [
+        "Hypoglycemia"
+      ],
+      "metadata": {
+        "source": "lexicon:neonatal_term_lexicon_v1",
+        "review_status": "needs_review",
+        "mesh_review_status": "mesh_grounded",
+        "label_count": 0,
+        "supplemented_by": [
+          "neonatal_term_lexicon_v1"
+        ],
+        "mesh_ui": "D007003",
+        "mesh_source": "ncbi_mesh_esummary",
+        "mesh_scope_note": "A syndrome of abnormally low BLOOD GLUCOSE level. Clinical hypoglycemia has diverse etiologies. Severe hypoglycemia eventually lead to glucose deprivation of the CENTRAL NERVOUS SYSTEM resulting in HUNGER; SWEATING; PARESTHESIA; impaired me",
+        "mesh_before": [
+          "Hypoglycemia"
+        ],
+        "mesh_entry_terms": [
+          "Hypoglycemia",
+          "Fasting Hypoglycemia",
+          "Hypoglycemia, Fasting",
+          "Postabsorptive Hypoglycemia",
+          "Hypoglycemia, Postabsorptive"
+        ]
+      }
+    },
+    {
+      "concept": "新生儿呼吸暂停",
+      "aliases": [
+        "呼吸暂停",
+        "早产儿呼吸暂停",
+        "Apnea",
+        "Apneas"
+      ],
+      "english": [
+        "neonatal apnea",
+        "apnea of prematurity"
+      ],
+      "mesh": [
+        "Apnea"
+      ],
+      "metadata": {
+        "source": "lexicon:neonatal_term_lexicon_v1",
+        "review_status": "needs_review",
+        "mesh_review_status": "mesh_grounded",
+        "label_count": 0,
+        "supplemented_by": [
+          "neonatal_term_lexicon_v1"
+        ],
+        "mesh_ui": "D001049",
+        "mesh_source": "ncbi_mesh_esummary",
+        "mesh_scope_note": "A transient absence of spontaneous respiration.",
+        "mesh_before": [
+          "Apnea"
+        ],
+        "mesh_entry_terms": [
+          "Apnea",
+          "Apneas"
+        ]
+      }
+    },
+    {
+      "concept": "新生儿呼吸窘迫综合征",
+      "aliases": [
+        "NRDS",
+        "呼吸窘迫综合征",
+        "RDS",
+        "新生儿呼吸窘迫",
+        "Respiratory Distress Syndrome, Newborn",
+        "Respiratory Distress Syndrome, Infant",
+        "Infantile Respiratory Distress Syndrome"
+      ],
+      "english": [
+        "Neonatal Respiratory Distress Syndrome",
+        "respiratory distress syndrome of newborn"
+      ],
+      "mesh": [
+        "Respiratory Distress Syndrome, Newborn"
+      ],
+      "metadata": {
+        "source": "dataset_labels:test.json",
+        "review_status": "dataset_derived",
+        "mesh_review_status": "mesh_grounded",
+        "label_count": 1009,
+        "lexicon_additions": {
+          "aliases": [
+            "RDS",
+            "新生儿呼吸窘迫"
+          ],
+          "english": [
+            "respiratory distress syndrome of newborn"
+          ]
+        },
+        "supplemented_by": [
+          "neonatal_term_lexicon_v1"
+        ],
+        "mesh_ui": "D012127",
+        "mesh_source": "ncbi_mesh_esummary",
+        "mesh_scope_note": "A condition of the newborn marked by DYSPNEA with CYANOSIS, heralded by such prodromal signs as dilatation of the alae nasi, expiratory grunt, and retraction of the suprasternal notch or costal margins, mostly frequently occurring in premat",
+        "mesh_before": [
+          "Respiratory Distress Syndrome, Newborn"
+        ],
+        "mesh_entry_terms": [
+          "Respiratory Distress Syndrome, Newborn",
+          "Respiratory Distress Syndrome, Infant",
+          "Infantile Respiratory Distress Syndrome"
+        ]
+      }
+    },
+    {
+      "concept": "新生儿持续性肺动脉高压",
+      "aliases": [
+        "PPHN",
+        "持续性肺动脉高压",
+        "Persistent Fetal Circulation Syndrome",
+        "Persistent Pulmonary Hypertension of Newborn",
+        "Pulmonary Hypertension, Familial Persistent, of the Newborn",
+        "ACDMPV",
+        "Alveolar Capillary Dysplasia With Misalignment Of Pulmonary Veins"
+      ],
+      "english": [
+        "persistent pulmonary hypertension of the newborn"
+      ],
+      "mesh": [
+        "Persistent Fetal Circulation Syndrome"
+      ],
+      "metadata": {
+        "source": "lexicon:neonatal_term_lexicon_v1",
+        "review_status": "needs_review",
+        "mesh_review_status": "mesh_grounded",
+        "label_count": 0,
+        "supplemented_by": [
+          "neonatal_term_lexicon_v1"
+        ],
+        "mesh_ui": "D010547",
+        "mesh_source": "ncbi_mesh_esummary",
+        "mesh_scope_note": "A syndrome of persistent PULMONARY HYPERTENSION in the newborn infant (INFANT, NEWBORN) without demonstrable HEART DISEASES. This neonatal condition can be caused by severe pulmonary vasoconstriction (reactive type), hypertrophy of pulmonar",
+        "mesh_before": [
+          "Persistent Fetal Circulation Syndrome"
+        ],
+        "mesh_entry_terms": [
+          "Persistent Fetal Circulation Syndrome",
+          "Persistent Pulmonary Hypertension of Newborn",
+          "Pulmonary Hypertension, Familial Persistent, of the Newborn",
+          "ACDMPV",
+          "Alveolar Capillary Dysplasia With Misalignment Of Pulmonary Veins"
+        ]
+      }
+    },
+    {
+      "concept": "新生儿肺炎",
+      "aliases": [
+        "肺炎",
+        "Pneumonia",
+        "Pneumonias",
+        "Experimental Lung Inflammation",
+        "Experimental Lung Inflammations",
+        "Inflammation, Experimental Lung"
+      ],
+      "english": [
+        "Neonatal Pneumonia"
+      ],
+      "mesh": [
+        "Pneumonia"
+      ],
+      "metadata": {
+        "source": "dataset_labels:test.json",
+        "review_status": "dataset_derived",
+        "mesh_review_status": "mesh_grounded",
+        "label_count": 3528,
+        "lexicon_additions": {
+          "aliases": [
+            "肺炎"
+          ]
+        },
+        "supplemented_by": [
+          "neonatal_term_lexicon_v1"
+        ],
+        "mesh_ui": "D011014",
+        "mesh_source": "ncbi_mesh_esummary",
+        "mesh_scope_note": "Infection of the lung often accompanied by inflammation.",
+        "mesh_before": [
+          "Pneumonia"
+        ],
+        "mesh_entry_terms": [
+          "Pneumonia",
+          "Pneumonias",
+          "Experimental Lung Inflammation",
+          "Experimental Lung Inflammations",
+          "Inflammation, Experimental Lung"
+        ]
+      }
+    },
+    {
+      "concept": "新生儿高胆红素血症",
+      "aliases": [
+        "黄疸",
+        "新生儿黄疸",
+        "Hyperbilirubinemia, Neonatal",
+        "Hyperbilirubinemia During Infancy",
+        "During Infancies, Hyperbilirubinemia",
+        "Infancy, Hyperbilirubinemia During",
+        "Direct Hyperbilirubinemia, Neonatal"
+      ],
+      "english": [
+        "neonatal hyperbilirubinemia",
+        "neonatal jaundice"
+      ],
+      "mesh": [
+        "Hyperbilirubinemia, Neonatal"
+      ],
+      "metadata": {
+        "source": "lexicon:neonatal_term_lexicon_v1",
+        "review_status": "needs_review",
+        "mesh_review_status": "mesh_grounded",
+        "label_count": 0,
+        "supplemented_by": [
+          "neonatal_term_lexicon_v1"
+        ],
+        "mesh_ui": "D051556",
+        "mesh_source": "ncbi_mesh_esummary",
+        "mesh_scope_note": "Accumulation of BILIRUBIN, a breakdown product of HEME PROTEINS, in the BLOOD during the first weeks of life. This may lead to NEONATAL JAUNDICE. The excess bilirubin may exist in the unconjugated (indirect) or the conjugated (direct) form.",
+        "mesh_before": [
+          "Hyperbilirubinemia, Neonatal"
+        ],
+        "mesh_entry_terms": [
+          "Hyperbilirubinemia, Neonatal",
+          "Hyperbilirubinemia During Infancy",
+          "During Infancies, Hyperbilirubinemia",
+          "Infancy, Hyperbilirubinemia During",
+          "Direct Hyperbilirubinemia, Neonatal"
+        ]
+      }
+    },
+    {
+      "concept": "早产后呼吸疾病",
+      "aliases": [
+        "PPRD",
+        "早产后呼吸问题"
+      ],
+      "english": [
+        "post-prematurity respiratory disease"
+      ],
+      "mesh": [],
+      "metadata": {
+        "source": "lexicon:neonatal_term_lexicon_v1",
+        "review_status": "needs_review",
+        "mesh_review_status": "not_found",
+        "label_count": 0,
+        "supplemented_by": [
+          "neonatal_term_lexicon_v1"
+        ]
+      }
+    },
+    {
+      "concept": "气胸",
+      "aliases": [
+        "新生儿气胸",
+        "Pneumothorax, Primary Spontaneous",
+        "Primary Spontaneous Pneumothorax",
+        "Spontaneous Pneumothorax, Primary",
+        "Tension Pneumothorax",
+        "Pneumothorax, Tension"
+      ],
+      "english": [
+        "Pneumothorax"
+      ],
+      "mesh": [
+        "Pneumothorax"
+      ],
+      "metadata": {
+        "source": "dataset_labels:test.json",
+        "review_status": "dataset_derived",
+        "mesh_review_status": "mesh_grounded",
+        "label_count": 83,
+        "lexicon_additions": {
+          "aliases": [
+            "新生儿气胸"
+          ]
+        },
+        "supplemented_by": [
+          "neonatal_term_lexicon_v1"
+        ],
+        "mesh_ui": "D011030",
+        "mesh_source": "ncbi_mesh_esummary",
+        "mesh_scope_note": "An accumulation of air or gas in the PLEURAL CAVITY, which may occur spontaneously or as a result of trauma or a pathological process. The gas may also be introduced deliberately during PNEUMOTHORAX, ARTIFICIAL.",
+        "mesh_before": [
+          "Pneumothorax"
+        ],
+        "mesh_entry_terms": [
+          "Pneumothorax, Primary Spontaneous",
+          "Primary Spontaneous Pneumothorax",
+          "Spontaneous Pneumothorax, Primary",
+          "Tension Pneumothorax",
+          "Pneumothorax, Tension"
+        ]
+      }
+    },
+    {
+      "concept": "湿肺",
+      "aliases": [
+        "TTN",
+        "新生儿湿肺",
+        "暂时性呼吸急促",
+        "新生儿暂时性呼吸急促",
+        "Transient Tachypnea of the Newborn",
+        "Transient Tachypnea of Newborn",
+        "Newborn Transient Tachypnea",
+        "Newborn Transient Tachypneas"
+      ],
+      "english": [
+        "Neonatal Transient Tachypnea",
+        "wet lung of newborn"
+      ],
+      "mesh": [
+        "Transient Tachypnea of the Newborn"
+      ],
+      "metadata": {
+        "source": "dataset_labels:test.json",
+        "review_status": "dataset_derived",
+        "mesh_review_status": "mesh_top_match",
+        "label_count": 607,
+        "lexicon_additions": {
+          "aliases": [
+            "暂时性呼吸急促",
+            "新生儿暂时性呼吸急促"
+          ],
+          "english": [
+            "wet lung of newborn"
+          ]
+        },
+        "supplemented_by": [
+          "neonatal_term_lexicon_v1"
+        ],
+        "mesh_ui": "D059245",
+        "mesh_source": "ncbi_mesh_esummary",
+        "mesh_scope_note": "Abnormal increase in RESPIRATORY RATE in the newborn. It is self-limiting and attributed to the delayed fetal lung fluid clearance often in CAESAREAN SECTION delivery.",
+        "mesh_before": [
+          "Transient Tachypnea of Newborn"
+        ],
+        "mesh_entry_terms": [
+          "Transient Tachypnea of the Newborn",
+          "Transient Tachypnea of Newborn",
+          "Newborn Transient Tachypnea",
+          "Newborn Transient Tachypneas"
+        ]
+      }
+    },
+    {
+      "concept": "肺不张",
+      "aliases": [
+        "新生儿肺不张",
+        "肺膨胀不全",
+        "Pulmonary Atelectasis",
+        "Atelectases, Pulmonary",
+        "Atelectasis, Pulmonary",
+        "Pulmonary Atelectases",
+        "Atelectases"
+      ],
+      "english": [
+        "Atelectasis"
+      ],
+      "mesh": [
+        "Pulmonary Atelectasis"
+      ],
+      "metadata": {
+        "source": "dataset_labels:train.json",
+        "review_status": "dataset_derived",
+        "mesh_review_status": "mesh_grounded",
+        "label_count": 7,
+        "lexicon_additions": {
+          "aliases": [
+            "新生儿肺不张",
+            "肺膨胀不全"
+          ]
+        },
+        "supplemented_by": [
+          "neonatal_term_lexicon_v1"
+        ],
+        "mesh_ui": "D001261",
+        "mesh_source": "ncbi_mesh_esummary",
+        "mesh_scope_note": "Absence of air in the entire or part of a lung, such as an incompletely inflated neonate lung or a collapsed adult lung. Pulmonary atelectasis can be caused by airway obstruction, lung compression, fibrotic contraction, or other factors.",
+        "mesh_before": [
+          "Atelectasis"
+        ],
+        "mesh_entry_terms": [
+          "Pulmonary Atelectasis",
+          "Atelectases, Pulmonary",
+          "Atelectasis, Pulmonary",
+          "Pulmonary Atelectases",
+          "Atelectases"
+        ]
+      }
+    },
+    {
+      "concept": "胸腔积液",
+      "aliases": [
+        "新生儿胸腔积液",
+        "Effusion, Pleural",
+        "Effusions, Pleural",
+        "Pleural Effusions"
+      ],
+      "english": [
+        "Pleural Effusion"
+      ],
+      "mesh": [
+        "Pleural Effusion"
+      ],
+      "metadata": {
+        "source": "dataset_labels:test.json",
+        "review_status": "dataset_derived",
+        "mesh_review_status": "mesh_grounded",
+        "label_count": 13,
+        "lexicon_additions": {
+          "aliases": [
+            "新生儿胸腔积液"
+          ]
+        },
+        "supplemented_by": [
+          "neonatal_term_lexicon_v1"
+        ],
+        "mesh_ui": "D010996",
+        "mesh_source": "ncbi_mesh_esummary",
+        "mesh_scope_note": "Presence of fluid in the pleural cavity resulting from excessive transudation or exudation from the pleural surfaces. It is a sign of disease and not a diagnosis in itself.",
+        "mesh_before": [
+          "Pleural Effusion"
+        ],
+        "mesh_entry_terms": [
+          "Effusion, Pleural",
+          "Effusions, Pleural",
+          "Pleural Effusions"
+        ]
+      }
+    }
+  ]
+}

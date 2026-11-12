@@ -1,0 +1,4 @@
+﻿医生ID,姓名,性别,职称,科室,所属机构ID,数据来源,synthetic
+DOC-NEO-001,李建华,男,主任医师,新生儿科,INST-NEO-001,synthetic_neonatal_his,true
+DOC-NEO-002,杨文博,女,主治医师,新生儿科,INST-NEO-001,synthetic_neonatal_his,true
+DOC-NEO-003,王芳,女,住院医师,新生儿科,INST-NEO-001,synthetic_neonatal_his,true

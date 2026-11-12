@@ -1,43 +1,46 @@
 {
-  "source_id": "hospital-guideline-library",
-  "kinds": ["guideline", "pubmed"],
-  "description": "示例：调用方自有指南库 + 自备文献库（演示 JSON 结构，非真实医学证据）",
-  "version": "2025-12",
+  "source_id": "hospital-neonatal-guideline-library",
+  "kinds": [
+    "guideline",
+    "pubmed"
+  ],
+  "description": "示例：调用方自有新生儿指南库 + 自备文献库（演示 JSON 结构，非真实医学证据）",
+  "version": "2026-10",
   "documents": [
     {
-      "document_id": "local-guide-htn-2025",
+      "document_id": "local-neo-rds-2026",
       "kind": "guideline",
-      "title": "本地高血压用药指南（示例）",
-      "text": "对高血压成人患者，示例推荐说明初始降压药物的选择与监测条件。",
-      "version_id": "2025",
-      "recommendation_id": "2.1",
-      "population": "高血压成人",
-      "locator": "第2章 推荐2.1",
-      "published_at": "2025-06-01",
-      "updated_at": "2025-06-01",
+      "title": "本地新生儿呼吸窘迫综合征路径（示例）",
+      "text": "对早产儿呼吸窘迫综合征，示例推荐说明肺表面活性物质与呼吸支持的条件和监测。",
+      "version_id": "2026",
+      "recommendation_id": "1.1",
+      "population": "早产儿",
+      "locator": "第1章 推荐1.1",
+      "published_at": "2026-06-01",
+      "updated_at": "2026-06-01",
       "status": "current",
-      "url": "https://example.invalid/local/htn-2025",
+      "url": "https://example.invalid/local/neo-rds-2026",
       "metadata": {
-        "publisher": "示例医院药事委员会",
+        "publisher": "示例医院新生儿科",
         "license": "caller-provided-fixture",
         "official": true,
-        "mesh_terms": "Hypertension",
-        "keywords": "hypertension initial therapy"
+        "mesh_terms": "Respiratory Distress Syndrome, Newborn",
+        "keywords": "respiratory distress syndrome surfactant CPAP"
       }
     },
     {
-      "document_id": "local-paper-001",
+      "document_id": "local-paper-neo-001",
       "kind": "pubmed",
       "title": "本地文献库条目（示例）",
       "text": "该示例条目演示调用方自备文献的字段：标题、摘要文本、PMID/DOI、发表时间与语料快照。",
-      "pmid": "90000001",
-      "doi": "10.0000/example.2025.001",
-      "published_at": "2025-03-15",
+      "pmid": "90000002",
+      "doi": "10.0000/example.2026.002",
+      "published_at": "2026-03-15",
       "locator": "Abstract",
       "metadata": {
         "journal": "Example Journal",
         "content_mode": "caller_provided",
-        "snapshot": "caller-library-2025-12"
+        "snapshot": "caller-library-2026-10"
       }
     }
   ]
