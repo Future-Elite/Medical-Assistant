@@ -60,15 +60,22 @@ Thumbs.db
 /docs/
 /doc/
 /documentation/
+/reports/
 /guidelines/
 /spec/
 /specs/
 /.specify/
 /.kiro/specs/
+/examples/gspo_data_recipe.json
 *.[mM][dD]
 *.markdown
+*.mdown
+*.mkd
 *.mdx
 *.rst
+*.adoc
+*.asciidoc
+*.qmd
 *.txt
 *.text
 *.pdf
@@ -85,6 +92,12 @@ Thumbs.db
 *.odp
 *.tex
 *.bib
+*.drawio
+*.excalidraw
+*.mmd
+*.mermaid
+*.puml
+*.plantuml
 
 # README and dependency manifests are intentionally versioned.
 ![Rr][Ee][Aa][Dd][Mm][Ee]*

@@ -16,3 +16,9 @@ test('Dreamer trend single observation and empty reports have finite coordinates
   assert.equal(g.points[0].x,380)
   assert.ok(Number.isFinite(g.points[0].y));assert.ok(!/NaN|Infinity/.test(g.path))
 })
+
+test('released reports plot collection time and do not turn censored values into numbers',()=>{
+  const reports=[{event_id:'sample',collected_at_hours:2,time_hours:6,items:[{key:'ph',value:7.3},{key:'crp',value:null,comparator:'<',bound:.5}]}]
+  assert.equal(metricSeries(reports,'ph')[0].time,2)
+  assert.deepEqual(metricSeries(reports,'crp'),[])
+})

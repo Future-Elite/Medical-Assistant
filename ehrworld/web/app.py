@@ -23,15 +23,22 @@ from .scenarios import SCENARIOS, action_plan
 from .service import GenerationService, default_predictor
 from .store import JobStore
 from .guidelines import manifest, source_path
-from ehrdreamer.api import router as dreamer_router
-from ehrdreamer.service import DreamerService
-from ehrdreamer.source import SourceCatalog, SourceError
-from ehrdreamer.learning.runtime import ModelArtifactError
-from ehrdreamer.models import Models as DreamerModels
+from ehrdreamer.source import SourceError
 
 
 def create_app(db_path: str | Path = "outputs/web/ehrworld.sqlite", predictor_factory=default_predictor, seed_path=None,
-               dreamer_source_path=None, dreamer_models_factory=DreamerModels):
+               dreamer_source_path=None, dreamer_models_factory=None, dreamer_legacy_ml=False):
+    if dreamer_legacy_ml:
+        from ehrdreamer.api import router as dreamer_router
+        from ehrdreamer.service import DreamerService
+        from ehrdreamer.source import SourceCatalog
+        from ehrdreamer.models import Models as DreamerModels
+    else:
+        from ehrdreamer.dual.api import router as dreamer_router
+        from ehrdreamer.dual.service import DreamerService
+        from ehrdreamer.dual.source import BaselineCatalog as SourceCatalog
+        from ehrdreamer.dual.models import DualModels as DreamerModels
+    dreamer_models_factory = dreamer_models_factory or DreamerModels
     @asynccontextmanager
     async def lifespan(app):
         store = JobStore(db_path)
@@ -48,8 +55,8 @@ def create_app(db_path: str | Path = "outputs/web/ehrworld.sqlite", predictor_fa
         app.state.service.close()
         app.state.dreamer.close()
 
-    app = FastAPI(title="EHR Dreamer API", version="5.0.0",
-                  description="策略、患者动力学与结局分离的三阶段住院病历生成；兼容旧版EHRWorld接口。", lifespan=lifespan)
+    app = FastAPI(title="EHR Dreamer API", version="5.0.0" if dreamer_legacy_ml else "6.0.0",
+                  description="双LLM策略规划与患者动力学、真实化验基线、时间账本及三阶段病历；兼容旧版EHRWorld接口。", lifespan=lifespan)
     app.include_router(dreamer_router)
     app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
                        allow_methods=["GET", "POST"], allow_headers=["Content-Type"])
@@ -67,9 +74,11 @@ def create_app(db_path: str | Path = "outputs/web/ehrworld.sqlite", predictor_fa
     async def dreamer_source_error(request, exc):
         return JSONResponse(status_code=409 if '已变化' in str(exc) else 400, content={'detail':str(exc)})
 
-    @app.exception_handler(ModelArtifactError)
-    async def trained_model_error(request, exc):
-        return JSONResponse(status_code=503,content={'detail':str(exc)})
+    if dreamer_legacy_ml:
+        from ehrdreamer.learning.runtime import ModelArtifactError
+        @app.exception_handler(ModelArtifactError)
+        async def trained_model_error(request, exc):
+            return JSONResponse(status_code=503,content={'detail':str(exc)})
 
     @app.get('/api/models')
     def models():

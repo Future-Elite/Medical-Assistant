@@ -23,7 +23,12 @@ from ehrdreamer.outcome import DemoOutcome, build_discharge, outcome_constraints
 from ehrdreamer.source import SourceCatalog,FIELDS,extract_intake
 from ehrdreamer.inverse import infer
 from ehrworld.llm import APIConfig,JSONClient,ModelResponseError
-from ehrworld.web.app import create_app
+from ehrworld.web.app import create_app as _create_app
+
+
+def create_app(*args, **kwargs):
+    """Keep the former ML engine's regression suite explicit and isolated."""
+    return _create_app(*args, dreamer_legacy_ml=True, **kwargs)
 
 
 def workbook(path,count=14):

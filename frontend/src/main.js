@@ -1,5 +1,5 @@
 import { createApp, defineAsyncComponent } from 'vue'
-import DreamerApp from './DreamerApp.vue'
+import DreamerApp from './DualApp.vue'
 import './style.css'
 import './neonatal.css'
 

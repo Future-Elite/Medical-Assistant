@@ -5,7 +5,7 @@ export const outcomeLabels = {resolved:'已解决',improved:'改善',unresolved:
 export const eventLabels = {admission:'初始资料',decision:'医生决策',order:'检查申请',specimen:'采样 / 观察',report:'检查报告',assessment_summary:'入院检查汇总',followup_summary:'针对性复查结果',diagnosis:'工作诊断',treatment:'治疗执行',treatment_review:'治疗复评',treatment_end:'治疗结果汇总',wait:'等待与复评',consult:'会诊',termination:'病程结束',budget_stop:'预算停止',document:'结局文书',rejected:'操作待纠正'}
 export const actorLabels = {simulated_doctor:'模拟医生',environment:'患者环境',intake:'来源导入',validator:'执行校验',outcome_model:'结局模型'}
 export function hours(value){return `T+${Number((value||0).toFixed(2))}h`}
-export function metricSeries(reports,key){return reports.flatMap(r=>{const i=r.items.find(i=>i.key===key&&typeof i.value==='number');return i?[{time:r.time_hours,value:i.value,eventId:r.event_id}]:[]})}
+export function metricSeries(reports,key){return reports.flatMap(r=>{const i=r.items.find(i=>i.key===key&&typeof i.value==='number');return i?[{time:r.collected_at_hours??r.time_hours,value:i.value,eventId:r.event_id}]:[]})}
 export function metricGeometry(series){
   if(!series.length)return {points:[],path:'',ticks:[]}
   const times=series.map(s=>s.time),values=series.map(s=>s.value)

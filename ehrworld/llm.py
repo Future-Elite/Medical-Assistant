@@ -59,8 +59,26 @@ class APIConfig:
         )
 
 
-def parse_json(text: str) -> dict:
+def parse_json(text: str, *, strict: bool = False) -> dict:
     """Accept bare or fenced JSON, and gateways that prepend a short preamble."""
+    if strict:
+        # Never silently keep the last of two values for the same lab.
+        def unique_pairs(pairs):
+            result = {}
+            for key, value in pairs:
+                if key in result:
+                    raise ValueError('Duplicate JSON key')
+                result[key] = value
+            return result
+        def invalid_constant(_):
+            raise ValueError('Non-finite JSON number')
+        content = text.strip()
+        if content.startswith('```') and content.endswith('```'):
+            content = content.split('\n', 1)[-1].rsplit('```', 1)[0].strip()
+        obj = json.loads(content, object_pairs_hook=unique_pairs, parse_constant=invalid_constant)
+        if not isinstance(obj, dict):
+            raise ModelResponseError('Response must be one JSON object')
+        return obj
     decoder = json.JSONDecoder()
     for index, char in enumerate(text):
         if char == "{":
@@ -89,7 +107,7 @@ class JSONClient:
     def request(self, system: str, payload: dict, schema: type[T], *, operation: str,
                 validator: Callable[[T], None] | None = None) -> T:
         messages = [{"role": "system", "content": system},
-                    {"role": "user", "content": json.dumps(payload, ensure_ascii=False)}]
+                    {"role": "user", "content": json.dumps(payload, ensure_ascii=False, separators=(',', ':'), allow_nan=False)}]
         for attempt in range(self.config.repair_attempts + 1):
             if sum(len(m["content"]) for m in messages) > self.config.max_input_chars:
                 raise ContextLimitError("Full history exceeds the configured input character guard; no history was truncated")
@@ -116,7 +134,7 @@ class JSONClient:
                 content = choice.message.content or ""
                 if choice.finish_reason == "length":
                     raise ModelResponseError("Response truncated; increase EHRWORLD_MAX_TOKENS")
-                parsed = schema.model_validate(parse_json(content))
+                parsed = schema.model_validate(parse_json(content, strict=getattr(schema, '__pydantic_root_model__', False)))
                 if validator:
                     validator(parsed)
                 stat["success"] = True

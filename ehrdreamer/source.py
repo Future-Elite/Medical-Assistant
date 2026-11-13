@@ -54,7 +54,7 @@ def extract_intake(row, sheet, row_number):
     # Maternal complaints are risk factors, never infant symptoms. Some rows use
     # "母亲发热" as the chief complaint even when the infant has no fever.
     patient_complaint = re.sub(r'(?:孕母|母亲|母体|孕妇|其母|母)[^，,。；;\n]*', '', complaint_part)
-    symptom_terms = ['呼吸急促', '气促', '呻吟', '呼吸困难', '三凹征', '发绀', '咳嗽', '反应差', '喂养困难', '黄疸', '黄染', '发热']
+    symptom_terms = ['呼吸急促', '气促', '呻吟', '呼吸困难', '三凹征', '发绀', '咳嗽', '反应差', '喂养困难', '黄疸', '黄染', '发热', '呼吸暂停', '惊厥', '休克', '低体温', '需心肺复苏']
     symptoms = tuple(term for term in symptom_terms if positive(patient_complaint, re.escape(term)))
     risks = []
     for label, pattern in [('母体感染风险', r'孕母发热|母亲发热|母产前发热|孕母产前发热|羊膜炎|绒毛膜羊膜炎'),
