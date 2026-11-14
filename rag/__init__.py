@@ -9,11 +9,16 @@ identifiers (trace ``rag_version``, ``/api/health``) read it instead of
 hard-coding any version string.
 """
 
-__version__ = "6.7.0"
+__version__ = "6.7.2"
 
 from .agent import EvidenceSessionStore, EvidenceRAG
-from .applicability import assess_applicability
+from .quality.applicability import assess_applicability
 from .audit import ClaimVerifier, GroundedAnswerAuditor
+from .quality.claim_verification import (
+    CrossLingualMiniCheckVerifier,
+    MiniCheckVerifier,
+    build_claim_verifier,
+)
 from .connectors import (
     CallableConnector,
     ConnectorRegistry,
@@ -30,8 +35,14 @@ from .custom_sources import (
     custom_source_from_dict,
     load_custom_library,
 )
+from .sources.guideline_chunks import (
+    GuidelineChunkConnector,
+    GuidelineChunkLibrary,
+    load_guideline_chunk_library,
+)
+from .sources.guideline_source import GuidelineParsingError, GuidelineParsingSource
 from .his import HISAdapter, InMemoryHISAdapter, PatientFact, PatientSnapshot, snapshot_from_dict
-from .fidelity import (
+from .quality.fidelity import (
     FidelityFinding,
     FidelityLexicon,
     FidelityReport,
@@ -41,7 +52,14 @@ from .fidelity import (
     TermEntry,
     extract_slots,
 )
-from .gate import FidelityGate, GateDecision, GATE_POLICIES
+from .quality.gate import FidelityGate, GateDecision, GATE_POLICIES
+from .sources.guideline_lifecycle import (
+    GuidelineLifecycleRecord,
+    GuidelineLifecycleResolver,
+    load_lifecycle_resolver,
+)
+from .quality.mesh_linking import MeshDescriptor, MeshLexicon, MeshLinker, MeshTerm, load_linker
+from .quality.metrics import METRICS
 from .models import (
     ApplicabilityAssessment,
     ApplicabilityCriterionResult,
@@ -53,7 +71,7 @@ from .models import (
     parse_term_mapping,
 )
 from .pipeline import EvidenceRetrievalPipeline
-from .retrieval_adapters import (
+from .retrieval.retrieval_adapters import (
     DeterministicSemanticStub,
     Reranker,
     SemanticRetriever,
@@ -72,6 +90,11 @@ __all__ = [
     "SOURCE_MODES",
     "custom_source_from_dict",
     "load_custom_library",
+    "GuidelineChunkConnector",
+    "GuidelineChunkLibrary",
+    "load_guideline_chunk_library",
+    "GuidelineParsingError",
+    "GuidelineParsingSource",
     "CallableConnector",
     "ConnectorRegistry",
     "DeterministicSemanticStub",
@@ -95,6 +118,18 @@ __all__ = [
     "InMemoryHISAdapter",
     "KnowledgeConnector",
     "ClaimVerifier",
+    "CrossLingualMiniCheckVerifier",
+    "MiniCheckVerifier",
+    "build_claim_verifier",
+    "GuidelineLifecycleRecord",
+    "GuidelineLifecycleResolver",
+    "load_lifecycle_resolver",
+    "MeshDescriptor",
+    "MeshLexicon",
+    "MeshLinker",
+    "MeshTerm",
+    "load_linker",
+    "METRICS",
     "PatientFact",
     "PatientHit",
     "PatientSnapshot",

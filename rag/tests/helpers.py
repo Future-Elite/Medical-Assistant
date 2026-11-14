@@ -9,7 +9,7 @@ from __future__ import annotations
 from rag.connectors import ConnectorRegistry, InMemoryConnector, VersionedGuidelineConnector
 from rag.custom_sources import CustomSource, CustomSourceLibrary, CustomSourceConnector
 from rag.pipeline import EvidenceRetrievalPipeline
-from rag.retrieval_adapters import DeterministicSemanticStub  # noqa: F401  (re-export for tests)
+from rag.retrieval.retrieval_adapters import DeterministicSemanticStub  # noqa: F401  (re-export for tests)
 from rag.tests.fixtures import SYNTHETIC_GUIDELINES, SYNTHETIC_HIS_SNAPSHOTS, SYNTHETIC_PUBMED
 
 

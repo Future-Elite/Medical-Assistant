@@ -2,10 +2,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import re
 from typing import Any, Mapping
 
 from .audit import GroundedAnswerAuditor
-from .models import EvidencePackage, RetrievalRequest
+from .eval.qrels.applicability_resolver import ApplicabilityResolver
+from .eval.qrels.decision_triage import triage_snapshot
+from .models import EvidencePackage, QueryPlan, RetrievalRequest
 from .pipeline import EvidenceRetrievalPipeline
 
 
@@ -25,11 +28,19 @@ class EvidenceSessionStore:
 
 class EvidenceRAG:
     """Read-only tools; this class does not generate clinical decisions."""
-    def __init__(self, pipeline: EvidenceRetrievalPipeline, sessions: EvidenceSessionStore | None = None, auditor: GroundedAnswerAuditor | None = None):
+    def __init__(
+        self, pipeline: EvidenceRetrievalPipeline,
+        sessions: EvidenceSessionStore | None = None,
+        auditor: GroundedAnswerAuditor | None = None,
+        applicability_search_fn=None,
+    ):
         self.pipeline = pipeline
         self.sessions = sessions or EvidenceSessionStore()
         # 默认只做引用结构审计；语义主张校验必须由调用方显式注入 verifier。
         self.auditor = auditor or GroundedAnswerAuditor()
+        self._applicability_search_fn = applicability_search_fn
+        self._applicability_resolvers: dict[bool, ApplicabilityResolver] = {}
+        self._applicability_search_error: str | None = None
 
     def retrieve_evidence(self, arguments: Mapping[str, Any]) -> dict[str, Any]:
         package = self.pipeline.retrieve(RetrievalRequest.from_dict(arguments))
@@ -55,6 +66,112 @@ class EvidenceRAG:
         return self.auditor.audit(
             package=package, answer=str(arguments.get("answer") or ""),
             claim_records=arguments.get("claim_records"),
+        )
+
+    def resolve_applicability_workflow(self, arguments: Mapping[str, Any]) -> dict[str, Any]:
+        """Execute the applicability loop, not just return a display card.
+
+        A new resolution assesses the target, switches to a same-family local
+        guideline, requests a missing fact, or executes an external search.  A
+        caller that supplies the requested facts resumes the same resolution.
+        """
+        resolution_id = str(arguments.get("resolution_id") or "").strip()
+        self._applicability_search_error = None
+        if resolution_id:
+            supplied = arguments.get("supplied_facts") or []
+            if not isinstance(supplied, list):
+                raise ValueError("supplied_facts must be a list")
+            result = self._resume_resolver(resolution_id).resume(
+                resolution_id, supplied,
+            )
+        else:
+            snapshot = arguments.get("patient_snapshot")
+            if not isinstance(snapshot, Mapping):
+                raise ValueError("patient_snapshot must be an object")
+            question = str(arguments.get("question") or "").strip()
+            if not question:
+                raise ValueError("question must be a non-empty string")
+            result = self._resolver(bool(arguments.get("execute_external", True))).resolve(
+                question=question, snapshot=snapshot,
+                target_guideline_id=str(arguments.get("target_guideline_id") or "").strip() or None,
+                target_topic=str(arguments.get("target_topic") or "").strip() or None,
+            )
+        if self._applicability_search_error:
+            result["external_search_error"] = self._applicability_search_error
+        return result
+
+    def _resolver(self, execute_external: bool = True) -> ApplicabilityResolver:
+        key = bool(execute_external)
+        if key not in self._applicability_resolvers:
+            search_fn = (self._applicability_search_fn or self._search_external) if key else None
+            self._applicability_resolvers[key] = ApplicabilityResolver(search_fn=search_fn)
+        return self._applicability_resolvers[key]
+
+    def _resume_resolver(self, resolution_id: str) -> ApplicabilityResolver:
+        for resolver in self._applicability_resolvers.values():
+            if resolution_id in resolver.sessions:
+                return resolver
+        return self._resolver()
+
+    def _search_external(self, query: str) -> list[dict[str, Any]]:
+        """Run the generated query through the existing PubMed pipeline.
+
+        The query contains no patient identifiers or record text.  A failure is
+        recorded and returned as an empty candidate list; the resolver then
+        reports an evidence gap rather than fabricating a result.
+        """
+        source_id = next(
+            (item["source_id"] for item in self.pipeline.registry.describe()
+             if "pubmed" in item.get("kinds", ())),
+            None,
+        )
+        if source_id is None:
+            self._applicability_search_error = "no PubMed connector is registered"
+            return []
+        terms = [
+            term for term in re.findall(r'"([^"]+)"', query)
+            if term.casefold() not in {"infant, newborn", "practice guideline", "guideline"}
+        ]
+        terms = list(dict.fromkeys(terms))
+        plan = QueryPlan(
+            original_question=query,
+            variants=(query,),
+            concepts=tuple(terms),
+            source_order=(source_id,),
+            filters={"source_kinds": ("pubmed",)},
+            rationale=("applicability resolver external search",),
+            query_language="en",
+            english_terms=tuple(terms),
+            mesh_terms=("Infant, Newborn",),
+        )
+        connector = self.pipeline.registry.selected([source_id])[0]
+        try:
+            result = connector.search(plan, limit=5)
+        except Exception as exc:  # network/source failure is reported, not hidden
+            self._applicability_search_error = f"{type(exc).__name__}: {str(exc)[:240]}"
+            return []
+        self._applicability_search_error = None
+        rows = []
+        for document in result.documents:
+            rows.append({
+                "title": document.title,
+                "abstract": document.text[:1200],
+                "pmid": document.pmid,
+                "doi": document.doi,
+                "source": document.source_id,
+            })
+        return rows
+
+    @staticmethod
+    def resolve_guideline_applicability(arguments: Mapping[str, Any]) -> dict[str, Any]:
+        snapshot = arguments.get("patient_snapshot")
+        if not isinstance(snapshot, Mapping):
+            raise ValueError("patient_snapshot must be an object")
+        return triage_snapshot(
+            snapshot,
+            target_guideline_id=str(arguments.get("target_guideline_id") or "").strip() or None,
+            target_topic=str(arguments.get("target_topic") or "").strip() or None,
+            case_type=str(arguments.get("case_type") or "").strip() or None,
         )
 
     @staticmethod
@@ -99,5 +216,43 @@ class EvidenceRAG:
                 },
             },
             {"name": "open_citation", "description": "打开本次检索（同一 retrieval_id）中的版本化引文和原文定位；citation_id 必须属于该 retrieval_id。", "parameters": {"type": "object", "required": ["retrieval_id", "citation_id"], "properties": {"retrieval_id": {"type": "string", "description": "检索作用域 ID，来自 retrieve_evidence 结果。"}, "citation_id": {"type": "string", "description": "引用 ID（<retrieval_id>:cit-N）；跨检索使用会被拒绝。"}}}},
-            {"name": "audit_grounded_answer", "description": "以本次检索证据审计回答主张与引用（claim 级）；不生成诊疗结论，默认只做引用结构检查，语义支持标记 not_checked。", "parameters": {"type": "object", "required": ["retrieval_id", "answer"], "properties": {"retrieval_id": {"type": "string"}, "answer": {"type": "string", "description": "待审计回答；用 [citation_id] 标注引用，只能引用同一 retrieval_id 的 citation_id。"}}}},
+            {"name": "audit_grounded_answer", "description": "以本次检索证据审计回答主张与引用（claim 级）；不生成诊疗结论。默认只做引用结构检查，语义支持标记 not_checked；服务配置 MiniCheck 后做主张级语义校验，中文主张先经 zh→en 机器翻译并逐条留痕。", "parameters": {"type": "object", "required": ["retrieval_id", "answer"], "properties": {"retrieval_id": {"type": "string"}, "answer": {"type": "string", "description": "待审计回答；用 [citation_id] 标注引用，只能引用同一 retrieval_id 的 citation_id。"}}}},
+            {
+                "name": "resolve_guideline_applicability",
+                "description": (
+                    "只读：给定 Agent 从 HIS 读取的患者快照和目标指南/主题，返回 target_priorities（会改变目标指南的缺失事实）、"
+                    "other_priorities（只改变其他指南）、target_stop/stop_reason/next_step。规则模拟，不生成诊断/治疗建议；不连接 HIS。"
+                ),
+                "parameters": {
+                    "type": "object",
+                    "required": ["patient_snapshot"],
+                    "properties": {
+                        "patient_snapshot": {"type": "object", "description": "Agent 传入的结构化快照；不得含真实标识或未授权自由文本病史。"},
+                        "target_guideline_id": {"type": "string", "description": "目标指南 document_id；与 target_topic 二选一。"},
+                        "target_topic": {"type": "string", "description": "本地语料没有的主题（标准名，如 hyperbilirubinemia）；提供时返回主题缺口卡；拼写错误也会得到缺口卡，调用方应使用标准主题名。"},
+                        "case_type": {"type": "string", "enum": ["A", "B", "C", "D"], "description": "可选；不填按目标状态推断。"},
+                    },
+                },
+            },
+            {
+                "name": "resolve_applicability_workflow",
+                "description": (
+                    "可执行适用性解析（只读）：不是静态卡片。新解析会核对目标指南；必要时切换到同族本地指南、"
+                    "要求补关键事实、执行 PubMed 外部检索、或在需要查表/曲线时停下。返回 outcome="
+                    "resolved/needs_information/needs_table_lookup/external_evidence/scope_mismatch/evidence_gap，"
+                    "以及 rounds[] 动作记录。用 resolution_id + supplied_facts 续跑同一解析；不生成诊断/治疗建议。"
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "patient_snapshot": {"type": "object", "description": "新解析必填；Agent 从只读 HIS 获取的结构化快照。"},
+                        "question": {"type": "string", "description": "新解析必填；中文原始问题。"},
+                        "target_guideline_id": {"type": "string", "description": "目标指南 document_id；与 target_topic 二选一。"},
+                        "target_topic": {"type": "string", "description": "本地语料没有的主题（如 hyperbilirubinemia）。"},
+                        "resolution_id": {"type": "string", "description": "续跑时传上次返回的 resolution_id。"},
+                        "supplied_facts": {"type": "array", "items": {"type": "object"}, "description": "续跑时补的事实：[{field,value}]；field 如 derived_birth.ga_days。"},
+                        "execute_external": {"type": "boolean", "description": "新解析是否执行外部 PubMed 检索；默认 true。失败会返回 external_search_error，不伪造证据。"},
+                    },
+                },
+            },
         ]

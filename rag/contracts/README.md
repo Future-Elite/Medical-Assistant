@@ -26,7 +26,7 @@ RAG
 
 RAG 不应该拥有一个可以自行读取真实 HIS 的隐式连接器。Agent 先读取 HIS，再显式传入快照，便于权限、审计和测试。
 
-v6.6.5 的 live 指南注册表**只含新生儿指南元数据**（肺炎 2025、RDS 2025 更新版、RDS 中文解读）；成人指南不再注册。live 模式还注册 `guideline-fulltext-live`：检索时实时查询 Europe PMC，仅对 `isOpenAccess=Y` 的记录抓取 JATS 全文并按章节分块；非 OA 记录只返回书目/摘要与链接（`full_text_allowed=false`）。全文不落盘、不缓存、不再分发，调用方负责在复用前核对 `license`。
+v6.6.5 的 live 指南注册表**只含新生儿指南元数据**（肺炎 2025、RDS 2025 更新版、RDS 中文解读）；成人指南不再注册。live 模式还注册 `guideline-fulltext-live`：检索时实时查询 Europe PMC，对 Europe PMC 有 PMCID 的记录抓取 JATS 全文并按章节分块；`isOpenAccess`/`license`/`rights_basis` 只记录供审计、不作检索闸门，无 PMCID 的记录只返回书目/摘要与链接（`full_text_allowed=false`）。全文不落盘、不缓存、不再分发，调用方负责在复用前核对 `license`。
 
 ## 2. 推荐调用顺序
 
@@ -68,15 +68,16 @@ Content-Type: application/json
 - 结构化字段（含 `subject_role` 与 `data_status`）；
 - `suppressed_future` 和 warnings。
 
-**新生儿年龄字段约定**（详见 `../demo/README.md` §2.1）：
+**新生儿年龄字段约定**（当前演示数据详见 `../../data/README.md`）：
 
 | 字段 | 含义 | 约束 |
 |---|---|---|
-| `ga_days` | 出生胎龄总天数 | 不得由出生体重反推 |
-| `ga_text` | 原始“周+天”文本 | 与 `ga_days` 同时保留 |
-| `pna_hours` | 生后小时数 | 急性呼吸场景至少到小时 |
-| PMA | `ga_days + floor(pna_hours/24)` | 由 Agent 派生并标注；RAG 不推导 |
+| `gestationalWeeks` / `gestationalDays` | HIS 出院病案的胎龄字段 | 不从出生体重反推；`gestationalDaysTotal` 是 RAG 侧派生扩展 |
+| `reportedAge` / `reportedAgeDays` | HIS 原文年龄 / 天粒度 | 小时粒度时 `reportedAgeDays` 留空 |
+| PMA | `gestationalDaysTotal + floor(pna_hours/24)` | 由 Agent 派生并标注；RAG 不推导 |
 | 矫正年龄 | 随访场景 | 不与 PMA 混用 |
+
+内置演示数据现在使用 HIS 事件集（`patient` / `admission` / `diagnosis` / `neonatal_record` / `neonatal_summary` / `neonatal_diagnosis` / `vital_sign` / `lab_test` / `order`），见 [`../../data/README.md`](../../data/README.md)；上面的 `birth` / `respiratory_support` 示例只说明任意调用方快照的形状。
 
 **数据状态词表**：`observed_positive` / `observed_negative` / `not_recorded` / `pending` / `unavailable` / `hypothesis`。
 `pending`（培养待回报）与 `not_recorded`（未记载）不得转译成阴性。母体事实用 `fields.subject_role="mother"`，患儿事实为 `"patient"`。
@@ -323,15 +324,15 @@ registry, warnings = library.build_registry()                        # 转成检
 
 **存储边界**：自定义库只在内存中，进程重启即清空；服务不把它写入磁盘、不缓存全文。调用方负责其内容的许可与合规。
 
-### 8.2 新生儿演示档案（`rag/demo/`，不是第三种模式）
+### 8.2 新生儿演示档案（`data/`，不是第三种模式）
 
 ```text
-GET  /api/demo/cases               读取 9 例合成病例（snapshot + preset）
+GET  /api/demo/cases               读取 50 例 EHR/HIS 对齐病例（snapshot + preset）
 GET  /api/demo/guidelines          查看三个演示来源（元数据/合成指南/合成文献）及是否已注册
 POST /api/demo/guidelines/load     显式登记演示指南库（写入 custom 库）
 ```
 
-演示库 schema、合成标记、年龄字段与修改规则见 [`../demo/README.md`](../demo/README.md)。未显式加载时 `source_mode=custom` 检索会报“no custom sources registered”。
+演示库 schema、合成标记、年龄字段与修改规则见 [`../../data/README.md`](../../data/README.md)。病例 `snapshot` 是 HIS API fixture（legacy timeline + neonatal 出院病案）经 Agent 侧映射得到的事件集；未显式加载时 `source_mode=custom` 检索会报“no custom sources registered”。
 
 ## 9. 分源联合检索与检索式自检
 
@@ -388,22 +389,18 @@ POST /api/demo/guidelines/load     显式登记演示指南库（写入 custom �
 
 检索结果中的每条候选必须至少被一个检索信号命中（词面 BM25 分数 > 0 或语义分数 > 0），否则不会仅因"来源里有该条目"而获得 RRF/权威性/新鲜度分数。无关候选被排除时会写入 warnings（“已排除 N 条与查询无检索相关度……”）。
 
-工作台的演示病例来自 `rag/demo/neonatal_cases.json`（9 例，下拉框“合成病例”），选择后自动填充节点 01–05 的全部 `RetrievalRequest` 字段：
+工作台的演示病例来自 `data/neonatal_cases.json`（50 例，25 肺炎 + 25 RDS；下拉框“合成病例”）。每例的 `snapshot` 是 HIS API fixture 经 `contracts/agent_his_adapter.py` 映射出的 HIS 事件集（`patient` / `admission` / `diagnosis` / `neonatal_record` / `neonatal_summary` / `neonatal_diagnosis` / `vital_sign` / `lab_test` / `order`），HIS 事实保持 API 原样；另附两条独立 `derived_birth` / `derived_respiratory_support` 事实（`source_type=derived_from_ehr_input`）供适用性核对，不修改 HIS 事实。`as_of` 之前的步骤可见，出院病案与后续步骤被抑制。选择后自动填充节点 01–05 的全部 `RetrievalRequest` 字段。示例：
 
-1. **neo-rds**：30周+2天、生后6小时、CPAP FiO₂ 0.30；`as_of=2026-03-10`（RDS 2025 已发表）。
-2. **neo-rds-retro**：同结构、`as_of=2026-02-25`（早于 2026-03-09 发表）→ 未来文献被排除。
-3. **neo-pneumonia**：生后36小时发热 38.9℃、CRP 升高、血培养 pending。
-4. **neo-ttn**：生后8小时呼吸增快、胸片叶间裂积液。
-5. **neo-jaundice**：生后72小时总胆红素 285 μmol/L。
-6. **neo-pphn**：胎粪吸入、导管前后 SpO₂ 差、iNO。
-7. **neo-bpd**：28周、经后年龄36周仍需 CPAP。
-8. **neo-hypoglycemia**：胎龄 not_recorded、出生体重 2100 g、血糖 2.1 mmol/L。
-9. **neo-gbs**：母体 GBS 阳性、胎膜早破20小时、新生儿无症状。
+1. `neo-ehr-001-pneumonia`：35周+6天、生后21小时、CPAP FiO₂ 0.25、CRP 24 mg/L、血培养 pending。
+2. `neo-ehr-002-rds`：32周、生后61小时、NIPPV FiO₂ 0.50、pH 7.17、PaCO₂ 70 mmHg；`as_of=2026-01-16`（早于 RDS 2025 发表）→ 未来文献被排除。
+3. `neo-ehr-010-rds`：`as_of=2026-03-12`（晚于 2026-03-09）→ RDS 2025 元数据可见。
+
+其余病例见 `data/case_index.csv`。当前档案不再包含 TTN/黄疸/PPHN/BPD/低血糖/GBS 主题；旧 9 例精选与 30 例 HIS 风格档案保留在 `rag/demo/archive_2026-11-05/`，仅作追溯。
 
 注：纯数字查询 token（如“2月龄”的“2”、“2026年”的“2026”）不参与词面匹配，避免误串年份或序号；时间语境由 `as_of` 与过滤器表达。演示病例的 `term_mapping`（或兼容 `english_terms`）必须人工审核后写入 `preset`，GUI 不自动翻译。
 
 **问题参与检索（中英文规则）：**
 - 问题中的英文词（≥2 字符、含字母、过滤常见功能词与纯数值）自动加入英文检索词，记录在 `trace.query_plan.question_english_terms`，并随 `trace.external_terms` 发往实时 PubMed；
-- 问题中的中文片段通过 CJK 二元组参与匹配（可直接命中中文来源），分词与 `patient_retrieval`/`evidence` 一致；
+- 问题中的中文片段通过 CJK 二元组参与匹配（可直接命中中文来源），分词与 `retrieval/patient_retrieval`/`retrieval/evidence` 一致；
 - 中文概念展开为英文仅使用调用方审核的 `term_mapping`（或兼容 `user_terms`）映射，不自动翻译；未命中映射的中文概念不会生成英文查询词；
 - 实时 PubMed 在没有任何英文词时，优先退回概念中的 ASCII 词，其次才是中文片段。

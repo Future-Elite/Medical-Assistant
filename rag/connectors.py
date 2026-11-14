@@ -33,6 +33,12 @@ class ConnectorRegistry:
             raise ValueError(f"duplicate connector: {source_id}")
         self._connectors[source_id] = connector
 
+    def extend(self, other: "ConnectorRegistry") -> None:
+        """Register every connector of another registry, preserving warnings."""
+        for connector in other._connectors.values():
+            self.register(connector)
+        self.warnings = (*self.warnings, *other.warnings)
+
     def selected(self, source_order: Sequence[str]) -> list[KnowledgeConnector]:
         ordered: list[KnowledgeConnector] = []
         seen: set[str] = set()

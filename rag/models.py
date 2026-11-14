@@ -67,7 +67,7 @@ class RetrievalRequest:
     patient_terms: tuple[str, ...] = ()
     source_kinds: tuple[str, ...] = ()
     filters: Mapping[str, Any] = field(default_factory=dict)
-    top_k: int = 8
+    top_k: int = 50
     user_terms: Mapping[str, Sequence[str]] = field(default_factory=dict)
     query_language: str = "zh"
     clinical_intent: str | None = None
@@ -131,7 +131,7 @@ class RetrievalRequest:
         question = str(raw.get("question", "")).strip()
         if not question:
             raise ValueError("question must be a non-empty string")
-        top_k = int(raw.get("top_k", 8))
+        top_k = int(raw.get("top_k", 50))
         if not 1 <= top_k <= 50:
             raise ValueError("top_k must be between 1 and 50")
         facets = {
@@ -224,6 +224,11 @@ class SourceDocument:
             return "doi:" + self.doi.lower().strip()
         if self.pmid:
             return "pmid:" + self.pmid.strip()
+        # 分块级指南来源（metadata.chunk_id）以 chunk 为可引用单位：同一指南的
+        # 多个 chunk 共享标题，但不得在跨来源去重时被折叠成一个文档。
+        chunk_id = str(self.metadata.get("chunk_id") or "").strip()
+        if chunk_id:
+            return "chunk:" + chunk_id
         normal = " ".join(self.title.lower().split())
         return f"title:{normal}|{self.kind}"
 
@@ -285,6 +290,10 @@ class RankedDocument:
     evidence_status: EvidenceStatus
     matched_queries: tuple[str, ...]
     rank_explanation: tuple[str, ...]
+    # 分数计算的可审计中间量（v6.7.1 GUI 展示用；不改变 score 计算）
+    lexical_norm_score: float | None = None
+    fusion_norm_score: float | None = None
+    base_score: float | None = None
     retriever_id: str | None = None
     retriever_rank: int | None = None
     retriever_score: float | None = None

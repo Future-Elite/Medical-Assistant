@@ -1,0 +1,148 @@
+/* ---------- 设计令牌：临床证据控制台（冷色、无衬线） ----------
+   变量名沿用 forest/cinnabar 等历史命名，实际值已切换为海军蓝/青蓝体系，
+   避免大面积改动组件引用。 */
+:root {
+  color-scheme: light;
+
+  --font-display: "IBM Plex Sans", "Noto Sans CJK SC", "Source Han Sans SC",
+    "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+  --font-sans: "IBM Plex Sans", "Noto Sans CJK SC", "Source Han Sans SC",
+    "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+  --font-mono: "IBM Plex Mono", "JetBrains Mono", "SFMono-Regular", "Cascadia Code",
+    Consolas, monospace;
+
+  /* 冷灰底 + 白色工作区 */
+  --paper: #edf1f5;
+  --sheet: #ffffff;
+  --sheet-2: #f5f8fa;
+  --ink: #10212f;
+  --ink-2: #33475b;
+  --muted: #64788a;
+  --faint: #93a4b3;
+
+  --rule: #dbe3ea;
+  --rule-strong: #c3d0da;
+  --rule-ink: #16324a;
+
+  /* 主色：深青蓝 */
+  --forest: #0b4f6c;
+  --forest-2: #0e6b8f;
+  --forest-soft: #e6f1f6;
+  --forest-wash: #f0f7fa;
+  --on-forest: #ffffff;
+
+  /* 风险：红 */
+  --cinnabar: #b42318;
+  --cinnabar-soft: #fdecea;
+
+  /* 警告：琥珀 */
+  --ochre: #9a6700;
+  --ochre-soft: #fdf6e3;
+
+  /* 信息：青 */
+  --slate: #0e7490;
+  --slate-soft: #e6f4f8;
+
+  --focus: #0e7490;
+  --shadow-soft: 0 1px 2px rgba(16, 33, 47, 0.06);
+  --shadow-panel: 0 1px 3px rgba(16, 33, 47, 0.07);
+
+  --topbar-h: 60px;
+  --rail-w: 216px;
+  --runlog-h: 44px;
+  --runlog-open: 310px;
+  --sheet-max: 1180px;
+
+  --topbar-bg: #0f2a3f;
+  --topbar-ink: #e8f1f7;
+  --topbar-muted: #9fb6c7;
+  --topbar-line: rgba(255, 255, 255, 0.14);
+  --topbar-accent: #6cc6e2;
+
+  --radius-sm: 4px;
+  --radius: 6px;
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: #0a131a;
+  --sheet: #111d27;
+  --sheet-2: #0e1922;
+  --ink: #e6eef5;
+  --ink-2: #c0d0dc;
+  --muted: #8fa3b3;
+  --faint: #6b7f8f;
+  --rule: #22323f;
+  --rule-strong: #334757;
+  --rule-ink: #6b8ba3;
+  --forest: #4db3d4;
+  --forest-2: #6cc6e2;
+  --forest-soft: #12303d;
+  --forest-wash: #0f2530;
+  --on-forest: #04141c;
+  --cinnabar: #e58a80;
+  --cinnabar-soft: #2f1a17;
+  --ochre: #d9b06a;
+  --ochre-soft: #2a2113;
+  --slate: #6cc6e2;
+  --slate-soft: #0f2a33;
+  --focus: #4db3d4;
+  --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-panel: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --topbar-bg: #08121a;
+  --topbar-ink: #e6eef5;
+  --topbar-muted: #8fa3b3;
+  --topbar-line: rgba(255, 255, 255, 0.1);
+  --topbar-accent: #6cc6e2;
+}
+
+html[data-theme="warm"] {
+  color-scheme: light;
+  --paper: #f2f1ec;
+  --sheet: #fffefa;
+  --sheet-2: #f7f5ef;
+  --ink: #221f19;
+  --ink-2: #484138;
+  --muted: #746b5d;
+  --faint: #9a9184;
+  --rule: #e2ded3;
+  --rule-strong: #cdc7b8;
+  --rule-ink: #3b352b;
+  --forest: #4a5a2f;
+  --forest-2: #5f723d;
+  --forest-soft: #edf1e2;
+  --forest-wash: #f5f7ee;
+  --on-forest: #fffefa;
+  --cinnabar: #9c3b2a;
+  --cinnabar-soft: #f7e9e4;
+  --ochre: #8a5a1c;
+  --ochre-soft: #f5ebd8;
+  --slate: #4f5f60;
+  --slate-soft: #e9edeb;
+}
+
+html[data-theme="indigo"] {
+  color-scheme: light;
+  --paper: #eef0f7;
+  --sheet: #ffffff;
+  --sheet-2: #f5f6fb;
+  --ink: #171d33;
+  --ink-2: #38405c;
+  --muted: #626b8a;
+  --faint: #9098b3;
+  --rule: #dde1ef;
+  --rule-strong: #c5cbe0;
+  --rule-ink: #2a3150;
+  --forest: #3f3fa0;
+  --forest-2: #5353bd;
+  --forest-soft: #eaeaf9;
+  --forest-wash: #f3f3fc;
+  --on-forest: #ffffff;
+  --cinnabar: #9c3b3b;
+  --cinnabar-soft: #f5e7e7;
+  --ochre: #8a5a1c;
+  --ochre-soft: #f4e9d4;
+  --slate: #365a6b;
+  --slate-soft: #e7eef2;
+}
