@@ -15,6 +15,9 @@ from rag.retrieval.query import build_query_plan, mapping_active, primary_mappin
 from rag.quality.term_mapping_library import TermMappingLibrary
 from rag.tests.helpers import fixture_registry
 
+TOOLS = Path(__file__).resolve().parents[3] / "tools"
+_HAS_TOOLS = (TOOLS / "build_term_mapping_library.py").is_file()
+
 SOURCES = [{"source_id": "pubmed-fixture", "kinds": ["pubmed"]}, {"source_id": "guideline-fixture", "kinds": ["guideline"]}]
 
 NEONATAL_ROW = {
@@ -164,6 +167,7 @@ class PipelineTraceTests(unittest.TestCase):
         self.assertIn("Neonatal Respiratory Distress Syndrome", package.trace["external_terms"])
 
 
+@unittest.skipUnless(_HAS_TOOLS, "tools/ is not shipped with the release checkout")
 class BuilderExtractionTests(unittest.TestCase):
     def test_collect_from_rows_splits_combos_and_extracts_aliases(self):
         import importlib.util
@@ -197,6 +201,7 @@ class BuilderExtractionTests(unittest.TestCase):
         self.assertEqual(stats["rows"], 5)
 
 
+@unittest.skipUnless(_HAS_TOOLS, "tools/ is not shipped with the release checkout")
 class LexiconMergeTests(unittest.TestCase):
     """词典扩展源：补别名/候选词、收表外概念；产出一律 needs_review。"""
 
@@ -305,6 +310,7 @@ class ConfigDefaultTests(unittest.TestCase):
         self.assertEqual(RAGConfig().term_mapping_library_path, "")
 
 
+@unittest.skipUnless(_HAS_TOOLS, "tools/ is not shipped with the release checkout")
 class MeshEnrichmentTests(unittest.TestCase):
     """MeSH 富化：接真实词库锚定（测试注入假 fetch，不联网）。"""
 

@@ -23,6 +23,7 @@ from rag.models import RetrievalRequest
 from rag.pipeline import EvidenceRetrievalPipeline
 
 DATA_DIR = Path(__file__).resolve().parents[3] / "data"
+_HAS_DATA = DATA_DIR.is_dir()
 HIS_COLLECTIONS = {
     "patient", "visit", "admission", "diagnosis", "neonatal_record",
     "neonatal_summary", "neonatal_diagnosis", "vital_sign", "lab_test", "order",
@@ -34,6 +35,7 @@ def _rds_cases() -> list[dict]:
     return [case for case in load_demo_cases()["cases"] if case["case_id"].endswith("-rds")]
 
 
+@unittest.skipUnless(_HAS_DATA, "data/ is not shipped with the release checkout")
 class DemoCaseTests(unittest.TestCase):
     def test_profile_is_synthetic_and_has_50_his_aligned_cases(self):
         payload = load_demo_cases()
@@ -150,6 +152,7 @@ class DemoCaseTests(unittest.TestCase):
         self.assertEqual(len(payload["cases"]), 50)
 
 
+@unittest.skipUnless(_HAS_DATA, "data/ is not shipped with the release checkout")
 class DemoGuidelineTests(unittest.TestCase):
     def test_three_libraries_with_clear_synthetic_flags(self):
         rows = {row["source_id"]: row for row in guideline_summary(load_demo_guidelines())}

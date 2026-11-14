@@ -20,6 +20,7 @@ from rag.his import filter_snapshot, snapshot_from_dict
 from rag.models import SourceDocument
 
 DATA = Path(__file__).resolve().parents[3] / "data"
+_HAS_DATA = DATA.is_dir()
 IDENTIFIERS = {"name", "idCard", "phone", "address", "patientId"}
 RANGE_FIELDS = {"ORDER": ("startTime", "stopTime"), "ADMISSION": ("admissionTime", "dischargeTime")}
 DERIVED_COLLECTIONS = {"derived_birth", "derived_respiratory_support"}
@@ -71,6 +72,7 @@ def _expected_facts(patient: dict, timeline: dict, admission: dict) -> list[dict
     return facts
 
 
+@unittest.skipUnless(_HAS_DATA, "data/ is not shipped with the release checkout")
 class EhrHisDemoTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
