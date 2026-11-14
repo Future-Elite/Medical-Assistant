@@ -14,12 +14,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Iterable, Mapping, Sequence
 
-GUIDELINE_IDS = (
-    "pdf-neo-feeding-vlbw-2015",
-    "pdf-neo-human-milk-fortification-2019",
-    "pdf-neo-parenteral-nutrition-2012",
-    "pdf-neo-pocus-espnic-2020",
-)
 STATUSES = ("possible_match", "mismatch", "unknown")
 
 STRUCTURED_FEATURES = (
@@ -104,7 +98,8 @@ def train_and_evaluate(
     vectorizer.fit(list(dict.fromkeys(sample.text for sample in train_samples)))
     scaler = StandardScaler()
     scaler.fit([list(sample.structured) for sample in train_samples])
-    encoder = OneHotEncoder(categories=[list(GUIDELINE_IDS)], sparse_output=False, handle_unknown="ignore")
+    guideline_ids = tuple(sorted({sample.guideline_id for sample in train_samples}))
+    encoder = OneHotEncoder(categories=[list(guideline_ids)], sparse_output=False, handle_unknown="ignore")
     encoder.fit([[sample.guideline_id] for sample in train_samples])
     label_encoder = LabelEncoder()
     label_encoder.fit(list(STATUSES))
@@ -149,7 +144,7 @@ def train_and_evaluate(
         accuracy_score=accuracy_score, f1_score=f1_score,
     )
     per_guideline = {}
-    for guideline_id in GUIDELINE_IDS:
+    for guideline_id in guideline_ids:
         mask = np.array([sample.guideline_id == guideline_id for sample in test_samples])
         if mask.any():
             per_guideline[guideline_id] = _metrics(
