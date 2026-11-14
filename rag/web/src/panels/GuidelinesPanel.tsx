@@ -44,7 +44,6 @@ export function GuidelinesPanel() {
   const [nonce] = useState(() => Date.now());
   const [resumeValues, setResumeValues] = useState<Record<string, string>>({});
   const [executeExternal, setExecuteExternal] = useState(false);
-  const [includeIndustrialGraph, setIncludeIndustrialGraph] = useState(false);
 
   const grouped = useMemo(() => {
     const map = new Map<string, Dict[]>();
@@ -465,15 +464,7 @@ export function GuidelinesPanel() {
                 />
                 执行外部检索
               </label>
-              <label className="check" style={{ height: 30 }}>
-                <input
-                  type="checkbox"
-                  checked={includeIndustrialGraph}
-                  onChange={(event) => setIncludeIndustrialGraph(event.target.checked)}
-                />
-                工业级图试点
-              </label>
-              <button type="button" className="btn btn-sm btn-primary" onClick={() => runApplicabilityWorkflow(executeExternal, includeIndustrialGraph)}>
+              <button type="button" className="btn btn-sm btn-primary" onClick={() => runApplicabilityWorkflow(executeExternal)}>
                 运行解析
               </button>
             </div>
@@ -609,56 +600,6 @@ export function GuidelinesPanel() {
                           <div key={guidelineId}>
                             {guidelineId}：{(item as Dict).status || "not_checked"}
                             {(item as Dict).pmid ? ` · PMID ${(item as Dict).pmid}` : ""}
-                          </div>
-                        ))}
-                      </div>
-                    ) : null}
-                  </div>
-                ) : null}
-                {applicabilityWorkflowResult.industrial_graph
-                  && !["error", "not_configured"].includes(applicabilityWorkflowResult.industrial_graph.status) ? (
-                  <div className="review-finding">
-                    <div>
-                      <b>工业级图试点</b>{" "}
-                      <Badge tone="warn">
-                        {applicabilityWorkflowResult.industrial_graph.summary
-                          ? Object.entries(applicabilityWorkflowResult.industrial_graph.summary as Dict)
-                              .map(([status, count]) => `${status}=${count}`)
-                              .join(" · ")
-                          : "未评估"}
-                      </Badge>
-                    </div>
-                    <div className="hint">
-                      范围：{applicabilityWorkflowResult.industrial_graph.scope?.status || "unknown"}
-                      {" · "}检索：{applicabilityWorkflowResult.industrial_graph.retrieval?.ranker || "—"}
-                      {" · "}模型判断：{applicabilityWorkflowResult.industrial_graph.recommendations?.[0]?.audit?.model_judgment || "not_configured"}
-                    </div>
-                    {(applicabilityWorkflowResult.industrial_graph.recommendations || []).map((item: Dict) => (
-                      <div key={item.recommendation_id} className="hint">
-                        <b>{item.recommendation_id}</b> · {item.status} · 证据 {item.evidence_level}
-                        {item.missing_facts?.length ? ` · 缺 ${item.missing_facts.join("、")}` : ""}
-                        {(item.exceptions || []).filter((exc: Dict) => exc.status !== "not_found").length
-                          ? ` · 例外 ${(item.exceptions || [])
-                              .filter((exc: Dict) => exc.status !== "not_found")
-                              .map((exc: Dict) => `${exc.exception_id}=${exc.status}`)
-                              .join("、")}`
-                          : ""}
-                        <div>{String(item.statement || "").slice(0, 120)}…</div>
-                        <div>定位：{(item.audit?.source_locators || []).join("、") || "无"}</div>
-                      </div>
-                    ))}
-                    {applicabilityWorkflowResult.industrial_graph.claim_adjudication ? (
-                      <div className="hint">
-                        <b>主张级裁定</b>：
-                        {Object.entries(applicabilityWorkflowResult.industrial_graph.claim_adjudication.summary as Dict)
-                          .map(([verdict, count]) => `${verdict}=${count}`)
-                          .join(" · ")}
-                        {(applicabilityWorkflowResult.industrial_graph.claim_adjudication.claims || []).slice(0, 4).map((claim: Dict) => (
-                          <div key={claim.claim_id}>
-                            {claim.recommendation_id}：{claim.verdict} · 证书 {claim.counterfactual_certificate?.status || "—"}
-                            {claim.counterfactual_certificate?.minimal_changes?.length
-                              ? ` · 最小改动 ${claim.counterfactual_certificate.minimal_changes[0].field}=${claim.counterfactual_certificate.minimal_changes[0].value}`
-                              : ""}
                           </div>
                         ))}
                       </div>

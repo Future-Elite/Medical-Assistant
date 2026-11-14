@@ -18,7 +18,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
-from .families import FAMILIES
+from .families import family_index
 
 _CHUNK_DIR = Path(__file__).resolve().parents[3] / "data" / "guideline_parsing"
 
@@ -28,13 +28,15 @@ _POPULATION_TERMS = {
     "resp": ("respiratory support", "CPAP", "mechanical ventilation", "呼吸支持", "机械通气"),
 }
 
-_GUIDELINE_QUERY_TERMS = {
-    "pdf-neo-feeding-vlbw-2015": "very low birth weight feeding",
-    "pdf-neo-human-milk-fortification-2019": "human milk fortification",
-    "pdf-neo-parenteral-nutrition-2012": "parenteral nutrition",
-    "pdf-neo-pocus-espnic-2020": "point-of-care ultrasound",
-    "pdf-aap-hyperbilirubinemia-2022": "neonatal hyperbilirubinemia",
-}
+def _search_term_map(fixture: Mapping[str, Any]) -> dict[str, str]:
+    """Guideline -> English query phrase, derived from declared ``search_terms``."""
+    out: dict[str, str] = {}
+    for item in fixture.get("guidelines", []):
+        document_id = str(item.get("document_id") or "")
+        terms = [str(term) for term in (item.get("search_terms") or ()) if str(term).strip()]
+        if document_id and terms:
+            out[document_id] = terms[0]
+    return out
 
 
 def build_followup(
@@ -50,9 +52,10 @@ def build_followup(
               for item in fixture.get("guidelines", [])}
     coverage = _coverage_guidelines(gold, titles, target_guideline_id)
     qualifiers = _population_qualifiers(derived, titles, target_topic=target_topic)
-    families = _status_families(gold, titles)
+    families = _status_families(gold, titles, family_index(fixture.get("guidelines", [])))
     external = _external_query(
         derived, target_guideline_id, target_topic, titles,
+        search_terms=_search_term_map(fixture),
         has_local_coverage=bool(coverage),
     )
     return {
@@ -141,11 +144,14 @@ def _population_qualifiers(
 
 
 def _status_families(
-    gold: Mapping[str, Any], titles: Mapping[str, str],
+    gold: Mapping[str, Any], titles: Mapping[str, str], index: Mapping[str, str],
 ) -> list[dict[str, Any]]:
     status_by_id = {item["guideline_id"]: item["status"] for item in gold.get("guidelines", [])}
+    grouped: dict[str, list[str]] = {}
+    for guideline_id, family in index.items():
+        grouped.setdefault(family, []).append(guideline_id)
     out = []
-    for family, ids in FAMILIES.items():
+    for family, ids in grouped.items():
         members = [
             {
                 "guideline_id": guideline_id,
@@ -167,7 +173,8 @@ def _status_families(
 
 def _external_query(
     derived: Mapping[str, Any], target_id: str | None, target_topic: str | None,
-    titles: Mapping[str, str], *, has_local_coverage: bool = False,
+    titles: Mapping[str, str], *, search_terms: Mapping[str, str] | None = None,
+    has_local_coverage: bool = False,
 ) -> dict[str, Any] | None:
     if has_local_coverage and not target_topic:
         return None
@@ -187,7 +194,7 @@ def _external_query(
         return None
     title = titles.get(target_id, target_id)
     population = _population_label(derived)
-    english = _GUIDELINE_QUERY_TERMS.get(target_id, title)
+    english = (search_terms or {}).get(target_id, title)
     return {
         "executed": False,
         "reason": "offline evaluation; send to the existing PubMed connector if needed",

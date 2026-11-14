@@ -25,7 +25,6 @@ HIS（只读快照） → Agent（编排与工具调用） → RAG（检索、�
 - 查询保真审计与分级门控（研究特性，默认关闭）。
 - 规则派生数据集与评测底座：出院小结 → HIS 形快照 → 事实 qrels、反事实对、rubric 与检索基线（研究特性）。
 - 指南适用性工作流：同族换指南、补事实续跑、注入式外部检索、结构化 `scope_mismatch`（研究特性）。
-- 单份指南工业级图试点：主张级裁定与最小反事实证书（研究特性，不是临床验证）。
 - 逐轮检索控制器（研究层，默认不改变标准检索）。
 - 只读 HTTP 服务与 React 工作台。
 
@@ -72,15 +71,15 @@ npm run build
 │   ├── web/                     # React + Vite 工作台（src/ 源码，dist/ 构建产物）
 │   ├── demo/                    # 最小演示数据（50 例合成病例、5 例链路演示与指南元数据）
 │   ├── contracts/               # 机器可读契约与示例
-│   ├── validation/              # 兼容性、路由、控制器、MeSH、生命周期与 v6.7.2 数据集验证工件
 │   ├── tests/                   # 按 retrieval / sources / quality / core / gui 分目录
 │   └── requirements.txt
 ├── guideline_parsing/           # 本地指南解析器（与 rag/ 并列）
-├── tools/                       # 构建、审计与评测脚本
-└── data/                        # 仓库级运行数据（不进入版本控制）
+└── data/                        # 本地运行数据与评测工件（不进入版本控制）
 ```
 
 `data/` 不进入版本控制。运行时优先读取 `data/`；缺失时自动回退到 `rag/demo/` 的最小演示数据。指南解析数据通过 `RAG_GUIDELINE_DATA` 指向外部目录。
+
+构建、审计与评测脚本（`tools/`）属于内部研发工具，不随发布分支分发；需要复现评测时从研发树获取。
 
 ## 5. 版本
 
@@ -111,7 +110,7 @@ npm run build
 | `POST` | `/api/demo/guidelines/load` | 显式注册演示指南库 |
 | `POST` | `/api/his/snapshot` | 回显并按 `as_of` 过滤调用方快照 |
 | `POST` | `/api/retrieve` | 联合检索证据 |
-| `POST` | `/api/applicability` | 指南适用性工作流（并列检索与工业级图试点） |
+| `POST` | `/api/applicability` | 指南适用性工作流（并列检索与生命周期信号） |
 | `POST` | `/api/controller/retrieve` | 逐轮控制器试运行 |
 | `POST` | `/api/citation` | 打开本轮引用 |
 | `POST` | `/api/audit` | 审计回答主张与引用 |
@@ -150,7 +149,7 @@ PYTHONPATH=. python3 -m unittest discover -s rag/tests -p "test_*.py"
 PYTHONPATH=. python3 -m unittest discover -s guideline_parsing/tests -p "test_*.py"
 ```
 
-当前：RAG 包 **505 tests**，指南解析器 **8 tests**（2026-11-12 实测）。分发包不含仓库级 `data/` 时，10 个依赖本地数据的用例自动跳过。
+当前：RAG 包 **484 tests**，指南解析器 **8 tests**（2026-11-12 实测）。分发包不含仓库级 `data/` 时，10 个依赖本地数据的用例自动跳过。
 
 ## 9. 安全与合规
 

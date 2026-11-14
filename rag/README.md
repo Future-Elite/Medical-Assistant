@@ -31,14 +31,15 @@ rag/
 ├── audit.py                 # 回答审计与主张校验适配
 ├── retrieval/               # 查询规划、BM25/QL/RM3、排序、证据句、路由、控制器
 ├── sources/                 # 指南 PDF / 全文 / 分块 / 解析来源 / 生命周期
-├── quality/                 # 适用性、术语映射、MeSH 链接、主张校验、指南图、生命周期索引、观测
-├── eval/                    # 查询保真实验入口；eval/qrels/ 规则派生数据集构建与评测；eval/*_fixture/ 评测夹具
+├── quality/                 # 适用性、术语映射、MeSH 链接、主张校验、生命周期索引、观测
+├── eval/                    # 查询保真实验入口；eval/qrels/ 规则派生数据集构建与评测；eval/criteria_fixture/ 评测夹具
 ├── web/                     # React 工作台（源码与构建产物）
 ├── demo/                    # 最小演示数据
 ├── contracts/               # 机器可读契约与示例
-├── validation/              # 验证工件
 └── tests/                   # 按 retrieval / sources / quality / core / gui 分组
 ```
+
+本地数据统一放在 `data/`（`data/validation/` 存评测工件、`data/guideline_parsing/` 存指南解析产物），整个 `data/` 已加入 `.gitignore`，不随仓库分发。
 
 ## 3. 快速开始
 
@@ -136,7 +137,7 @@ PYTHONPATH=. python3 -m rag.server
 | `GET` | `/api/sources` | 已注册来源清单 |
 | `POST` | `/api/sources/custom`、`/api/sources/custom/clear` | 调用方自定义来源登记与清空 |
 | `POST` | `/api/retrieve` | 联合检索 |
-| `POST` | `/api/applicability` | 指南适用性工作流（含并列检索与工业级图试点） |
+| `POST` | `/api/applicability` | 指南适用性工作流（含并列检索与生命周期信号） |
 | `POST` | `/api/controller/retrieve` | 逐轮控制器 |
 | `POST` | `/api/citation` | 打开引用 |
 | `POST` | `/api/audit` | 回答审计 |
@@ -177,7 +178,7 @@ PYTHONPATH=. python3 -m rag.server
 PYTHONPATH=. python3 -m unittest discover -s rag/tests -p "test_*.py"
 ```
 
-测试按 `retrieval`、`sources`、`quality`、`core`、`gui`、`eval` 分组；当前 **505 tests**（2026-11-12 实测，0 skipped）。分发包不含仓库级 `data/` 时，`tests/sources/test_ehr_generated_neonatal.py` 的 8 个用例与 2 个依赖指南生命周期缓存的用例会自动跳过。
+测试按 `retrieval`、`sources`、`quality`、`core`、`gui`、`eval` 分组；当前 **484 tests**（2026-11-12 实测，0 skipped）。分发包不含仓库级 `data/` 时，`tests/sources/test_ehr_generated_neonatal.py` 的 8 个用例与 2 个依赖指南生命周期缓存的用例会自动跳过。
 
 ## 9. 兼容导入
 
@@ -212,11 +213,9 @@ from rag.server import create_tool
 
 - **数据集构建**（`eval/qrels/`）：`xlsx_reader.py` 用标准库读医院导出 xlsx，`hospital_adapter.py` 转成 HIS 形快照；`fact_rules.py` 从出院小结抽孕周（整数周 → `[7w, 7w+6]` 天）、出生体重、日龄、呼吸支持、黄疸/胆红素、听力筛查与治疗事实；缺失提及记 `not_recorded`，只有明确否定才 `observed_negative`。
 - **独立 gold**：`gold_rules.py` 不导入 `rag.quality.applicability`，criterion 级 `match/mismatch/unknown`、指南级 `possible_match/mismatch/unknown`；阈值落在整数周区间内判 `unknown`（`granularity_boundary`），不猜。
-- **切分与产物**：住院号级去重切分（住院号 ≠ 个人 ID，不称患者级），1,000 train / 200 dev / 500 test；500 反事实对、500 合成问题、20,400 条患者事实 qrels。`patient_ref` 用 HMAC(salt)，盐只从 `CHINALLM_PATIENT_SALT` 读取、不落盘；原文与证据 span 只写项目内 `private_data/`（`CHINALLM_PRIVATE_DATA_DIR` 指向它），仓库只留聚合。
-- **规则基线**：`rubric.py` + `tools/run_v672_rubric.py` 跑 R1–R8；规则基线与 gold 同源，满分是管线自洽检查，不是模型效果。S4 TF-IDF+LR（`model_baseline.py`）0.868/0.848 vs 规则 0.991/1.000，**未超过规则**，只作负结果下限。
-- **患者事实检索基线**：BM25 `Recall@1` 0.187 / `Recall@5` 0.618；multilingual-e5 零样本 `Recall@1` 0.340 / `Recall@5` 0.923（通用模型，不是临床模型；胎龄/抗生素/听力仍接近 0）。聚合在 `validation/v672_fact_*_2026-11-1*.json`。
+- **切分与产物**：住院号级去重切分（住院号 ≠ 个人 ID，不称患者级），1,000 train / 200 dev / 500 test；500 反事实对、500 合成问题、20,400 条患者事实 qrels。`patient_ref` 用 HMAC(salt)，盐只从 `CHINALLM_PATIENT_SALT` 读取、不落盘；原文与证据 span 只写项目内 `datasets/`（`CHINALLM_PRIVATE_DATA_DIR` 指向它），仓库只留聚合。
+- **规则基线**：`rubric.py` 跑 R1–R8（内部评测脚本，不随仓库分发）；规则基线与 gold 同源，满分是管线自洽检查，不是模型效果。S4 TF-IDF+LR（`model_baseline.py`）0.868/0.848 vs 规则 0.991/1.000，**未超过规则**，只作负结果下限。
+- **患者事实检索基线**：BM25 `Recall@1` 0.187 / `Recall@5` 0.618；multilingual-e5 零样本 `Recall@1` 0.340 / `Recall@5` 0.923（通用模型，不是临床模型；胎龄/抗生素/听力仍接近 0）。聚合由内部评测脚本生成到本地 `data/validation/`。
 - **可执行适用性解析器**：`eval/qrels/applicability_resolver.py` + `EvidenceRAG.resolve_applicability_workflow`。支持核对目标、同族换本地指南、补事实续跑（`resolution_id + supplied_facts`）、注入式外部检索、查表停止与结构化 `scope_mismatch`；跨族覆盖只放 `other_local_guidelines`，不当作目标答案。离线数据集行为评测（不联网、不传 gold）：A–D 329/400，A 29/100 同族覆盖、71 例仅跨族按设计停止，B/C/D 各 100/100；GA 未接入文本胎龄提取。
-- **工业级图试点**：`quality/guideline_graph.py` + `eval/industrial_fixture/vlbw_feeding_2015_graph.json`，只编码 1 份指南（VLBW 喂养 2015）的 4 条建议节点。确定性条件优先，BM25 只做候选排序，模型槽位只能把结果提到 `needs_review`。180 例真实 VLBW 回顾性审计：`possible_match` 178 / `unknown` 2，硬例外 1、NEC 相关 24、时间窗 0/180 可评估。
-- **主张级裁定与最小反事实证书**：`eval/qrels/claim_adjudication.py`。720 条主张（concordant 326 / insufficient 369 / guideline_review 24 / guideline_exception 1）；证书用 uniform-cost 搜索在已有结构化字段里找最小改动集（最多 2 字段），时间/文本缺口写 `requires_unstructured_data` 不猜。500 对训练侧单字段反事实正向 246/246、反向 254/254；200 对 dev/test held-out 正向 100/100、反向 100/100，单字段最小性 100/100，bootstrap 95% CI [1.0, 1.0]。证书是规则一致性检查，不是因果结论。
 - **生命周期并列**：`quality/guideline_lifecycle_index.py` 读 `data/guideline_lifecycle_cache.json`，把本地指南 PMID 映射为按 `as_of` 的 `current/retracted/superseded/not_yet_published/not_checked`；缺 PMID 或缓存记录一律 `not_checked`，不联网补查。
 - **边界**：数据集是规则派生 silver，不是临床 gold（无临床复核、无外部金标准）；`mismatch` 不是临床不适用，`unknown` 不是阴性；指南条件与图试点条件是 `synthetic_fixture`；试点是单份指南回顾性审计，不是临床验证，也不是完整 GAG/PEG、FHIR CPG/CQL 或 CDS Hooks 实现。

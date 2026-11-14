@@ -195,7 +195,7 @@ def print_plan() -> None:
     print("\n主指标（fidelity 层）：per-class P/R/F1 vs 人工标注；κ 门槛 0.6（类别不平衡显著时并报 Gwet's AC1）")
     print("主指标（检索层）：R@5/R@10/MRR@10/nDCG@10 + entity_correct_recall + wrong_entity_contamination + gate-cost")
     print("统计：Wilcoxon signed-rank（配对）+ BH 分族校正 + bootstrap 95% CI + MDE/等效性规则")
-    print("功效（tools/power_simulation.py 实测）：n=80–100 对 dz≥0.40–0.45 达 >0.9 功效（BH 后，重尾假设）")
+    print("功效：n=80–100 对 dz≥0.40–0.45 达 >0.9 功效（BH 后，重尾假设；模拟结论，非实测）")
     print("先导 20 查询（止损检查），正式 80 查询（可升级 100–120）；v1/v2 双语料稳健性")
     print("止损规则（预注册）：H2 关联不成立（dz≈0 且 CI 覆盖 0）或 κ<0.6 两轮 → 终止/降级（见论文实验协议 §7）")
 

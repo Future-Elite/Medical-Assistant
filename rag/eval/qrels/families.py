@@ -1,19 +1,29 @@
-"""Guideline families used to distinguish same-question coverage from cross-topic coverage."""
+"""Guideline families, read from guideline metadata rather than hard-coded.
+
+A family groups guidelines that answer the same clinical question (e.g. different
+feeding/nutrition guidelines), so the resolver can tell same-question coverage
+from cross-topic coverage.  The family is declared per guideline in the
+evaluation fixture / catalog metadata; there is no built-in list of guideline
+IDs, so adding a guideline only requires metadata, not code.
+"""
 from __future__ import annotations
 
-FAMILIES = {
-    "喂养/营养": (
-        "pdf-neo-feeding-vlbw-2015",
-        "pdf-neo-human-milk-fortification-2019",
-        "pdf-neo-parenteral-nutrition-2012",
-    ),
-    "呼吸支持": ("pdf-neo-pocus-espnic-2020",),
-    "黄疸": ("pdf-aap-hyperbilirubinemia-2022",),
-}
+from typing import Any, Iterable, Mapping
 
 
-def family_of(guideline_id: str | None) -> str | None:
-    for family, members in FAMILIES.items():
-        if guideline_id in members:
-            return family
-    return None
+def family_index(guidelines: Iterable[Mapping[str, Any]] | None) -> dict[str, str]:
+    """Map ``document_id`` -> declared family; guidelines without one are omitted."""
+    index: dict[str, str] = {}
+    for item in guidelines or ():
+        document_id = str(item.get("document_id") or "").strip()
+        family = str(item.get("family") or "").strip()
+        if document_id and family:
+            index[document_id] = family
+    return index
+
+
+def family_of(guideline_id: str | None, index: Mapping[str, str] | None = None) -> str | None:
+    """Return the declared family for ``guideline_id``, or ``None`` if undeclared."""
+    if not guideline_id or not index:
+        return None
+    return index.get(guideline_id)

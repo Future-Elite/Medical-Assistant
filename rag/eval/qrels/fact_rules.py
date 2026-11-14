@@ -2,7 +2,7 @@
 
 Every extractor is deterministic and returns a small evidence span in addition
 to the derived value.  The span is stored only in the private dataset directory
-(the project's ``private_data/`` folder); git-repository artifacts carry
+(the project's ``datasets/`` folder); git-repository artifacts carry
 aggregate counts only.
 
 Design choices that matter for the applicability gold:

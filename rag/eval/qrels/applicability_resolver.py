@@ -22,30 +22,34 @@ import secrets
 from typing import Any, Callable, Mapping, Sequence
 
 from ...quality.applicability import assess_applicability
-from ...quality.guideline_graph import (
-    GuidelineGraph,
-    assess_guideline_graph,
-    load_guideline_graph,
-)
 from ...quality.guideline_lifecycle_index import load_lifecycle_index
 from ...his import snapshot_from_dict
-from .claim_adjudication import adjudicate_claims
 from .gold_rules import load_criteria_fixture
 from .v2_fixture import load_v2_fixture
 from .decision_triage import apply_value_to_snapshot, derived_from_snapshot, triage_snapshot
-from .families import family_of
+from .families import family_index, family_of
 from .followup import build_followup
 from .rubric import build_documents
 
 SearchFn = Callable[[str], Sequence[Mapping[str, Any] | str]]
 
-_TARGET_TERMS = {
-    "pdf-neo-feeding-vlbw-2015": ("very low birth weight", "vlbw", "feeding", "1500"),
-    "pdf-neo-human-milk-fortification-2019": ("human milk", "fortification", "preterm"),
-    "pdf-neo-parenteral-nutrition-2012": ("parenteral nutrition", "preterm"),
-    "pdf-neo-pocus-espnic-2020": ("point-of-care ultrasound", "pocus", "respiratory support"),
-    "pdf-aap-hyperbilirubinemia-2022": ("hyperbilirubinemia", "jaundice", "bilirubin"),
-}
+def _target_terms(
+    guideline: Mapping[str, Any] | None, topic: str | None = None,
+) -> tuple[str, ...]:
+    """Derive external-search terms from guideline metadata.
+
+    ``search_terms`` is declared per guideline in the fixture/catalog; an
+    explicit ``target_topic`` always wins.  No guideline IDs live in code.
+    """
+    if topic:
+        return (str(topic).replace("_", " ").strip().lower(),)
+    if not guideline:
+        return ()
+    return tuple(
+        str(term) for term in (guideline.get("search_terms") or ()) if str(term).strip()
+    )
+
+
 _FIELD_LABELS = {
     "derived_birth.ga_days": "胎龄",
     "derived_birth.birth_weight_g": "出生体重",
@@ -71,7 +75,6 @@ class ApplicabilityResolver:
     # capability fixture and is only added when the caller explicitly targets it.
     fixture: Mapping[str, Any] = field(default_factory=load_criteria_fixture)
     capability_fixture: Mapping[str, Any] = field(default_factory=load_v2_fixture)
-    industrial_graph: GuidelineGraph | None = None
     search_fn: SearchFn | None = None
     policy: ResolverPolicy = field(default_factory=ResolverPolicy)
     sessions: dict[str, dict[str, Any]] = field(default_factory=dict)
@@ -81,6 +84,14 @@ class ApplicabilityResolver:
     def __post_init__(self) -> None:
         self.documents = build_documents(self.fixture)
         self.capability_documents = build_documents(self.capability_fixture)
+        self.guidelines = tuple(self.fixture.get("guidelines") or ())
+        self.families = family_index(self.guidelines)
+
+    def _guideline_record(self, guideline_id: str | None) -> Mapping[str, Any] | None:
+        for item in self.guidelines:
+            if item.get("document_id") == guideline_id:
+                return item
+        return None
 
     def resolve(
         self,
@@ -89,7 +100,6 @@ class ApplicabilityResolver:
         snapshot: Mapping[str, Any],
         target_guideline_id: str | None = None,
         target_topic: str | None = None,
-        include_industrial_graph: bool = False,
     ) -> dict[str, Any]:
         resolution_id = "resolution-" + secrets.token_hex(8)
         result = self._resolve(
@@ -101,23 +111,16 @@ class ApplicabilityResolver:
             snapshot=snapshot, target_guideline_id=target_guideline_id,
             target_topic=target_topic, assessments=result.get("assessments", {}),
         )
-        if include_industrial_graph:
-            result["industrial_graph"] = self._industrial_assessment(
-                snapshot=snapshot, question=question,
-                target_guideline_id=target_guideline_id,
-            )
         self.sessions[resolution_id] = {
             "question": question,
             "snapshot": snapshot,
             "target_guideline_id": target_guideline_id,
             "target_topic": target_topic,
-            "include_industrial_graph": bool(include_industrial_graph),
         }
         return result
 
     def resume(
         self, resolution_id: str, supplied_facts: Sequence[Mapping[str, Any]],
-        *, include_industrial_graph: bool | None = None,
     ) -> dict[str, Any]:
         try:
             session = self.sessions[resolution_id]
@@ -143,40 +146,7 @@ class ApplicabilityResolver:
             snapshot=session["snapshot"], target_guideline_id=session["target_guideline_id"],
             target_topic=session["target_topic"], assessments=result.get("assessments", {}),
         )
-        include_graph = (
-            session.get("include_industrial_graph", False)
-            if include_industrial_graph is None else include_industrial_graph
-        )
-        if include_graph:
-            result["industrial_graph"] = self._industrial_assessment(
-                snapshot=snapshot, question=session["question"],
-                target_guideline_id=session["target_guideline_id"],
-            )
         return result
-
-    def _industrial_assessment(
-        self, *, snapshot: Mapping[str, Any], question: str,
-        target_guideline_id: str | None,
-    ) -> dict[str, Any]:
-        try:
-            graph = self.industrial_graph or load_guideline_graph()
-            if target_guideline_id and target_guideline_id != graph.guideline_id:
-                return {
-                    "status": "not_configured",
-                    "reason": "当前工业级试点只编码了一份指南。",
-                    "available_guideline_id": graph.guideline_id,
-                    "target_guideline_id": target_guideline_id,
-                }
-            result = assess_guideline_graph(snapshot, graph, question=question)
-            result["claim_adjudication"] = adjudicate_claims(
-                snapshot, graph, graph_result=result,
-            )
-            return result
-        except Exception as exc:  # display layer must not break the resolver
-            return {
-                "status": "error",
-                "error": f"{type(exc).__name__}: {str(exc)[:180]}",
-            }
 
     def _parallel_retrieval(
         self, *, snapshot: Mapping[str, Any], target_guideline_id: str | None,
@@ -249,6 +219,7 @@ class ApplicabilityResolver:
             raise ValueError(f"unknown target_guideline_id: {target_guideline_id}")
         target_id = target_guideline_id or (None if target_topic else _choose_target(assessments))
         target = assessments.get(target_id) if target_id else None
+        target_terms = _target_terms(self._guideline_record(target_id), target_topic)
         rounds: list[dict[str, Any]] = [{
             "round": 0,
             "action": "assess",
@@ -273,14 +244,14 @@ class ApplicabilityResolver:
                 }),
                 reason="guideline requires table/curve lookup; no automatic threshold comparison",
             )
-        family = family_of(target_id)
+        family = family_of(target_id, self.families)
         all_coverage = [] if target_topic else [
             document_id for document_id, assessment in assessments.items()
             if document_id != target_id and assessment.status == "possible_match"
         ]
         coverage = [
             document_id for document_id in all_coverage
-            if family is None or family_of(document_id) == family
+            if family is None or family_of(document_id, self.families) == family
         ]
         cross_family = [document_id for document_id in all_coverage if document_id not in coverage]
         triage = _triage(snapshot, target_id, target_topic, target)
@@ -314,7 +285,7 @@ class ApplicabilityResolver:
             return _result("resolved", target_id, assessments, rounds, titles=titles,
                            selected=coverage, other_local_guidelines=cross_family,
                            reason="another local guideline in the same family covers the patient")
-        query = _external_query(target_id, target_topic, question)
+        query = _external_query(target_terms, target_topic)
         target_out_of_scope = target is not None and target.status == "mismatch"
         if target_out_of_scope and self.search_fn is None:
             rounds.append({
@@ -343,7 +314,7 @@ class ApplicabilityResolver:
                            query=query,
                            reason="no local coverage; external search backend not provided")
         raw = list(self.search_fn(query))
-        screened = _screen(raw, target_id, target_topic)[: self.policy.max_external_results]
+        screened = _screen(raw, target_terms, target_topic)[: self.policy.max_external_results]
         rounds.append({
             "round": 1,
             "action": "external_search",
@@ -639,12 +610,11 @@ def _failed_criteria(assessment: Any) -> list[dict[str, Any]]:
     ]
 
 
-def _external_query(target_id: str | None, target_topic: str | None, question: str) -> str:
+def _external_query(terms: Sequence[str], target_topic: str | None) -> str:
     if target_topic:
         topic = str(target_topic).replace("_", " ").strip()
         text = f'"{topic}"[tiab]' if topic else "neonatal[tiab]"
     else:
-        terms = _TARGET_TERMS.get(target_id or "", ())
         text = " OR ".join(f'"{term}"[tiab]' for term in terms) or "neonatal[tiab]"
     return (
         '("Infant, Newborn"[MeSH] OR neonatal[tiab] OR preterm[tiab]) AND '
@@ -653,9 +623,9 @@ def _external_query(target_id: str | None, target_topic: str | None, question: s
 
 
 def _screen(
-    raw: Sequence[Mapping[str, Any] | str], target_id: str | None, target_topic: str | None,
+    raw: Sequence[Mapping[str, Any] | str], terms: Sequence[str], target_topic: str | None,
 ) -> list[dict[str, Any]]:
-    target_terms = _TARGET_TERMS.get(target_id or "", ())
+    target_terms = terms
     if target_topic:
         target_terms = (str(target_topic).replace("_", " ").lower(),)
     scored = []

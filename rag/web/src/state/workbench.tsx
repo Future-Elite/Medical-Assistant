@@ -148,7 +148,7 @@ interface Workbench {
   checkApplicability: () => Promise<void>;
   applicabilityWorkflowResult: Dict | null;
   applicabilityWorkflowError: string | null;
-  runApplicabilityWorkflow: (executeExternal?: boolean, includeIndustrialGraph?: boolean) => Promise<void>;
+  runApplicabilityWorkflow: (executeExternal?: boolean) => Promise<void>;
   resumeApplicabilityWorkflow: (facts: Dict[]) => Promise<void>;
 
   saveLiveGuideline: (doc: Dict) => Promise<void>;
@@ -923,7 +923,7 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
     }
   }, [selectedGuidelineId, currentCase]);
 
-  const runApplicabilityWorkflow = useCallback(async (executeExternal = false, includeIndustrialGraph = false) => {
+  const runApplicabilityWorkflow = useCallback(async (executeExternal = false) => {
     if (!selectedGuidelineId) {
       setApplicabilityWorkflowError("先选择目标指南");
       return;
@@ -939,7 +939,6 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
         question: form.question.trim() || "该指南是否适用？",
         target_guideline_id: selectedGuidelineId,
         execute_external: executeExternal,
-        include_industrial_graph: includeIndustrialGraph,
       });
       setApplicabilityWorkflowResult(data);
     } catch (error) {

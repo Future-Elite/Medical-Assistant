@@ -77,15 +77,12 @@ class EvidenceRAG:
         """
         resolution_id = str(arguments.get("resolution_id") or "").strip()
         self._applicability_search_error = None
-        raw_graph_flag = arguments.get("include_industrial_graph")
-        include_graph = bool(raw_graph_flag) if raw_graph_flag is not None else None
         if resolution_id:
             supplied = arguments.get("supplied_facts") or []
             if not isinstance(supplied, list):
                 raise ValueError("supplied_facts must be a list")
             result = self._resume_resolver(resolution_id).resume(
                 resolution_id, supplied,
-                include_industrial_graph=include_graph,
             )
         else:
             snapshot = arguments.get("patient_snapshot")
@@ -98,7 +95,6 @@ class EvidenceRAG:
                 question=question, snapshot=snapshot,
                 target_guideline_id=str(arguments.get("target_guideline_id") or "").strip() or None,
                 target_topic=str(arguments.get("target_topic") or "").strip() or None,
-                include_industrial_graph=bool(include_graph),
             )
         if self._applicability_search_error:
             result["external_search_error"] = self._applicability_search_error

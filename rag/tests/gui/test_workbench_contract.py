@@ -107,11 +107,8 @@ class GuiContractTests(unittest.TestCase):
             "补事实并续跑", "information_requests", "parallel_retrieval",
             "coverage_guidelines", "population_qualifiers", "status_families",
             "lifecycle_status", "stop_reason",
-            # 工业级图试点 + 生命周期并列
-            "工业级图试点", "include_industrial_graph", "industrial_graph",
-            "evidence_level", "lifecycle_checked_at",
-            "主张级裁定", "claim_adjudication", "counterfactual_certificate",
-            "minimal_changes",
+            # 生命周期并列
+            "lifecycle_checked_at",
             # 10 审计
             "/api/citation", "/api/audit", "citation_completeness",
             "citation_precision", "not_checked",
@@ -341,7 +338,7 @@ class HttpContractTests(unittest.TestCase):
         self.assertIn("target_detail", payload)
 
     @unittest.skipUnless(_LIFECYCLE_CACHE, "guideline lifecycle cache is not shipped")
-    def test_applicability_endpoint_returns_lifecycle_and_industrial_graph(self):
+    def test_applicability_endpoint_returns_lifecycle(self):
         status, payload = self.request("POST", "/api/applicability", {
             "question": "极低出生体重儿喂养指南是否适用？",
             "patient_snapshot": {
@@ -354,7 +351,6 @@ class HttpContractTests(unittest.TestCase):
             },
             "target_guideline_id": "pdf-neo-feeding-vlbw-2015",
             "execute_external": False,
-            "include_industrial_graph": True,
         })
         self.assertEqual(status, 200)
         self.assertEqual(payload["parallel_retrieval"]["lifecycle_status"], "current")
@@ -362,10 +358,7 @@ class HttpContractTests(unittest.TestCase):
             payload["parallel_retrieval"]["lifecycle"]["pdf-neo-feeding-vlbw-2015"]["pmid"],
             "25580815",
         )
-        self.assertEqual(payload["industrial_graph"]["guideline_id"], "pdf-neo-feeding-vlbw-2015")
-        self.assertEqual(payload["industrial_graph"]["scope"]["status"], "match")
-        self.assertTrue(payload["industrial_graph"]["recommendations"])
-        self.assertTrue(payload["industrial_graph"]["claim_adjudication"]["claims"])
+        self.assertNotIn("industrial_graph", payload)
 
     def test_industrial_settings_endpoint(self):
         status, payload = self.request("POST", "/api/settings/industrial", {

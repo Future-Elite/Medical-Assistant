@@ -19,9 +19,18 @@
           "subject_role": "patient",
           "label": "极低出生体重（<1500 g）",
           "review_status": "synthetic_fixture",
-          "source": {"locator": "1 Introduction（第 2 页）"},
+          "source": {
+            "locator": "1 Introduction（第 2 页）"
+          },
           "notes": "AI-drafted scope proxy; not a clinical review."
         }
+      ],
+      "family": "喂养/营养",
+      "search_terms": [
+        "very low birth weight",
+        "vlbw",
+        "feeding",
+        "1500"
       ]
     },
     {
@@ -41,9 +50,17 @@
           "subject_role": "patient",
           "label": "早产（<37周）",
           "review_status": "synthetic_fixture",
-          "source": {"locator": "METHODS（第 2 页）"},
+          "source": {
+            "locator": "METHODS（第 2 页）"
+          },
           "notes": "AI-drafted scope proxy; not a clinical review."
         }
+      ],
+      "family": "喂养/营养",
+      "search_terms": [
+        "human milk",
+        "fortification",
+        "preterm"
       ]
     },
     {
@@ -63,9 +80,16 @@
           "subject_role": "patient",
           "label": "早产儿肠外营养",
           "review_status": "synthetic_fixture",
-          "source": {"locator": "Background（第 4 页）"},
+          "source": {
+            "locator": "Background（第 4 页）"
+          },
           "notes": "AI-drafted scope proxy; not a clinical review."
         }
+      ],
+      "family": "喂养/营养",
+      "search_terms": [
+        "parenteral nutrition",
+        "preterm"
       ]
     },
     {
@@ -83,10 +107,23 @@
           "subject_role": "patient",
           "label": "接受呼吸支持（重症监护场景代理）",
           "review_status": "synthetic_fixture",
-          "source": {"locator": "Introduction（第 2 页）"},
+          "source": {
+            "locator": "Introduction（第 2 页）"
+          },
           "notes": "AI-drafted scope proxy; not a clinical review.",
-          "value": ["氧疗", "CPAP", "NIPPV", "机械通气"]
+          "value": [
+            "氧疗",
+            "CPAP",
+            "NIPPV",
+            "机械通气"
+          ]
         }
+      ],
+      "family": "呼吸支持",
+      "search_terms": [
+        "point-of-care ultrasound",
+        "pocus",
+        "respiratory support"
       ]
     }
   ]

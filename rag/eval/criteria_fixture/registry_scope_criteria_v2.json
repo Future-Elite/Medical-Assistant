@@ -24,6 +24,13 @@
           },
           "notes": "AI-drafted scope proxy; not a clinical review."
         }
+      ],
+      "family": "喂养/营养",
+      "search_terms": [
+        "very low birth weight",
+        "vlbw",
+        "feeding",
+        "1500"
       ]
     },
     {
@@ -48,6 +55,12 @@
           },
           "notes": "AI-drafted scope proxy; not a clinical review."
         }
+      ],
+      "family": "喂养/营养",
+      "search_terms": [
+        "human milk",
+        "fortification",
+        "preterm"
       ]
     },
     {
@@ -72,6 +85,11 @@
           },
           "notes": "AI-drafted scope proxy; not a clinical review."
         }
+      ],
+      "family": "喂养/营养",
+      "search_terms": [
+        "parenteral nutrition",
+        "preterm"
       ]
     },
     {
@@ -100,6 +118,12 @@
             "机械通气"
           ]
         }
+      ],
+      "family": "呼吸支持",
+      "search_terms": [
+        "point-of-care ultrasound",
+        "pocus",
+        "respiratory support"
       ]
     },
     {
@@ -139,6 +163,12 @@
           },
           "notes": "Do not compare to a single threshold; table/curve lookup required."
         }
+      ],
+      "family": "黄疸",
+      "search_terms": [
+        "hyperbilirubinemia",
+        "jaundice",
+        "bilirubin"
       ]
     }
   ]

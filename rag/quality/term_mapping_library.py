@@ -4,7 +4,7 @@ v6.6.5 的 ``term_mapping`` 只能逐请求手写（演示预设在用，真实�
 手编）；本模块把它变成**可复用资源**：调用方或数据集构建一份概念—英文/MeSH
 映射库文件，配置一次后对所有请求生效——概念或别名命中问题、患者术语、审核
 外部术语或 facets 时即展开，无需请求级手写。机制对任意领域通用；首个实例由
-``tools/build_term_mapping_library.py`` 从 `code/data` 新生儿数据标签构建。
+``tools/build_term_mapping_library.py`` 从 `datasets/neonatal_labels` 新生儿数据标签构建。
 
 边界：库行只是查询扩展候选，不是医学金标准。每行带 provenance
 （``metadata.source`` / ``metadata.review_status``），展开记录写入

@@ -9,7 +9,7 @@ Public entry points:
 * :mod:`rag.eval.qrels.build_dataset` — splits, counterfactuals, questions
 * :mod:`rag.eval.qrels.rubric` — R1-R8 structural checks
 
-All patient text stays in the project's ``private_data/`` folder
+All patient text stays in the project's ``datasets/`` folder
 (``CHINALLM_PRIVATE_DATA_DIR`` must point inside it).  Git-repository artifacts
 are aggregate counts and schemas only.
 """

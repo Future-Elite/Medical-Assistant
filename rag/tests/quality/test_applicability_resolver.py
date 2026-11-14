@@ -82,11 +82,10 @@ class ResolverTests(unittest.TestCase):
         self.assertTrue(result["parallel_retrieval"]["status_families"])
 
     @unittest.skipUnless(_LIFECYCLE_CACHE, "guideline lifecycle cache is not shipped")
-    def test_lifecycle_parallel_signal_and_industrial_graph_flag(self):
+    def test_lifecycle_parallel_signal(self):
         result = ApplicabilityResolver().resolve(
             question="VLBW feeding", snapshot=_snapshot(birth_weight=1010),
             target_guideline_id="pdf-neo-feeding-vlbw-2015",
-            include_industrial_graph=True,
         )
         parallel = result["parallel_retrieval"]
         self.assertEqual(parallel["lifecycle_status"], "current")
@@ -94,13 +93,6 @@ class ResolverTests(unittest.TestCase):
         self.assertEqual(
             parallel["lifecycle"]["pdf-neo-feeding-vlbw-2015"]["pmid"], "25580815"
         )
-        graph = result["industrial_graph"]
-        self.assertEqual(graph["guideline_id"], "pdf-neo-feeding-vlbw-2015")
-        self.assertEqual(graph["scope"]["status"], "match")
-        self.assertTrue(graph["not_clinical_advice"])
-        self.assertTrue(graph["recommendations"])
-        self.assertIn("claim_adjudication", graph)
-        self.assertTrue(graph["claim_adjudication"]["claims"])
 
     def test_c_resolver_requests_fact_then_resumes(self):
         resolver = ApplicabilityResolver()
