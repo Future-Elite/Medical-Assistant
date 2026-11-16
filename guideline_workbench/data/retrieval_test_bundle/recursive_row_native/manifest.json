@@ -1,0 +1,50 @@
+{
+  "configuration": {
+    "prose": "recursive",
+    "table": "row",
+    "figure": "native",
+    "chunk_size_chars": 800,
+    "overlap_chars": 120
+  },
+  "total_chunks": 620,
+  "custom_source_batches": 16,
+  "manual_native_diagrams": 2,
+  "unresolved_qr_images": 1,
+  "guides": [
+    {
+      "title": "中国新生儿复苏指南（2021年修订）",
+      "text": 67,
+      "table": 31,
+      "flowchart": 3
+    },
+    {
+      "title": "基层医疗卫生机构常见新生儿疾病诊疗指南：新生儿惊厥（2025年）",
+      "text": 63,
+      "table": 25
+    },
+    {
+      "title": "基层医疗卫生机构常见新生儿疾病诊疗指南：新生儿感染性肺炎（2025年）",
+      "text": 62,
+      "table": 37
+    },
+    {
+      "title": "基层医疗卫生机构常见新生儿疾病诊疗指南：新生儿转运（2025年）",
+      "text": 68,
+      "table": 26,
+      "flowchart": 1
+    },
+    {
+      "title": "基层医疗卫生机构常见新生儿疾病诊疗指南：新生儿黄疸（2025年）",
+      "text": 83,
+      "table": 69,
+      "chart": 3
+    },
+    {
+      "title": "新生儿败血症诊断与治疗专家共识（2024）",
+      "text": 72,
+      "table": 8,
+      "flowchart": 1,
+      "image_unresolved": 1
+    }
+  ]
+}

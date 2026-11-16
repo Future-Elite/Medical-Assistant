@@ -8,7 +8,7 @@ from pathlib import Path
 MAX_DOCUMENTS_PER_SOURCE = 40
 
 
-def export_custom_source(chunks_path: Path, output_path: Path, source_id: str) -> int:
+def export_custom_source(chunks_path: Path, output_path: Path, source_id: str, *, replace_all: bool = False) -> int:
     chunks = [json.loads(line) for line in chunks_path.read_text(encoding="utf-8").splitlines() if line.strip()]
     if not chunks:
         raise ValueError(f"知识块文件为空：{chunks_path}")
@@ -36,6 +36,10 @@ def export_custom_source(chunks_path: Path, output_path: Path, source_id: str) -
             "chunk_strategy": item.get("chunk_strategy", "structure"),
             "table_strategy": item.get("table_strategy", "markdown"),
             "figure_strategy": item.get("figure_strategy", "reference"),
+            "element_ids": item.get("element_ids", []),
+            "page_indices": item.get("page_indices", []),
+            "source_elements": item.get("source_elements", []),
+            "provenance_status": item.get("provenance_status", "unavailable"),
         }
         document = {
             "document_id": item["chunk_id"],
@@ -68,7 +72,7 @@ def export_custom_source(chunks_path: Path, output_path: Path, source_id: str) -
     if output_path.is_file():
         current = json.loads(output_path.read_text(encoding="utf-8"))
         existing_sources = list(current.get("sources", [])) if isinstance(current, dict) else list(current)
-    merged = [
+    merged = [] if replace_all else [
         item for item in existing_sources
         if item.get("source_id") != source_id
         and not str(item.get("source_id", "")).startswith(source_id + "-")
