@@ -14,7 +14,7 @@ registered guideline is searchable as full text; ``rights_basis`` is still
 recorded for provenance and audit, but it no longer gates retrieval.
 
 Expected caller-side layout (``config.guideline_pdf_dir``, default
-``data/guideline_parsing/guidelines`` next to ``rag/``)::
+``data/guidelines`` next to ``rag/``)::
 
     <dir>/guideline_pdfs.json      # manifest, see ``load_manifest``
     <dir>/*.pdf                    # the caller's copies
@@ -34,9 +34,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 
-from ..connectors import KnowledgeConnector
+from .connectors import KnowledgeConnector
 from .guideline_fulltext import _chunk_text, _query_terms
-from ..models import QueryPlan, SearchResult, SourceDocument
+from ..core.models import QueryPlan, SearchResult, SourceDocument
 
 MANIFEST_FILE = "guideline_pdfs.json"
 DEFAULT_CHUNK_CHARS = 1200
@@ -205,12 +205,34 @@ def _detect_gutter(words: Sequence["_Word"], width: float) -> float | None:
     """Return the x of the column gutter, or ``None`` for single-column pages."""
     if len(words) < 40:
         return None
+    # Group words into visual lines once; a line whose left and right halves are
+    # separated only by a normal word space means the page text flows across the
+    # candidate gutter (single-column or a full-width line), not two columns.
+    ordered = sorted(words, key=lambda word: (word.y0, word.x0))
+    lines: list[list[_Word]] = []
+    for word in ordered:
+        if lines and abs(word.y0 - lines[-1][0].y0) <= 4.0:
+            lines[-1].append(word)
+        else:
+            lines.append([word])
+    max_spanning = max(4, int(len(lines) * 0.1))
+    wide_line = width * 0.6
     best: tuple[float, float] | None = None  # (score, split)
     for split in range(int(width * 0.36), int(width * 0.64), 3):
         left = sum(1 for word in words if word.x1 <= split)
         right = sum(1 for word in words if word.x0 >= split)
         crossing = len(words) - left - right
         if left < len(words) * 0.28 or right < len(words) * 0.28:
+            continue
+        spanning = 0
+        for line in lines:
+            x0 = min(word.x0 for word in line)
+            x1 = max(word.x1 for word in line)
+            # A near-full-width line crossing the candidate split means the text
+            # flows across it; two-column lines are narrow and stay on one side.
+            if x0 < split < x1 and (x1 - x0) > wide_line:
+                spanning += 1
+        if spanning > max_spanning:
             continue
         score = min(left, right) - crossing * 4.0
         if best is None or score > best[0]:
@@ -550,7 +572,7 @@ class LocalGuidelinePdfConnector(KnowledgeConnector):
 
     source_id: str = "guideline-pdf-local"
     kinds: tuple[str, ...] = ("guideline",)
-    directory: Path = field(default_factory=lambda: Path(__file__).resolve().parents[2] / "data" / "guideline_parsing" / "guidelines")
+    directory: Path = field(default_factory=lambda: Path(__file__).resolve().parents[2] / "data" / "guidelines")
     manifest: Mapping[str, Any] | None = None
     #: Upper bound for one guideline; keeps a single PDF from filling top_k.
     max_chunks_per_guideline: int = 8

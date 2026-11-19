@@ -3,7 +3,8 @@
 Structure-aware guideline parsing: PDF/Markdown/TXT/JSON → section/page-aware chunks.
 
 This package is adapted from the original external workbench's
-`guideline_processing` package (commit `5581f95`). Parsing
+`guideline_processing` package (initial commit `5581f95`; export/provenance
+updates merged from XJD `5154e27`). Parsing
 and chunking logic is preserved; the package name and imports are neutral so
 RAG and the browser workbench can call it directly.
 
@@ -16,23 +17,25 @@ guideline_parsing/
   pdf_to_markdown.py   # MinerU adapter (mineru-kit) + page markers
   page_markers.py      # pdftotext page alignment → <!-- page: N -->
   pipeline.py          # PDF/Markdown/TXT/JSON → JSONL chunks
-  export.py            # optional legacy custom-source export
+  export.py            # backward-compatible import alias
+  medical_assistant_export.py  # Medical-Assistant custom-source export (page/element provenance)
   requirements.txt     # mineru>=4.0,<5 (only for PDF input)
   tests/test_chunker.py
   tests/test_page_markers.py
 ```
 
-MinerU installation (recommended: separate environment outside the repository):
+MinerU installation (recommended: separate environment so the RAG `.venv` is
+not downgraded):
 
 ```bash
-uv venv <mineru-venv> --python 3.10
-uv pip install --python <mineru-venv>/bin/python mineru==4.0.12
-export RAG_MINERU_BIN=<mineru-venv>/bin/mineru-kit
+uv venv ~/.chinallm/venvs/mineru --python 3.10
+uv pip install --python ~/.chinallm/venvs/mineru/bin/python mineru==4.0.12
+export RAG_MINERU_BIN=~/.chinallm/venvs/mineru/bin/mineru-kit
 ```
 
-Models are downloaded on first `parse` (the tool's default cache); subsequent
-calls reuse them. `--tier advanced` gives the cleanest layout but is slower. Without
-`RAG_MINERU_BIN`, the adapter also checks `$RAG_MINERU_VENV/bin/mineru-kit`.
+Models are downloaded on first `parse` (`~/.cache`); subsequent calls reuse
+them. `--tier advanced` gives the cleanest layout but is slower. Without
+`RAG_MINERU_BIN`, the adapter also checks `~/.chinallm/venvs/mineru/bin/mineru-kit`.
 
 ## Use
 
@@ -71,7 +74,7 @@ Each JSONL line contains `chunk_id`, `text`, `source_id`, `source_title`,
 `source_url`, `specialty`, `version`, `section_path`, `recommendation_grade`,
 `evidence_level`, `keywords`, `source_file`, `page_start`, `page_end`,
 `element_type`, `image_refs`, `chunk_strategy`, `table_strategy`,
-`figure_strategy`. RAG's `rag.guideline_source` adds manifest metadata and
+`figure_strategy`. RAG's `rag.sources.guideline_source` adds manifest metadata and
 converts these into `SourceDocument` records.
 
 ## Boundaries

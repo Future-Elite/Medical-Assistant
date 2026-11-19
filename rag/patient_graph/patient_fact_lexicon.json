@@ -1,0 +1,1154 @@
+{
+  "schema_version": "patient-fact-lexicon-1.1",
+  "description": "Patient-fact schema and query aliases for the local patient graph. This is a retrieval vocabulary for structured HIS/discharge facts, not clinical guidance or a diagnostic rule set. Concepts only say which record fields/values carry a fact; they never assert that a patient has a condition.",
+  "concepts": [
+    {
+      "concept_id": "concept:sex",
+      "label": "性别",
+      "kind": "demographic",
+      "aliases": [
+        "性别",
+        "sex",
+        "gender",
+        "男孩",
+        "女孩",
+        "男宝",
+        "女宝"
+      ],
+      "collections": [
+        "patient"
+      ],
+      "fields": [
+        "gender",
+        "sex"
+      ]
+    },
+    {
+      "concept_id": "concept:pna_days",
+      "label": "日龄",
+      "kind": "demographic",
+      "aliases": [
+        "日龄",
+        "入院日龄",
+        "出生后第几天",
+        "出生天数",
+        "age in days",
+        "postnatal age",
+        "出生几天",
+        "生后几天"
+      ],
+      "collections": [
+        "patient"
+      ],
+      "fields": [
+        "pna_days",
+        "ageText"
+      ]
+    },
+    {
+      "concept_id": "concept:ga",
+      "label": "胎龄",
+      "kind": "demographic",
+      "aliases": [
+        "胎龄",
+        "孕周",
+        "出生孕周",
+        "gestational age",
+        "gestation",
+        "怀孕多少周",
+        "孕几周",
+        "怀孕几周"
+      ],
+      "collections": [
+        "derived_birth",
+        "birth",
+        "neonatal_record"
+      ],
+      "fields": [
+        "ga_days",
+        "ga_text",
+        "ga_days_range",
+        "gestationalWeeks",
+        "gestationalAgeRaw"
+      ]
+    },
+    {
+      "concept_id": "concept:birth_weight",
+      "label": "出生体重",
+      "kind": "measurement",
+      "aliases": [
+        "出生体重",
+        "出生时体重",
+        "birth weight",
+        "birthweight"
+      ],
+      "collections": [
+        "derived_birth",
+        "birth"
+      ],
+      "fields": [
+        "birth_weight_g",
+        "birth_weight_status"
+      ]
+    },
+    {
+      "concept_id": "concept:admission_diagnosis",
+      "label": "入院诊断",
+      "kind": "diagnosis_record",
+      "aliases": [
+        "入院诊断",
+        "入院时诊断",
+        "admission diagnosis"
+      ],
+      "collections": [
+        "admission"
+      ],
+      "fields": [
+        "admissionDiagnosis"
+      ]
+    },
+    {
+      "concept_id": "concept:discharge_diagnosis",
+      "label": "出院诊断",
+      "kind": "diagnosis_record",
+      "aliases": [
+        "出院诊断",
+        "出院时诊断",
+        "discharge diagnosis"
+      ],
+      "collections": [
+        "discharge"
+      ],
+      "fields": [
+        "dischargeDiagnosis"
+      ]
+    },
+    {
+      "concept_id": "concept:outcome",
+      "label": "治疗结果",
+      "kind": "outcome_record",
+      "aliases": [
+        "治疗结果",
+        "治疗结局",
+        "出院结局",
+        "转归",
+        "结局",
+        "treatment result",
+        "outcome"
+      ],
+      "collections": [
+        "discharge"
+      ],
+      "fields": [
+        "treatmentResult",
+        "dischargeCondition"
+      ]
+    },
+    {
+      "concept_id": "concept:los_days",
+      "label": "住院日",
+      "kind": "episode",
+      "aliases": [
+        "住院日",
+        "住院天数",
+        "住院多少天",
+        "住了几天",
+        "住院时间",
+        "length of stay",
+        "los"
+      ],
+      "collections": [
+        "admission"
+      ],
+      "fields": [
+        "admissionTime",
+        "dischargeTime"
+      ]
+    },
+    {
+      "concept_id": "concept:bilirubin_total",
+      "label": "总胆红素",
+      "kind": "lab_analyte",
+      "aliases": [
+        "总胆红素",
+        "胆红素",
+        "最高胆红素",
+        "最高总胆红素",
+        "tbil",
+        "tsb",
+        "total bilirubin",
+        "bilirubin"
+      ],
+      "collections": [
+        "derived_labs",
+        "labs"
+      ],
+      "fields": [
+        "max_tbil_value",
+        "max_tbil_umol_l",
+        "total_bilirubin_umol_l",
+        "tbil_max"
+      ],
+      "exclude_aliases": [
+        "直接胆红素",
+        "直胆",
+        "direct bilirubin",
+        "conjugated bilirubin"
+      ]
+    },
+    {
+      "concept_id": "concept:bilirubin_direct",
+      "label": "直接胆红素",
+      "kind": "lab_analyte",
+      "aliases": [
+        "直接胆红素",
+        "直胆",
+        "direct bilirubin",
+        "conjugated bilirubin"
+      ],
+      "collections": [
+        "labs",
+        "derived_labs"
+      ],
+      "fields": [
+        "direct_bilirubin_umol_l"
+      ],
+      "exclude_aliases": [
+        "总胆红素",
+        "total bilirubin",
+        "tbil",
+        "tsb"
+      ]
+    },
+    {
+      "concept_id": "concept:crp",
+      "label": "C反应蛋白",
+      "kind": "lab_analyte",
+      "aliases": [
+        "c反应蛋白",
+        "crp",
+        "c-reactive protein"
+      ],
+      "collections": [
+        "derived_labs",
+        "labs"
+      ],
+      "fields": [
+        "crp_value",
+        "crp_mg_l"
+      ]
+    },
+    {
+      "concept_id": "concept:wbc",
+      "label": "白细胞",
+      "kind": "lab_analyte",
+      "aliases": [
+        "白细胞",
+        "白细胞计数",
+        "wbc",
+        "white blood cell"
+      ],
+      "collections": [
+        "labs"
+      ],
+      "fields": [
+        "wbc_10e9_l",
+        "wbc"
+      ]
+    },
+    {
+      "concept_id": "concept:platelet",
+      "label": "血小板",
+      "kind": "lab_analyte",
+      "aliases": [
+        "血小板",
+        "platelet"
+      ],
+      "collections": [
+        "labs"
+      ],
+      "fields": [
+        "platelet_10e9_l",
+        "platelet"
+      ]
+    },
+    {
+      "concept_id": "concept:culture",
+      "label": "培养",
+      "kind": "examination",
+      "aliases": [
+        "血培养",
+        "培养",
+        "blood culture",
+        "culture"
+      ],
+      "collections": [
+        "labs",
+        "derived_labs"
+      ],
+      "fields": [
+        "culture_status",
+        "blood_culture_status",
+        "specimen"
+      ],
+      "exclude_aliases": [
+        "血培养",
+        "尿培养",
+        "blood culture",
+        "urine culture"
+      ]
+    },
+    {
+      "concept_id": "concept:imaging",
+      "label": "影像检查",
+      "kind": "examination",
+      "aliases": [
+        "胸片",
+        "胸部x线",
+        "影像",
+        "肺部超声",
+        "chest x-ray",
+        "chest radiograph",
+        "radiography",
+        "lung ultrasound"
+      ],
+      "collections": [
+        "imaging"
+      ],
+      "fields": [
+        "modality",
+        "impression",
+        "report_status"
+      ]
+    },
+    {
+      "concept_id": "concept:temperature",
+      "label": "体温",
+      "kind": "vital_sign",
+      "aliases": [
+        "体温",
+        "temperature",
+        "temp"
+      ],
+      "collections": [
+        "vitals"
+      ],
+      "fields": [
+        "temp_c"
+      ]
+    },
+    {
+      "concept_id": "concept:respiratory_rate",
+      "label": "呼吸频率",
+      "kind": "vital_sign",
+      "aliases": [
+        "呼吸频率",
+        "呼吸次",
+        "respiratory rate",
+        "rr"
+      ],
+      "collections": [
+        "vitals"
+      ],
+      "fields": [
+        "rr_per_min"
+      ]
+    },
+    {
+      "concept_id": "concept:spo2",
+      "label": "血氧饱和度",
+      "kind": "vital_sign",
+      "aliases": [
+        "血氧",
+        "氧饱和度",
+        "经皮氧饱和度",
+        "spo2",
+        "oxygen saturation"
+      ],
+      "collections": [
+        "vitals"
+      ],
+      "fields": [
+        "spo2_percent"
+      ],
+      "exclude_aliases": [
+        "导管前",
+        "导管后",
+        "preductal",
+        "postductal"
+      ]
+    },
+    {
+      "concept_id": "concept:respiratory_support",
+      "label": "呼吸支持",
+      "kind": "treatment",
+      "aliases": [
+        "呼吸支持",
+        "无创通气",
+        "机械通气",
+        "呼吸机",
+        "cpap",
+        "nippv",
+        "nippv",
+        "氧疗",
+        "吸氧",
+        "respiratory support",
+        "mechanical ventilation",
+        "oxygen therapy"
+      ],
+      "collections": [
+        "derived_respiratory_support",
+        "respiratory_support",
+        "vitals"
+      ],
+      "fields": [
+        "mode",
+        "respiratory_support",
+        "respiratory_support_level",
+        "respiratory_categories",
+        "support_level"
+      ]
+    },
+    {
+      "concept_id": "concept:phototherapy",
+      "label": "光疗",
+      "kind": "treatment",
+      "aliases": [
+        "光疗",
+        "蓝光",
+        "光照疗法",
+        "phototherapy",
+        "blue light"
+      ],
+      "collections": [
+        "derived_treatment"
+      ],
+      "fields": [
+        "phototherapy",
+        "phototherapy_status"
+      ]
+    },
+    {
+      "concept_id": "concept:antibiotic",
+      "label": "抗感染治疗",
+      "kind": "treatment",
+      "aliases": [
+        "抗生素",
+        "抗菌药物",
+        "抗感染",
+        "抗菌治疗",
+        "antibiotic",
+        "antimicrobial",
+        "消炎药",
+        "抗菌药"
+      ],
+      "collections": [
+        "derived_treatment"
+      ],
+      "fields": [
+        "antibiotics",
+        "antibiotics_status"
+      ]
+    },
+    {
+      "concept_id": "concept:surfactant",
+      "label": "肺表面活性物质",
+      "kind": "treatment",
+      "aliases": [
+        "肺表面活性物质",
+        "固尔苏",
+        "珂立苏",
+        "猪肺磷脂",
+        "surfactant"
+      ],
+      "collections": [
+        "derived_treatment"
+      ],
+      "fields": [
+        "surfactant",
+        "surfactant_status"
+      ]
+    },
+    {
+      "concept_id": "concept:caffeine",
+      "label": "咖啡因",
+      "kind": "treatment",
+      "aliases": [
+        "咖啡因",
+        "caffeine"
+      ],
+      "collections": [
+        "derived_treatment"
+      ],
+      "fields": [
+        "caffeine",
+        "caffeine_status"
+      ]
+    },
+    {
+      "concept_id": "concept:parenteral_nutrition",
+      "label": "肠外营养",
+      "kind": "treatment",
+      "aliases": [
+        "静脉营养",
+        "肠外营养",
+        "tpn",
+        "parenteral nutrition"
+      ],
+      "collections": [
+        "derived_treatment"
+      ],
+      "fields": [
+        "parenteral_nutrition",
+        "parenteral_nutrition_status"
+      ]
+    },
+    {
+      "concept_id": "concept:exchange_transfusion",
+      "label": "换血",
+      "kind": "treatment",
+      "aliases": [
+        "换血",
+        "换血疗法",
+        "exchange transfusion"
+      ],
+      "collections": [
+        "derived_treatment"
+      ],
+      "fields": [
+        "exchange_transfusion",
+        "exchange_transfusion_status"
+      ]
+    },
+    {
+      "concept_id": "concept:hearing_screen",
+      "label": "听力筛查",
+      "kind": "examination",
+      "aliases": [
+        "听力筛查",
+        "听力检查",
+        "听力",
+        "耳声发射",
+        "aabr",
+        "oae",
+        "hearing screen"
+      ],
+      "collections": [
+        "derived_treatment"
+      ],
+      "fields": [
+        "hearing_screen",
+        "hearing_screen_status"
+      ]
+    },
+    {
+      "concept_id": "concept:pneumonia",
+      "label": "肺炎",
+      "kind": "clinical_condition",
+      "aliases": [
+        "新生儿肺炎",
+        "感染性肺炎",
+        "肺炎",
+        "pneumonia"
+      ],
+      "collections": [],
+      "fields": []
+    },
+    {
+      "concept_id": "concept:rds",
+      "label": "呼吸窘迫综合征",
+      "kind": "clinical_condition",
+      "aliases": [
+        "新生儿呼吸窘迫综合征",
+        "呼吸窘迫综合征",
+        "呼吸窘迫",
+        "nrds",
+        "rds",
+        "respiratory distress syndrome",
+        "respiratory distress"
+      ],
+      "collections": [],
+      "fields": []
+    },
+    {
+      "concept_id": "concept:jaundice",
+      "label": "黄疸",
+      "kind": "clinical_condition",
+      "aliases": [
+        "新生儿高胆红素血症",
+        "高胆红素血症",
+        "黄疸",
+        "jaundice",
+        "hyperbilirubinemia"
+      ],
+      "collections": [],
+      "fields": []
+    },
+    {
+      "concept_id": "concept:hypoglycemia",
+      "label": "低血糖",
+      "kind": "clinical_condition",
+      "aliases": [
+        "低血糖",
+        "新生儿低血糖",
+        "hypoglycemia"
+      ],
+      "collections": [],
+      "fields": []
+    },
+    {
+      "concept_id": "concept:sepsis",
+      "label": "败血症",
+      "kind": "clinical_condition",
+      "aliases": [
+        "败血症",
+        "脓毒症",
+        "感染中毒症",
+        "sepsis",
+        "septicemia"
+      ],
+      "collections": [],
+      "fields": []
+    },
+    {
+      "concept_id": "concept:bpd",
+      "label": "支气管肺发育不良",
+      "kind": "clinical_condition",
+      "aliases": [
+        "支气管肺发育不良",
+        "bpd",
+        "bronchopulmonary dysplasia"
+      ],
+      "collections": [],
+      "fields": []
+    },
+    {
+      "concept_id": "concept:pphn",
+      "label": "持续性肺动脉高压",
+      "kind": "clinical_condition",
+      "aliases": [
+        "持续性肺动脉高压",
+        "肺动脉高压",
+        "pphn",
+        "persistent pulmonary hypertension"
+      ],
+      "collections": [],
+      "fields": []
+    },
+    {
+      "concept_id": "concept:ttn",
+      "label": "湿肺",
+      "kind": "clinical_condition",
+      "aliases": [
+        "湿肺",
+        "暂时性呼吸增快",
+        "ttn",
+        "transient tachypnea"
+      ],
+      "collections": [],
+      "fields": []
+    },
+    {
+      "concept_id": "concept:apnea",
+      "label": "呼吸暂停",
+      "kind": "clinical_condition",
+      "aliases": [
+        "呼吸暂停",
+        "apnea",
+        "apnoea"
+      ],
+      "collections": [],
+      "fields": []
+    },
+    {
+      "concept_id": "concept:gbs",
+      "label": "B族链球菌",
+      "kind": "maternal_risk",
+      "aliases": [
+        "b族链球菌",
+        "gbs",
+        "group b streptococcus"
+      ],
+      "collections": [
+        "maternal"
+      ],
+      "fields": [
+        "gbs_status"
+      ]
+    },
+    {
+      "concept_id": "concept:prom",
+      "label": "胎膜早破",
+      "kind": "maternal_risk",
+      "aliases": [
+        "胎膜早破",
+        "prom",
+        "premature rupture of membranes"
+      ],
+      "collections": [
+        "maternal"
+      ],
+      "fields": [
+        "prom_hours"
+      ]
+    },
+    {
+      "concept_id": "concept:maternal_fever",
+      "label": "母亲发热",
+      "kind": "maternal_risk",
+      "aliases": [
+        "母亲发热",
+        "产前发热",
+        "母体发热",
+        "maternal fever"
+      ],
+      "collections": [
+        "maternal"
+      ],
+      "fields": [
+        "maternal_fever_c"
+      ]
+    },
+    {
+      "concept_id": "concept:meconium",
+      "label": "胎粪",
+      "kind": "perinatal_risk",
+      "aliases": [
+        "胎粪",
+        "胎粪污染",
+        "meconium"
+      ],
+      "collections": [
+        "birth"
+      ],
+      "fields": [
+        "meconium_stained_fluid"
+      ]
+    },
+    {
+      "concept_id": "concept:treatment_course",
+      "label": "治疗过程",
+      "kind": "narrative_record",
+      "aliases": [
+        "治疗过程",
+        "治疗经过",
+        "治疗措施",
+        "treatment course"
+      ],
+      "collections": [
+        "treatment_course",
+        "derived_treatment"
+      ],
+      "fields": [
+        "treatmentCourse",
+        "treatment_course"
+      ]
+    },
+    {
+      "concept_id": "concept:preductal_spo2",
+      "label": "导管前血氧饱和度",
+      "kind": "vital_sign",
+      "aliases": [
+        "导管前血氧",
+        "导管前氧饱和度",
+        "preductal spo2",
+        "preductal oxygen saturation"
+      ],
+      "collections": [
+        "vitals"
+      ],
+      "fields": [
+        "preductal_spo2_percent"
+      ]
+    },
+    {
+      "concept_id": "concept:postductal_spo2",
+      "label": "导管后血氧饱和度",
+      "kind": "vital_sign",
+      "aliases": [
+        "导管后血氧",
+        "导管后氧饱和度",
+        "postductal spo2",
+        "postductal oxygen saturation"
+      ],
+      "collections": [
+        "vitals"
+      ],
+      "fields": [
+        "postductal_spo2_percent"
+      ]
+    },
+    {
+      "concept_id": "concept:blood_culture",
+      "label": "血培养",
+      "kind": "examination",
+      "aliases": [
+        "血培养",
+        "blood culture"
+      ],
+      "collections": [
+        "labs",
+        "derived_labs"
+      ],
+      "fields": [
+        "blood_culture_status",
+        "culture_status"
+      ],
+      "field_values": {
+        "specimen": [
+          "blood",
+          "血液",
+          "血"
+        ]
+      }
+    },
+    {
+      "concept_id": "concept:urine_culture",
+      "label": "尿培养",
+      "kind": "examination",
+      "aliases": [
+        "尿培养",
+        "urine culture"
+      ],
+      "collections": [
+        "labs"
+      ],
+      "fields": [
+        "urine_culture_status",
+        "culture_status"
+      ],
+      "field_values": {
+        "specimen": [
+          "urine",
+          "尿液",
+          "尿"
+        ]
+      }
+    }
+  ],
+  "question_intents": [
+    {
+      "intent": "sex",
+      "labels": [
+        "性别",
+        "sex",
+        "gender"
+      ],
+      "concept_ids": [
+        "concept:sex"
+      ],
+      "collections": [
+        "patient"
+      ],
+      "fields": [
+        "gender",
+        "sex"
+      ],
+      "aggregate": false
+    },
+    {
+      "intent": "pna_days",
+      "labels": [
+        "日龄",
+        "入院日龄",
+        "出生后第几天",
+        "出生后第",
+        "出生天数",
+        "年龄",
+        "postnatal age",
+        "age in days",
+        "出生几天",
+        "出生第几天",
+        "生后几天"
+      ],
+      "concept_ids": [
+        "concept:pna_days"
+      ],
+      "collections": [
+        "patient"
+      ],
+      "fields": [
+        "pna_days",
+        "ageText"
+      ],
+      "aggregate": false
+    },
+    {
+      "intent": "ga",
+      "labels": [
+        "胎龄",
+        "孕周",
+        "出生孕周",
+        "gestational age",
+        "gestation",
+        "怀孕多少周",
+        "孕几周",
+        "怀孕几周"
+      ],
+      "concept_ids": [
+        "concept:ga"
+      ],
+      "collections": [
+        "derived_birth",
+        "birth",
+        "neonatal_record"
+      ],
+      "fields": [
+        "ga_days",
+        "ga_text",
+        "ga_days_range",
+        "gestationalWeeks",
+        "gestationalAgeRaw"
+      ],
+      "aggregate": false
+    },
+    {
+      "intent": "admission_diagnosis",
+      "labels": [
+        "入院诊断",
+        "入院时诊断",
+        "admission diagnosis"
+      ],
+      "concept_ids": [
+        "concept:admission_diagnosis"
+      ],
+      "collections": [
+        "admission"
+      ],
+      "fields": [
+        "admissionDiagnosis"
+      ],
+      "aggregate": false
+    },
+    {
+      "intent": "discharge_diagnosis",
+      "labels": [
+        "出院诊断",
+        "出院时诊断",
+        "discharge diagnosis"
+      ],
+      "concept_ids": [
+        "concept:discharge_diagnosis"
+      ],
+      "collections": [
+        "discharge"
+      ],
+      "fields": [
+        "dischargeDiagnosis"
+      ],
+      "aggregate": false
+    },
+    {
+      "intent": "outcome",
+      "labels": [
+        "治疗结果",
+        "治疗结局",
+        "出院结局",
+        "转归",
+        "结局",
+        "treatment result",
+        "outcome",
+        "治好",
+        "痊愈",
+        "好转",
+        "治愈"
+      ],
+      "concept_ids": [
+        "concept:outcome"
+      ],
+      "collections": [
+        "discharge"
+      ],
+      "fields": [
+        "treatmentResult",
+        "dischargeCondition"
+      ],
+      "aggregate": false
+    },
+    {
+      "intent": "los_days",
+      "labels": [
+        "住院日",
+        "住院天数",
+        "住院多少天",
+        "住了几天",
+        "住院时间",
+        "length of stay"
+      ],
+      "concept_ids": [
+        "concept:los_days"
+      ],
+      "collections": [
+        "admission"
+      ],
+      "fields": [
+        "admissionTime",
+        "dischargeTime"
+      ],
+      "aggregate": true
+    },
+    {
+      "intent": "max_tbil",
+      "labels": [
+        "最高总胆红素",
+        "总胆红素最高",
+        "胆红素最高",
+        "最高胆红素",
+        "总胆红素",
+        "胆红素",
+        "tbil",
+        "tsb",
+        "total bilirubin"
+      ],
+      "concept_ids": [
+        "concept:bilirubin_total"
+      ],
+      "collections": [
+        "derived_labs",
+        "labs"
+      ],
+      "fields": [
+        "max_tbil_value",
+        "max_tbil_umol_l",
+        "total_bilirubin_umol_l",
+        "tbil_max"
+      ],
+      "aggregate": true
+    },
+    {
+      "intent": "phototherapy",
+      "labels": [
+        "光疗",
+        "蓝光",
+        "光照疗法",
+        "phototherapy"
+      ],
+      "concept_ids": [
+        "concept:phototherapy"
+      ],
+      "collections": [
+        "derived_treatment"
+      ],
+      "fields": [
+        "phototherapy",
+        "phototherapy_status"
+      ],
+      "aggregate": true
+    },
+    {
+      "intent": "antibiotic",
+      "labels": [
+        "抗生素",
+        "抗菌药物",
+        "抗感染",
+        "抗菌治疗",
+        "antibiotic",
+        "antimicrobial",
+        "消炎药",
+        "抗菌药"
+      ],
+      "concept_ids": [
+        "concept:antibiotic"
+      ],
+      "collections": [
+        "derived_treatment"
+      ],
+      "fields": [
+        "antibiotics",
+        "antibiotics_status"
+      ],
+      "aggregate": true
+    },
+    {
+      "intent": "hearing_screen",
+      "labels": [
+        "听力筛查",
+        "听力检查",
+        "听力",
+        "耳声发射",
+        "oae",
+        "aabr",
+        "hearing screen"
+      ],
+      "concept_ids": [
+        "concept:hearing_screen"
+      ],
+      "collections": [
+        "derived_treatment"
+      ],
+      "fields": [
+        "hearing_screen",
+        "hearing_screen_status"
+      ],
+      "aggregate": true
+    },
+    {
+      "intent": "respiratory_support_level",
+      "labels": [
+        "呼吸支持",
+        "呼吸支持方式",
+        "呼吸机",
+        "无创通气",
+        "机械通气",
+        "氧疗",
+        "吸氧",
+        "respiratory support",
+        "mechanical ventilation"
+      ],
+      "concept_ids": [
+        "concept:respiratory_support"
+      ],
+      "collections": [
+        "derived_respiratory_support",
+        "respiratory_support",
+        "vitals"
+      ],
+      "fields": [
+        "mode",
+        "respiratory_support",
+        "respiratory_categories",
+        "support_level"
+      ],
+      "aggregate": true
+    },
+    {
+      "intent": "max_crp",
+      "labels": [
+        "c反应蛋白",
+        "crp",
+        "c-reactive protein"
+      ],
+      "concept_ids": [
+        "concept:crp"
+      ],
+      "collections": [
+        "derived_labs",
+        "labs"
+      ],
+      "fields": [
+        "crp_value",
+        "crp_mg_l"
+      ],
+      "aggregate": true
+    },
+    {
+      "intent": "blood_culture",
+      "labels": [
+        "血培养",
+        "blood culture"
+      ],
+      "concept_ids": [
+        "concept:blood_culture"
+      ],
+      "collections": [
+        "labs",
+        "derived_labs"
+      ],
+      "fields": [
+        "culture_status",
+        "blood_culture_status"
+      ],
+      "aggregate": false
+    }
+  ]
+}

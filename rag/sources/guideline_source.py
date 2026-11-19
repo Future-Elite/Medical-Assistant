@@ -1,13 +1,18 @@
 """Guideline parsing source for RAG: local parser + parser data layout.
 
 This module calls the in-repository :mod:`guideline_parsing` package directly
-(no external checkout). The data layout follows the parsing workbench:
+(no external checkout). Inputs and generated outputs are separated:
 
-* ``<data_dir>/guidelines/``: manifest + PDF/Markdown inputs;
-* ``<data_dir>/parsed_markdown/``: MinerU or caller-provided Markdown;
-* ``<data_dir>/<document_id>_chunks.jsonl``: flat chunk output;
-* ``<data_dir>/applicability/<document_id>.json``: optional structured
-  criteria for HIS comparison.
+* ``<data_dir>/guidelines/``: manifest + guide PDF inputs (data/ keeps PDFs only);
+* ``<work_dir>/parsed_markdown/``: MinerU or caller-provided Markdown;
+* ``<work_dir>/<document_id>_chunks.jsonl``: flat chunk output;
+* ``<work_dir>/applicability/<document_id>.json``: optional structured
+  criteria for HIS comparison;
+* ``<work_dir>/live_sources/``: saved live-guideline inputs; a manifest entry
+  may point here with the ``@work/`` prefix.
+
+``work_dir`` defaults to ``data_dir`` for backward compatibility; the repo
+config sets it to ``data/generated/parsing``.
 
 It is the RAG-side source of truth for "guideline source is the local parser":
 ``create_tool("custom")`` uses it when ``RAG_GUIDELINE_DATA`` is configured.
@@ -19,12 +24,13 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
-from ..connectors import ConnectorRegistry
+from .connectors import ConnectorRegistry
 from .guideline_chunks import GuidelineChunkLibrary, load_guideline_chunk_library, summarize_chunks
 
 MANIFEST_NAMES = ("manifest.json", "guideline_pdfs.json")
@@ -48,6 +54,7 @@ class GuidelineParsingError(RuntimeError):
 class GuidelineParsingSource:
     """Direct adapter over :mod:`guideline_parsing` and its data layout."""
     data_dir: str | Path
+    work_dir: str | Path | None = None
     chunk_strategy: str = DEFAULT_CHUNK_STRATEGY
     table_strategy: str = DEFAULT_TABLE_STRATEGY
     figure_strategy: str = DEFAULT_FIGURE_STRATEGY
@@ -62,6 +69,7 @@ class GuidelineParsingSource:
 
     def __post_init__(self) -> None:
         self.data_dir = Path(self.data_dir).expanduser()
+        self.work_dir = Path(self.work_dir).expanduser() if self.work_dir is not None else self.data_dir
         for name, value, allowed in (
             ("chunk_strategy", self.chunk_strategy, CHUNK_STRATEGIES),
             ("table_strategy", self.table_strategy, TABLE_STRATEGIES),
@@ -81,11 +89,52 @@ class GuidelineParsingSource:
 
     @property
     def markdown_dir(self) -> Path:
-        return self.data_dir / "parsed_markdown"
+        return self.work_dir / "parsed_markdown"
 
     @property
     def applicability_dir(self) -> Path:
-        return self.data_dir / "applicability"
+        return self.work_dir / "applicability"
+
+    @property
+    def live_sources_dir(self) -> Path:
+        return self.work_dir / "live_sources"
+
+    def _input_path(self, entry: Mapping[str, Any]) -> Path:
+        """Resolve a manifest ``file``; ``@work/...`` points into ``work_dir``."""
+        file_name = str(entry.get("file") or entry.get("path") or "").strip()
+        if file_name.startswith("@work/"):
+            return (self.work_dir / file_name[len("@work/"):]).resolve()
+        return (self.guidelines_dir / file_name).resolve()
+
+    def _sync_applicability(self) -> None:
+        """Copy curated sidecars from ``data/catalog/`` into the generated work dir."""
+        canonical = Path(__file__).resolve().parents[2] / "data" / "catalog" / "guideline_applicability"
+        if not canonical.is_dir() or self.applicability_dir.resolve() == canonical.resolve():
+            return
+        self.applicability_dir.mkdir(parents=True, exist_ok=True)
+        for path in sorted(canonical.glob("*.json")):
+            target = self.applicability_dir / path.name
+            if not target.is_file() or target.read_bytes() != path.read_bytes():
+                shutil.copy2(path, target)
+
+    def _pdf_text_markdown(self, input_path: Path, markdown_path: Path) -> tuple[str, Path]:
+        """Fallback for text-layer PDFs when MinerU is unavailable or fails."""
+        from guideline_parsing.page_markers import page_texts
+
+        pages = list(page_texts(input_path))
+        if not any(page.strip() for page in pages):
+            raise GuidelineParsingError(
+                f"{input_path} 没有可抽取的文字层；需要 MinerU 解析扫描件"
+            )
+        markdown_path.parent.mkdir(parents=True, exist_ok=True)
+        parts = [
+            f"<!-- page: {index} -->\n{page.strip()}"
+            for index, page in enumerate(pages, 1)
+            if page.strip()
+        ]
+        text = "\n\n".join(parts) + "\n"
+        markdown_path.write_text(text, encoding="utf-8")
+        return text, markdown_path
 
     # ------------------------------------------------------------------ parse
     def parse(
@@ -114,13 +163,14 @@ class GuidelineParsingSource:
             ]
         chunker, pdf_to_markdown = self._parser_modules()
         self.markdown_dir.mkdir(parents=True, exist_ok=True)
+        self._sync_applicability()
         results: list[dict[str, Any]] = []
         for entry in entries:
             document_id = str(entry.get("document_id") or entry.get("id") or "").strip()
             file_name = str(entry.get("file") or entry.get("path") or "").strip()
             if not document_id or not file_name:
                 raise GuidelineParsingError("manifest 条目必须提供 document_id 和 file")
-            input_path = (self.guidelines_dir / file_name).resolve()
+            input_path = self._input_path(entry)
             if not input_path.is_file():
                 raise GuidelineParsingError(f"指南输入文件不存在：{input_path}")
             text, markdown_path = self._markdown_for(input_path, force=force, converter=pdf_to_markdown)
@@ -218,7 +268,19 @@ class GuidelineParsingSource:
                     markdown_path.write_text(annotated, encoding="utf-8")
                     text = annotated
             return text, markdown_path
-        converted = converter.convert_pdf(input_path, markdown_path, self.tier)
+        try:
+            converted = converter.convert_pdf(input_path, markdown_path, self.tier)
+        except Exception as exc:  # MinerU missing/crashed; text-layer PDFs can fall back
+            try:
+                text, fallback_path = self._pdf_text_markdown(input_path, markdown_path)
+            except Exception:
+                raise exc
+            self.warnings.append(
+                f"MinerU 解析失败（{type(exc).__name__}: {exc}）；已用 pdftotext 文字层生成 "
+                f"Markdown（{fallback_path.name}）。该回退只适用于有文字层的 PDF，"
+                "页码来自 PDF 页边界；需要版面结构时仍应配置 MinerU。"
+            )
+            return text, fallback_path
         return Path(converted).read_text(encoding="utf-8"), Path(converted)
 
     def _parser_modules(self):
@@ -273,7 +335,7 @@ class GuidelineParsingSource:
         return rows
 
     def chunk_path(self, document_id: str) -> Path:
-        return self.data_dir / f"{_safe_name(document_id)}_chunks.jsonl"
+        return self.work_dir / f"{_safe_name(document_id)}_chunks.jsonl"
 
     def chunks(self, document_id: str) -> list[dict[str, Any]]:
         path = self.chunk_path(document_id)
@@ -298,20 +360,32 @@ class GuidelineParsingSource:
         """Parse (optional) and load chunks with applicability sidecars."""
         if parse:
             self.parse()
+        if not any(self.work_dir.glob("*_chunks.jsonl")):
+            library = GuidelineChunkLibrary()
+            library.warnings = [
+                *self.warnings,
+                f"{self.work_dir} 尚无 *_chunks.jsonl；先运行解析（或设置 "
+                "RAG_GUIDELINE_AUTO_PARSE=1）生成，当前没有本地指南可检索。",
+            ]
+            return library
+        # 运行时副本优先；尚未生成时回退到人工维护的 data/catalog/ 权威源。
         applicability_dir = self.applicability_dir if self.applicability_dir.is_dir() else None
+        if applicability_dir is None:
+            canonical = Path(__file__).resolve().parents[2] / "data" / "catalog" / "guideline_applicability"
+            applicability_dir = canonical if canonical.is_dir() else None
         if applicability_dir is None:
             self.warnings.append(
                 f"{self.applicability_dir} 不存在；指南可以检索，但不会进行结构化适用性核对。"
             )
         try:
             library = load_guideline_chunk_library(
-                self.data_dir,
+                self.work_dir,
                 include_references=include_references,
                 applicability_dir=applicability_dir,
             )
         except ValueError as exc:
             raise GuidelineParsingError(
-                f"指南数据目录没有可用分块：{self.data_dir}；"
+                f"指南工作目录没有可用分块：{self.work_dir}；"
                 "先运行解析（或设置 RAG_GUIDELINE_AUTO_PARSE=1）生成 *_chunks.jsonl"
             ) from exc
         library.warnings = [*self.warnings, *library.warnings]

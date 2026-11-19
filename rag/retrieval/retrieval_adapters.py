@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Mapping, Protocol, Sequence
 
-from ..models import QueryPlan, RankedDocument, SourceDocument
+from ..core.models import QueryPlan, RankedDocument, SourceDocument
 
 
 @dataclass(frozen=True)

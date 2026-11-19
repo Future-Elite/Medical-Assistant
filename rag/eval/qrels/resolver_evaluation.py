@@ -10,11 +10,12 @@ from collections import Counter
 from typing import Any, Mapping, Sequence
 
 from .applicability_resolver import ApplicabilityResolver
-from .families import family_of
+from .families import family_index, family_of
 
 
 def evaluate_resolver(cases: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     resolver = ApplicabilityResolver(search_fn=None)
+    families = family_index(resolver.capability_fixture.get("guidelines"))
     by_type: dict[str, Counter[str]] = {}
     outcomes: dict[str, Counter[str]] = {}
     target_status = Counter()
@@ -33,7 +34,7 @@ def evaluate_resolver(cases: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
         if gold.get("guideline_status") is not None:
             target_status["n"] += 1
             target_status["correct"] += result["target"]["status"] == gold["guideline_status"]
-        correct = _expected_behavior(case, result)
+        correct = _expected_behavior(case, result, families)
         by_type[case_type]["n"] += 1
         by_type[case_type]["correct"] += correct
 
@@ -69,13 +70,19 @@ def evaluate_resolver(cases: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     }
 
 
-def _expected_behavior(case: Mapping[str, Any], result: Mapping[str, Any]) -> bool:
+def _expected_behavior(
+    case: Mapping[str, Any],
+    result: Mapping[str, Any],
+    families: Mapping[str, str] | None = None,
+) -> bool:
     gold = case["gold"]
     case_type = case["case_type"]
     if case_type == "A":
+        # gold.coverage is arbitrary local coverage; only the same-family part
+        # counts, so the family index must come from the fixture metadata.
         same_family = {
             item for item in gold.get("coverage", [])
-            if family_of(item) == family_of(gold.get("guideline_id"))
+            if family_of(item, families) == family_of(gold.get("guideline_id"), families)
         }
         return result["outcome"] == "resolved" and set(result["selected_guidelines"]) == same_family
     if case_type == "B":

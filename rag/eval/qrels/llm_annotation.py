@@ -5,10 +5,9 @@ separate from retrieval: the LLM only proposes a label, evidence span, value and
 confidence; deterministic checks decide whether the row is usable.  A missing
 API key/model raises ``AnnotationUnavailable`` instead of fabricating labels.
 
-Credentials are read from the environment only:
-  CHINALLM_LLM_API_KEY / OPENAI_API_KEY
-  CHINALLM_LLM_BASE_URL / OPENAI_BASE_URL
-  CHINALLM_LLM_MODEL / OPENAI_MODEL
+Credentials resolve in order: constructor args, then ``CHINALLM_LLM_*``
+(annotation-specific env vars), then ``OPENAI_*`` via ``get_config()``
+(``rag/.env`` / process env).
 """
 from __future__ import annotations
 
@@ -18,6 +17,8 @@ import json
 import os
 import re
 from typing import Any, Mapping, Sequence
+
+from ...core.config import get_config
 
 PROMPT_VERSION = "v672-llm-annotate-v1"
 TRACKS = ("external_evidence", "patient_fact", "applicability")
@@ -46,9 +47,10 @@ class LLMAnnotator:
     _cache: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        self.model = self.model or os.environ.get("CHINALLM_LLM_MODEL") or os.environ.get("OPENAI_MODEL")
-        self.base_url = self.base_url or os.environ.get("CHINALLM_LLM_BASE_URL") or os.environ.get("OPENAI_BASE_URL") or None
-        self.api_key = self.api_key or os.environ.get("CHINALLM_LLM_API_KEY") or os.environ.get("OPENAI_API_KEY")
+        cfg = get_config()
+        self.model = self.model or os.environ.get("CHINALLM_LLM_MODEL") or cfg.openai_model or None
+        self.base_url = self.base_url or os.environ.get("CHINALLM_LLM_BASE_URL") or cfg.openai_base_url or None
+        self.api_key = self.api_key or os.environ.get("CHINALLM_LLM_API_KEY") or cfg.openai_api_key or None
         if self.client is None:
             if not self.model:
                 raise AnnotationUnavailable("未配置 LLM 模型：设置 CHINALLM_LLM_MODEL（或 OPENAI_MODEL）")

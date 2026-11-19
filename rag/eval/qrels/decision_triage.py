@@ -254,7 +254,7 @@ def evaluate_triage(cases: Sequence[Mapping[str, Any]], fixture: Mapping[str, An
 
 
 def derived_from_snapshot(snapshot: Mapping[str, Any]) -> dict[str, Any]:
-    facts = {fact.get("collection"): fact.get("fields") or {} for fact in snapshot.get("facts", [])}
+    facts = {fact.get("collection"): fact.get("fields") or {} for fact in snapshot.get("records", [])}
     birth = facts.get("derived_birth") or {}
     resp = facts.get("derived_respiratory_support") or {}
     labs = facts.get("derived_labs") or {}
@@ -339,7 +339,7 @@ def apply_value_to_snapshot(snapshot: Mapping[str, Any], field: str, value: Any)
     """
     updated = deepcopy(dict(snapshot))
     found = False
-    for fact in updated.get("facts", []):
+    for fact in updated.get("records", []):
         collection = fact.get("collection")
         fields = fact.setdefault("fields", {})
         if collection == "derived_birth" and field.startswith("derived_birth."):
@@ -367,7 +367,7 @@ def apply_value_to_snapshot(snapshot: Mapping[str, Any], field: str, value: Any)
             fields["data_status"] = "observed_positive"
     if not found:
         if field == "derived_birth.ga_days":
-            updated.setdefault("facts", []).append({
+            updated.setdefault("records", []).append({
                 "collection": "derived_birth",
                 "fields": {
                     "ga_days": int(value), "ga_days_range": [int(value), int(value)],
@@ -376,17 +376,17 @@ def apply_value_to_snapshot(snapshot: Mapping[str, Any], field: str, value: Any)
                 },
             })
         elif field == "derived_birth.birth_weight_g":
-            updated.setdefault("facts", []).append({
+            updated.setdefault("records", []).append({
                 "collection": "derived_birth",
                 "fields": {"birth_weight_g": int(value), "birth_weight_status": "observed_positive", "data_status": "observed_positive"},
             })
         elif field == "derived_respiratory_support.mode":
-            updated.setdefault("facts", []).append({
+            updated.setdefault("records", []).append({
                 "collection": "derived_respiratory_support",
                 "fields": {"mode": value, "data_status": "observed_negative" if value == "无" else "observed_positive", "mapping_status": "mapped_negative" if value == "无" else "mapped"},
             })
         elif field == "derived_labs.max_tbil_umol_l":
-            updated.setdefault("facts", []).append({
+            updated.setdefault("records", []).append({
                 "collection": "derived_labs",
                 "fields": {"max_tbil_umol_l": float(value), "data_status": "observed_positive"},
             })
@@ -406,8 +406,8 @@ def triage_snapshot(
     corpus (for example ``hyperbilirubinemia``); otherwise the caller provides
     the target guideline ID, or the first non-matching guideline is used.
     """
-    if not isinstance(snapshot, Mapping) or not isinstance(snapshot.get("facts"), list) or not snapshot.get("as_of"):
-        raise ValueError("patient_snapshot must contain as_of and a facts list")
+    if not isinstance(snapshot, Mapping) or not isinstance(snapshot.get("records"), list) or not snapshot.get("as_of"):
+        raise ValueError("patient_snapshot must contain as_of and a records list")
     fixture = load_criteria_fixture()
     derived = derived_from_snapshot(snapshot)
     gold = patient_gold(fixture, derived)

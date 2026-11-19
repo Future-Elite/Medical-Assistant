@@ -712,7 +712,7 @@ def _make_test_case(
 
 def _mask_ga(snapshot: Mapping[str, Any]) -> dict[str, Any]:
     masked = copy.deepcopy(snapshot)
-    for fact in masked.get("facts", []):
+    for fact in masked.get("records", []):
         if fact.get("collection") == "derived_birth":
             fact["fields"]["ga_days"] = None
             fact["fields"]["ga_days_range"] = None

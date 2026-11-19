@@ -39,6 +39,13 @@ const NEXT_ACTION_LABEL: Record<string, string> = {
   review_selected: "按选中的指南复核",
 };
 
+export const GRAPH_SUPPORT_LABEL: Record<string, string> = {
+  same_record: "同一记录",
+  same_record_type: "同类记录",
+  concept_overlap: "概念命中",
+  none: "无图证据",
+};
+
 function statusTone(status: string): BadgeTone {
   if (status === "possible_match" || status === "match") return "done";
   if (status === "mismatch" || status === "unknown") return "warn";
@@ -55,7 +62,9 @@ function criteriaSummary(detail: Dict | undefined): string {
   const criteria: Dict[] = detail?.criteria || [];
   if (!criteria.length) return "无适用条件";
   const count = (status: string) => criteria.filter((item) => item.status === status).length;
-  return `条件 ${count("match")} 对得上 · ${count("mismatch")} 对不上 · ${count("unknown")} 看不出来`;
+  const graphCount = criteria.filter((item) => item.graph_support && item.graph_support !== "none").length;
+  const base = `条件 ${count("match")} 对得上 · ${count("mismatch")} 对不上 · ${count("unknown")} 看不出来`;
+  return graphCount ? `${base} · 图证据 ${graphCount}` : base;
 }
 
 function roundDetail(round: Dict, result: Dict): string {
@@ -153,6 +162,49 @@ function buildNodes(result: Dict): ChainNode[] {
     }
   });
 
+  if (result.knowledge_fusion) {
+    const fusion = result.knowledge_fusion;
+    const withEvidence = Number(fusion.stats?.recommendations_with_patient_evidence) || 0;
+    nodes.splice(1, 0, {
+      key: "graph-fusion",
+      index: "图",
+      label: "双向图证据",
+      state: "done",
+      badge: `${fusion.forward?.hits ?? 0} 正 / ${fusion.backward?.hits ?? 0} 反`,
+      tone: withEvidence ? "done" : "warn",
+      headline: `患者图命中与指南条件回查已合并${withEvidence ? `，${withEvidence} 条推荐带患者记录` : ""}`,
+      detail: [
+        `条件引用覆盖 ${fusion.stats?.reference_coverage ?? "—"}`,
+        `患者记录关联 ${fusion.criteria_with_graph_support ?? 0} 条`,
+        (fusion.graph_unknown_dimensions || []).length
+          ? `同目标图未知：${(fusion.graph_unknown_dimensions || []).join(" / ")}`
+          : "",
+        "只作复核线索",
+      ].filter(Boolean).join(" · "),
+    });
+  }
+
+  if ((result.graph_candidates || []).length) {
+    const candidates: Dict[] = result.graph_candidates;
+    const sameTarget = candidates.filter((item) => item.same_target);
+    const supported = candidates.filter((item) => (item.patient_record_paths || []).length);
+    const first = sameTarget[0] || candidates[0];
+    const crossGuideline = !sameTarget.length;
+    const graphIndex = nodes.findIndex((node) => node.key === "graph-fusion");
+    nodes.splice(graphIndex >= 0 ? graphIndex + 1 : 1, 0, {
+      key: "graph-candidates",
+      index: "候",
+      label: crossGuideline ? "其他指南图候选" : "指南图谱候选",
+      state: "stopped",
+      badge: crossGuideline ? `${candidates.length} 条 · 跨指南` : `${sameTarget.length} 条`,
+      tone: "warn",
+      headline: first?.summary || "图谱返回候选推荐",
+      detail: crossGuideline
+        ? `${supported.length} 条带患者证据 · 与目标指南不同源，只作旁证，不能替代目标指南判断`
+        : `${supported.length} 条带患者证据 · 来源 ${(first?.source_ids || []).join("、") || "—"} · 不是已判定适用`,
+    });
+  }
+
   if (result.lookup?.required) {
     const fields = (result.lookup.fields || []).join("、") || "—";
     const locators = (result.lookup.locators || []).join("、") || "—";
@@ -179,7 +231,10 @@ function buildNodes(result: Dict): ChainNode[] {
     badge: OUTCOME_LABEL[outcome] || outcome || "未知",
     tone: outcomeTone(outcome),
     headline: STOP_REASON_LABEL[stopReason] || stopReason || "流程停止",
-    detail: NEXT_ACTION_LABEL[nextAction] ? `下一步：${NEXT_ACTION_LABEL[nextAction]}` : "",
+    detail: [
+      NEXT_ACTION_LABEL[nextAction] ? `下一步：${NEXT_ACTION_LABEL[nextAction]}` : "",
+      result.next_action?.graph_text || "",
+    ].filter(Boolean).join(" · "),
   });
   return nodes;
 }

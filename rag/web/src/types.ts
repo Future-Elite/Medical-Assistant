@@ -3,7 +3,8 @@ export type Dict = Record<string, any>;
 export interface PatientSnapshot {
   patient_ref: string;
   as_of: string;
-  facts?: Dict[];
+  schema_version?: string;
+  records?: Dict[];
   suppressed_future?: number;
   source?: string;
   [key: string]: unknown;
@@ -28,7 +29,6 @@ export interface RetrievalRequest {
   facets: Dict;
   filters: Dict;
   source_kinds: string[];
-  source_mode: "live" | "custom";
   retrieval_method: string | null;
   rerank: boolean;
   fidelity_gate: string;

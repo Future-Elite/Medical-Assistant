@@ -16,7 +16,7 @@
       "pulmonary surfactant",
       "CPAP"
     ],
-    "facts": [
+    "records": [
       {
         "collection": "birth",
         "event_type": "birth",

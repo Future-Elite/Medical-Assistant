@@ -12,7 +12,7 @@
     "as_of": "2026-04-15",
     "source": "synthetic_neonatal_chart",
     "reviewed_external_terms": [],
-    "facts": [
+    "records": [
       {
         "collection": "respiratory_support",
         "event_type": "support",

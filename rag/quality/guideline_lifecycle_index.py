@@ -1,7 +1,7 @@
 """Guideline lifecycle as a parallel, auditable signal.
 
 This module does not fetch PubMed.  It reads the existing lifecycle cache
-(``data/guideline_lifecycle_cache.json``) populated by
+(``data/generated/guideline_lifecycle_cache.json``) populated by
 ``rag.sources.guideline_lifecycle`` and maps guideline documents to their
 current/historical status at the snapshot's ``as_of`` date.
 
@@ -19,9 +19,9 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 from ..sources.guideline_lifecycle import GuidelineLifecycleRecord, LifecycleCache
-from ..models import SourceDocument
+from ..core.models import SourceDocument
 
-DEFAULT_CACHE_PATH = Path(__file__).resolve().parents[2] / "data" / "guideline_lifecycle_cache.json"
+DEFAULT_CACHE_PATH = Path(__file__).resolve().parents[2] / "data" / "generated" / "guideline_lifecycle_cache.json"
 
 
 @dataclass

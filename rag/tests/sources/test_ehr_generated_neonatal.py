@@ -20,26 +20,29 @@ from rag.his import filter_snapshot, snapshot_from_dict
 from rag.models import SourceDocument
 
 DATA = Path(__file__).resolve().parents[3] / "data"
-_HAS_DATA = DATA.is_dir()
+ASSETS = Path(__file__).resolve().parents[3] / "data" / "catalog"
+RUNTIME = Path(__file__).resolve().parents[3] / "data" / "generated"
+RUNTIME_EHR = RUNTIME / "ehr_demo"
+_HAS_DATA = (RUNTIME_EHR / "neonatal_cases.json").is_file()
 IDENTIFIERS = {"name", "idCard", "phone", "address", "patientId"}
 RANGE_FIELDS = {"ORDER": ("startTime", "stopTime"), "ADMISSION": ("admissionTime", "dischargeTime")}
 DERIVED_COLLECTIONS = {"derived_birth", "derived_respiratory_support"}
 
 
 def _read_csv(name: str) -> list[dict[str, str]]:
-    with (DATA / "his" / "tables" / name).open(encoding="utf-8-sig", newline="") as handle:
+    with (RUNTIME_EHR / "his" / "tables" / name).open(encoding="utf-8-sig", newline="") as handle:
         return list(csv.DictReader(handle))
 
 
 def _api(case: dict) -> tuple[dict, dict, dict]:
     patient_id = case["snapshot"]["patient_ref"]
-    admission = next(fact for fact in case["snapshot"]["facts"]
+    admission = next(fact for fact in case["snapshot"]["records"]
                      if fact["collection"] == "admission")
     admission_id = str(admission["fields"]["id"])
     return (
-        json.loads((DATA / "his" / "api" / "patients" / f"{patient_id}.json").read_text(encoding="utf-8")),
-        json.loads((DATA / "his" / "api" / "patient_timelines" / f"{patient_id}.json").read_text(encoding="utf-8")),
-        json.loads((DATA / "his" / "api" / "admission_timelines" / f"{admission_id}.json").read_text(encoding="utf-8")),
+        json.loads((RUNTIME_EHR / "his" / "api" / "patients" / f"{patient_id}.json").read_text(encoding="utf-8")),
+        json.loads((RUNTIME_EHR / "his" / "api" / "patient_timelines" / f"{patient_id}.json").read_text(encoding="utf-8")),
+        json.loads((RUNTIME_EHR / "his" / "api" / "admission_timelines" / f"{admission_id}.json").read_text(encoding="utf-8")),
     )
 
 
@@ -90,9 +93,9 @@ class EhrHisDemoTests(unittest.TestCase):
             patient, timeline, admission = _api(case)
             expected = _expected_facts(patient, timeline, admission)
             stored = case["snapshot"]
-            his_actual = [fact for fact in stored["facts"]
+            his_actual = [fact for fact in stored["records"]
                           if fact.get("source_type") != "derived_from_ehr_input"]
-            derived = [fact for fact in stored["facts"]
+            derived = [fact for fact in stored["records"]
                        if fact.get("source_type") == "derived_from_ehr_input"]
             self.assertEqual(stored["patient_ref"], str(patient["data"]["id"]), case["case_id"])
             self.assertEqual(len(expected), len(his_actual), case["case_id"])
@@ -113,9 +116,9 @@ class EhrHisDemoTests(unittest.TestCase):
             filtered = filter_snapshot(snapshot, snapshot.as_of)
             self.assertGreaterEqual(filtered.suppressed_future, 1, case["case_id"])
             self.assertEqual(filtered.warnings, (), case["case_id"])
-            self.assertNotIn("discharge", {fact.collection for fact in filtered.facts}, case["case_id"])
+            self.assertNotIn("discharge", {fact.record_type for fact in filtered.records}, case["case_id"])
         pending = [
-            fact for case in self.cases for fact in case["snapshot"]["facts"]
+            fact for case in self.cases for fact in case["snapshot"]["records"]
             if fact["collection"] == "lab_test" and fact["fields"].get("resultValue") == "pending"
         ]
         self.assertTrue(pending)
@@ -154,18 +157,19 @@ class EhrHisDemoTests(unittest.TestCase):
         self.assertEqual(_read_csv("neonatal_quality_issue.csv"), [])
 
     def test_manifest_hashes_and_source_trajectories(self) -> None:
-        manifest = json.loads((DATA / "manifest.json").read_text(encoding="utf-8"))
+        manifest = json.loads((RUNTIME_EHR / "manifest.json").read_text(encoding="utf-8"))
         self.assertEqual(manifest["case_count"], 50)
         self.assertEqual(manifest["scenario_counts"], {"rds": 25, "pneumonia": 25})
         for key, relative in (("neonatal_cases.json", "neonatal_cases.json"),
                               ("source/ehr_cases_raw.json", "source/ehr_cases_raw.json")):
-            digest = hashlib.sha256((DATA / relative).read_bytes()).hexdigest()
+            digest = hashlib.sha256((RUNTIME_EHR / relative).read_bytes()).hexdigest()
             self.assertEqual(manifest["sha256"][key], digest, key)
-        lines = (DATA / "source" / "ehr_trajectories.jsonl").read_text(encoding="utf-8").splitlines()
+        lines = (RUNTIME_EHR / "source" / "ehr_trajectories.jsonl").read_text(encoding="utf-8").splitlines()
         self.assertEqual(len(lines), 50)
 
     def test_repo_local_guideline_parsing_layout(self) -> None:
         root = DATA / "guideline_parsing"
+        work = RUNTIME / "guideline_parsing"
         self.assertTrue((root / "guidelines" / "manifest.json").is_file())
         base_pdfs = {
             "pocus-espnic-2020", "feeding-vlbw-2015",
@@ -175,21 +179,21 @@ class EhrHisDemoTests(unittest.TestCase):
             "pdf-neo-pocus-espnic-2020", "pdf-neo-feeding-vlbw-2015",
             "pdf-neo-human-milk-fortification-2019", "pdf-neo-parenteral-nutrition-2012",
         }
-        pdfs = {path.stem for path in (root / "guidelines").glob("*.pdf")}
-        chunks = {path.name.removesuffix("_chunks.jsonl") for path in root.glob("*_chunks.jsonl")}
+        pdfs = {path.stem for path in (root / "guidelines").rglob("*.pdf")}
+        chunks = {path.name.removesuffix("_chunks.jsonl") for path in work.glob("*_chunks.jsonl")}
         self.assertTrue(base_pdfs <= pdfs)
         self.assertTrue(base_chunks <= chunks)
-        self.assertTrue((root / "parsed_markdown").is_dir())
+        self.assertTrue((work / "parsed_markdown").is_dir())
 
     def test_runtime_applicability_copies_match_canonical(self) -> None:
-        canonical = DATA / "guideline_applicability"
-        runtime = DATA / "guideline_parsing" / "applicability"
+        canonical = ASSETS / "guideline_applicability"
+        runtime = RUNTIME / "guideline_parsing" / "applicability"
         self.assertTrue(runtime.is_dir())
         for path in canonical.glob("*.json"):
             self.assertEqual(path.read_bytes(), (runtime / path.name).read_bytes(), path.name)
 
     def test_applicability_criteria_run_on_derived_facts(self) -> None:
-        sidecars = sorted((DATA / "guideline_applicability").glob("*.json"))
+        sidecars = sorted((ASSETS / "guideline_applicability").glob("*.json"))
         self.assertEqual(len(sidecars), 4)
         for path in sidecars:
             criteria = json.loads(path.read_text(encoding="utf-8"))

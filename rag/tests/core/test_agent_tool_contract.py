@@ -47,7 +47,7 @@ class TestAgentTools(unittest.TestCase):
         snapshot = {
             "patient_ref": "synthetic-1",
             "as_of": "2026-01-08",
-            "facts": [
+            "records": [
                 {"collection": "derived_birth", "fields": {
                     "ga_days": 224, "ga_days_range": [224, 230], "ga_precision": "week",
                     "birth_weight_g": 1400, "pna_days": 3, "data_status": "observed_positive",
@@ -73,7 +73,7 @@ class TestAgentTools(unittest.TestCase):
         snapshot = {
             "patient_ref": "synthetic-2",
             "as_of": "2026-01-08",
-            "facts": [
+            "records": [
                 {"collection": "derived_birth", "fields": {
                     "ga_days": None, "ga_days_range": None, "ga_precision": None,
                     "birth_weight_g": 1400, "pna_days": 3, "data_status": "observed_positive",
@@ -102,7 +102,7 @@ class TestAgentTools(unittest.TestCase):
         snapshot = {
             "patient_ref": "synthetic-3",
             "as_of": "2026-01-08",
-            "facts": [
+            "records": [
                 {"collection": "derived_birth", "fields": {
                     "birth_weight_g": 1400, "pna_days": 3, "data_status": "observed_positive",
                 }},
@@ -129,7 +129,7 @@ class TestAgentTools(unittest.TestCase):
         snapshot = {
             "patient_ref": "synthetic-4",
             "as_of": "2026-01-08",
-            "facts": [
+            "records": [
                 {"collection": "derived_birth", "fields": {
                     "ga_days": 266, "birth_weight_g": 3200, "pna_days": 5,
                     "data_status": "observed_positive",
@@ -162,7 +162,7 @@ class TestAgentTools(unittest.TestCase):
         snapshot = {
             "patient_ref": "synthetic-5",
             "as_of": "2026-01-08",
-            "facts": [
+            "records": [
                 {"collection": "derived_birth", "fields": {
                     "ga_days": 266, "birth_weight_g": 3200, "pna_days": 5,
                     "data_status": "observed_positive",

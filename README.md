@@ -26,6 +26,10 @@ HIS（只读快照） → Agent（编排与工具调用） → RAG（检索、�
 - 规则派生数据集与评测底座：出院小结 → HIS 形快照 → 事实 qrels、反事实对、rubric 与检索基线（研究特性）。
 - 指南适用性工作流：同族换指南、补事实续跑、注入式外部检索、结构化 `scope_mismatch`（研究特性）。
 - 逐轮检索控制器（研究层，默认不改变标准检索）。
+- 患者知识图谱与图检索：从调用方传入的可见快照按请求构建只读病例覆盖图，患者事实检索走受限图检索（v6.7.3）。
+- 指南知识图：EHR 式指南知识层，含四态条件、Graph-RAG 检索、动作校验、复查/病程门控与发布包生命周期（合成夹具，不是临床审核）。
+- 双向图检索与 Agentic 迭代检索：k 本本地指南 × 单个患者图的双向融合；Interpreter → Explorer → Arbiter 确定性迭代（合成契约场景）。
+- 在线药品标签：openFDA 标签连接器（美国标签，不是中国药品库或剂量建议）。
 - 只读 HTTP 服务与 React 工作台。
 
 ## 3. 环境与快速开始
@@ -59,19 +63,21 @@ npm run build
 ├── README.md
 ├── rag/                         # RAG 组件（Python 包 rag）
 │   ├── README.md                # 组件使用指南
-│   ├── agent.py                 # EvidenceRAG：检索 / 打开引用 / 回答审计
-│   ├── pipeline.py              # 分源联合检索与证据包生成
-│   ├── models.py                # 请求 / 文档 / 证据包契约
-│   ├── config.py                # 运行配置
+│   ├── __init__.py              # 公共 API、__version__、旧导入路径别名
 │   ├── server.py                # 只读 HTTP 服务
-│   ├── retrieval/               # 查询规划、BM25/QL/RM3、排序、路由、控制器
-│   ├── sources/                 # 指南 PDF / 全文 / 分块 / 解析来源 / 生命周期
-│   ├── quality/                 # 适用性、术语映射、MeSH 链接、主张校验、指南图、生命周期索引、观测
-│   ├── eval/                    # 查询保真入口；eval/qrels 数据集构建与评测；eval/*_fixture 评测夹具
+│   ├── core/                    # 请求 / 文档 / 证据包契约、运行配置、HIS 快照
+│   ├── agent/                   # EvidenceRAG：检索 / 打开引用 / 回答审计
+│   ├── retrieval/               # 查询规划、BM25/QL/RM3、联合检索、路由、控制器、迭代检索
+│   ├── patient_graph/           # 患者事实的每请求只读知识图与受限图检索
+│   ├── knowledge/               # EHR 式指南知识图、四态条件、Graph-RAG、动作校验
+│   ├── sources/                 # PubMed / 指南 / 药品 / 自定义来源连接器与指南解析
+│   ├── adapters/                # MedCPT / Qwen3 / BGE-M3 / EHR 视图惰性适配
+│   ├── quality/                 # 适用性、术语映射、MeSH 链接、主张校验、生命周期索引、观测
+│   ├── eval/                    # 查询保真入口；eval/qrels 数据集构建与评测
 │   ├── web/                     # React + Vite 工作台（src/ 源码，dist/ 构建产物）
 │   ├── demo/                    # 最小演示数据（50 例合成病例、5 例链路演示与指南元数据）
 │   ├── contracts/               # 机器可读契约与示例
-│   ├── tests/                   # 按 retrieval / sources / quality / core / gui 分目录
+│   ├── tests/                   # 按 core / retrieval / sources / quality / patient_graph / knowledge / gui / eval 分组
 │   └── requirements.txt
 ├── guideline_parsing/           # 本地指南解析器（与 rag/ 并列）
 └── data/                        # 本地运行数据与评测工件（不进入版本控制）
@@ -85,8 +91,8 @@ npm run build
 
 | 层 | 位置 | 当前值 |
 |---|---|---|
-| RAG 包 | `rag/__init__.py` 的 `__version__` | `6.7.2` |
-| Agent/HIS/RAG 契约 | `rag/contracts/agent_contract.json` 的 `contract_metadata.contract_version` | `6.7.2` |
+| RAG 包 | `rag/__init__.py` 的 `__version__` | `6.7.3` |
+| Agent/HIS/RAG 契约 | `rag/contracts/agent_contract.json` 的 `contract_metadata.contract_version` | `6.7.3` |
 | 组合版本 | git tag `medassist-<x.y.z>` | 尚未发布 |
 
 ## 6. HTTP API
@@ -109,6 +115,15 @@ npm run build
 | `GET` | `/api/demo/cases`、`/api/demo/applicability-cases`、`/api/demo/guidelines` | 合成演示病例（50 例档案 / 5 例链路演示）与指南库 |
 | `POST` | `/api/demo/guidelines/load` | 显式注册演示指南库 |
 | `POST` | `/api/his/snapshot` | 回显并按 `as_of` 过滤调用方快照 |
+| `POST` | `/api/patient-graph`、`/api/patient-graph/search` | 患者快照建图与患者事实图检索 |
+| `GET` | `/api/knowledge`、`/api/knowledge/graph` | 知识图概览 |
+| `POST` | `/api/knowledge/search` | 指南知识图检索（含双向融合） |
+| `POST` | `/api/knowledge/actions/validate` | 动作校验（四态条件、时间线与观察稳定性） |
+| `GET` | `/api/knowledge/guideline-graphs`、`POST /api/knowledge/guideline-graphs/build` | 指南图谱读取与构建 |
+| `POST` | `/api/knowledge/guideline-fusion` | k 本本地指南 × 单个患者图的双向融合 |
+| `POST` | `/api/knowledge/iterative-retrieve` | Agentic 迭代检索 |
+| `GET` | `/api/knowledge/releases`、`POST /api/knowledge/releases/publish`、`.../withdraw`、`.../rollback` | 知识发布包生命周期 |
+| `POST` | `/api/knowledge/review-plan`、`/api/knowledge/episode-end` | 复查计划与病程结束门控 |
 | `POST` | `/api/retrieve` | 联合检索证据 |
 | `POST` | `/api/applicability` | 指南适用性工作流（并列检索与生命周期信号） |
 | `POST` | `/api/controller/retrieve` | 逐轮控制器试运行 |
@@ -126,30 +141,34 @@ npm run build
 | 变量 | 作用 |
 |---|---|
 | `RAG_SERVER_HOST`、`RAG_SERVER_PORT` | 服务监听地址与端口（默认 `127.0.0.1:8798`） |
-| `RAG_ALLOW_LIVE_PUBMED`、`RAG_ALLOW_LIVE_GUIDELINES` | 启用实时来源 |
+| `RAG_ALLOW_LIVE_PUBMED` | 启用 PubMed 实时来源 |
 | `RAG_GUIDELINE_DATA` | 指南解析数据目录 |
 | `RAG_GUIDELINE_CHUNKS` | 预生成分块目录 |
 | `RAG_GUIDELINE_PDF_DIR` | 调用方 PDF 目录 |
 | `RAG_TERM_MAPPING_LIBRARY` | 通用术语映射库 |
 | `RAG_MESH_LEXICON` | MeSH 词表路径 |
-| `RAG_MINERU_BIN`、`RAG_MINERU_VENV` | MinerU 可执行文件或其独立环境根目录 |
+| `RAG_MINERU_BIN` | MinerU 可执行文件路径 |
 | `RAG_ROUTING_MODE` | 规则路由：`off` / `shadow` / `active` |
 | `RAG_ENTITY_LINKING_MODE` | MeSH 实体链接：`off` / `shadow` / `active` |
 | `RAG_GUIDELINE_LIFECYCLE_MODE` | 指南生命周期：`off` / `shadow` / `active` |
+| `RAG_PATIENT_GRAPH_MAX_HOPS`、`RAG_PATIENT_GRAPH_MAX_NODES` | 患者图遍历跳数与节点预算 |
+| `RAG_PATIENT_GRAPH_LEXICON` | 患者事实词表路径 |
 
 凭据通过环境变量或本地未跟踪配置注入，不写入代码、日志或提交记录。
 
 ## 8. 测试
 
 ```bash
-# RAG 包（按 retrieval / sources / quality / core / gui 分组）
-PYTHONPATH=. python3 -m unittest discover -s rag/tests -p "test_*.py"
+# RAG 包（从 rag/ 目录执行，按 core / retrieval / sources / quality / patient_graph / knowledge / gui / eval 分组）
+cd rag
+PYTHONPATH=.. python3 -m unittest discover -s tests -p "test_*.py"
+cd ..
 
 # 本地指南解析器
 PYTHONPATH=. python3 -m unittest discover -s guideline_parsing/tests -p "test_*.py"
 ```
 
-当前：RAG 包 **484 tests**，指南解析器 **8 tests**（2026-11-12 实测）。分发包不含仓库级 `data/` 时，10 个依赖本地数据的用例自动跳过。
+当前：RAG 包 **650 tests**、指南解析器 **8 tests**（2026-11-19 实测）。分发包不含仓库级 `data/` 时，22 个依赖本地数据的用例自动跳过。
 
 ## 9. 安全与合规
 

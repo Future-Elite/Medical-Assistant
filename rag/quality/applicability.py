@@ -22,8 +22,8 @@ from dataclasses import dataclass, replace
 import re
 from typing import Any, Mapping, Sequence
 
-from ..his import PatientFact, PatientSnapshot
-from ..models import ApplicabilityAssessment, ApplicabilityCriterionResult, SourceDocument
+from ..core.his import PatientRecord, PatientSnapshot
+from ..core.models import ApplicabilityAssessment, ApplicabilityCriterionResult, SourceDocument
 
 _UNUSABLE_STATUSES = frozenset({"not_recorded", "pending", "unavailable", "hypothesis"})
 _PARTICIPATING_REVIEW_STATUSES = frozenset({"reviewed", "synthetic_fixture"})
@@ -190,7 +190,7 @@ def _evaluate(criterion: _Criterion, snapshot: PatientSnapshot, *, preview: bool
 
 def _judge(criterion: _Criterion, snapshot: PatientSnapshot, base: Mapping[str, Any]) -> ApplicabilityCriterionResult:
     """The comparison itself (review gates already passed or bypassed for preview)."""
-    observed, suppressed = _lookup_values(snapshot.visible_facts(), criterion)
+    observed, suppressed = _lookup_values(snapshot.visible_records(), criterion)
     if criterion.operator not in _SUPPORTED_OPERATORS:
         return ApplicabilityCriterionResult(
             **base, status="unknown",
@@ -202,7 +202,7 @@ def _judge(criterion: _Criterion, snapshot: PatientSnapshot, base: Mapping[str, 
                 **base, status="unknown",
                 reason="患者事实中没有可用的该字段记录；不能查表。",
             )
-        paths = tuple(dict.fromkeys(fact.record_path for fact, _ in observed))
+        paths = tuple(dict.fromkeys(fact.record_id for fact, _ in observed))
         return ApplicabilityCriterionResult(
             **base, status="unknown",
             observed_value="; ".join(_render(value) for _, value in observed),
@@ -215,7 +215,7 @@ def _judge(criterion: _Criterion, snapshot: PatientSnapshot, base: Mapping[str, 
             reason = "该字段有记录，但状态为未记录/待回报/不可用/假设，或单位不一致；不能作为阴性或阳性证据。"
         return ApplicabilityCriterionResult(**base, status="unknown", reason=reason)
 
-    matched: list[tuple[PatientFact, Any]] = []
+    matched: list[tuple[PatientRecord, Any]] = []
     parse_failures = 0
     for fact, value in observed:
         outcome = _satisfies(value, criterion)
@@ -224,7 +224,7 @@ def _judge(criterion: _Criterion, snapshot: PatientSnapshot, base: Mapping[str, 
         elif outcome:
             matched.append((fact, value))
     if matched:
-        paths = tuple(dict.fromkeys(fact.record_path for fact, _ in matched))
+        paths = tuple(dict.fromkeys(fact.record_id for fact, _ in matched))
         return ApplicabilityCriterionResult(
             **base, status="match",
             observed_value="; ".join(_render(value) for _, value in matched),
@@ -235,20 +235,20 @@ def _judge(criterion: _Criterion, snapshot: PatientSnapshot, base: Mapping[str, 
         return ApplicabilityCriterionResult(
             **base, status="unknown",
             observed_value="; ".join(_render(value) for _, value in observed),
-            patient_record_paths=tuple(dict.fromkeys(fact.record_path for fact, _ in observed)),
+            patient_record_paths=tuple(dict.fromkeys(fact.record_id for fact, _ in observed)),
             reason="找到该字段记录，但数值/文本无法按该操作符比较（例如单位或格式不符）；未判定。",
         )
     return ApplicabilityCriterionResult(
         **base, status="mismatch",
         observed_value="; ".join(_render(value) for _, value in observed),
-        patient_record_paths=tuple(dict.fromkeys(fact.record_path for fact, _ in observed)),
+        patient_record_paths=tuple(dict.fromkeys(fact.record_id for fact, _ in observed)),
         reason="可见患者事实中的该字段不满足结构化条件；这是字段核对结果，不是临床不适用结论。",
     )
 
 
 def _lookup_values(
-    facts: Sequence[PatientFact], criterion: _Criterion,
-) -> tuple[list[tuple[PatientFact, Any]], int]:
+    facts: Sequence[PatientRecord], criterion: _Criterion,
+) -> tuple[list[tuple[PatientRecord, Any]], int]:
     collections: tuple[str, ...] | None = None
     field_name = criterion.field
     if "." in criterion.field:
@@ -261,10 +261,10 @@ def _lookup_values(
     if criterion.collection:
         collections = (criterion.collection.strip(),)
 
-    observed: list[tuple[PatientFact, Any]] = []
+    observed: list[tuple[PatientRecord, Any]] = []
     suppressed = 0
     for fact in facts:
-        if collections and fact.collection not in collections:
+        if collections and fact.record_type not in collections:
             continue
         role = str(fact.fields.get("subject_role") or "patient").strip().lower()
         if criterion.subject_role.lower() == "patient":
@@ -297,7 +297,7 @@ def _lookup_values(
     return observed, suppressed
 
 
-def _unit_matches(fact: PatientFact, field_name: str, expected_unit: str | None) -> bool:
+def _unit_matches(fact: PatientRecord, field_name: str, expected_unit: str | None) -> bool:
     if not expected_unit:
         return True
     actual = fact.fields.get(f"{field_name}_unit") or fact.fields.get("unit")
@@ -433,7 +433,7 @@ def _legacy_assessment(
     matched: list[str] = []
     missing: list[str] = []
     paths: list[str] = []
-    visible_text = " ".join(fact.searchable_text().lower() for fact in snapshot.visible_facts())
+    visible_text = " ".join(fact.searchable_text().lower() for fact in snapshot.visible_records())
     for field, expected in criteria.items():
         values = expected if isinstance(expected, (list, tuple, set)) else (expected,)
         if any(str(value).lower() in visible_text for value in values):

@@ -3,7 +3,7 @@
 The linker is intentionally conservative and auditable:
 
 * it matches against a **local snapshot of NLM MeSH** (descriptor labels,
-  official entry terms, term UIs) built by ``tools/build_mesh_lexicon.py``;
+  official entry terms, term UIs) built by ``tools/build/build_mesh_lexicon.py``;
 * it normalises surface forms (Unicode, punctuation, possessives, Greek
   letters, common British/American spellings, conservative plurals) before
   matching;
@@ -32,6 +32,8 @@ import unicodedata
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
+
+from ..core.config import get_config
 
 MESH_LINKING_MODES = ("off", "shadow", "active")
 
@@ -506,9 +508,7 @@ class BgeM3SemanticScorer:
             return False
 
     def _offline(self) -> bool:
-        import os
-
-        return str(os.environ.get("RAG_ALLOW_MODEL_DOWNLOAD", "")).strip() not in {"1", "true", "yes", "on"}
+        return not get_config().allow_model_download
 
     def _encode(self, texts: Sequence[str]) -> Any:
         torch = self._torch

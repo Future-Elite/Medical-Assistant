@@ -38,7 +38,7 @@ def _snapshot(*, ga=None, birth_weight=None, respiratory=None):
                 "mapping_status": "mapped_negative" if respiratory == "无" else "mapped",
             },
         })
-    return {"patient_ref": "p-resolver", "as_of": "2024-01-01", "facts": facts}
+    return {"patient_ref": "p-resolver", "as_of": "2024-01-01", "records": facts}
 
 
 def _aap_snapshot(*, ga=None, bilirubin=220):
@@ -53,7 +53,7 @@ def _aap_snapshot(*, ga=None, bilirubin=220):
             "collection": "derived_labs",
             "fields": {"max_tbil_umol_l": bilirubin, "data_status": "observed_positive"},
         })
-    return {"patient_ref": "p-resolver", "as_of": "2024-01-01", "facts": facts}
+    return {"patient_ref": "p-resolver", "as_of": "2024-01-01", "records": facts}
 
 
 class ResolverTests(unittest.TestCase):

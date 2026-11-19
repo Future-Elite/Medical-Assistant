@@ -1,0 +1,1090 @@
+{
+  "profile": "agentic-iterative-eval-v1",
+  "release_id": "DEMO-RELEASE-NOT-FOR-PRODUCTION",
+  "synthetic": true,
+  "note": "Synthetic agentic retrieval contract set; not clinical gold.",
+  "scenarios": [
+    {
+      "id": "AG-FUS-001",
+      "source_id": "FUS-001",
+      "title": "完整证据：早产 RDS 低氧、无呼吸暂停，CPAP 应可模拟",
+      "intent": "start",
+      "queries": [
+        "CPAP",
+        "呼吸窘迫"
+      ],
+      "snapshot": {
+        "patient_ref": "fusion-fus-001",
+        "as_of": "2026-04-15",
+        "schema_version": "patient-snapshot",
+        "source": "synthetic_fusion_eval",
+        "records": [
+          {
+            "record_id": "r:p",
+            "record_type": "patient",
+            "event_type": "PATIENT",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "pna_days": 2,
+              "gender": "男",
+              "data_status": "observed_positive"
+            }
+          },
+          {
+            "record_id": "r:b",
+            "record_type": "derived_birth",
+            "event_type": "BIRTH",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "birth_weight_g": 2100,
+              "data_status": "observed_positive",
+              "ga_days": 238
+            }
+          },
+          {
+            "record_id": "r:dx",
+            "record_type": "diagnoses",
+            "event_type": "DIAG",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "name": "新生儿呼吸窘迫综合征",
+              "data_status": "observed_positive"
+            }
+          },
+          {
+            "record_id": "r:labs",
+            "record_type": "labs",
+            "event_type": "LAB",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "spo2_percent": 88,
+              "ph": 7.25,
+              "data_status": "observed_positive"
+            }
+          },
+          {
+            "record_id": "r:no_apnea",
+            "record_type": "diagnoses",
+            "event_type": "SYMPTOM",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "symptom": [
+                "呼吸暂停"
+              ],
+              "data_status": "observed_negative"
+            }
+          },
+          {
+            "record_id": "r:no_apnea_dx",
+            "record_type": "diagnoses",
+            "event_type": "DIAG",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "name": "呼吸暂停",
+              "data_status": "observed_negative"
+            }
+          },
+          {
+            "record_id": "r:m",
+            "record_type": "maternal",
+            "event_type": "PREGNANCY",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "subject_role": "mother",
+              "gbs_status": "negative",
+              "prom_hours": 2,
+              "maternal_fever_c": 36.8,
+              "data_status": "observed_positive"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "status": "sufficient",
+        "stop_reason": "sufficient",
+        "min_rounds": 1,
+        "max_rounds": 1,
+        "present": [
+          "recommendation:DEMO-RDS-CPAP"
+        ],
+        "evidence": {
+          "recommendation:DEMO-RDS-CPAP": [
+            "r:b",
+            "r:dx",
+            "r:labs",
+            "r:no_apnea"
+          ]
+        }
+      }
+    },
+    {
+      "id": "AG-FUS-002",
+      "source_id": "FUS-002",
+      "title": "缺 SpO2：CPAP 指征未知，不能放行",
+      "intent": "start",
+      "queries": [
+        "CPAP",
+        "呼吸窘迫"
+      ],
+      "snapshot": {
+        "patient_ref": "fusion-fus-002",
+        "as_of": "2026-04-15",
+        "schema_version": "patient-snapshot",
+        "source": "synthetic_fusion_eval",
+        "records": [
+          {
+            "record_id": "r:p",
+            "record_type": "patient",
+            "event_type": "PATIENT",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "pna_days": 2,
+              "gender": "男",
+              "data_status": "observed_positive"
+            }
+          },
+          {
+            "record_id": "r:b",
+            "record_type": "derived_birth",
+            "event_type": "BIRTH",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "birth_weight_g": 2100,
+              "data_status": "observed_positive",
+              "ga_days": 238
+            }
+          },
+          {
+            "record_id": "r:dx",
+            "record_type": "diagnoses",
+            "event_type": "DIAG",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "name": "新生儿呼吸窘迫综合征",
+              "data_status": "observed_positive"
+            }
+          },
+          {
+            "record_id": "r:no_apnea",
+            "record_type": "diagnoses",
+            "event_type": "SYMPTOM",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "symptom": [
+                "呼吸暂停"
+              ],
+              "data_status": "observed_negative"
+            }
+          },
+          {
+            "record_id": "r:no_apnea_dx",
+            "record_type": "diagnoses",
+            "event_type": "DIAG",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "name": "呼吸暂停",
+              "data_status": "observed_negative"
+            }
+          },
+          {
+            "record_id": "r:m",
+            "record_type": "maternal",
+            "event_type": "PREGNANCY",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "subject_role": "mother",
+              "gbs_status": "negative",
+              "prom_hours": 2,
+              "maternal_fever_c": 36.8,
+              "data_status": "observed_positive"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "status": "needs_information",
+        "stop_reason": "needs_information",
+        "min_rounds": 2,
+        "present": [
+          "recommendation:DEMO-RDS-CPAP"
+        ],
+        "missing_contains": [
+          "临床指征仍有未知项"
+        ]
+      }
+    },
+    {
+      "id": "AG-FUS-003",
+      "source_id": "FUS-003",
+      "title": "呼吸暂停阳性：CPAP 排除条件成立",
+      "intent": "start",
+      "queries": [
+        "CPAP",
+        "呼吸窘迫"
+      ],
+      "snapshot": {
+        "patient_ref": "fusion-fus-003",
+        "as_of": "2026-04-15",
+        "schema_version": "patient-snapshot",
+        "source": "synthetic_fusion_eval",
+        "records": [
+          {
+            "record_id": "r:p",
+            "record_type": "patient",
+            "event_type": "PATIENT",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "pna_days": 2,
+              "gender": "男",
+              "data_status": "observed_positive"
+            }
+          },
+          {
+            "record_id": "r:b",
+            "record_type": "derived_birth",
+            "event_type": "BIRTH",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "birth_weight_g": 2100,
+              "data_status": "observed_positive",
+              "ga_days": 238
+            }
+          },
+          {
+            "record_id": "r:dx",
+            "record_type": "diagnoses",
+            "event_type": "DIAG",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "name": "新生儿呼吸窘迫综合征",
+              "data_status": "observed_positive"
+            }
+          },
+          {
+            "record_id": "r:labs",
+            "record_type": "labs",
+            "event_type": "LAB",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "spo2_percent": 88,
+              "ph": 7.25,
+              "data_status": "observed_positive"
+            }
+          },
+          {
+            "record_id": "r:apnea",
+            "record_type": "diagnoses",
+            "event_type": "SYMPTOM",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "symptom": [
+                "呼吸暂停"
+              ],
+              "data_status": "observed_positive"
+            }
+          },
+          {
+            "record_id": "r:m",
+            "record_type": "maternal",
+            "event_type": "PREGNANCY",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "subject_role": "mother",
+              "gbs_status": "negative",
+              "prom_hours": 2,
+              "maternal_fever_c": 36.8,
+              "data_status": "observed_positive"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "status": "not_applicable",
+        "stop_reason": "not_applicable",
+        "min_rounds": 1,
+        "max_rounds": 1,
+        "excluded": [
+          "recommendation:DEMO-RDS-CPAP"
+        ]
+      }
+    },
+    {
+      "id": "AG-FUS-006",
+      "source_id": "FUS-006",
+      "title": "GBS 阳性 + 血培养 pending：抗感染与培养建议",
+      "intent": "start",
+      "queries": [
+        "抗生素",
+        "血培养",
+        "感染"
+      ],
+      "snapshot": {
+        "patient_ref": "fusion-fus-006",
+        "as_of": "2026-04-15",
+        "schema_version": "patient-snapshot",
+        "source": "synthetic_fusion_eval",
+        "records": [
+          {
+            "record_id": "r:p",
+            "record_type": "patient",
+            "event_type": "PATIENT",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "pna_days": 2,
+              "gender": "男",
+              "data_status": "observed_positive"
+            }
+          },
+          {
+            "record_id": "r:b",
+            "record_type": "derived_birth",
+            "event_type": "BIRTH",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "birth_weight_g": 2100,
+              "data_status": "observed_positive",
+              "ga_days": 238
+            }
+          },
+          {
+            "record_id": "r:dx",
+            "record_type": "diagnoses",
+            "event_type": "DIAG",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "name": "新生儿呼吸窘迫综合征",
+              "data_status": "observed_positive"
+            }
+          },
+          {
+            "record_id": "r:labs",
+            "record_type": "labs",
+            "event_type": "LAB",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "spo2_percent": 88,
+              "ph": 7.25,
+              "data_status": "observed_positive"
+            }
+          },
+          {
+            "record_id": "r:no_apnea",
+            "record_type": "diagnoses",
+            "event_type": "SYMPTOM",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "symptom": [
+                "呼吸暂停"
+              ],
+              "data_status": "observed_negative"
+            }
+          },
+          {
+            "record_id": "r:no_apnea_dx",
+            "record_type": "diagnoses",
+            "event_type": "DIAG",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "name": "呼吸暂停",
+              "data_status": "observed_negative"
+            }
+          },
+          {
+            "record_id": "r:m",
+            "record_type": "maternal",
+            "event_type": "PREGNANCY",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "subject_role": "mother",
+              "gbs_status": "positive",
+              "prom_hours": 2,
+              "maternal_fever_c": 36.8,
+              "data_status": "observed_positive"
+            }
+          },
+          {
+            "record_id": "r:culture",
+            "record_type": "labs",
+            "event_type": "CULTURE",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "specimen": "blood",
+              "culture_status": "pending",
+              "data_status": "pending"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "status": "sufficient",
+        "stop_reason": "sufficient",
+        "min_rounds": 1,
+        "max_rounds": 2,
+        "present": [
+          "recommendation:DEMO-PNEUMONIA-ANTIBIOTIC",
+          "recommendation:DEMO-BLOOD-CULTURE"
+        ],
+        "evidence": {
+          "recommendation:DEMO-PNEUMONIA-ANTIBIOTIC": [
+            "r:m"
+          ],
+          "recommendation:DEMO-BLOOD-CULTURE": [
+            "r:m"
+          ]
+        }
+      }
+    },
+    {
+      "id": "AG-FUS-007",
+      "source_id": "FUS-007",
+      "title": "足月稳定、无感染风险：观察与不常规抗菌药",
+      "intent": "observe",
+      "queries": [
+        "观察",
+        "抗生素"
+      ],
+      "snapshot": {
+        "patient_ref": "fusion-fus-007",
+        "as_of": "2026-04-15",
+        "schema_version": "patient-snapshot",
+        "source": "synthetic_fusion_eval",
+        "records": [
+          {
+            "record_id": "r:p",
+            "record_type": "patient",
+            "event_type": "PATIENT",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "pna_days": 2,
+              "gender": "男",
+              "clinically_well": true,
+              "data_status": "observed_positive"
+            }
+          },
+          {
+            "record_id": "r:b",
+            "record_type": "derived_birth",
+            "event_type": "BIRTH",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "birth_weight_g": 2100,
+              "data_status": "observed_positive",
+              "ga_days": 280
+            }
+          },
+          {
+            "record_id": "r:labs",
+            "record_type": "labs",
+            "event_type": "LAB",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "spo2_percent": 98,
+              "ph": 7.25,
+              "data_status": "observed_positive"
+            }
+          },
+          {
+            "record_id": "r:no_apnea",
+            "record_type": "diagnoses",
+            "event_type": "SYMPTOM",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "symptom": [
+                "呼吸暂停"
+              ],
+              "data_status": "observed_negative"
+            }
+          },
+          {
+            "record_id": "r:no_apnea_dx",
+            "record_type": "diagnoses",
+            "event_type": "DIAG",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "name": "呼吸暂停",
+              "data_status": "observed_negative"
+            }
+          },
+          {
+            "record_id": "r:no_rd",
+            "record_type": "diagnoses",
+            "event_type": "DIAG",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "name": "呼吸窘迫",
+              "data_status": "observed_negative"
+            }
+          },
+          {
+            "record_id": "r:no_tachypnea",
+            "record_type": "diagnoses",
+            "event_type": "SYMPTOM",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "symptom": [
+                "气促"
+              ],
+              "data_status": "observed_negative"
+            }
+          },
+          {
+            "record_id": "r:m",
+            "record_type": "maternal",
+            "event_type": "PREGNANCY",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "subject_role": "mother",
+              "gbs_status": "negative",
+              "prom_hours": 2,
+              "maternal_fever_c": 36.8,
+              "data_status": "observed_positive"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "status": "needs_review",
+        "stop_reason": "needs_review",
+        "min_rounds": 2,
+        "critical_conflicts": true,
+        "present": [
+          "recommendation:DEMO-OBSERVE-LOW-RISK"
+        ]
+      }
+    },
+    {
+      "id": "AG-FUS-012",
+      "source_id": "FUS-012",
+      "title": "同日 SpO2 冲突：条件冲突不能放行",
+      "intent": "start",
+      "queries": [
+        "CPAP",
+        "呼吸窘迫"
+      ],
+      "snapshot": {
+        "patient_ref": "fusion-fus-012",
+        "as_of": "2026-04-15",
+        "schema_version": "patient-snapshot",
+        "source": "synthetic_fusion_eval",
+        "records": [
+          {
+            "record_id": "r:p",
+            "record_type": "patient",
+            "event_type": "PATIENT",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "pna_days": 2,
+              "gender": "男",
+              "data_status": "observed_positive"
+            }
+          },
+          {
+            "record_id": "r:b",
+            "record_type": "derived_birth",
+            "event_type": "BIRTH",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "birth_weight_g": 2100,
+              "data_status": "observed_positive",
+              "ga_days": 238
+            }
+          },
+          {
+            "record_id": "r:dx",
+            "record_type": "diagnoses",
+            "event_type": "DIAG",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "name": "新生儿呼吸窘迫综合征",
+              "data_status": "observed_positive"
+            }
+          },
+          {
+            "record_id": "r:labs",
+            "record_type": "labs",
+            "event_type": "LAB",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "spo2_percent": 88,
+              "ph": 7.25,
+              "data_status": "observed_positive"
+            }
+          },
+          {
+            "record_id": "r:labs_conflict",
+            "record_type": "labs",
+            "event_type": "LAB",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "spo2_percent": 96,
+              "data_status": "observed_positive"
+            }
+          },
+          {
+            "record_id": "r:no_apnea",
+            "record_type": "diagnoses",
+            "event_type": "SYMPTOM",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "symptom": [
+                "呼吸暂停"
+              ],
+              "data_status": "observed_negative"
+            }
+          },
+          {
+            "record_id": "r:no_apnea_dx",
+            "record_type": "diagnoses",
+            "event_type": "DIAG",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "name": "呼吸暂停",
+              "data_status": "observed_negative"
+            }
+          },
+          {
+            "record_id": "r:m",
+            "record_type": "maternal",
+            "event_type": "PREGNANCY",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "subject_role": "mother",
+              "gbs_status": "negative",
+              "prom_hours": 2,
+              "maternal_fever_c": 36.8,
+              "data_status": "observed_positive"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "status": "needs_information",
+        "stop_reason": "needs_information",
+        "min_rounds": 2,
+        "present": [
+          "recommendation:DEMO-RDS-CPAP"
+        ],
+        "missing_contains": [
+          "临床指征存在冲突值"
+        ]
+      }
+    },
+    {
+      "id": "AG-FUS-015",
+      "source_id": "FUS-015",
+      "title": "活动 CPAP + 稳定：停止 CPAP 推荐可检索",
+      "intent": "stop",
+      "queries": [
+        "停止 CPAP"
+      ],
+      "snapshot": {
+        "patient_ref": "fusion-fus-015",
+        "as_of": "2026-04-15",
+        "schema_version": "patient-snapshot",
+        "source": "synthetic_fusion_eval",
+        "records": [
+          {
+            "record_id": "r:p",
+            "record_type": "patient",
+            "event_type": "PATIENT",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "pna_days": 2,
+              "gender": "男",
+              "clinically_well": true,
+              "data_status": "observed_positive"
+            }
+          },
+          {
+            "record_id": "r:b",
+            "record_type": "derived_birth",
+            "event_type": "BIRTH",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "birth_weight_g": 2100,
+              "data_status": "observed_positive",
+              "ga_days": 238
+            }
+          },
+          {
+            "record_id": "r:labs",
+            "record_type": "labs",
+            "event_type": "LAB",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "spo2_percent": 98,
+              "ph": 7.25,
+              "data_status": "observed_positive"
+            }
+          },
+          {
+            "record_id": "r:no_apnea",
+            "record_type": "diagnoses",
+            "event_type": "SYMPTOM",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "symptom": [
+                "呼吸暂停"
+              ],
+              "data_status": "observed_negative"
+            }
+          },
+          {
+            "record_id": "r:no_apnea_dx",
+            "record_type": "diagnoses",
+            "event_type": "DIAG",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "name": "呼吸暂停",
+              "data_status": "observed_negative"
+            }
+          },
+          {
+            "record_id": "r:no_rd",
+            "record_type": "diagnoses",
+            "event_type": "DIAG",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "name": "呼吸窘迫",
+              "data_status": "observed_negative"
+            }
+          },
+          {
+            "record_id": "r:no_tachypnea",
+            "record_type": "diagnoses",
+            "event_type": "SYMPTOM",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "symptom": [
+                "气促"
+              ],
+              "data_status": "observed_negative"
+            }
+          },
+          {
+            "record_id": "r:m",
+            "record_type": "maternal",
+            "event_type": "PREGNANCY",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "subject_role": "mother",
+              "gbs_status": "negative",
+              "prom_hours": 2,
+              "maternal_fever_c": 36.8,
+              "data_status": "observed_positive"
+            }
+          },
+          {
+            "record_id": "r:cpap",
+            "record_type": "respiratory_support",
+            "event_type": "SUPPORT",
+            "start": "2026-04-10",
+            "end": null,
+            "source_system": "his",
+            "fields": {
+              "mode": "CPAP",
+              "fio2": "0.25",
+              "data_status": "observed_positive"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "status": "sufficient",
+        "stop_reason": "sufficient",
+        "min_rounds": 1,
+        "max_rounds": 1,
+        "present": [
+          "recommendation:DEMO-STOP-CPAP"
+        ],
+        "evidence": {
+          "recommendation:DEMO-STOP-CPAP": [
+            "r:p",
+            "r:cpap"
+          ]
+        }
+      }
+    },
+    {
+      "id": "AG-FUS-017",
+      "source_id": "FUS-017",
+      "title": "未知缩写 PS：歧义不强行绑定",
+      "intent": "assess",
+      "queries": [
+        "PS"
+      ],
+      "snapshot": {
+        "patient_ref": "fusion-fus-017",
+        "as_of": "2026-04-15",
+        "schema_version": "patient-snapshot",
+        "source": "synthetic_fusion_eval",
+        "records": [
+          {
+            "record_id": "r:p",
+            "record_type": "patient",
+            "event_type": "PATIENT",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "pna_days": 2,
+              "gender": "男",
+              "data_status": "observed_positive"
+            }
+          },
+          {
+            "record_id": "r:b",
+            "record_type": "derived_birth",
+            "event_type": "BIRTH",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "birth_weight_g": 2100,
+              "data_status": "observed_positive",
+              "ga_days": 238
+            }
+          },
+          {
+            "record_id": "r:dx",
+            "record_type": "diagnoses",
+            "event_type": "DIAG",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "name": "新生儿呼吸窘迫综合征",
+              "data_status": "observed_positive"
+            }
+          },
+          {
+            "record_id": "r:labs",
+            "record_type": "labs",
+            "event_type": "LAB",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "spo2_percent": 88,
+              "ph": 7.25,
+              "data_status": "observed_positive"
+            }
+          },
+          {
+            "record_id": "r:no_apnea",
+            "record_type": "diagnoses",
+            "event_type": "SYMPTOM",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "symptom": [
+                "呼吸暂停"
+              ],
+              "data_status": "observed_negative"
+            }
+          },
+          {
+            "record_id": "r:no_apnea_dx",
+            "record_type": "diagnoses",
+            "event_type": "DIAG",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "name": "呼吸暂停",
+              "data_status": "observed_negative"
+            }
+          },
+          {
+            "record_id": "r:m",
+            "record_type": "maternal",
+            "event_type": "PREGNANCY",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "subject_role": "mother",
+              "gbs_status": "negative",
+              "prom_hours": 2,
+              "maternal_fever_c": 36.8,
+              "data_status": "observed_positive"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "status": "needs_disambiguation",
+        "stop_reason": "needs_disambiguation",
+        "min_rounds": 1,
+        "max_rounds": 1
+      }
+    },
+    {
+      "id": "AG-FUS-018",
+      "source_id": "FUS-018",
+      "title": "无患者事实：不能生成适用结论",
+      "intent": "assess",
+      "queries": [
+        "CPAP"
+      ],
+      "snapshot": {
+        "patient_ref": "fusion-fus-018",
+        "as_of": "2026-04-15",
+        "schema_version": "patient-snapshot",
+        "source": "synthetic_fusion_eval",
+        "records": []
+      },
+      "expect": {
+        "status": "needs_information",
+        "stop_reason": "needs_information",
+        "min_rounds": 2
+      }
+    },
+    {
+      "id": "AG-FUS-020",
+      "source_id": "FUS-020",
+      "title": "足月无 RDS 但有感染风险：不应给 CPAP",
+      "intent": "start",
+      "queries": [
+        "CPAP",
+        "呼吸窘迫"
+      ],
+      "snapshot": {
+        "patient_ref": "fusion-fus-020",
+        "as_of": "2026-04-15",
+        "schema_version": "patient-snapshot",
+        "source": "synthetic_fusion_eval",
+        "records": [
+          {
+            "record_id": "r:p",
+            "record_type": "patient",
+            "event_type": "PATIENT",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "pna_days": 2,
+              "gender": "男",
+              "data_status": "observed_positive"
+            }
+          },
+          {
+            "record_id": "r:b",
+            "record_type": "derived_birth",
+            "event_type": "BIRTH",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "birth_weight_g": 2100,
+              "data_status": "observed_positive",
+              "ga_days": 280
+            }
+          },
+          {
+            "record_id": "r:labs",
+            "record_type": "labs",
+            "event_type": "LAB",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "spo2_percent": 96,
+              "ph": 7.25,
+              "data_status": "observed_positive"
+            }
+          },
+          {
+            "record_id": "r:no_apnea",
+            "record_type": "diagnoses",
+            "event_type": "SYMPTOM",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "symptom": [
+                "呼吸暂停"
+              ],
+              "data_status": "observed_negative"
+            }
+          },
+          {
+            "record_id": "r:no_apnea_dx",
+            "record_type": "diagnoses",
+            "event_type": "DIAG",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "name": "呼吸暂停",
+              "data_status": "observed_negative"
+            }
+          },
+          {
+            "record_id": "r:m",
+            "record_type": "maternal",
+            "event_type": "PREGNANCY",
+            "event_time": "2026-04-10",
+            "source_system": "his",
+            "fields": {
+              "subject_role": "mother",
+              "gbs_status": "positive",
+              "prom_hours": 2,
+              "maternal_fever_c": 36.8,
+              "data_status": "observed_positive"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "status": "not_applicable",
+        "stop_reason": "not_applicable",
+        "min_rounds": 1,
+        "max_rounds": 1,
+        "excluded": [
+          "recommendation:DEMO-RDS-CPAP"
+        ]
+      }
+    }
+  ]
+}

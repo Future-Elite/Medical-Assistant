@@ -44,7 +44,7 @@ def _write_data(root: Path) -> None:
 SNAPSHOT = {
     "patient_ref": "p1",
     "as_of": "2026-03-10",
-    "facts": [{
+    "records": [{
         "collection": "birth", "event_type": "birth", "record_path": "birth[0]",
         "fields": {"birth_weight_g": 1200, "data_status": "observed_positive"},
         "time": "2026-03-10",

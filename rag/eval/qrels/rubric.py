@@ -16,8 +16,8 @@ import re
 from typing import Any, Mapping, Sequence
 
 from ...quality.applicability import assess_applicability
-from ...his import snapshot_from_dict
-from ...models import SourceDocument
+from ...core.his import snapshot_from_dict
+from ...core.models import SourceDocument
 
 _POPULATION_TERMS = ("新生儿", "早产儿", "极低出生体重儿")
 _FIELD_LABELS = {
@@ -186,7 +186,7 @@ def _extract_ga(case: Mapping[str, Any]) -> int | None:
 
 def _snapshot_text(snapshot: Mapping[str, Any]) -> str:
     parts: list[str] = []
-    for fact in snapshot.get("facts", []):
+    for fact in snapshot.get("records", []):
         fields = fact.get("fields") or {}
         for key in (
             "presentingSymptoms", "laboratoryFindings", "specialExaminations",
@@ -210,7 +210,7 @@ def _population_term(case: Mapping[str, Any]) -> str:
 
 
 def _derived_birth(snapshot: Mapping[str, Any]) -> dict[str, Any]:
-    for fact in snapshot.get("facts", []):
+    for fact in snapshot.get("records", []):
         if fact.get("collection") == "derived_birth":
             return fact.get("fields") or {}
     return {}

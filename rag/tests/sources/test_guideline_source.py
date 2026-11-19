@@ -98,7 +98,7 @@ def _snapshot(weight: int | None):
     return snapshot_from_dict({
         "patient_ref": "p1",
         "as_of": "2026-03-10",
-        "facts": [{
+        "records": [{
             "collection": "birth",
             "event_type": "birth",
             "record_path": "birth[0]",
@@ -214,10 +214,11 @@ class GuidelineParsingSourceTests(unittest.TestCase):
                 "evidence_type": "clinical_practice_guideline",
             })
             self.assertEqual(result["content_mode"], "abstract")
-            self.assertTrue((Path(directory) / "guidelines" / f"{result['document_id']}.md").is_file())
+            self.assertTrue((Path(directory) / "live_sources" / f"{result['document_id']}.md").is_file())
             self.assertTrue(source.chunks(result["document_id"]))
             manifest = json.loads((Path(directory) / "guidelines" / "manifest.json").read_text(encoding="utf-8"))
             entry = next(row for row in manifest["guidelines"] if row["document_id"] == result["document_id"])
+            self.assertEqual(entry["file"], f"@work/live_sources/{result['document_id']}.md")
             self.assertEqual(entry["pmid"], "40962511")
             self.assertEqual(entry["content_mode"], "abstract")
             self.assertEqual(entry["license"], "unknown")

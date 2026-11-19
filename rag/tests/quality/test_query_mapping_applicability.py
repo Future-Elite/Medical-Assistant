@@ -6,7 +6,7 @@ import unittest
 
 from rag.quality.applicability import assess_applicability, parse_applicability_criteria
 from rag.connectors import ConnectorRegistry, InMemoryConnector
-from rag.his import PatientFact, PatientSnapshot, snapshot_from_dict
+from rag.his import PatientRecord, PatientSnapshot, snapshot_from_dict
 from rag.models import RetrievalRequest, SourceDocument, _jsonable, parse_term_mapping
 from rag.pipeline import EvidenceRetrievalPipeline
 from rag.pubmed import _safe_term
@@ -490,7 +490,7 @@ class ApplicabilityCriteriaTests(unittest.TestCase):
             "source_kinds": ["guideline"],
             "patient_snapshot": {
                 "patient_ref": "syn-neo-001", "as_of": "2026-04-15",
-                "facts": [
+                "records": [
                     {"collection": "diagnoses", "event_type": "diagnosis", "record_path": "diagnoses[0]",
                      "field_path": "diagnoses[0].name", "time": "2026-04-10",
                      "fields": {"subject_role": "patient", "name": "新生儿呼吸窘迫综合征", "data_status": "observed_positive"}},
@@ -523,7 +523,7 @@ class ApplicabilityPreviewTests(unittest.TestCase):
     def _snap(self):
         return snapshot_from_dict({
             "patient_ref": "syn-1", "as_of": "2026-04-15", "source": "synthetic_chart",
-            "facts": [{
+            "records": [{
                 "collection": "birth", "event_type": "birth", "record_path": "birth[0]",
                 "fields": {"ga_days": 212}, "time": "2026-04-01",
             }],

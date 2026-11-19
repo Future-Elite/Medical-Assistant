@@ -2,9 +2,9 @@
   "profile": "neonatal_demo_v1",
   "synthetic": true,
   "generated_at": "2026-11-05T16:15:06+08:00",
-  "generator": ".tmp/ehr_to_his_demo.py",
+  "generator": "ehr_to_his_demo.py（内部生成器）",
   "pipeline": [
-    "EHR Dreamer offline demo backend (backend='demo')",
+    "EHR offline demo backend (backend='demo')",
     "HIS API response fixtures (legacy timeline + neonatal discharge record)",
     "contracts/agent_his_adapter.py build_payload()",
     "rag.demo.load_demo_cases validation"

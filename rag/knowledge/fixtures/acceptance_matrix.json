@@ -1,0 +1,308 @@
+{
+  "profile": "knowledge-acceptance-matrix-v1",
+  "description": "Traceability from AT-01..AT-36 to local CQ/scenario/unit tests. Synthetic only.",
+  "entries": [
+    {
+      "id": "AT-01",
+      "scenario": "nCPAP/大小写/下标归一",
+      "coverage": [
+        "CQ-01",
+        "H-10",
+        "P0-term"
+      ],
+      "status": "covered"
+    },
+    {
+      "id": "AT-02",
+      "scenario": "歧义缩写不选首项",
+      "coverage": [
+        "CQ-10",
+        "CQ-23"
+      ],
+      "status": "covered"
+    },
+    {
+      "id": "AT-03",
+      "scenario": "未知治疗词不可执行",
+      "coverage": [
+        "CQ-23",
+        "H-11"
+      ],
+      "status": "covered"
+    },
+    {
+      "id": "AT-04",
+      "scenario": "一个 labs 字典",
+      "coverage": [
+        "HTTP-知识检索",
+        "patient_facts"
+      ],
+      "status": "covered"
+    },
+    {
+      "id": "AT-05",
+      "scenario": "胎龄不符排除",
+      "coverage": [
+        "CQ-05",
+        "H-01"
+      ],
+      "status": "covered"
+    },
+    {
+      "id": "AT-06",
+      "scenario": "胎龄/日龄缺失返回未知",
+      "coverage": [
+        "CQ-03",
+        "P0-ga-precision"
+      ],
+      "status": "covered"
+    },
+    {
+      "id": "AT-07",
+      "scenario": "人群 met 但指征缺失不放行",
+      "coverage": [
+        "CQ-30"
+      ],
+      "status": "covered"
+    },
+    {
+      "id": "AT-08",
+      "scenario": "无活动治疗 continue 拒绝",
+      "coverage": [
+        "CQ-24",
+        "H-06"
+      ],
+      "status": "covered"
+    },
+    {
+      "id": "AT-09",
+      "scenario": "观察缺一般情况拒绝",
+      "coverage": [
+        "CQ-28"
+      ],
+      "status": "covered"
+    },
+    {
+      "id": "AT-10",
+      "scenario": "not_routine 不能启动",
+      "coverage": [
+        "CQ-18",
+        "CQ-32"
+      ],
+      "status": "covered"
+    },
+    {
+      "id": "AT-11",
+      "scenario": "停止/监测推荐不能启动",
+      "coverage": [
+        "CQ-14"
+      ],
+      "status": "covered"
+    },
+    {
+      "id": "AT-12",
+      "scenario": "未在上下文推荐拒绝",
+      "coverage": [
+        "CQ-21"
+      ],
+      "status": "covered"
+    },
+    {
+      "id": "AT-13",
+      "scenario": "未审核/元数据阈值不授权",
+      "coverage": [
+        "release-gate-tests"
+      ],
+      "status": "covered"
+    },
+    {
+      "id": "AT-14",
+      "scenario": "冲突推荐保留",
+      "coverage": [
+        "CQ-27",
+        "CQ-33"
+      ],
+      "status": "covered"
+    },
+    {
+      "id": "AT-15",
+      "scenario": "检出限区间",
+      "coverage": [
+        "P0-qualifier"
+      ],
+      "status": "covered"
+    },
+    {
+      "id": "AT-16",
+      "scenario": "标本/单位不合并",
+      "coverage": [
+        "P0-unit"
+      ],
+      "status": "covered"
+    },
+    {
+      "id": "AT-17",
+      "scenario": "旧报告保留时间",
+      "coverage": [
+        "P0-freshness",
+        "APP-05"
+      ],
+      "status": "covered"
+    },
+    {
+      "id": "AT-18",
+      "scenario": "未发布报告不可见",
+      "coverage": [
+        "patient-graph-tests"
+      ],
+      "status": "covered"
+    },
+    {
+      "id": "AT-19",
+      "scenario": "未来报告隔离",
+      "coverage": [
+        "CQ-09"
+      ],
+      "status": "covered"
+    },
+    {
+      "id": "AT-20",
+      "scenario": "母体/患儿/否定不混淆",
+      "coverage": [
+        "CQ-05",
+        "patient-graph-tests"
+      ],
+      "status": "covered"
+    },
+    {
+      "id": "AT-21",
+      "scenario": "组合互斥",
+      "coverage": [
+        "CQ-27"
+      ],
+      "status": "covered"
+    },
+    {
+      "id": "AT-22",
+      "scenario": "先停后启序列",
+      "coverage": [
+        "H-07"
+      ],
+      "status": "covered"
+    },
+    {
+      "id": "AT-23",
+      "scenario": "待检重复",
+      "coverage": [
+        "CQ-12"
+      ],
+      "status": "covered"
+    },
+    {
+      "id": "AT-24",
+      "scenario": "面板建议/可用/不可用",
+      "coverage": [
+        "TERM-07",
+        "CQ-29"
+      ],
+      "status": "covered"
+    },
+    {
+      "id": "AT-25",
+      "scenario": "补查真实执行",
+      "coverage": [
+        "session-tests"
+      ],
+      "status": "covered"
+    },
+    {
+      "id": "AT-26",
+      "scenario": "无新增/预算",
+      "coverage": [
+        "no-new-evidence-tests"
+      ],
+      "status": "covered"
+    },
+    {
+      "id": "AT-27",
+      "scenario": "断网本地包",
+      "coverage": [
+        "RET-12",
+        "offline"
+      ],
+      "status": "covered"
+    },
+    {
+      "id": "AT-28",
+      "scenario": "版本固定",
+      "coverage": [
+        "release-tests"
+      ],
+      "status": "covered"
+    },
+    {
+      "id": "AT-29",
+      "scenario": "撤回/回滚",
+      "coverage": [
+        "release-tests"
+      ],
+      "status": "covered"
+    },
+    {
+      "id": "AT-30",
+      "scenario": "快照变化",
+      "coverage": [
+        "CQ-16"
+      ],
+      "status": "covered"
+    },
+    {
+      "id": "AT-31",
+      "scenario": "缓存不跨患者",
+      "coverage": [
+        "cache-key-tests"
+      ],
+      "status": "covered"
+    },
+    {
+      "id": "AT-32",
+      "scenario": "提示注入只作文本",
+      "coverage": [
+        "offline-no-llm"
+      ],
+      "status": "covered"
+    },
+    {
+      "id": "AT-33",
+      "scenario": "无效包发布失败",
+      "coverage": [
+        "release-gate-tests"
+      ],
+      "status": "covered"
+    },
+    {
+      "id": "AT-34",
+      "scenario": "截断告警",
+      "coverage": [
+        "model-projection-tests"
+      ],
+      "status": "covered"
+    },
+    {
+      "id": "AT-35",
+      "scenario": "EHR 导出不含图/隐藏状态",
+      "coverage": [
+        "EHR-side/N/A"
+      ],
+      "status": "not_applicable"
+    },
+    {
+      "id": "AT-36",
+      "scenario": "无病例通用检索",
+      "coverage": [
+        "CQ-30"
+      ],
+      "status": "covered"
+    }
+  ]
+}

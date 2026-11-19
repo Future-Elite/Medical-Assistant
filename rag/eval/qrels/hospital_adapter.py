@@ -6,7 +6,7 @@ is ``hmac-sha256:<16 hex>`` derived from a local salt; the salt is read from
 ``patient_ref`` identifies an **admission** (住院号), not a person: the export
 has no person-level master index, so splits are admission-level.
 
-The snapshot shape mirrors ``data/snapshots.json`` (``patient`` /
+The snapshot shape mirrors ``data/generated/ehr_demo/snapshots.json`` (``patient`` /
 ``admission`` / ``neonatal_record`` / ``neonatal_summary`` plus derived facts),
 so the applicability engine can read it without a special path.
 """
@@ -332,7 +332,7 @@ def row_to_snapshot(row: DischargeRow, *, salt: bytes) -> dict[str, Any]:
         "reviewed_external_terms": [],
         "suppressed_future": 0,
         "warnings": warnings,
-        "facts": facts,
+        "records": facts,
         "extra": {
             "export_sheet": SHEET_NAME,
             "row_ref": base,

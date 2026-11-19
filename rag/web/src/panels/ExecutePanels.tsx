@@ -1,14 +1,15 @@
+import { useState } from "react";
 import { useWorkbench } from "../state/workbench";
-import { Badge, Empty, Field, Metric, Notice, PageHeader } from "../components/ui";
+import { Badge, Empty, Field, Metric, Notice, PageHeader, StatusRow } from "../components/ui";
 import { Icon } from "../components/Icon";
 
 export function RequestPanel() {
-  const { requestPreview, form, running, runRetrieval, goStep } = useWorkbench();
+  const { requestPreview, form, goStep } = useWorkbench();
   const request = requestPreview.request;
   return (
     <>
       <PageHeader
-        kicker="执行 · 请求组装"
+        kicker="编排 · 请求编排"
         title="请求组装"
         actions={
           <Badge tone={requestPreview.error ? "error" : request?.question ? "ready" : ""}>
@@ -32,10 +33,6 @@ export function RequestPanel() {
                   <span>{request?.question ? `${request.question.slice(0, 80)}${request.question.length > 80 ? "…" : ""}` : "缺少"}</span>
                 </div>
                 <div className="status-row">
-                  <span>source_mode</span>
-                  <span>{form.sourceMode}</span>
-                </div>
-                <div className="status-row">
                   <span>source_kinds</span>
                   <span>{form.sourceKinds.join("、") || "—"}</span>
                 </div>
@@ -49,15 +46,6 @@ export function RequestPanel() {
                 </div>
               </div>
             </div>
-            <button
-              type="button"
-              className="btn btn-primary btn-block"
-              onClick={runRetrieval}
-              disabled={running || !request?.question}
-            >
-              <Icon name="play" size={14} />
-              {running ? "正在检索…" : "执行检索"}
-            </button>
           </div>
           <Field label="请求 JSON">
             <pre className="code-block" style={{ minHeight: 420 }}>
@@ -71,7 +59,7 @@ export function RequestPanel() {
           <Icon name="chevronLeft" size={14} />
           上一步
         </button>
-        <button type="button" className="btn" onClick={() => goStep("run")}>
+        <button type="button" className="btn btn-primary" onClick={() => goStep("run")}>
           执行检索
           <Icon name="chevronRight" size={14} />
         </button>
@@ -92,12 +80,20 @@ export function RunPanel() {
     controllerResult,
     controllerRunning,
     runController,
+    agenticResult,
+    agenticError,
+    agenticRunning,
+    runAgenticRetrieval,
+    form,
   } = useWorkbench();
+  const [maxRounds, setMaxRounds] = useState(3);
+  const [minCoverage, setMinCoverage] = useState(0.8);
+  const sourceLabels: Record<string, string> = { pubmed: "PubMed（实时）", guideline: "指南（本地 PDF）", drug: "药品库（在线）" };
 
   return (
     <>
       <PageHeader
-        kicker="执行 · 检索"
+        kicker="核心 · 执行检索"
         title="执行检索"
         actions={
           <Badge tone={running ? "running" : runError ? "error" : pkg ? "done" : ""}>
@@ -240,14 +236,106 @@ export function RunPanel() {
             ) : null}
           </div>
         </div>
+
+        <div className="card" data-agentic-retrieval="true">
+          <div className="card-head">
+            <h3>迭代检索（Agentic）</h3>
+            <Badge tone={agenticResult?.status === "sufficient" ? "done" : agenticResult ? "warn" : ""}>
+              {agenticResult?.status || "未运行"}
+            </Badge>
+          </div>
+          <div className="card-body stack">
+            <div className="notice info">
+              <Icon name="refresh" size={15} />
+              <div>
+                Interpreter 解析问题与意图 → Explorer 按当前勾选的来源逐轮查证 → Arbiter 汇总证据并给出停止原因。
+                来源选择直接决定每轮允许访问的 PubMed、指南、药品库；患者事实始终本地。
+              </div>
+            </div>
+            <div className="chips">
+              {(form.sourceKinds || []).map((kind) => (
+                <span className="chip" key={kind}>{sourceLabels[kind] || kind}</span>
+              ))}
+              {!(form.sourceKinds || []).length ? <span className="chip">未选来源</span> : null}
+            </div>
+            <div className="form-grid c2">
+              <Field label="max_rounds">
+                <input className="input" type="number" min={1} max={5} value={maxRounds}
+                  onChange={(event) => setMaxRounds(Number(event.target.value) || 1)} />
+              </Field>
+              <Field label="min_evidence_coverage">
+                <input className="input" type="number" min={0} max={1} step={0.05} value={minCoverage}
+                  onChange={(event) => setMinCoverage(Number(event.target.value) || 0)} />
+              </Field>
+            </div>
+            <div className="row">
+              <button type="button" className="btn btn-primary" onClick={() => runAgenticRetrieval(maxRounds, minCoverage)} disabled={agenticRunning}>
+                <Icon name="activity" size={14} />
+                {agenticRunning ? "迭代检索中…" : "运行迭代检索"}
+              </button>
+            </div>
+            {agenticError ? <Notice tone="error">{agenticError}</Notice> : null}
+            {agenticResult ? (
+              <div className="stack">
+                <div className="status-list">
+                  <StatusRow label="status" value={agenticResult.status || "—"} />
+                  <StatusRow label="stop_reason" value={agenticResult.stop_reason || "—"} />
+                  <StatusRow label="轮次" value={String((agenticResult.rounds || []).length)} />
+                  <StatusRow label="外部来源" value={Object.entries(agenticResult.external_source_counts || {}).map(([kind, count]) => `${sourceLabels[kind] || kind} ${count}`).join(" · ") || "—"} />
+                </div>
+                {(agenticResult.gap_analysis?.missing_sources || []).length ? (
+                  <Notice tone="warn">本轮没有命中的来源：{(agenticResult.gap_analysis.missing_sources || []).map((kind: string) => sourceLabels[kind] || kind).join("、")}；空结果不是阴性。</Notice>
+                ) : null}
+                <div className="section-title">轮次</div>
+                {(agenticResult.rounds || []).map((round: any, index: number) => (
+                  <div className="result-row" key={index}>
+                    <div className="result-title">
+                      <strong>round {round.round}</strong>
+                      <div className="result-badges">
+                        <Badge>{round.status || "—"}</Badge>
+                        <Badge>新推荐 {round.new_recommendations?.length ?? 0}</Badge>
+                        <Badge>外部文档 {round.external?.documents ?? 0}</Badge>
+                      </div>
+                    </div>
+                    <div className="result-meta">查询：{(round.queries || []).join(" / ")}</div>
+                    {round.external ? (
+                      <div className="result-meta">
+                        来源命中：{Object.entries(round.external.source_counts || {}).map(([kind, count]) => `${sourceLabels[kind] || kind} ${count}`).join(" · ") || "—"}
+                      </div>
+                    ) : null}
+                  </div>
+                ))}
+                {(agenticResult.external_documents || []).length ? (
+                  <>
+                    <div className="section-title">外部证据</div>
+                    {(agenticResult.external_documents || []).slice(0, 8).map((doc: any) => (
+                      <div className="result-row" key={`${doc.source_id}:${doc.document_id}`}>
+                        <div className="result-title">
+                          <strong>{doc.title}</strong>
+                          <Badge>{sourceLabels[doc.kind] || doc.kind || doc.source_id}</Badge>
+                        </div>
+                        <div className="result-meta">{String(doc.text || "").slice(0, 220)}</div>
+                      </div>
+                    ))}
+                  </>
+                ) : null}
+                <div className="hint">
+                  迭代检索只汇总证据与缺口，不生成诊断或处方；指南图为 extracted 候选，药品库为美国 FDA 标签。
+                </div>
+              </div>
+            ) : (
+              <Empty title="尚未运行迭代检索" />
+            )}
+          </div>
+        </div>
       </div>
       <div className="page-nav">
         <button type="button" className="btn" onClick={() => goStep("request")}>
           <Icon name="chevronLeft" size={14} />
-          上一步
+          请求编排
         </button>
-        <button type="button" className="btn" onClick={() => goStep("results")}>
-          证据结果
+        <button type="button" className="btn btn-primary" onClick={() => goStep("guidelines")}>
+          指南与适用性
           <Icon name="chevronRight" size={14} />
         </button>
       </div>

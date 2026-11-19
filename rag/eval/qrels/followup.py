@@ -20,7 +20,7 @@ from typing import Any, Mapping, Sequence
 
 from .families import family_index
 
-_CHUNK_DIR = Path(__file__).resolve().parents[3] / "data" / "guideline_parsing"
+_CHUNK_DIR = Path(__file__).resolve().parents[3] / "data" / "generated" / "parsing"
 
 _POPULATION_TERMS = {
     "ga": ("preterm", "gestational age", "37 weeks", "35 weeks", "早产", "胎龄"),

@@ -28,7 +28,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Mapping, Sequence
 
-from ..config import get_config
+from ..core.config import get_config
 
 _CJK_RE = re.compile(r"[\u3400-\u9fff]")
 
@@ -45,7 +45,7 @@ _MODEL_ALIASES = {
 
 
 def _offline_default() -> bool:
-    return str(os.environ.get("RAG_ALLOW_MODEL_DOWNLOAD", "")).strip() not in {"1", "true", "yes", "on"}
+    return not get_config().allow_model_download
 
 
 def _probability(value: Any) -> float | None:

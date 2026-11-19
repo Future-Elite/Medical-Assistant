@@ -20,7 +20,7 @@ from dataclasses import replace
 from typing import Iterable, Mapping
 
 from .bm25 import BM25Score, score_documents, tokenize
-from ..models import QueryPlan, SourceDocument
+from ..core.models import QueryPlan, SourceDocument
 
 QL_MU = 2000.0
 RM3_FEEDBACK_DOCS = 5

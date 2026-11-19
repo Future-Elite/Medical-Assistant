@@ -424,9 +424,40 @@ export function RankingCard({ pkg }: { pkg: any }) {
   );
 }
 
+export function PatientFactCard({ pkg }: { pkg: any }) {
+  const expansion = pkg?.trace?.patient_fact_expansion;
+  const queries = pkg?.trace?.patient_retrieval_queries || [];
+  if (!expansion && !queries.length) return null;
+  return (
+    <DiagCard
+      title="患者事实回流 · 本地检索"
+      badge={expansion ? <Badge tone="done">已并入指南检索</Badge> : <Badge>无回流</Badge>}
+    >
+      {queries.length ? (
+        <div className="hint">
+          患者检索查询（Agent 查询 + 术语映射展开）：{queries.slice(0, 12).join(" · ")}
+        </div>
+      ) : null}
+      {expansion ? (
+        <>
+          <div className="chips">
+            {(expansion.terms || []).map((term: string) => (
+              <span className="chip" key={term}>{term}</span>
+            ))}
+          </div>
+          <div className="hint">
+            变体权重 {expansion.weight} · 并入 {expansion.applied_to?.join(" / ") || "本地"} · {expansion.note}
+          </div>
+        </>
+      ) : null}
+    </DiagCard>
+  );
+}
+
 export function DiagnosticsGrid({ pkg }: { pkg: any }) {
   return (
     <div className="bento">
+      <PatientFactCard pkg={pkg} />
       <MappingSourcesCard pkg={pkg} />
       <RoutingCard pkg={pkg} />
       <QueryReviewCard pkg={pkg} />

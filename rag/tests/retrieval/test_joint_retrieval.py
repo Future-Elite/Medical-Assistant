@@ -18,7 +18,7 @@ class JointRetrievalTests(unittest.TestCase):
             "question": "新生儿呼吸窘迫综合征指南推荐和最新证据？", "as_of": "2026-04-15",
             "patient_snapshot": {
                 "patient_ref": "syn-neo-001", "as_of": "2026-04-15", "source": "synthetic_neonatal_chart",
-                "reviewed_external_terms": ["respiratory distress syndrome"], "facts": [
+                "reviewed_external_terms": ["respiratory distress syndrome"], "records": [
                     {"collection": "diagnoses", "event_type": "diagnosis", "record_path": "diagnoses[0]", "field_path": "diagnoses[0].name", "time": "2026-04-10", "fields": {"subject_role": "patient", "name": "新生儿呼吸窘迫综合征"}},
                     {"collection": "reports", "event_type": "report", "record_path": "reports[0]", "field_path": "reports[0].impression", "time": "2026-05-05", "fields": {"subject_role": "patient", "impression": "future secret"}},
                 ],
@@ -46,7 +46,7 @@ class JointRetrievalTests(unittest.TestCase):
             "question": "新生儿肺炎", "patient_snapshot": {
                 "patient_ref": "syn", "as_of": "2026-01-01",
                 "reviewed_external_terms": ["neonatal pneumonia"],
-                "facts": [{"collection": "notes", "event_type": "note", "record_path": "notes[0]", "field_path": "notes[0].text", "fields": {"text": "secret raw narrative"}}],
+                "records": [{"collection": "notes", "event_type": "note", "record_path": "notes[0]", "field_path": "notes[0].text", "fields": {"text": "secret raw narrative"}}],
             }, "top_k": 2,
         }))
         self.assertNotIn("secret", " ".join(package.trace["external_terms"]))
@@ -58,7 +58,7 @@ class JointRetrievalTests(unittest.TestCase):
             "patient_snapshot": {
                 "patient_ref": "syn-neo-002", "as_of": "2026-09-12",
                 "reviewed_external_terms": ["early-onset sepsis"],
-                "facts": [{"collection": "maternal", "event_type": "pregnancy", "record_path": "maternal[0]",
+                "records": [{"collection": "maternal", "event_type": "pregnancy", "record_path": "maternal[0]",
                            "field_path": "maternal[0].gbs_status", "time": "2026-09-10",
                            "fields": {"subject_role": "mother", "gbs_status": "positive"}}],
             },
