@@ -5,7 +5,7 @@
   "description": "Agent 与只读检索层的对接契约：Agent 先获取带 as_of 的 HIS 快照，再调用 RAG 完成患者事实 + PubMed + 版本化指南的联合检索。检索分三层执行：按来源收集 → 分源独立排序（各自词表内 IDF/RRF/相关度门，跨来源分数不比较）→ 联合选择（来源可见性保证 + 意图配额 + 来源内排名轮转补齐 + 按来源内排名交错）。live 指南注册表只含新生儿指南元数据（成人 WHO 条目已移除）；新生儿演示档案（rag/demo/）是调用方库，需经 POST /api/demo/guidelines/load 显式加载。中英文字段语义见 language_rules：中文原始问题原样保留，审核术语优先使用 term_mapping（概念→english/mesh/aliases），english_terms/mesh_terms/user_terms 为兼容字段；question_english_terms 为系统自动提取。",
   "contract_metadata": {
     "contract_id": "chinallm.rag.agent",
-    "contract_version": "6.7.2",
+    "contract_version": "6.7.3",
     "status": "experimental"
   },
   "scope_and_safety": {
@@ -290,7 +290,7 @@
       "required": [
         "patient_ref",
         "as_of",
-        "facts"
+        "records"
       ],
       "properties": {
         "patient_ref": {
@@ -313,10 +313,10 @@
           },
           "description": "调用方审核的最小化外部检索术语（建议英文）；随问题概念一起参与检索，绝不发送原始字段值。"
         },
-        "facts": {
+        "records": {
           "type": "array",
           "items": {
-            "$ref": "#/schemas/PatientFact"
+            "$ref": "#/schemas/PatientRecord"
           }
         },
         "suppressed_future": {
@@ -332,7 +332,7 @@
         }
       }
     },
-    "PatientFact": {
+    "PatientRecord": {
       "type": "object",
       "required": [
         "collection",
@@ -693,9 +693,48 @@
         "source_type",
         "matched_terms",
         "score",
-        "evidence_text"
+        "evidence_text",
+        "status",
+        "concept_ids",
+        "graph_path",
+        "match_method"
       ],
-      "description": "本地患者事实命中；evidence_text 已排除自由文本字段。"
+      "properties": {
+        "status": {
+          "enum": [
+            "observed_positive",
+            "observed_negative",
+            "uncertain",
+            "pending",
+            "not_recorded"
+          ],
+          "description": "该记录/字段的事实状态；not_recorded 表示记录存在但未记录，不是正常、不是阴性。"
+        },
+        "concept_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "该记录在患者图谱中提及的事实概念；不是诊断或因果标签。"
+        },
+        "graph_path": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "产生该命中的图路径（source -[REL]-> target）；只作审计，不作因果解释。"
+        },
+        "match_method": {
+          "enum": [
+            "intent",
+            "concept",
+            "lexical",
+            "expansion"
+          ],
+          "description": "命中来源：问题意图、概念、词面兜底或图扩展。"
+        }
+      },
+      "description": "本地患者事实命中；evidence_text 已排除自由文本字段。v6.7.3 只有患者图检索，因此 status/concept_ids/graph_path/match_method 始终输出。"
     },
     "ApplicabilityAssessment": {
       "type": "object",
@@ -783,7 +822,7 @@
         },
         "patient_context": {
           "type": "object",
-          "description": "患者上下文摘要：context_id / visible_fact_count / suppressed_future；不包含快照原文。"
+          "description": "患者上下文摘要：context_id / visible_fact_count / suppressed_future；并含 graph_snapshot_sha256 / graph_node_count / graph_edge_count / graph_status；不包含快照原文。"
         },
         "citations": {
           "type": "array",
@@ -800,7 +839,7 @@
         },
         "trace": {
           "type": "object",
-          "description": "审计轨迹：rag_version / source_mode / retrieved_at / connector_trace / candidate_count / deduplicated_count / selected_count / retrieval_method（最终生效方法串）/ method_trace（各方法 ok|not_configured|error|fallback）/ query_review（PRESS 风格检索式自检：英文覆盖、数值保留、否定条件、术语重叠；不修改检索计划）/ joint_selection（分源联合选择轨迹：guaranteed_minimums / selected_per_source / merit_filled_per_source（按来源内排名轮转补齐） / rationale）/ semantic_trace / reranker / generation_performed / clinical_decision_performed / query_plan{language,intent,english_terms,question_english_terms,mesh_terms} / patient_context / external_terms（实际发往外部的术语 = 审核 english_terms + 问题内 question_english_terms）/ source_separation。"
+          "description": "审计轨迹：rag_version / source_mode / retrieved_at / connector_trace / candidate_count / deduplicated_count / selected_count / retrieval_method（最终生效方法串）/ method_trace（各方法 ok|not_configured|error|fallback）/ query_review（PRESS 风格检索式自检：英文覆盖、数值保留、否定条件、术语重叠；不修改检索计划）/ joint_selection（分源联合选择轨迹：guaranteed_minimums / selected_per_source / merit_filled_per_source（按来源内排名轮转补齐） / rationale）/ semantic_trace / reranker / generation_performed / clinical_decision_performed / query_plan{language,intent,english_terms,question_english_terms,mesh_terms} / patient_context / external_terms（实际发往外部的术语 = 审核 english_terms + 问题内 question_english_terms）/ source_separation / patient_graph（含 engine/query/seeds/expanded/hits/budget/status/warnings 与 snapshot_sha256）。"
         },
         "ranked_documents": {
           "type": "array",

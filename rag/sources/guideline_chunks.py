@@ -34,8 +34,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterator, Mapping, Sequence
 
-from ..connectors import ConnectorRegistry, KnowledgeConnector
-from ..models import QueryPlan, SearchResult, SourceDocument
+from .connectors import ConnectorRegistry, KnowledgeConnector
+from ..core.models import QueryPlan, SearchResult, SourceDocument
 
 SCHEMA = "guideline-chunks/v1"
 DEFAULT_MAX_DOCUMENTS = 5000

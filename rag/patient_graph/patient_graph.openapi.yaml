@@ -1,0 +1,169 @@
+openapi: 3.1.0
+info:
+  title: ChinaLLM 患者图谱只读接口
+  version: "2026-11-16"
+  description: |
+    只读患者事实图谱与检索接口。支持调用方提交 PatientEnvironment.view()
+    或已规范化的 patient-snapshot。服务不连接 HIS、不写回病历、不返回原始记录正文。
+servers:
+  - url: http://127.0.0.1:8798
+paths:
+  /api/patient-graph:
+    post:
+      summary: 构建患者图谱
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatientGraphRequest"
+      responses:
+        "200":
+          description: 图节点、边、快照哈希与计数
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PatientGraphResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+  /api/patient-graph/search:
+    post:
+      summary: 构建患者图谱并检索患者事实
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatientGraphSearchRequest"
+      responses:
+        "200":
+          description: 命中、图路径与检索 trace
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PatientGraphSearchResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+components:
+  responses:
+    BadRequest:
+      description: 请求格式、患者引用、时间锚点或查询参数无效
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error: {type: string}
+  schemas:
+    PatientSnapshot:
+      $ref: "patient_snapshot.schema.json"
+    PatientGraphRequest:
+      oneOf:
+        - type: object
+          required: [patient_snapshot]
+          properties:
+            patient_snapshot:
+              $ref: "#/components/schemas/PatientSnapshot"
+        - type: object
+          required: [patient_ref, ehr_view]
+          properties:
+            patient_ref:
+              type: string
+              description: 伪匿名患者 ID
+            as_of:
+              type: string
+              description: ISO 日期或日期时间；与 start_time 二选一
+            start_time:
+              type: string
+              description: 仿真锚点时间；与 view.time_hours 计算 as_of
+            source:
+              type: string
+            ehr_view:
+              type: object
+              description: PatientEnvironment.view() 的普通 dict
+              additionalProperties: true
+    PatientGraphSearchRequest:
+      allOf:
+        - $ref: "#/components/schemas/PatientGraphRequest"
+        - type: object
+          required: [queries]
+          properties:
+            queries:
+              type: array
+              minItems: 1
+              maxItems: 20
+              items:
+                type: string
+                maxLength: 200
+            top_k:
+              type: integer
+              minimum: 1
+              maximum: 50
+              default: 20
+            max_hops:
+              type: integer
+              minimum: 0
+              maximum: 3
+              default: 2
+            max_nodes:
+              type: integer
+              minimum: 1
+              maximum: 1000
+              default: 240
+    Graph:
+      type: object
+      properties:
+        patient_ref: {type: string}
+        as_of: {type: string}
+        snapshot_sha256: {type: string}
+        node_count: {type: integer}
+        edge_count: {type: integer}
+        fact_count: {type: integer}
+        nodes:
+          type: array
+          items: {type: object}
+        edges:
+          type: array
+          items: {type: object}
+        warnings:
+          type: array
+          items: {type: string}
+    Hit:
+      type: object
+      properties:
+        record_path: {type: string}
+        field_path: {type: string}
+        collection: {type: string}
+        event_type: {type: string}
+        time: {type: ["string", "null"]}
+        status: {type: string}
+        concept_ids:
+          type: array
+          items: {type: string}
+        graph_path:
+          type: array
+          items: {type: string}
+        evidence_text: {type: string}
+        score: {type: number}
+    PatientGraphResponse:
+      type: object
+      properties:
+        status: {type: string, const: ok}
+        data:
+          $ref: "#/components/schemas/Graph"
+    PatientGraphSearchResponse:
+      type: object
+      properties:
+        status: {type: string, const: ok}
+        data:
+          type: object
+          properties:
+            graph:
+              $ref: "#/components/schemas/Graph"
+            hits:
+              type: array
+              items:
+                $ref: "#/components/schemas/Hit"
+            trace:
+              type: object
+              additionalProperties: true

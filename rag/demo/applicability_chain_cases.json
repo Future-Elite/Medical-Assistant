@@ -14,7 +14,7 @@
         "patient_ref": "chain-01",
         "as_of": "2026-01-10",
         "source": "synthetic_chain_demo",
-        "facts": [
+        "records": [
           {
             "collection": "patient",
             "event_type": "PATIENT",
@@ -111,7 +111,7 @@
         "patient_ref": "chain-02",
         "as_of": "2026-01-10",
         "source": "synthetic_chain_demo",
-        "facts": [
+        "records": [
           {
             "collection": "patient",
             "event_type": "PATIENT",
@@ -208,7 +208,7 @@
         "patient_ref": "chain-03",
         "as_of": "2026-01-10",
         "source": "synthetic_chain_demo",
-        "facts": [
+        "records": [
           {
             "collection": "patient",
             "event_type": "PATIENT",
@@ -304,7 +304,7 @@
         "patient_ref": "chain-04",
         "as_of": "2026-01-10",
         "source": "synthetic_chain_demo",
-        "facts": [
+        "records": [
           {
             "collection": "patient",
             "event_type": "PATIENT",
@@ -402,7 +402,7 @@
         "patient_ref": "chain-05",
         "as_of": "2026-01-10",
         "source": "synthetic_chain_demo",
-        "facts": [
+        "records": [
           {
             "collection": "patient",
             "event_type": "PATIENT",

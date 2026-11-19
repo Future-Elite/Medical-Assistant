@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "./Icon";
 import { Badge, StatusRow } from "./ui";
 import { STEP_ORDER, useWorkbench, type ThemeChoice } from "../state/workbench";
-import { NAV_GROUPS, STEP_META, stepNumber } from "../lib/steps";
+import { CORE_STAGES, STEP_META, coreStageForStep, coreStageNumber, stepNumber } from "../lib/steps";
 import { sourceLabels } from "../lib/format";
 import type { StepKey } from "../types";
 
@@ -24,6 +24,7 @@ export function Topbar({
   const { step, health, backendError, theme, setTheme, running, runRetrieval, setCmdOpen } =
     useWorkbench();
   const meta = STEP_META[step];
+  const core = coreStageForStep(step);
   const readyMethods = Object.entries(health?.retrieval_methods || {})
     .filter(([, value]) => value.available)
     .map(([key]) => key);
@@ -49,9 +50,14 @@ export function Topbar({
       </div>
       <div className="topbar-center">
         <div className="crumbs">
-          <span className="step-num">{stepNumber(step)}</span>
-          <span className="sep">/</span>
-          <b>{meta.label}</b>
+          <span className="step-num">{coreStageNumber(step)}</span>
+          <b>{core.title}</b>
+          {meta.label !== core.title ? (
+            <>
+              <span className="sep">/</span>
+              <span className="crumbs-step">{meta.label}</span>
+            </>
+          ) : null}
         </div>
       </div>
       <div className="topbar-actions">
@@ -118,30 +124,52 @@ export function Sidebar({
   return (
     <aside className={`sidebar ${open ? "open" : ""}`} aria-label="档案索引">
       <div className="sidebar-scroll">
-        {NAV_GROUPS.map((group) => (
-          <div className="nav-group" key={group.title}>
-            <div className="nav-group-title">{group.title}</div>
-            {group.steps.map((key) => {
-              const meta = STEP_META[key];
-              const status = stepStatus[key];
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  className={`nav-item ${step === key ? "active" : ""}`}
-                  onClick={() => {
-                    goStep(key);
-                    onNavigate();
-                  }}
-                >
-                  <span className="nav-num">{stepNumber(key)}</span>
-                  <span className="nav-label">{meta.label}</span>
-                  <span className={`nav-status ${status.tone}`}>{status.text}</span>
-                </button>
-              );
-            })}
-          </div>
-        ))}
+        {CORE_STAGES.map((stage, index) => {
+          const active = stage.steps.includes(step);
+          const status = stepStatus[stage.primary];
+          return (
+            <div className={`nav-stage ${active ? "active" : ""}`.trim()} key={stage.key}>
+              <button
+                type="button"
+                className="nav-stage-head"
+                onClick={() => {
+                  goStep(stage.primary);
+                  onNavigate();
+                }}
+              >
+                <span className="nav-stage-num">{String(index + 1).padStart(2, "0")}</span>
+                <span className="nav-stage-text">
+                  <b>{stage.title}</b>
+                  <small>{stage.description}</small>
+                </span>
+                <span className={`nav-status ${status.tone}`}>{status.text}</span>
+              </button>
+              {stage.steps.length > 1 ? (
+                <div className="nav-substeps">
+                  {stage.steps.map((key) => {
+                    const meta = STEP_META[key];
+                    const stepStatusRow = stepStatus[key];
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        className={`nav-substep ${step === key ? "active" : ""}`}
+                        onClick={() => {
+                          goStep(key);
+                          onNavigate();
+                        }}
+                      >
+                        <span className="nav-num">{stepNumber(key)}</span>
+                        <span className="nav-label">{meta.label}</span>
+                        <span className={`nav-substep-dot ${stepStatusRow.tone}`} />
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </div>
+          );
+        })}
       </div>
       <div className="sidebar-foot">
         <div>

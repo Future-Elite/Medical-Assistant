@@ -8,10 +8,10 @@ Versioned request, response, evidence, and citation contracts shared by `rag/` a
 
 | 文件 | 版本位 | 内容 | 维护线 |
 |---|---|---|---|
-| `his_rag.md` | `contract_version: 0.2.0`（文件头） | HIS → Agent → RAG 分层与只读快照载荷：Agent 读取的三个只读端点、`TimelineEvent` → 事实映射、标识剔除规则、区间与存在性语义、变更纪律 | `main` |
+| `his_rag.md` | `contract_version: 0.3.0`（文件头） | HIS → Agent → RAG 分层与只读快照载荷：Agent 读取的三个只读端点、`TimelineEvent` → 记录映射、标识剔除规则、区间与存在性语义、变更纪律 | `main` |
 | `agent_his_adapter.py` | 随 `his_rag.md` | **Agent 侧参考实现**：读 HIS → 生成 `patient_snapshot` 载荷（**不属于 `rag` 包**） | `main` |
 | `examples/` | 随 `his_rag.md` | 合成 HIS 响应样例 + 载荷黄金样例（跨组件测试逐字比对） | `main` |
-| `../rag/contracts/agent_contract.json` | `contract_version` 与包 `__version__` 同步（当前 `6.6.2`） | RAG 包自身接口契约：工具规格、快照 schema、来源模式与示例（随 RAG 包发布） | `rag` 线 |
+| `../rag/contracts/agent_contract.json` | `contract_version` 与包 `__version__` 同步（当前 `6.7.3`） | RAG 包自身接口契约：工具规格、快照 schema、来源模式与示例（随 RAG 包发布） | `rag` 线 |
 
 ## 分层与边界（不可协商）
 

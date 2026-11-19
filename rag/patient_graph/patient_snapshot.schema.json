@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "patient_snapshot.schema.json",
+  "title": "PatientSnapshot",
+  "description": "RAG 只读患者快照。顶层只接受 records；旧 facts 结构不兼容。",
+  "type": "object",
+  "required": ["patient_ref", "as_of", "records"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "patient-snapshot"
+    },
+    "patient_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "调用方生成的伪匿名患者 ID；不得为姓名、住院号或身份证号。"
+    },
+    "as_of": {
+      "type": "string",
+      "minLength": 10,
+      "description": "ISO 日期或日期时间；日期按记录本地日期截止，日期时间按绝对时刻截止。"
+    },
+    "source": {"type": "string"},
+    "source_system": {"type": "string"},
+    "encounter_id": {"type": ["string", "null"]},
+    "reviewed_external_terms": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "suppressed_future": {"type": "integer", "minimum": 0},
+    "warnings": {"type": "array", "items": {"type": "string"}},
+    "extra": {"type": "object"},
+    "records": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/PatientRecord"}
+    }
+  },
+  "$defs": {
+    "PatientRecord": {
+      "type": "object",
+      "required": ["record_id", "record_type"],
+      "properties": {
+        "record_id": {"type": "string", "minLength": 1},
+        "record_type": {"type": "string", "minLength": 1},
+        "event_type": {"type": "string"},
+        "fields": {"type": "object"},
+        "patient_ref": {"type": "string"},
+        "encounter_id": {"type": ["string", "null"]},
+        "subject": {"type": "string"},
+        "source_system": {"type": "string"},
+        "event_time": {"type": ["string", "null"]},
+        "reported_time": {"type": ["string", "null"]},
+        "status": {
+          "type": "string",
+          "enum": ["final", "preliminary", "amended", "pending", "not_recorded", "entered_in_error", "unknown"]
+        },
+        "code": {"type": "object"},
+        "value": {},
+        "unit": {"type": ["string", "null"]},
+        "reference_range": {"type": ["string", "null"]},
+        "start": {"type": ["string", "null"]},
+        "end": {"type": ["string", "null"]},
+        "provenance": {"type": "object"},
+        "extra": {"type": "object"}
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

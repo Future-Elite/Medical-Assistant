@@ -333,7 +333,7 @@ export function ResultsPanel() {
     return (
       <>
         <PageHeader
-          kicker="结果 · 证据"
+          kicker="核心 · 证据包"
           title="证据结果"
           actions={<Badge>未检索</Badge>}
         />
@@ -365,12 +365,12 @@ export function ResultsPanel() {
   return (
     <>
       <PageHeader
-        kicker="结果 · 证据"
+        kicker="核心 · 证据包"
         title="证据结果"
         description={
           <span>
             {pkg.request_id} · 方法 {trace.retrieval_method || "bm25"}
-            {rerankLabel} · source_mode {trace.source_mode || "—"}
+            {rerankLabel} · 来源 {Object.keys(pkg.evidence_groups || {}).join(" / ") || "—"}
           </span>
         }
         actions={
@@ -433,7 +433,7 @@ export function ResultsPanel() {
                       {
                         key: "snapshot",
                         label: "快照事实",
-                        count: (snapshot?.facts || []).length || "—",
+                        count: (snapshot?.records || []).length || "—",
                       },
                     ]}
                   />
@@ -450,12 +450,12 @@ export function ResultsPanel() {
       </div>
 
       <div className="page-nav">
-        <button type="button" className="btn" onClick={() => goStep("run")}>
-          <Icon name="chevronLeft" size={14} />
-          上一步
-        </button>
         <button type="button" className="btn" onClick={() => goStep("guidelines")}>
-          指南解析与 HIS 核对
+          <Icon name="chevronLeft" size={14} />
+          指南与适用性
+        </button>
+        <button type="button" className="btn" onClick={() => goStep("audit")}>
+          引用审计
           <Icon name="chevronRight" size={14} />
         </button>
       </div>

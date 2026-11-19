@@ -15,6 +15,9 @@ from rag.server import RAGRequestHandler, ThreadingHTTPServer
 
 # 仓库级 data/ 不随发布分支分发；缺生命周期缓存时跳过依赖真实缓存的用例。
 _LIFECYCLE_CACHE = DEFAULT_CACHE_PATH.is_file()
+# 本地指南数据同样不随发布分支分发；缺指南登记表时跳过 live 来源用例。
+_DATA = Path(__file__).resolve().parents[3] / "data"
+_HAS_GUIDELINE_DATA = (_DATA / "guidelines" / "guideline_pdfs.json").is_file()
 
 
 def _document_dict(document):
@@ -75,10 +78,19 @@ class GuiContractTests(unittest.TestCase):
     def test_contract_fields_are_present(self):
         source = self.frontend_source()
         required = (
-            # 页面骨架与 01–10 流程
-            "新生儿证据检索", "病例与快照", "问题与意图", "术语与映射",
-            "范围与过滤", "检索方法与门控", "请求组装", "执行检索",
-            "证据结果", "指南解析与 HIS 核对", "引用与审计", "STEP_ORDER",
+            # 页面骨架与 01–10 流程（6 个核心阶段 + 技术步骤）
+            "新生儿证据检索", "患者快照", "临床问题", "术语映射",
+            "来源范围", "检索方法", "请求编排", "指南适配",
+            "执行检索", "证据包", "引用审计", "核心链路", "CORE_STAGES", "STEP_ORDER",
+            # 指南图谱与双向检索
+            "指南图谱", "data-guideline-graph", "/api/knowledge/guideline-graphs",
+            "双向图检索", "data-graph-fusion", "patient_graph_evidence",
+            "knowledge_fusion", "双向图证据", "指南图谱候选", "graph_support",
+            "生成适用性链路", "data-topk-guidelines", "data-topk-guideline",
+            "/api/knowledge/guideline-graphs/build", "检索 → Top-k 指南 → 建图 → 双向检索",
+            # 来源选择与迭代检索
+            "data-agentic-retrieval", "迭代检索（Agentic）", "external_source_counts",
+            "missing_sources", "/api/knowledge/iterative-retrieve", "药品库（在线）",
             # 01 快照
             "/api/his/snapshot", "patient_snapshot", "synthetic", "manualSnapshot",
             # 02 问题
@@ -87,7 +99,7 @@ class GuiContractTests(unittest.TestCase):
             "patient_terms", "term_mapping", "mapping_trace", "needs_review",
             "facets",
             # 04 范围
-            "source_mode", "source_kinds", "top_k", "filters",
+            "source_kinds", "top_k", "filters", "药品库（在线）",
             # 05 方法
             "retrieval_method", "fidelity_gate", "rerank", "rerank_pool",
             "MedCPT", "Qwen3-Reranker", "BGE-M3",
@@ -153,7 +165,8 @@ class GuiContractTests(unittest.TestCase):
             "/api/guidelines/pdf/meta", "/api/guidelines/pdf/page",
             "/api/guidelines/applicability", "/api/guidelines/save-live",
             "/api/settings/reranker", "/api/settings/industrial",
-            "/api/controller/retrieve",
+            "/api/controller/retrieve", "/api/patient-graph", "/api/patient-graph/search",
+            "/api/knowledge/guideline-fusion",
         ):
             self.assertIn(endpoint, source, f"GUI 未接真实端点：{endpoint}")
 
@@ -176,6 +189,37 @@ class GuiContractTests(unittest.TestCase):
         for field in sorted(PRESET_FIELDS - {"request_id"} - legacy_inputs):
             self.assertIn(field, source, f"GUI 缺少字段绑定：{field}")
 
+    def test_patient_graph_stage_is_wired(self):
+        source = self.frontend_source()
+        for text in (
+            "患者知识图谱", "/api/patient-graph", "/api/patient-graph/search",
+            "构建患者图谱", "患者图检索", "患者检索", "患者检索命中与证据路径",
+            "PatientGraphView", "patient-graph-canvas", "patient-graph-legend",
+            "patient-graph-detail", "data-node-id", "data-node-type",
+            "patient-hit-summary", "patient-hit-line", "patient-hit-row", "data-hit-record", "graph_path", "snapshot_sha256",
+            "不表示诊断、因果或治疗指征",
+        ):
+            self.assertIn(text, source, f"GUI 缺少患者图谱契约：{text}")
+
+    def test_knowledge_audit_stage_is_wired(self):
+        source = self.frontend_source()
+        for text in (
+            "知识图谱与双向检索", "/api/knowledge/guideline-fusion",
+            "knowledge_context_id", "release_sha256", "term_resolutions",
+            "推荐与审核状态", "排除的推荐", "冲突与监测面板",
+            "eligible_for_simulation", "review_status", "evidence_span_ids",
+            "data-knowledge-recommendation", "data-knowledge-excluded", "data-knowledge-conflict",
+            "不是临床指南",
+        ):
+            self.assertIn(text, source, f"GUI 缺少知识证据审计契约：{text}")
+        panel = (self.SRC / "panels" / "GuidelinesPanel.tsx").read_text(encoding="utf-8")
+        prepare_panel = (self.SRC / "panels" / "PreparePanels.tsx").read_text(encoding="utf-8")
+        guideline_section, audit_section = panel.split("export function AuditPanel", 1)
+        self.assertIn("KnowledgeAudit", guideline_section)
+        self.assertNotIn("KnowledgeAudit", audit_section)
+        self.assertIn("GuidelineGraphCard", guideline_section)
+        self.assertNotIn("KnowledgeAudit", prepare_panel)
+
     def test_step_order_matches_call_order(self):
         source = (self.SRC / "state" / "workbench.tsx").read_text(encoding="utf-8")
         match = re.search(r"const STEP_ORDER: StepKey\[\] = \[(.*?)\];", source, re.S)
@@ -183,7 +227,7 @@ class GuiContractTests(unittest.TestCase):
         order = re.findall(r'"([a-z]+)"', match.group(1))
         self.assertEqual(order, [
             "case", "question", "terms", "scope", "method",
-            "request", "run", "results", "guidelines", "audit",
+            "request", "run", "guidelines", "results", "audit",
         ])
 
     def test_handler_exposes_expected_routes(self):
@@ -322,7 +366,7 @@ class HttpContractTests(unittest.TestCase):
             "patient_snapshot": {
                 "patient_ref": "synthetic-http",
                 "as_of": "2026-01-08",
-                "facts": [{
+                "records": [{
                     "collection": "derived_birth",
                     "fields": {"ga_days": 266, "birth_weight_g": 3200, "pna_days": 5, "data_status": "observed_positive"},
                 }],
@@ -337,6 +381,98 @@ class HttpContractTests(unittest.TestCase):
         self.assertEqual(payload["next_action"]["type"], "scope_mismatch")
         self.assertIn("target_detail", payload)
 
+    @unittest.skipUnless(_HAS_GUIDELINE_DATA, "guideline data/ is not shipped with the release checkout")
+    def test_live_mode_is_pubmed_plus_local_guidelines(self):
+        from rag.server import build_live_registry
+
+        described = build_live_registry().describe()
+        source_ids = {row["source_id"] for row in described}
+        self.assertIn("pubmed-live", source_ids)
+        self.assertNotIn("guideline-fulltext-live", source_ids)
+        self.assertNotIn("neonatal-guideline-metadata", source_ids)
+        self.assertTrue(any("guideline" in row["kinds"] for row in described))
+
+    def test_local_guideline_fusion_endpoint(self):
+        from unittest.mock import patch
+        from tests.knowledge.test_local_guideline_fusion import FakeGuidelineSource, _library
+
+        with patch("rag.server._require_guideline_source", return_value=FakeGuidelineSource()),                 patch("rag.server.load_guideline_graph_library", return_value=_library()):
+            status, payload = self.request("POST", "/api/knowledge/guideline-fusion", {
+                "queries": ["CPAP", "超声", "早产儿"],
+                "patient_snapshot": {
+                    "patient_ref": "synthetic-local-fusion",
+                    "as_of": "2026-01-08",
+                    "records": [{
+                        "record_id": "derived:ehr:birth:1",
+                        "record_type": "derived_birth",
+                        "event_type": "DERIVED_BIRTH",
+                        "fields": {"ga_days": 210, "birth_weight_g": 1200, "data_status": "observed_positive"},
+                        "provenance": {"record_path": "derived:ehr:birth:1", "field_path": "derived:ehr:birth:1"},
+                    }],
+                },
+                "top_guidelines": 2,
+                "target_guideline_id": "g-rds",
+            })
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["status"], "partial")
+        self.assertEqual({row["guideline_id"] for row in payload["guidelines"]}, {"g-rds", "g-pocus"})
+        self.assertTrue(payload["recommendations"])
+        self.assertIn(
+            "g-rds",
+            {row["source_ids"][0] for row in payload["recommendations"]},
+        )
+        self.assertEqual(payload["recommendations"][0]["review_status"], "extracted")
+        self.assertEqual(
+            payload["diagnostics"]["pipeline_order"],
+            "offline parse/chunk/graph -> query-time top-k guideline selection -> per-guideline fusion",
+        )
+
+    def test_applicability_endpoint_accepts_knowledge_fusion(self):
+        status, payload = self.request("POST", "/api/applicability", {
+            "question": "肠外营养指南是否适用？",
+            "patient_snapshot": {
+                "patient_ref": "synthetic-http",
+                "as_of": "2026-01-08",
+                "records": [{
+                    "collection": "derived_birth",
+                    "fields": {"ga_days": 266, "birth_weight_g": 3200, "pna_days": 5, "data_status": "observed_positive"},
+                }],
+            },
+            "target_guideline_id": "pdf-neo-parenteral-nutrition-2012",
+            "execute_external": False,
+            "knowledge_fusion": {
+                "retrieval_id": "retrieval-http-fusion",
+                "knowledge_context_id": "knowledge-http-fusion",
+                "knowledge_release_id": "DEMO-RELEASE-NOT-FOR-PRODUCTION",
+                "release_sha256": "b" * 64,
+                "fusion": {
+                    "forward": {"hits": 1, "seeds": ["concept:ga"]},
+                    "backward": {"hits": 2, "queries": ["胎龄"]},
+                    "stats": {"recommendations_with_patient_evidence": 1, "reference_coverage": 1.0},
+                },
+                "recommendations": [{
+                    "recommendation_id": "recommendation:DEMO-PN",
+                    "summary": "DEMO：肠外营养候选",
+                    "direction": "support",
+                    "review_status": "synthetic_fixture",
+                    "source_ids": ["source:demo-pn"],
+                    "applicability": {"population": "met", "indication": "unknown"},
+                    "patient_graph_evidence": [{
+                        "record_path": "derived_birth[0]",
+                        "record_type": "derived_birth",
+                        "origin": "backward",
+                        "concept_ids": ["concept:ga"],
+                    }],
+                }],
+            },
+        })
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["outcome"], "scope_mismatch")
+        self.assertEqual(payload["knowledge_fusion"]["retrieval_id"], "retrieval-http-fusion")
+        self.assertEqual(len(payload["graph_candidates"]), 1)
+        self.assertEqual(payload["target_detail"]["criteria"][0]["graph_support"], "same_record")
+        self.assertIn("不是已判定适用", payload["next_action"]["graph_text"])
+
     @unittest.skipUnless(_LIFECYCLE_CACHE, "guideline lifecycle cache is not shipped")
     def test_applicability_endpoint_returns_lifecycle(self):
         status, payload = self.request("POST", "/api/applicability", {
@@ -344,7 +480,7 @@ class HttpContractTests(unittest.TestCase):
             "patient_snapshot": {
                 "patient_ref": "synthetic-http-graph",
                 "as_of": "2024-06-10",
-                "facts": [{
+                "records": [{
                     "collection": "derived_birth",
                     "fields": {"birth_weight_g": 1010, "ga_days": 210, "data_status": "observed_positive"},
                 }],

@@ -1,7 +1,8 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Icon } from "./Icon";
 import type { BadgeTone } from "../types";
-import { STEP_ORDER, useWorkbench } from "../state/workbench";
+import { useWorkbench } from "../state/workbench";
+import { coreStageForStep, coreStageNumber } from "../lib/steps";
 
 export function Badge({
   tone = "",
@@ -82,14 +83,15 @@ export function PageHeader({
   actions?: ReactNode;
 }) {
   const { step } = useWorkbench();
-  const index = String(STEP_ORDER.indexOf(step) + 1).padStart(2, "0");
-  const group = String(kicker || "").split("·")[0].trim();
+  const core = coreStageForStep(step);
+  const substep = String(kicker || "").split("·").slice(1).join("·").trim();
 
   return (
     <div className="page-head">
       <div className="page-step">
-        <span className="num">{index}</span>
-        <span className="group">{group}</span>
+        <span className="num">{coreStageNumber(step)}</span>
+        <span className="group">{core.title}</span>
+        {substep && substep !== core.title ? <span className="substep">{substep}</span> : null}
       </div>
       <div>
         <h1>{title}</h1>

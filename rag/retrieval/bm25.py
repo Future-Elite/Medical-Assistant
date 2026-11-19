@@ -6,7 +6,7 @@ import re
 from dataclasses import dataclass
 from typing import Iterable, Mapping, Sequence
 
-from ..models import QueryPlan, SourceDocument
+from ..core.models import QueryPlan, SourceDocument
 
 _ASCII_RE = re.compile(r"[a-z0-9]+(?:[-./][a-z0-9]+)*", re.I)
 _CJK_RE = re.compile(r"[\u4e00-\u9fff]+")
@@ -17,7 +17,7 @@ def tokenize(text: str) -> tuple[str, ...]:
 
     - ASCII：小写词（字母/数字，允许 -./ 连接，如 "covid-19"、"38.9"）。
     - CJK：按连续中文串切分并生成重叠二元组（“新生儿黄疸” -> 新生/生儿/儿黄/黄疸）；
-      单字串保留自身。与 patient_retrieval/evidence 的分词粒度一致，避免单字
+      单字串保留自身。与 patient_graph/evidence 的分词粒度一致，避免单字
       （的/是/和）造成的噪声匹配。
     - 纯数字 token（"2024"）不参与匹配，避免年份/序号误串；
       带标点数值（"38.9"、"145/92"）保留。

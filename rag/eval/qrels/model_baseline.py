@@ -201,7 +201,7 @@ def rule_baseline_metrics(
 ) -> dict[str, Any]:
     """Run the deterministic engine on the same test cases for comparison."""
     from ...quality.applicability import assess_applicability
-    from ...his import snapshot_from_dict
+    from ...core.his import snapshot_from_dict
     from .gold_rules import load_criteria_fixture
     from .rubric import build_documents
 
@@ -245,7 +245,7 @@ def _record_text(record: Mapping[str, Any]) -> str:
 
 def _snapshot_text(snapshot: Mapping[str, Any]) -> str:
     parts: list[str] = []
-    for fact in snapshot.get("facts", []):
+    for fact in snapshot.get("records", []):
         fields = fact.get("fields") or {}
         for key in (
             "admissionDiagnosis", "dischargeDiagnosis", "presentingSymptoms",
@@ -279,7 +279,7 @@ def _record_structured(record: Mapping[str, Any]) -> tuple[float, ...]:
 
 
 def _snapshot_structured(snapshot: Mapping[str, Any], flags: Mapping[str, Any]) -> tuple[float, ...]:
-    facts = {fact.get("collection"): fact.get("fields") or {} for fact in snapshot.get("facts", [])}
+    facts = {fact.get("collection"): fact.get("fields") or {} for fact in snapshot.get("records", [])}
     birth = facts.get("derived_birth") or {}
     resp = facts.get("derived_respiratory_support") or {}
     labs = facts.get("derived_labs") or {}

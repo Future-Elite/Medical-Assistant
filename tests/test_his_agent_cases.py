@@ -32,25 +32,25 @@ class HisAgentCasesTest(unittest.TestCase):
 
     def test_normal_case_hides_future_creatinine(self):
         snapshot = self.snapshot("2001", "2025-12-31")
-        self.assertEqual(len(snapshot.facts), 12)
+        self.assertEqual(len(snapshot.records), 12)
         self.assertEqual(snapshot.suppressed_future, 1)
-        potassium = [fact.fields["resultValue"] for fact in snapshot.facts if fact.fields.get("itemCode") == "K"]
+        potassium = [fact.fields["resultValue"] for fact in snapshot.records if fact.fields.get("itemCode") == "K"]
         self.assertEqual(potassium, ["3.4", "3.9"])
-        self.assertFalse(any(fact.fields.get("itemCode") == "Cr" for fact in snapshot.facts))
+        self.assertFalse(any(fact.fields.get("itemCode") == "Cr" for fact in snapshot.records))
 
     def test_event_cutoff_and_ongoing_order(self):
         earlier = self.snapshot("2001", "2025-03-02")
         later = self.snapshot("2001", "2025-03-03")
-        self.assertEqual((len(earlier.facts), earlier.suppressed_future), (9, 4))
-        self.assertEqual((len(later.facts), later.suppressed_future), (10, 3))
-        self.assertTrue(any(fact.event_type == "ORDER" and fact.end is None for fact in earlier.facts))
-        self.assertFalse(any(fact.event_type == "DISCHARGE" for fact in earlier.facts))
+        self.assertEqual((len(earlier.records), earlier.suppressed_future), (9, 4))
+        self.assertEqual((len(later.records), later.suppressed_future), (10, 3))
+        self.assertTrue(any(fact.event_type == "ORDER" and fact.end is None for fact in earlier.records))
+        self.assertFalse(any(fact.event_type == "DISCHARGE" for fact in earlier.records))
 
     def test_missing_fields_and_unknown_patient(self):
         snapshot = self.snapshot("2002", "2025-12-31")
-        self.assertEqual(len(snapshot.facts), 4)
-        self.assertFalse(any(fact.event_type in {"LAB_TEST", "VITAL_SIGN"} for fact in snapshot.facts))
-        prescription = next(fact for fact in snapshot.facts if fact.event_type == "PRESCRIPTION")
+        self.assertEqual(len(snapshot.records), 4)
+        self.assertFalse(any(fact.event_type in {"LAB_TEST", "VITAL_SIGN"} for fact in snapshot.records))
+        prescription = next(fact for fact in snapshot.records if fact.event_type == "PRESCRIPTION")
         self.assertNotIn("dosage", prescription.fields["items"][0])
         with self.assertRaises(ValueError):
             self.client.snapshot_payload("999999", "2025-12-31")
@@ -64,7 +64,7 @@ class HisAgentCasesTest(unittest.TestCase):
     @unittest.expectedFailure
     def test_historical_admission_must_not_expose_future_discharge_fields(self):
         snapshot = self.snapshot("2001", "2025-03-02")
-        admission = next(fact for fact in snapshot.facts if fact.event_type == "ADMISSION")
+        admission = next(fact for fact in snapshot.records if fact.event_type == "ADMISSION")
         # Known gap: event-level as_of filtering cannot reconstruct historical
         # field values from an admission entity containing later discharge data.
         self.assertNotIn("dischargeTime", admission.fields)

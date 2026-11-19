@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useWorkbench } from "../state/workbench";
-import { Badge, Empty, Field, Notice, PageHeader, StatusRow } from "../components/ui";
+import { postJson } from "../api/client";
+import { Badge, CodeBlock, Empty, Field, Notice, PageHeader, StatusRow } from "../components/ui";
 import { Icon } from "../components/Icon";
 import { SnapshotView } from "../components/PatientView";
+import { PatientGraphView } from "../components/PatientGraph";
 import { caseDisplayLabel, parseTermMapping } from "../lib/format";
 
 function StepKicker({ index }: { index: number }) {
@@ -65,13 +67,68 @@ export function CasePanel() {
     snapshotState,
     loadSnapshot,
     snapshot,
+    notify,
   } = useWorkbench();
+
+  const [graphData, setGraphData] = useState<any>(null);
+  const [graphState, setGraphState] = useState("尚未构建");
+  const [graphQuery, setGraphQuery] = useState("该患儿出生胎龄是多少周？");
+  const [graphSearch, setGraphSearch] = useState<any>(null);
+  const [graphRunning, setGraphRunning] = useState(false);
+
+  async function buildPatientGraph() {
+    if (!snapshot) {
+      notify("请先载入快照", "error");
+      return;
+    }
+    setGraphRunning(true);
+    try {
+      const response = await postJson("/api/patient-graph", { patient_snapshot: snapshot });
+      setGraphData(response.data);
+      setGraphState(`已构建：${response.data.node_count} 节点 / ${response.data.edge_count} 边`);
+      notify("患者知识图谱已构建", "success");
+    } catch (error) {
+      setGraphState("构建失败");
+      notify((error as Error).message, "error");
+    } finally {
+      setGraphRunning(false);
+    }
+  }
+
+  async function searchPatientGraph() {
+    if (!snapshot) {
+      notify("请先载入快照", "error");
+      return;
+    }
+    if (!graphQuery.trim()) {
+      notify("请输入图检索问题", "error");
+      return;
+    }
+    setGraphRunning(true);
+    try {
+      const response = await postJson("/api/patient-graph/search", {
+        patient_snapshot: snapshot,
+        queries: [graphQuery.trim()],
+        top_k: 10,
+        max_hops: 2,
+        max_nodes: 240,
+      });
+      setGraphSearch(response.data);
+      setGraphData(response.data.graph);
+      setGraphState(`图检索：${(response.data.hits || []).length} 条命中`);
+      notify("患者图谱检索完成", "success");
+    } catch (error) {
+      notify((error as Error).message, "error");
+    } finally {
+      setGraphRunning(false);
+    }
+  }
 
   return (
     <>
       <PageHeader
-        kicker="准备 · 病例与快照"
-        title="病例与快照"
+        kicker="核心 · 患者快照"
+        title="患者快照与载入"
         actions={<Badge tone={snapshot ? "done" : ""}>{snapshotState}</Badge>}
       />
       <div className="page-body">
@@ -162,8 +219,103 @@ export function CasePanel() {
             </div>
           </div>
         </div>
+
+        <div className="card">
+          <div className="card-head">
+            <h3>患者知识图谱</h3>
+            <Badge tone={graphData ? "done" : ""}>{graphState}</Badge>
+          </div>
+          <div className="card-body stack">
+            <div className="notice info">
+              <Icon name="shield" size={15} />
+              <div>
+                图谱只由当前已发布快照构建：节点/边表示事实位置、时间、主体、派生来源与概念提及，
+                不表示诊断、因果或治疗指征。图检索命中仍需人工核对原始病历。
+              </div>
+            </div>
+            <div className="row">
+              <button
+                type="button"
+                className="btn"
+                onClick={buildPatientGraph}
+                disabled={graphRunning || !snapshot}
+              >
+                <Icon name="database" size={14} />
+                构建患者图谱
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={searchPatientGraph}
+                disabled={graphRunning || !snapshot}
+              >
+                <Icon name="search" size={14} />
+                患者图检索
+              </button>
+            </div>
+            <Field label="患者检索问题" hint="POST /api/patient-graph/search · 本地只读">
+              <input
+                className="input"
+                value={graphQuery}
+                onChange={(event) => setGraphQuery(event.target.value)}
+                placeholder="例如：该患儿出生胎龄是多少周？"
+              />
+            </Field>
+            {graphData ? (
+              <div className="stack">
+                <StatusRow label="snapshot_sha256" value={String(graphData.snapshot_sha256 || "").slice(0, 16)} />
+                <StatusRow label="节点 / 边" value={`${graphData.node_count} / ${graphData.edge_count}`} />
+                <StatusRow label="记录 / 概念" value={`${graphData.record_count ?? "—"} / ${graphData.concept_count ?? "—"}`} />
+                {(graphData.warnings || []).length ? (
+                  <div className="notice warn">
+                    <div>{(graphData.warnings || []).join("；")}</div>
+                  </div>
+                ) : null}
+                <PatientGraphView
+                  graph={graphData}
+                  highlightRecordPaths={(graphSearch?.hits || []).map((hit: any) => String(hit.record_path || ""))}
+                />
+                {graphSearch ? (
+                  <div className="stack">
+                    <div className="section-title">患者检索命中与证据路径</div>
+                    {(graphSearch.hits || []).length ? (
+                      (graphSearch.hits || []).map((hit: any, index: number) => (
+                        <div className="result-row patient-hit-row" data-hit-record={hit.record_path} key={`${hit.record_path}-${index}`}>
+                          <div className="result-title">
+                            <span className="result-rank">{index + 1}</span>
+                            <strong>{hit.record_path}</strong>
+                            <div className="result-badges">
+                              <Badge>{hit.match_method || "graph"}</Badge>
+                              <Badge tone={hit.status === "observed_positive" ? "done" : hit.status ? "warn" : ""}>
+                                {hit.status || "—"}
+                              </Badge>
+                            </div>
+                          </div>
+                          <div className="result-snippet">{hit.evidence_text}</div>
+                          <div className="result-meta">
+                            概念：{(hit.concept_ids || []).join("、") || "—"}
+                          </div>
+                          <div className="result-meta">
+                            路径：{(hit.graph_path || []).join(" → ") || "—"}
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <Empty title="无命中">
+                        当前图谱没有该问题对应的可见记录；这是“没有查到”，不是“已排除”。
+                      </Empty>
+                    )}
+                    <CodeBlock value={graphSearch.trace} maxHeight={280} />
+                  </div>
+                ) : null}
+              </div>
+            ) : (
+              <Empty title="尚未构建患者图谱">载入快照后点击“构建患者图谱”。</Empty>
+            )}
+          </div>
+        </div>
       </div>
-      <NextBar next="question" nextLabel="问题与意图" />
+      <NextBar next="question" nextLabel="临床问题" />
     </>
   );
 }
@@ -173,7 +325,7 @@ export function QuestionPanel() {
   return (
     <>
       <PageHeader
-        kicker="准备 · 问题与意图"
+        kicker="编排 · 临床问题"
         title="问题与意图"
       />
       <div className="page-body">
@@ -232,7 +384,7 @@ export function QuestionPanel() {
           </div>
         </div>
       </div>
-      <NextBar prev="case" next="terms" nextLabel="术语与映射" />
+      <NextBar prev="case" next="terms" nextLabel="术语映射" />
     </>
   );
 }
@@ -252,7 +404,7 @@ export function TermsPanel() {
   return (
     <>
       <PageHeader
-        kicker="准备 · 术语与映射"
+        kicker="编排 · 术语映射"
         title="术语与映射"
         actions={<Badge tone={mapping.error ? "error" : "ready"}>{mapping.error ? "JSON 错误" : `${mapping.rows.length} 行`}</Badge>}
       />
@@ -359,7 +511,7 @@ export function TermsPanel() {
           </div>
         </div>
       </div>
-      <NextBar prev="question" next="scope" nextLabel="范围与过滤" />
+      <NextBar prev="question" next="scope" nextLabel="来源范围" />
     </>
   );
 }
@@ -375,7 +527,7 @@ export function ScopePanel() {
   return (
     <>
       <PageHeader
-        kicker="准备 · 范围与过滤"
+        kicker="编排 · 来源范围"
         title="范围与过滤"
       />
       <div className="page-body">
@@ -385,19 +537,7 @@ export function ScopePanel() {
             <Badge tone="ready">已配置</Badge>
           </div>
           <div className="card-body stack">
-            <div className="form-grid c3">
-              <Field label="source_mode">
-                <select
-                  className="select"
-                  value={form.sourceMode}
-                  onChange={(event) =>
-                    setForm("sourceMode", event.target.value as "live" | "custom")
-                  }
-                >
-                  <option value="live">live · 实时来源</option>
-                  <option value="custom">custom · 来源库</option>
-                </select>
-              </Field>
+            <div className="form-grid c2">
               <Field label="top_k">
                 <input
                   className="input"
@@ -416,7 +556,7 @@ export function ScopePanel() {
                       checked={form.sourceKinds.includes("guideline")}
                       onChange={(event) => toggleKind("guideline", event.target.checked)}
                     />
-                    guideline
+                    指南（本地 PDF）
                   </label>
                   <label className="check">
                     <input
@@ -424,10 +564,21 @@ export function ScopePanel() {
                       checked={form.sourceKinds.includes("pubmed")}
                       onChange={(event) => toggleKind("pubmed", event.target.checked)}
                     />
-                    pubmed
+                    PubMed（实时）
+                  </label>
+                  <label className="check">
+                    <input
+                      type="checkbox"
+                      checked={form.sourceKinds.includes("drug")}
+                      onChange={(event) => toggleKind("drug", event.target.checked)}
+                    />
+                    药品库（在线）
                   </label>
                 </div>
               </Field>
+            </div>
+            <div className="hint">
+              三个来源可多选：指南来自本地 PDF 解析块，PubMed 与药品库走在线接口；药品库先查在线，失败时显式告警，不伪造本地替代。
             </div>
             <Field label="filters JSON" hint="按来源、时间或版本过滤的附加条件。">
               <textarea
@@ -440,7 +591,7 @@ export function ScopePanel() {
           </div>
         </div>
       </div>
-      <NextBar prev="terms" next="method" nextLabel="检索方法与门控" />
+      <NextBar prev="terms" next="method" nextLabel="检索方法" />
     </>
   );
 }
@@ -484,7 +635,7 @@ export function MethodPanel() {
   return (
     <>
       <PageHeader
-        kicker="准备 · 检索方法与门控"
+        kicker="编排 · 检索方法"
         title="检索方法与门控"
         actions={<Badge tone={health ? "ready" : ""}>{health ? "已读取" : "待读取"}</Badge>}
       />
@@ -663,7 +814,7 @@ export function MethodPanel() {
           </div>
         </div>
       </div>
-      <NextBar prev="scope" next="request" nextLabel="请求组装" />
+      <NextBar prev="scope" next="request" nextLabel="请求编排" />
     </>
   );
 }

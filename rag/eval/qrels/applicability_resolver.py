@@ -23,9 +23,9 @@ from typing import Any, Callable, Mapping, Sequence
 
 from ...quality.applicability import assess_applicability
 from ...quality.guideline_lifecycle_index import load_lifecycle_index
-from ...his import snapshot_from_dict
+from ...core.his import snapshot_from_dict
 from .gold_rules import load_criteria_fixture
-from .v2_fixture import load_v2_fixture
+from .fixture import load_fixture
 from .decision_triage import apply_value_to_snapshot, derived_from_snapshot, triage_snapshot
 from .families import family_index, family_of
 from .followup import build_followup
@@ -74,7 +74,7 @@ class ApplicabilityResolver:
     # The 4-guideline evaluation corpus is the default.  AAP is a separate
     # capability fixture and is only added when the caller explicitly targets it.
     fixture: Mapping[str, Any] = field(default_factory=load_criteria_fixture)
-    capability_fixture: Mapping[str, Any] = field(default_factory=load_v2_fixture)
+    capability_fixture: Mapping[str, Any] = field(default_factory=load_fixture)
     search_fn: SearchFn | None = None
     policy: ResolverPolicy = field(default_factory=ResolverPolicy)
     sessions: dict[str, dict[str, Any]] = field(default_factory=dict)

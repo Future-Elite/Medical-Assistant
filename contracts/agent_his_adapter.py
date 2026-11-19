@@ -137,7 +137,7 @@ def build_payload(
         "patient_ref": str(patient_ref),
         "as_of": str(as_of),
         "source": source,
-        "facts": facts,
+        "records": facts,
         "reviewed_external_terms": [],
         "warnings": warnings,
     }

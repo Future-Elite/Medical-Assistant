@@ -23,7 +23,7 @@ from typing import Iterable, Mapping, Sequence
 
 from .bm25 import BM25Score, score_documents, tokenize
 from .lexical import score_documents_ql, score_documents_rm3
-from ..models import EvidenceStatus, QueryPlan, RankedDocument, SourceDocument, parse_iso_date
+from ..core.models import EvidenceStatus, QueryPlan, RankedDocument, SourceDocument, parse_iso_date
 
 SOURCE_PRIOR = {"guideline": 1.0, "drug": 0.80, "pubmed": 0.70, "clinical_trial": 0.65, "local_knowledge": 0.40}
 
@@ -169,6 +169,9 @@ def rank_documents(plan: QueryPlan, documents: Iterable[SourceDocument], *, as_o
         explanation = [f"authority={_authority(doc):.3f}", f"freshness={_freshness(doc, as_of):.3f}"]
         if primary:
             explanation.insert(0, f"{primary}={lexical_item.score:.4f}" if lexical_item else f"{primary}=0.0000")
+        if variant_factor != 1.0:
+            # 患者事实回流变体按 PATIENT_FACT_VARIANT_WEIGHT 降权；只改词面分量。
+            explanation.append(f"variant_weight={variant_factor:.2f}")
         for method in lexical_methods:
             if method != primary:
                 explanation.append(f"{method}={lexical_score(method, key):.4f}")

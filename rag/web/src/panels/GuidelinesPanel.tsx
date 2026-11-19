@@ -1,8 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useWorkbench } from "../state/workbench";
 import { Badge, Empty, Field, Notice, PageHeader } from "../components/ui";
 import { Icon } from "../components/Icon";
-import { ApplicabilityChain } from "../components/ApplicabilityChain";
+import { ApplicabilityChain, GRAPH_SUPPORT_LABEL } from "../components/ApplicabilityChain";
+import { GuidelineGraphCard } from "../components/GuidelineGraph";
+import { TopKGuidelinesCard } from "../components/TopKGuidelines";
+import { KnowledgeAudit } from "../components/KnowledgeAudit";
 import type { Dict } from "../types";
 
 export function GuidelinesPanel() {
@@ -35,6 +38,8 @@ export function GuidelinesPanel() {
     applicabilityWorkflowError,
     runApplicabilityWorkflow,
     resumeApplicabilityWorkflow,
+    knowledgeFusion,
+    retrievalGuidelines,
     currentCase,
     form,
     setForm,
@@ -44,6 +49,15 @@ export function GuidelinesPanel() {
   const [nonce] = useState(() => Date.now());
   const [resumeValues, setResumeValues] = useState<Record<string, string>>({});
   const [executeExternal, setExecuteExternal] = useState(false);
+
+  useEffect(() => {
+    const first = retrievalGuidelines[0]?.guideline_id;
+    if (first && first !== selectedGuidelineId) {
+      selectGuideline(first);
+    }
+    // Only follow a new retrieval result; manual selection afterwards is kept.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [retrievalGuidelines]);
 
   const grouped = useMemo(() => {
     const map = new Map<string, Dict[]>();
@@ -71,6 +85,20 @@ export function GuidelinesPanel() {
     goStep("scope");
   };
 
+  const parsedTopKCount = useMemo(
+    () =>
+      retrievalGuidelines.filter((row) => {
+        const guide = guidelines.find((item) => item.document_id === row.guideline_id);
+        return (guide?.chunk_count ?? 0) > 0;
+      }).length,
+    [retrievalGuidelines, guidelines],
+  );
+
+  const graphGuidelineId =
+    retrievalGuidelines.find((row) => row.guideline_id === selectedGuidelineId)?.guideline_id
+    || retrievalGuidelines[0]?.guideline_id
+    || selectedGuidelineId;
+
   const pdfUrl = selectedGuidelineId
     ? `/api/guidelines/pdf/page?document_id=${encodeURIComponent(selectedGuidelineId)}&page=${pdfPage}&dpi=110&t=${nonce}-${pdfPage}`
     : "";
@@ -79,8 +107,8 @@ export function GuidelinesPanel() {
     return (
       <>
         <PageHeader
-          kicker="结果 · 指南解析"
-          title="指南解析与 HIS 核对"
+          kicker="核心 · 指南"
+          title="指南适配与 HIS 核对"
           actions={<Badge>未提供</Badge>}
         />
         <div className="page-body">
@@ -89,12 +117,12 @@ export function GuidelinesPanel() {
           </Notice>
         </div>
         <div className="page-nav">
-          <button type="button" className="btn" onClick={() => goStep("results")}>
+          <button type="button" className="btn" onClick={() => goStep("run")}>
             <Icon name="chevronLeft" size={14} />
-            上一步
+            执行检索
           </button>
-          <button type="button" className="btn" onClick={() => goStep("audit")}>
-            引用与审计
+          <button type="button" className="btn" onClick={() => goStep("results")}>
+            证据包
             <Icon name="chevronRight" size={14} />
           </button>
         </div>
@@ -105,8 +133,8 @@ export function GuidelinesPanel() {
   return (
     <>
       <PageHeader
-        kicker="结果 · 指南解析"
-        title="指南解析与 HIS 核对"
+        kicker="核心 · 指南"
+        title="指南与适用性判断"
         actions={<Badge tone={guidelineConfigured ? "done" : "error"}>{guidelineStatus}</Badge>}
       />
 
@@ -119,45 +147,66 @@ export function GuidelinesPanel() {
         ) : null}
         {guidelineError ? <Notice tone="error">{guidelineError}</Notice> : null}
 
+        <TopKGuidelinesCard />
+
         <div className="card">
           <div className="card-head">
-            <h3>指南来源</h3>
-            <button type="button" className="btn btn-sm" onClick={loadGuidelines}>
-              <Icon name="refresh" size={13} />
-              刷新列表
-            </button>
+            <h3>指南解析 · 按检索结果</h3>
+            <div className="row">
+              <button type="button" className="btn btn-sm" onClick={loadGuidelines}>
+                <Icon name="refresh" size={13} />
+                刷新列表
+              </button>
+              <button
+                type="button"
+                className="btn btn-sm btn-primary"
+                onClick={() => parseGuidelines("topk")}
+                disabled={!retrievalGuidelines.length}
+              >
+                <Icon name="play" size={13} />
+                解析 Top-k 指南
+              </button>
+              <button type="button" className="btn btn-sm" onClick={() => parseGuidelines("all")}>
+                解析全部
+              </button>
+            </div>
           </div>
           <div className="card-body stack">
-            <div className="form-grid c3">
-              <Field label="指南">
+            <div className="hint">
+              解析目标来自 07 检索得到的 Top-k 指南（{retrievalGuidelines.length} 本），不手动挑指南；
+              Top-k 中已解析 {parsedTopKCount} 本。原文核对在下方按当前查看的指南展示。
+            </div>
+            <div className="form-grid c2">
+              <Field label="查看原文 / 分块">
                 <select
                   className="select"
                   value={selectedGuidelineId}
                   onChange={(event) => selectGuideline(event.target.value)}
-                  disabled={!guidelines.length}
+                  disabled={!retrievalGuidelines.length}
                 >
-                  {!guidelines.length ? <option value="">manifest 中没有指南</option> : null}
-                  {guidelines.map((row) => (
-                    <option key={row.document_id} value={row.document_id}>
+                  {!retrievalGuidelines.length ? <option value="">先执行检索得到 Top-k 指南</option> : null}
+                  {retrievalGuidelines.map((row) => (
+                    <option key={row.guideline_id} value={row.guideline_id}>
                       {row.title}
-                      {row.version_id ? ` · ${row.version_id}` : ""} · {row.chunk_count} 块 · 可检索{" "}
-                      {row.retrievable_count ?? "—"}
                     </option>
                   ))}
                 </select>
-              </Field>
-              <Field label="数据目录">
-                <input className="input" readOnly value={guidelineDataDir} />
               </Field>
               <Field label="状态">
                 <div className="row" style={{ height: 36 }}>
                   <Badge tone={guidelineChunks.length ? "done" : ""}>
                     {guidelineChunks.length ? `${guidelineChunks.length} 块` : parseStatus}
                   </Badge>
-                  <span className="hint">{guidelines.length} 份指南</span>
+                  <span className="hint">Top-k 已解析 {parsedTopKCount}/{retrievalGuidelines.length} 本</span>
                 </div>
               </Field>
             </div>
+            <details className="disclosure">
+              <summary>解析设置（分块 / 表格 / 图注 / MinerU）</summary>
+              <div className="stack" style={{ marginTop: 10 }}>
+            <Field label="数据目录">
+              <input className="input" readOnly value={guidelineDataDir} />
+            </Field>
             <div className="form-grid c4">
               <Field label="分块策略">
                 <select
@@ -237,22 +286,6 @@ export function GuidelinesPanel() {
                   强制重跑 MinerU
                 </label>
               </Field>
-              <Field label="操作">
-                <div className="row">
-                  <button
-                    type="button"
-                    className="btn btn-primary btn-sm"
-                    onClick={() => parseGuidelines(false)}
-                    disabled={!selectedGuidelineId}
-                  >
-                    <Icon name="play" size={13} />
-                    解析所选指南
-                  </button>
-                  <button type="button" className="btn btn-sm" onClick={() => parseGuidelines(true)}>
-                    解析全部
-                  </button>
-                </div>
-              </Field>
             </div>
             <div className="row">
               <Badge tone={parseStatus.startsWith("完成") ? "done" : ""}>{parseStatus}</Badge>
@@ -262,10 +295,278 @@ export function GuidelinesPanel() {
                 用当前指南做 custom 检索
               </button>
             </div>
+              </div>
+            </details>
           </div>
         </div>
 
-        <div className="guideline-viewer">
+        <GuidelineGraphCard guidelineId={graphGuidelineId} />
+
+        <KnowledgeAudit />
+
+        <details className="disclosure card">
+          <summary>结构化条件核对（HIS 预览）</summary>
+          <div className="card-body stack">
+            <div className="row">
+              <Badge tone={currentCase ? "ready" : ""}>
+                {currentCase ? `病例 ${currentCase.snapshot.patient_ref}` : "未选病例"}
+              </Badge>
+              <button type="button" className="btn btn-sm" onClick={checkApplicability}>
+                用当前病例核对
+              </button>
+            </div>
+            {applicabilityError ? <Notice tone="error">{applicabilityError}</Notice> : null}
+            {applicabilityResult ? (
+              <div className="stack">
+                <div className="hint">
+                  <b>{applicabilityResult.title || ""}</b> · {applicabilityResult.locator || ""} · 病例{" "}
+                  {applicabilityResult.patient?.patient_ref || ""} · 可见事实{" "}
+                  {applicabilityResult.patient?.visible_fact_count ?? "—"} 条
+                </div>
+                <div className="row">
+                  <Badge
+                    tone={
+                      applicabilityResult.assessment?.status === "possible_match"
+                        ? "done"
+                        : "warn"
+                    }
+                  >
+                    {{
+                      possible_match: "可能匹配",
+                      mismatch: "条件不符",
+                      unknown: "信息不足",
+                      not_assessed: "未评估",
+                    }[applicabilityResult.assessment?.status as string] ||
+                      applicabilityResult.assessment?.status ||
+                      "未评估"}
+                  </Badge>
+                  <span className="hint">{applicabilityResult.assessment?.reason || ""}</span>
+                </div>
+                {(applicabilityResult.assessment?.criteria || []).map(
+                  (criterion: Dict, index: number) => (
+                    <div className="review-finding" key={index}>
+                      <div>
+                        <b>{criterion.label || criterion.criterion_id}</b>{" "}
+                        <Badge tone={criterion.status === "match" ? "done" : "warn"}>
+                          {{
+                            match: "对得上",
+                            mismatch: "对不上",
+                            unknown: "看不出来",
+                          }[criterion.status as string] || criterion.status}
+                        </Badge>
+                      </div>
+                      <div className="hint">
+                        条件：{criterion.field} {criterion.operator}{" "}
+                        {(criterion.expected || []).join(", ") || "—"} · 来源{" "}
+                        {criterion.source_locator || "—"}
+                      </div>
+                      <div className="hint">
+                        病历实际：<b>{criterion.observed_value || "无可用记录"}</b>
+                        {(criterion.patient_record_paths || []).length
+                          ? ` · ${criterion.patient_record_paths.join("、")}`
+                          : ""}
+                      </div>
+                      <div className="hint">{criterion.reason || ""}</div>
+                    </div>
+                  ),
+                )}
+                {!(applicabilityResult.assessment?.criteria || []).length ? (
+                  <Badge>无适用条件</Badge>
+                ) : null}
+              </div>
+            ) : (
+              <Empty title="尚未核对" />
+            )}
+          </div>
+        </details>
+
+        <div className="card" id="applicability-chain">
+          <div className="card-head">
+            <h3>指南适用性链路</h3>
+            <div className="row">
+              <Badge tone={currentCase ? "ready" : ""}>
+                {currentCase ? "病例已选" : "未选病例"}
+              </Badge>
+              <Badge tone={knowledgeFusion ? "done" : "warn"}>
+                {knowledgeFusion ? "双向图证据已带入" : "未运行双向图"}
+              </Badge>
+              <label className="check" style={{ height: 30 }}>
+                <input
+                  type="checkbox"
+                  checked={executeExternal}
+                  onChange={(event) => setExecuteExternal(event.target.checked)}
+                />
+                执行外部检索
+              </label>
+              <button type="button" className="btn btn-sm btn-primary" onClick={() => runApplicabilityWorkflow(executeExternal)}>
+                生成适用性链路
+              </button>
+            </div>
+          </div>
+          <div className="card-body stack">
+            <div className="hint">
+              双向图检索结果会作为 knowledge_fusion 自动传入；图证据只提示复核，不改变条件状态与链路结论。
+            </div>
+            {applicabilityWorkflowError ? <Notice tone="error">{applicabilityWorkflowError}</Notice> : null}
+            {applicabilityWorkflowResult ? (
+              <div className="stack">
+                <ApplicabilityChain result={applicabilityWorkflowResult} />
+                {applicabilityWorkflowResult.target_detail ? (
+                  <div className="review-finding">
+                    <div>
+                      <b>{applicabilityWorkflowResult.target_detail.title}</b>
+                    </div>
+                    {(applicabilityWorkflowResult.target_detail.criteria || []).map((criterion: Dict, index: number) => (
+                      <div className="hint" key={index}>
+                        {criterion.label || criterion.field}：
+                        {({ match: "对得上", mismatch: "对不上", unknown: "看不出来" } as Record<string, string>)[criterion.status] || criterion.status}
+                        {" · "}实际值 {criterion.observed_value || "无"} · {criterion.locator || "无定位"}
+                        {criterion.graph_support && criterion.graph_support !== "none" ? (
+                          <> · 患者图记录 {GRAPH_SUPPORT_LABEL[criterion.graph_support] || criterion.graph_support}
+                            {criterion.graph_record_paths?.length ? `（${criterion.graph_record_paths.join("、")}）` : ""}
+                          </>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+                <details className="disclosure">
+                  <summary>同类 / 其他指南</summary>
+                  <div className="stack" style={{ marginTop: 8 }}>
+                {(applicabilityWorkflowResult.selected_guideline_details || []).length ? (
+                  <div>
+                    <b>同一类病指南</b>
+                    {(applicabilityWorkflowResult.selected_guideline_details || []).map((item: Dict) => (
+                      <div className="hint" key={item.guideline_id}>
+                        {item.title}：{item.criteria?.map((c: Dict) => c.label || c.field).join("、") || "—"} · {item.criteria?.[0]?.locator || "无定位"}
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+                {(applicabilityWorkflowResult.other_local_guideline_details || []).length ? (
+                  <div>
+                    <b>其他类病指南</b>
+                    {(applicabilityWorkflowResult.other_local_guideline_details || []).map((item: Dict) => (
+                      <div className="hint" key={item.guideline_id}>{item.title}</div>
+                    ))}
+                  </div>
+                ) : null}
+                  </div>
+                </details>
+                {(applicabilityWorkflowResult.information_requests || []).length ? (
+                  <div>
+                    <b>需补事实</b>
+                    {(applicabilityWorkflowResult.information_requests || []).map((item: Dict) => (
+                      <div className="row" key={item.field} style={{ marginTop: 6 }}>
+                        <span className="hint" style={{ minWidth: 220 }}>{item.label}（{item.source}）</span>
+                        <input
+                          className="input"
+                          value={resumeValues[item.field] || ""}
+                          onChange={(event) => setResumeValues((prev) => ({ ...prev, [item.field]: event.target.value }))}
+                          placeholder={item.field}
+                        />
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      className="btn btn-sm"
+                      onClick={() => {
+                        const facts = Object.entries(resumeValues)
+                          .filter(([, value]) => value.trim())
+                          .map(([field, value]) => ({
+                            field,
+                            value: /^-?\d+(\.\d+)?$/.test(value.trim()) ? Number(value) : value.trim(),
+                          }));
+                        resumeApplicabilityWorkflow(facts);
+                      }}
+                    >
+                      补事实并续跑
+                    </button>
+                  </div>
+                ) : null}
+                <details className="disclosure">
+                  <summary>查表 / 外部检索 / 定位 / 生命周期</summary>
+                  <div className="stack" style={{ marginTop: 8 }}>
+                {applicabilityWorkflowResult.lookup?.required ? (
+                  <div className="hint">
+                    <b>需要查表/曲线：</b>
+                    {(applicabilityWorkflowResult.lookup.fields || []).join("、")} · {(applicabilityWorkflowResult.lookup.locators || []).join("、")}
+                  </div>
+                ) : null}
+                {applicabilityWorkflowResult.external_search?.executed ? (
+                  <div className="hint">
+                    <b>外部检索：</b>{applicabilityWorkflowResult.external_search.candidate_count} 个候选
+                    <div>查询：{applicabilityWorkflowResult.external_search.query || "—"}</div>
+                    {applicabilityWorkflowResult.external_search.candidates?.map((item: Dict) => (
+                      <span key={item.pmid || item.doi || item.title}> · {item.title}（{item.pmid || item.doi || "无 ID"}）</span>
+                    ))}
+                  </div>
+                ) : null}
+                {applicabilityWorkflowResult.provenance ? (
+                  <div className="hint">
+                    <b>定位：</b>
+                    {(applicabilityWorkflowResult.provenance.guideline_locators || []).join("、") || "无指南定位"}
+                    {(applicabilityWorkflowResult.provenance.external_ids || []).length
+                      ? ` · 外部 ${applicabilityWorkflowResult.provenance.external_ids.map((item: Dict) => item.pmid || item.doi).join("、")}`
+                      : ""}
+                  </div>
+                ) : null}
+                {applicabilityWorkflowResult.parallel_retrieval ? (
+                  <div className="review-finding">
+                    <div><b>并列检索</b></div>
+                    {(applicabilityWorkflowResult.parallel_retrieval.coverage_guidelines || []).length ? (
+                      <div className="hint">
+                        覆盖指南：{(applicabilityWorkflowResult.parallel_retrieval.coverage_guidelines || []).map((item: Dict) => item.title).join("、")}
+                      </div>
+                    ) : null}
+                    {(applicabilityWorkflowResult.parallel_retrieval.population_qualifiers || []).length ? (
+                      <div className="hint">
+                        原文人群片段：
+                        {(applicabilityWorkflowResult.parallel_retrieval.population_qualifiers || []).slice(0, 3).map((item: Dict, index: number) => (
+                          <div key={index}>{item.title} · 第 {item.page_start || "?"} 页 · {String(item.text || "").slice(0, 90)}…</div>
+                        ))}
+                      </div>
+                    ) : null}
+                    {(applicabilityWorkflowResult.parallel_retrieval.status_families || []).length ? (
+                      <div className="hint">
+                        指南族状态：
+                        {(applicabilityWorkflowResult.parallel_retrieval.status_families || []).map((item: Dict) => (
+                          <div key={item.family}>
+                            {item.family}：{(item.members || []).map((m: Dict) => `${m.title}=${m.status}`).join("；")}
+                            {item.conflict ? "（有差异，不是临床冲突）" : ""}
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                    <div className="hint">
+                      生命周期：{applicabilityWorkflowResult.parallel_retrieval.lifecycle_status || "not_checked"}
+                      {applicabilityWorkflowResult.parallel_retrieval.lifecycle_checked_at
+                        ? ` · 核对 ${applicabilityWorkflowResult.parallel_retrieval.lifecycle_checked_at}`
+                        : ""}
+                    </div>
+                    {applicabilityWorkflowResult.parallel_retrieval.lifecycle ? (
+                      <div className="hint">
+                        {Object.entries(applicabilityWorkflowResult.parallel_retrieval.lifecycle as Dict).map(([guidelineId, item]) => (
+                          <div key={guidelineId}>
+                            {guidelineId}：{(item as Dict).status || "not_checked"}
+                            {(item as Dict).pmid ? ` · PMID ${(item as Dict).pmid}` : ""}
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+                  </div>
+                </details>
+              </div>
+            ) : (
+              <Empty title="尚未运行" />
+            )}
+          </div>
+        </div>
+        <details className="disclosure viewer-disclosure">
+          <summary>原文核对：PDF 页与分块（默认收起，按需展开）</summary>
+          <div className="guideline-viewer">
           <div className="pdf-panel">
             <div className="pdf-head">
               <b>PDF 原文</b>
@@ -369,258 +670,18 @@ export function GuidelinesPanel() {
               </div>
             )}
           </div>
-        </div>
+          </div>
+        </details>
 
-        <div className="card">
-          <div className="card-head">
-            <h3>HIS 条件适配预览</h3>
-            <div className="row">
-              <Badge tone={currentCase ? "ready" : ""}>
-                {currentCase ? `病例 ${currentCase.snapshot.patient_ref}` : "未选病例"}
-              </Badge>
-              <button type="button" className="btn btn-sm" onClick={checkApplicability}>
-                用当前病例核对
-              </button>
-            </div>
-          </div>
-          <div className="card-body">
-            {applicabilityError ? <Notice tone="error">{applicabilityError}</Notice> : null}
-            {applicabilityResult ? (
-              <div className="stack">
-                <div className="hint">
-                  <b>{applicabilityResult.title || ""}</b> · {applicabilityResult.locator || ""} · 病例{" "}
-                  {applicabilityResult.patient?.patient_ref || ""} · 可见事实{" "}
-                  {applicabilityResult.patient?.visible_fact_count ?? "—"} 条
-                </div>
-                <div className="row">
-                  <Badge
-                    tone={
-                      applicabilityResult.assessment?.status === "possible_match"
-                        ? "done"
-                        : "warn"
-                    }
-                  >
-                    {{
-                      possible_match: "可能匹配",
-                      mismatch: "条件不符",
-                      unknown: "信息不足",
-                      not_assessed: "未评估",
-                    }[applicabilityResult.assessment?.status as string] ||
-                      applicabilityResult.assessment?.status ||
-                      "未评估"}
-                  </Badge>
-                  <span className="hint">{applicabilityResult.assessment?.reason || ""}</span>
-                </div>
-                {(applicabilityResult.assessment?.criteria || []).map(
-                  (criterion: Dict, index: number) => (
-                    <div className="review-finding" key={index}>
-                      <div>
-                        <b>{criterion.label || criterion.criterion_id}</b>{" "}
-                        <Badge tone={criterion.status === "match" ? "done" : "warn"}>
-                          {{
-                            match: "对得上",
-                            mismatch: "对不上",
-                            unknown: "看不出来",
-                          }[criterion.status as string] || criterion.status}
-                        </Badge>
-                      </div>
-                      <div className="hint">
-                        条件：{criterion.field} {criterion.operator}{" "}
-                        {(criterion.expected || []).join(", ") || "—"} · 来源{" "}
-                        {criterion.source_locator || "—"}
-                      </div>
-                      <div className="hint">
-                        病历实际：<b>{criterion.observed_value || "无可用记录"}</b>
-                        {(criterion.patient_record_paths || []).length
-                          ? ` · ${criterion.patient_record_paths.join("、")}`
-                          : ""}
-                      </div>
-                      <div className="hint">{criterion.reason || ""}</div>
-                    </div>
-                  ),
-                )}
-                {!(applicabilityResult.assessment?.criteria || []).length ? (
-                  <Badge>无适用条件</Badge>
-                ) : null}
-              </div>
-            ) : (
-              <Empty title="尚未核对" />
-            )}
-          </div>
-        </div>
-
-        <div className="card">
-          <div className="card-head">
-            <h3>指南适用性链路</h3>
-            <div className="row">
-              <Badge tone={currentCase ? "ready" : ""}>
-                {currentCase ? "病例已选" : "未选病例"}
-              </Badge>
-              <label className="check" style={{ height: 30 }}>
-                <input
-                  type="checkbox"
-                  checked={executeExternal}
-                  onChange={(event) => setExecuteExternal(event.target.checked)}
-                />
-                执行外部检索
-              </label>
-              <button type="button" className="btn btn-sm btn-primary" onClick={() => runApplicabilityWorkflow(executeExternal)}>
-                运行解析
-              </button>
-            </div>
-          </div>
-          <div className="card-body stack">
-            {applicabilityWorkflowError ? <Notice tone="error">{applicabilityWorkflowError}</Notice> : null}
-            {applicabilityWorkflowResult ? (
-              <div className="stack">
-                <ApplicabilityChain result={applicabilityWorkflowResult} />
-                {applicabilityWorkflowResult.target_detail ? (
-                  <div className="review-finding">
-                    <div>
-                      <b>{applicabilityWorkflowResult.target_detail.title}</b>
-                    </div>
-                    {(applicabilityWorkflowResult.target_detail.criteria || []).map((criterion: Dict, index: number) => (
-                      <div className="hint" key={index}>
-                        {criterion.label || criterion.field}：
-                        {({ match: "对得上", mismatch: "对不上", unknown: "看不出来" } as Record<string, string>)[criterion.status] || criterion.status}
-                        {" · "}实际值 {criterion.observed_value || "无"} · {criterion.locator || "无定位"}
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
-                {(applicabilityWorkflowResult.selected_guideline_details || []).length ? (
-                  <div>
-                    <b>同一类病指南</b>
-                    {(applicabilityWorkflowResult.selected_guideline_details || []).map((item: Dict) => (
-                      <div className="hint" key={item.guideline_id}>
-                        {item.title}：{item.criteria?.map((c: Dict) => c.label || c.field).join("、") || "—"} · {item.criteria?.[0]?.locator || "无定位"}
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
-                {(applicabilityWorkflowResult.other_local_guideline_details || []).length ? (
-                  <div>
-                    <b>其他类病指南</b>
-                    {(applicabilityWorkflowResult.other_local_guideline_details || []).map((item: Dict) => (
-                      <div className="hint" key={item.guideline_id}>{item.title}</div>
-                    ))}
-                  </div>
-                ) : null}
-                {(applicabilityWorkflowResult.information_requests || []).length ? (
-                  <div>
-                    <b>需补事实</b>
-                    {(applicabilityWorkflowResult.information_requests || []).map((item: Dict) => (
-                      <div className="row" key={item.field} style={{ marginTop: 6 }}>
-                        <span className="hint" style={{ minWidth: 220 }}>{item.label}（{item.source}）</span>
-                        <input
-                          className="input"
-                          value={resumeValues[item.field] || ""}
-                          onChange={(event) => setResumeValues((prev) => ({ ...prev, [item.field]: event.target.value }))}
-                          placeholder={item.field}
-                        />
-                      </div>
-                    ))}
-                    <button
-                      type="button"
-                      className="btn btn-sm"
-                      onClick={() => {
-                        const facts = Object.entries(resumeValues)
-                          .filter(([, value]) => value.trim())
-                          .map(([field, value]) => ({
-                            field,
-                            value: /^-?\d+(\.\d+)?$/.test(value.trim()) ? Number(value) : value.trim(),
-                          }));
-                        resumeApplicabilityWorkflow(facts);
-                      }}
-                    >
-                      补事实并续跑
-                    </button>
-                  </div>
-                ) : null}
-                {applicabilityWorkflowResult.lookup?.required ? (
-                  <div className="hint">
-                    <b>需要查表/曲线：</b>
-                    {(applicabilityWorkflowResult.lookup.fields || []).join("、")} · {(applicabilityWorkflowResult.lookup.locators || []).join("、")}
-                  </div>
-                ) : null}
-                {applicabilityWorkflowResult.external_search?.executed ? (
-                  <div className="hint">
-                    <b>外部检索：</b>{applicabilityWorkflowResult.external_search.candidate_count} 个候选
-                    <div>查询：{applicabilityWorkflowResult.external_search.query || "—"}</div>
-                    {applicabilityWorkflowResult.external_search.candidates?.map((item: Dict) => (
-                      <span key={item.pmid || item.doi || item.title}> · {item.title}（{item.pmid || item.doi || "无 ID"}）</span>
-                    ))}
-                  </div>
-                ) : null}
-                {applicabilityWorkflowResult.provenance ? (
-                  <div className="hint">
-                    <b>定位：</b>
-                    {(applicabilityWorkflowResult.provenance.guideline_locators || []).join("、") || "无指南定位"}
-                    {(applicabilityWorkflowResult.provenance.external_ids || []).length
-                      ? ` · 外部 ${applicabilityWorkflowResult.provenance.external_ids.map((item: Dict) => item.pmid || item.doi).join("、")}`
-                      : ""}
-                  </div>
-                ) : null}
-                {applicabilityWorkflowResult.parallel_retrieval ? (
-                  <div className="review-finding">
-                    <div><b>并列检索</b></div>
-                    {(applicabilityWorkflowResult.parallel_retrieval.coverage_guidelines || []).length ? (
-                      <div className="hint">
-                        覆盖指南：{(applicabilityWorkflowResult.parallel_retrieval.coverage_guidelines || []).map((item: Dict) => item.title).join("、")}
-                      </div>
-                    ) : null}
-                    {(applicabilityWorkflowResult.parallel_retrieval.population_qualifiers || []).length ? (
-                      <div className="hint">
-                        原文人群片段：
-                        {(applicabilityWorkflowResult.parallel_retrieval.population_qualifiers || []).slice(0, 3).map((item: Dict, index: number) => (
-                          <div key={index}>{item.title} · 第 {item.page_start || "?"} 页 · {String(item.text || "").slice(0, 90)}…</div>
-                        ))}
-                      </div>
-                    ) : null}
-                    {(applicabilityWorkflowResult.parallel_retrieval.status_families || []).length ? (
-                      <div className="hint">
-                        指南族状态：
-                        {(applicabilityWorkflowResult.parallel_retrieval.status_families || []).map((item: Dict) => (
-                          <div key={item.family}>
-                            {item.family}：{(item.members || []).map((m: Dict) => `${m.title}=${m.status}`).join("；")}
-                            {item.conflict ? "（有差异，不是临床冲突）" : ""}
-                          </div>
-                        ))}
-                      </div>
-                    ) : null}
-                    <div className="hint">
-                      生命周期：{applicabilityWorkflowResult.parallel_retrieval.lifecycle_status || "not_checked"}
-                      {applicabilityWorkflowResult.parallel_retrieval.lifecycle_checked_at
-                        ? ` · 核对 ${applicabilityWorkflowResult.parallel_retrieval.lifecycle_checked_at}`
-                        : ""}
-                    </div>
-                    {applicabilityWorkflowResult.parallel_retrieval.lifecycle ? (
-                      <div className="hint">
-                        {Object.entries(applicabilityWorkflowResult.parallel_retrieval.lifecycle as Dict).map(([guidelineId, item]) => (
-                          <div key={guidelineId}>
-                            {guidelineId}：{(item as Dict).status || "not_checked"}
-                            {(item as Dict).pmid ? ` · PMID ${(item as Dict).pmid}` : ""}
-                          </div>
-                        ))}
-                      </div>
-                    ) : null}
-                  </div>
-                ) : null}
-              </div>
-            ) : (
-              <Empty title="尚未运行" />
-            )}
-          </div>
-        </div>
       </div>
 
       <div className="page-nav">
-        <button type="button" className="btn" onClick={() => goStep("results")}>
+        <button type="button" className="btn" onClick={() => goStep("request")}>
           <Icon name="chevronLeft" size={14} />
-          上一步
+          请求编排
         </button>
-        <button type="button" className="btn" onClick={() => goStep("audit")}>
-          引用与审计
+        <button type="button" className="btn" onClick={() => goStep("run")}>
+          执行检索
           <Icon name="chevronRight" size={14} />
         </button>
       </div>
@@ -656,7 +717,7 @@ export function AuditPanel() {
   return (
     <>
       <PageHeader
-        kicker="审计 · 引用与回答"
+        kicker="核心 · 引用审计"
         title="引用与审计"
         actions={<Badge tone={auditResult ? "done" : ""}>{auditResult ? "已审计" : "待审计"}</Badge>}
       />
@@ -767,9 +828,9 @@ export function AuditPanel() {
       </div>
 
       <div className="page-nav">
-        <button type="button" className="btn" onClick={() => goStep("guidelines")}>
+        <button type="button" className="btn" onClick={() => goStep("results")}>
           <Icon name="chevronLeft" size={14} />
-          上一步
+          证据包
         </button>
         <button type="button" className="btn" onClick={() => goStep("case")}>
           回到开头

@@ -15,7 +15,7 @@
       "neonatal pneumonia",
       "chest radiograph"
     ],
-    "facts": [
+    "records": [
       {
         "collection": "diagnoses",
         "event_type": "diagnosis",

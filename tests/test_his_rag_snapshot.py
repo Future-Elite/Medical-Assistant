@@ -107,11 +107,11 @@ class MapperTests(unittest.TestCase):
         blob = json.dumps(example_payload(), ensure_ascii=False)
         for leaked in ("演示患者A", "110101195804120011", "13800000000", "合成地址", "patientId"):
             self.assertNotIn(leaked, blob)
-        patient_fact = next(fact for fact in example_payload()["facts"] if fact["record_path"] == "his:patient")
+        patient_fact = next(fact for fact in example_payload()["records"] if fact["record_path"] == "his:patient")
         self.assertEqual(patient_fact["fields"], {"gender": 1, "birthDate": "1958-04-12"})
 
     def test_range_fields_and_ongoing_order(self):
-        facts = {fact["record_path"]: fact for fact in example_payload()["facts"]}
+        facts = {fact["record_path"]: fact for fact in example_payload()["records"]}
         admission = facts["his:timeline:ADMISSION:1"]
         self.assertEqual((admission["start"], admission["end"]), ("2025-03-01T10:00:00", "2025-03-08T09:30:00"))
         order = facts["his:timeline:ORDER:1"]
@@ -119,7 +119,7 @@ class MapperTests(unittest.TestCase):
 
     def test_future_facts_are_carried_and_left_to_rag(self):
         """映射器不裁剪时间；未来事实照样进载荷，由 RAG 的 as_of 过滤。"""
-        future = [fact for fact in example_payload()["facts"] if fact["time"] == "2026-01-20T07:15:00"]
+        future = [fact for fact in example_payload()["records"] if fact["time"] == "2026-01-20T07:15:00"]
         self.assertEqual(len(future), 1)
 
     def test_missing_payload_and_missing_type_are_warned_not_dropped(self):
@@ -132,7 +132,7 @@ class MapperTests(unittest.TestCase):
             patient_ref=PATIENT_REF,
             as_of=AS_OF,
         )
-        paths = [fact["record_path"] for fact in payload["facts"]]
+        paths = [fact["record_path"] for fact in payload["records"]]
         self.assertIn("his:timeline:CHARGE:1", paths)
         self.assertIn("his:timeline:UNKNOWN:1", paths)
         self.assertTrue(any("缺少实体载荷" in warning for warning in payload["warnings"]))
@@ -145,7 +145,7 @@ class MapperTests(unittest.TestCase):
             patient_ref=PATIENT_REF,
             as_of=AS_OF,
         )
-        fact = next(item for item in payload["facts"] if item["record_path"] == "his:timeline:VITAL_SIGN:1")
+        fact = next(item for item in payload["records"] if item["record_path"] == "his:timeline:VITAL_SIGN:1")
         self.assertEqual(fact["fields"], {"value": "36.6"})
         self.assertEqual(fact["time"], "2025-03-02T06:30:00")
 
@@ -193,7 +193,7 @@ class AgentClientTests(unittest.TestCase):
             return table[url]
 
         payload = AgentHisClient(base_url=BASE_URL, transport=leaky).snapshot_payload(PATIENT_REF, AS_OF)
-        paths = [fact["record_path"] for fact in payload["facts"]]
+        paths = [fact["record_path"] for fact in payload["records"]]
         self.assertNotIn("his:timeline:ORDER:1", paths)
         self.assertTrue(any("与本快照患者" in warning for warning in payload["warnings"]))
 

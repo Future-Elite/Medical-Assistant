@@ -35,10 +35,10 @@ import json
 from dataclasses import asdict, dataclass, field
 from typing import Any, Mapping, Sequence
 
-from ..his import PatientSnapshot
-from ..models import QueryPlan, RetrievalRequest
-from .patient_retrieval import retrieve_patient_facts
-from ..pipeline import EvidenceRetrievalPipeline
+from ..core.his import PatientSnapshot
+from ..core.models import QueryPlan, RetrievalRequest
+from ..patient_graph.service import PatientGraphSettings, retrieve_patient_facts
+from .pipeline import EvidenceRetrievalPipeline
 from .query import build_query_plan
 
 CONTROLLER_VERSION = "controller-v1-trial"
@@ -304,23 +304,31 @@ class RetrievalController:
         if snapshot is None:
             rounds.append(self._round_record(
                 state, None, [], "患者事实：未提供 patient_snapshot，跳过本地检索。",
-                [], {"visible_facts": 0, "patient_hits": 0}, None, coverage_terms,
+                [], {"visible_records": 0, "patient_hits": 0}, None, coverage_terms,
             ))
         else:
+            settings = getattr(self.pipeline, "patient_graph_settings", None) or PatientGraphSettings.from_env()
             patient_hits, patient_trace = retrieve_patient_facts(
                 snapshot,
                 (request.question, *request.patient_terms, *request.english_terms, *request.mesh_terms),
                 top_k=max(request.top_k * 2, 20),
+                max_hops=settings.max_hops,
+                max_nodes=settings.max_nodes,
+                lexicon_path=settings.lexicon_path or None,
             )
             state.patient_hit_count = len(patient_hits)
             state.visible_fact_count = int(patient_trace.get("visible_fact_count") or 0)
             state.warnings.extend(patient_trace.get("warnings") or [])
+            graph_trace = patient_trace.get("patient_graph") or {}
             rounds.append(self._round_record(
                 state, "patient_facts", [], "患者事实始终本地检索；不发送给外部连接器。",
                 [], {
-                    "visible_facts": state.visible_fact_count,
+                    "visible_records": state.visible_fact_count,
                     "patient_hits": state.patient_hit_count,
                     "suppressed_future": patient_trace.get("suppressed_future", 0),
+                    "patient_graph_engine": graph_trace.get("engine"),
+                    "patient_graph_status": graph_trace.get("status"),
+                    "patient_graph_nodes": (graph_trace.get("graph") or {}).get("node_count"),
                 }, None, coverage_terms,
             ))
 
@@ -375,7 +383,7 @@ class RetrievalController:
             "source_ids": list(state.queried_source_ids),
             "source_evidence_count": dict(state.source_evidence_count),
             "patient_hits": state.patient_hit_count,
-            "visible_facts": state.visible_fact_count,
+            "visible_records": state.visible_fact_count,
             "coverage": stop_state["coverage"],
             "budget_spent": state.budget_spent,
             "rounds": state.round,
@@ -510,7 +518,7 @@ def request_fingerprint(request: RetrievalRequest) -> str:
         "patient_context": None if snapshot is None else {
             "patient_ref": snapshot.patient_ref,
             "as_of": snapshot.as_of,
-            "fact_count": len(snapshot.facts),
+            "fact_count": len(snapshot.records),
         },
     }
     encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True, default=str).encode("utf-8")

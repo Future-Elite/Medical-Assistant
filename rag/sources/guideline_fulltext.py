@@ -40,9 +40,9 @@ import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from typing import Any, Callable, Iterable, Mapping, Sequence
 
-from ..config import get_config
-from ..connectors import KnowledgeConnector
-from ..models import QueryPlan, SearchResult, SourceDocument
+from ..core.config import get_config
+from .connectors import KnowledgeConnector
+from ..core.models import QueryPlan, SearchResult, SourceDocument
 from ..retrieval.query import primary_topic
 
 EUROPEPMC_SEARCH = "https://www.ebi.ac.uk/europepmc/webservices/rest/search"

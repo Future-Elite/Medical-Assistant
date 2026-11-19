@@ -389,13 +389,13 @@ POST /api/demo/guidelines/load     显式登记演示指南库（写入 custom �
 
 检索结果中的每条候选必须至少被一个检索信号命中（词面 BM25 分数 > 0 或语义分数 > 0），否则不会仅因"来源里有该条目"而获得 RRF/权威性/新鲜度分数。无关候选被排除时会写入 warnings（“已排除 N 条与查询无检索相关度……”）。
 
-工作台的演示病例来自 `data/neonatal_cases.json`（50 例，25 肺炎 + 25 RDS；下拉框“合成病例”）。每例的 `snapshot` 是 HIS API fixture 经 `contracts/agent_his_adapter.py` 映射出的 HIS 事件集（`patient` / `admission` / `diagnosis` / `neonatal_record` / `neonatal_summary` / `neonatal_diagnosis` / `vital_sign` / `lab_test` / `order`），HIS 事实保持 API 原样；另附两条独立 `derived_birth` / `derived_respiratory_support` 事实（`source_type=derived_from_ehr_input`）供适用性核对，不修改 HIS 事实。`as_of` 之前的步骤可见，出院病案与后续步骤被抑制。选择后自动填充节点 01–05 的全部 `RetrievalRequest` 字段。示例：
+工作台的演示病例来自 `data/generated/ehr_demo/neonatal_cases.json`（50 例，25 肺炎 + 25 RDS；下拉框“合成病例”）。每例的 `snapshot` 是 HIS API fixture 经 `contracts/agent_his_adapter.py` 映射出的 HIS 事件集（`patient` / `admission` / `diagnosis` / `neonatal_record` / `neonatal_summary` / `neonatal_diagnosis` / `vital_sign` / `lab_test` / `order`），HIS 事实保持 API 原样；另附两条独立 `derived_birth` / `derived_respiratory_support` 事实（`source_type=derived_from_ehr_input`）供适用性核对，不修改 HIS 事实。`as_of` 之前的步骤可见，出院病案与后续步骤被抑制。选择后自动填充节点 01–05 的全部 `RetrievalRequest` 字段。示例：
 
 1. `neo-ehr-001-pneumonia`：35周+6天、生后21小时、CPAP FiO₂ 0.25、CRP 24 mg/L、血培养 pending。
 2. `neo-ehr-002-rds`：32周、生后61小时、NIPPV FiO₂ 0.50、pH 7.17、PaCO₂ 70 mmHg；`as_of=2026-01-16`（早于 RDS 2025 发表）→ 未来文献被排除。
 3. `neo-ehr-010-rds`：`as_of=2026-03-12`（晚于 2026-03-09）→ RDS 2025 元数据可见。
 
-其余病例见 `data/case_index.csv`。当前档案不再包含 TTN/黄疸/PPHN/BPD/低血糖/GBS 主题；旧 9 例精选与 30 例 HIS 风格档案保留在 `rag/demo/archive_2026-11-05/`，仅作追溯。
+其余病例见 `data/generated/ehr_demo/case_index.csv`。当前档案不再包含 TTN/黄疸/PPHN/BPD/低血糖/GBS 主题；旧 9 例精选与 30 例 HIS 风格档案只保留在研发树，不随发布分支分发。
 
 注：纯数字查询 token（如“2月龄”的“2”、“2026年”的“2026”）不参与词面匹配，避免误串年份或序号；时间语境由 `as_of` 与过滤器表达。演示病例的 `term_mapping`（或兼容 `english_terms`）必须人工审核后写入 `preset`，GUI 不自动翻译。
 

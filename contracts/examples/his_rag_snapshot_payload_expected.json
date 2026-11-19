@@ -3,7 +3,7 @@
   "patient_ref": "2001",
   "as_of": "2025-12-31",
   "source": "his_demo",
-  "facts": [
+  "records": [
     {
       "collection": "patient",
       "event_type": "PATIENT",

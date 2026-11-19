@@ -1069,3 +1069,279 @@
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
   background: var(--cinnabar-soft);
 }
+
+/* 患者知识图谱可视化 */
+.patient-graph {
+  margin: 12px 0;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--sheet);
+  overflow: hidden;
+}
+.patient-graph-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--rule);
+  background: var(--sheet-2);
+}
+.patient-graph-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.patient-graph-title b {
+  font-family: var(--font-display);
+  font-size: 13px;
+}
+.patient-graph-title span {
+  color: var(--faint);
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+.patient-graph-actions {
+  display: flex;
+  gap: 4px;
+  flex: none;
+}
+.patient-graph-canvas {
+  background:
+    radial-gradient(circle at 50% 45%, var(--forest-wash), transparent 62%),
+    var(--sheet);
+  min-height: 340px;
+  overflow: hidden;
+}
+.patient-graph-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 560px;
+}
+.patient-graph-node {
+  cursor: pointer;
+}
+.patient-graph-node:hover circle {
+  filter: brightness(1.08);
+}
+.patient-graph-node.is-selected circle {
+  filter: drop-shadow(0 0 4px rgba(11, 79, 108, 0.45));
+}
+.patient-graph-label {
+  fill: var(--ink-2);
+  font-family: var(--font-sans);
+  font-size: 9px;
+  paint-order: stroke;
+  stroke: var(--sheet);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+.patient-graph-footer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.8fr);
+  gap: 12px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--rule);
+  background: var(--sheet-2);
+}
+.patient-graph-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  align-content: flex-start;
+}
+.patient-graph-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 10.5px;
+}
+.patient-graph-legend-item i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  display: inline-block;
+  flex: none;
+}
+.patient-graph-legend-item i.line-solid,
+.patient-graph-legend-item i.line-dashed,
+.patient-graph-legend-item i.line-hit {
+  width: 18px;
+  height: 0;
+  border-radius: 0;
+  border-top: 2px solid var(--rule-strong);
+}
+.patient-graph-legend-item i.line-dashed {
+  border-top-style: dashed;
+  border-top-color: var(--slate);
+}
+.patient-graph-legend-item i.line-hit {
+  border-top-color: var(--cinnabar);
+}
+.patient-graph-detail {
+  border-left: 1px solid var(--rule);
+  padding-left: 12px;
+  min-width: 0;
+}
+.patient-graph-detail-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+.patient-graph-detail-head span {
+  color: var(--faint);
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  word-break: break-all;
+}
+.patient-graph-detail dl {
+  margin: 0;
+  display: grid;
+  gap: 3px;
+  max-height: 132px;
+  overflow: auto;
+}
+.patient-graph-detail dl > div {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 8px;
+  font-size: 10.5px;
+}
+.patient-graph-detail dt {
+  color: var(--faint);
+  font-family: var(--font-mono);
+  word-break: break-all;
+}
+.patient-graph-detail dd {
+  margin: 0;
+  color: var(--ink-2);
+  word-break: break-all;
+}
+.patient-graph-empty {
+  padding: 24px;
+  border: 1px dashed var(--rule-strong);
+  border-radius: var(--radius);
+  color: var(--faint);
+  text-align: center;
+  font-size: 12px;
+}
+.patient-hit-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--sheet-2);
+  color: var(--ink-2);
+  font-size: 12px;
+}
+.patient-hit-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  justify-content: space-between;
+}
+.patient-hit-line > span {
+  min-width: 0;
+  word-break: break-word;
+}
+.graph-path {
+  font-family: var(--font-mono);
+  line-height: 1.5;
+}
+@media (max-width: 900px) {
+  .patient-graph-footer {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .patient-graph-detail {
+    border-left: 0;
+    border-top: 1px solid var(--rule);
+    padding-left: 0;
+    padding-top: 8px;
+  }
+}
+.patient-graph-toggle {
+  color: var(--muted);
+  font-size: 10.5px;
+  white-space: nowrap;
+}
+
+/* 指南页折叠区：默认只展示重点，细节按需展开 */
+.disclosure {
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  background: var(--sheet);
+}
+details.disclosure.card {
+  padding: 0;
+}
+.disclosure > summary {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 12px;
+  cursor: pointer;
+  list-style: none;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-2);
+  background: var(--sheet-2);
+  border-radius: var(--radius-sm);
+}
+.disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+.disclosure > summary::before {
+  content: "▸";
+  color: var(--muted);
+  font-size: 10px;
+}
+.disclosure[open] > summary {
+  border-bottom: 1px solid var(--rule);
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+}
+.disclosure[open] > summary::before {
+  content: "▾";
+}
+.disclosure > .stack,
+.disclosure > .card-body {
+  padding: 12px;
+}
+.viewer-disclosure > .guideline-viewer {
+  padding: 12px;
+}
+.fusion-bridge-note {
+  padding: 7px 10px;
+  border-left: 2px solid var(--forest);
+  background: var(--forest-wash);
+  font-size: 12px;
+  line-height: 1.65;
+  color: var(--ink-2);
+}
+
+.guideline-graph-canvas .patient-graph-svg {
+  max-height: 380px;
+}
+
+/* Top-k flow: done/current/pending states */
+.pipeline-step.done {
+  border-color: color-mix(in srgb, var(--forest) 45%, transparent);
+  background: var(--forest-wash);
+  color: var(--forest);
+}
+.pipeline-step.current {
+  border-color: var(--ochre);
+  background: var(--ochre-soft);
+  color: var(--ochre);
+}
+.pipeline-step.pending {
+  opacity: 0.55;
+}

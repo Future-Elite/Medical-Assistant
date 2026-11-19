@@ -6,8 +6,8 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
-from ..his import PatientSnapshot, minimize_patient_snapshot
-from ..models import QueryPlan, RetrievalRequest, TermMappingEntry
+from ..core.his import PatientSnapshot, minimize_patient_snapshot
+from ..core.models import QueryPlan, RetrievalRequest, TermMappingEntry
 from ..quality.term_mapping_library import MAPPING_ORIGIN_LIBRARY, MAPPING_ORIGIN_REQUEST
 
 DEFAULT_SOURCE_ORDER = ("guideline", "pubmed", "drug", "clinical_trial", "local_knowledge")

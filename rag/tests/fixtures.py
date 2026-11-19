@@ -16,74 +16,74 @@ Identity conventions exercised by the fixtures:
   CJK bigram matching tests; its title deliberately avoids the shared
   ``新生儿`` prefix so cross-disease isolation assertions stay meaningful.
 """
-from rag.his import PatientFact, PatientSnapshot
+from rag.his import PatientRecord, PatientSnapshot
 from rag.models import SourceDocument
 
 SYNTHETIC_HIS_SNAPSHOTS = {
     "syn-neo-001": PatientSnapshot(
         patient_ref="syn-neo-001", as_of="2026-04-15", source="synthetic_neonatal_chart",
         reviewed_external_terms=("respiratory distress syndrome", "pulmonary surfactant", "CPAP"),
-        facts=(
-            PatientFact(collection="birth", event_type="birth", record_path="birth[0]", field_path="birth[0].ga_days", time="2026-04-10", fields={"subject_role": "patient", "ga_days": 212, "ga_text": "30周+2天", "birth_weight_g": 1450, "data_status": "observed_positive"}),
-            PatientFact(collection="maternal", event_type="pregnancy", record_path="maternal[0]", field_path="maternal[0].gbs_status", time="2026-04-10", fields={"subject_role": "mother", "gbs_status": "not_recorded", "prom_hours": 18, "data_status": "not_recorded"}),
-            PatientFact(collection="diagnoses", event_type="diagnosis", record_path="diagnoses[0]", field_path="diagnoses[0].name", time="2026-04-10", fields={"subject_role": "patient", "name": "新生儿呼吸窘迫综合征", "data_status": "observed_positive"}),
-            PatientFact(collection="respiratory_support", event_type="support", record_path="respiratory_support[0]", field_path="respiratory_support[0].mode", start="2026-04-10", end=None, fields={"subject_role": "patient", "mode": "CPAP", "fio2": "0.30", "fio2_unit": "fraction", "data_status": "observed_positive"}),
-            PatientFact(collection="labs", event_type="culture", record_path="labs[0]", field_path="labs[0].culture_status", time="2026-04-10", fields={"subject_role": "patient", "specimen": "blood", "culture_status": "pending", "data_status": "pending"}),
-            PatientFact(collection="reports", event_type="report", record_path="reports[0]", field_path="reports[0].impression", time="2026-05-05", fields={"subject_role": "patient", "impression": "future record", "data_status": "observed_positive"}),
+        records=(
+            PatientRecord(record_type="birth", event_type="birth", record_id="birth[0]", event_time="2026-04-10", fields={"subject_role": "patient", "ga_days": 212, "ga_text": "30周+2天", "birth_weight_g": 1450, "data_status": "observed_positive"}),
+            PatientRecord(record_type="maternal", event_type="pregnancy", record_id="maternal[0]", event_time="2026-04-10", fields={"subject_role": "mother", "gbs_status": "not_recorded", "prom_hours": 18, "data_status": "not_recorded"}),
+            PatientRecord(record_type="diagnoses", event_type="diagnosis", record_id="diagnoses[0]", event_time="2026-04-10", fields={"subject_role": "patient", "name": "新生儿呼吸窘迫综合征", "data_status": "observed_positive"}),
+            PatientRecord(record_type="respiratory_support", event_type="support", record_id="respiratory_support[0]", start="2026-04-10", end=None, fields={"subject_role": "patient", "mode": "CPAP", "fio2": "0.30", "fio2_unit": "fraction", "data_status": "observed_positive"}),
+            PatientRecord(record_type="labs", event_type="culture", record_id="labs[0]", event_time="2026-04-10", fields={"subject_role": "patient", "specimen": "blood", "culture_status": "pending", "data_status": "pending"}),
+            PatientRecord(record_type="reports", event_type="report", record_id="reports[0]", event_time="2026-05-05", fields={"subject_role": "patient", "impression": "future record", "data_status": "observed_positive"}),
         ),
     ),
     "syn-neo-002": PatientSnapshot(
         patient_ref="syn-neo-002", as_of="2026-09-12", source="synthetic_neonatal_chart",
         reviewed_external_terms=("neonatal pneumonia", "chest radiograph", "blood culture"),
-        facts=(
-            PatientFact(collection="birth", event_type="birth", record_path="birth[0]", field_path="birth[0].ga_days", time="2026-09-10", fields={"subject_role": "patient", "ga_days": 274, "ga_text": "39周+1天", "birth_weight_g": 3320, "data_status": "observed_positive"}),
-            PatientFact(collection="maternal", event_type="pregnancy", record_path="maternal[0]", field_path="maternal[0].gbs_status", time="2026-09-10", fields={"subject_role": "mother", "gbs_status": "positive", "prom_hours": 26, "maternal_fever_c": 38.2, "data_status": "observed_positive"}),
-            PatientFact(collection="diagnoses", event_type="diagnosis", record_path="diagnoses[0]", field_path="diagnoses[0].name", time="2026-09-11", fields={"subject_role": "patient", "name": "新生儿感染性肺炎", "data_status": "observed_positive"}),
-            PatientFact(collection="vitals", event_type="measurement", record_path="vitals[0]", field_path="vitals[0].temp_c", time="2026-09-11", fields={"subject_role": "patient", "temp_c": 38.9, "rr_per_min": 72, "data_status": "observed_positive"}),
-            PatientFact(collection="labs", event_type="measurement", record_path="labs[0]", field_path="labs[0].crp_mg_l", time="2026-09-11", fields={"subject_role": "patient", "crp_mg_l": 48, "wbc_10e9_l": 18.2, "data_status": "observed_positive"}),
-            PatientFact(collection="labs", event_type="culture", record_path="labs[1]", field_path="labs[1].culture_status", time="2026-09-11", fields={"subject_role": "patient", "specimen": "blood", "culture_status": "pending", "data_status": "pending"}),
-            PatientFact(collection="imaging", event_type="chest_xray", record_path="imaging[0]", field_path="imaging[0].impression", time="2026-09-11", fields={"subject_role": "patient", "modality": "chest_xray", "report_status": "signed", "impression": "双肺纹理增粗，右下肺斑片影", "data_status": "observed_positive"}),
-            PatientFact(collection="reports", event_type="report", record_path="reports[0]", field_path="reports[0].impression", time="2026-09-15", fields={"subject_role": "patient", "impression": "future record", "data_status": "observed_positive"}),
+        records=(
+            PatientRecord(record_type="birth", event_type="birth", record_id="birth[0]", event_time="2026-09-10", fields={"subject_role": "patient", "ga_days": 274, "ga_text": "39周+1天", "birth_weight_g": 3320, "data_status": "observed_positive"}),
+            PatientRecord(record_type="maternal", event_type="pregnancy", record_id="maternal[0]", event_time="2026-09-10", fields={"subject_role": "mother", "gbs_status": "positive", "prom_hours": 26, "maternal_fever_c": 38.2, "data_status": "observed_positive"}),
+            PatientRecord(record_type="diagnoses", event_type="diagnosis", record_id="diagnoses[0]", event_time="2026-09-11", fields={"subject_role": "patient", "name": "新生儿感染性肺炎", "data_status": "observed_positive"}),
+            PatientRecord(record_type="vitals", event_type="measurement", record_id="vitals[0]", event_time="2026-09-11", fields={"subject_role": "patient", "temp_c": 38.9, "rr_per_min": 72, "data_status": "observed_positive"}),
+            PatientRecord(record_type="labs", event_type="measurement", record_id="labs[0]", event_time="2026-09-11", fields={"subject_role": "patient", "crp_mg_l": 48, "wbc_10e9_l": 18.2, "data_status": "observed_positive"}),
+            PatientRecord(record_type="labs", event_type="culture", record_id="labs[1]", event_time="2026-09-11", fields={"subject_role": "patient", "specimen": "blood", "culture_status": "pending", "data_status": "pending"}),
+            PatientRecord(record_type="imaging", event_type="chest_xray", record_id="imaging[0]", event_time="2026-09-11", fields={"subject_role": "patient", "modality": "chest_xray", "report_status": "signed", "impression": "双肺纹理增粗，右下肺斑片影", "data_status": "observed_positive"}),
+            PatientRecord(record_type="reports", event_type="report", record_id="reports[0]", event_time="2026-09-15", fields={"subject_role": "patient", "impression": "future record", "data_status": "observed_positive"}),
         ),
     ),
     "syn-neo-003": PatientSnapshot(
         patient_ref="syn-neo-003", as_of="2026-07-18", source="synthetic_neonatal_chart",
         reviewed_external_terms=("neonatal jaundice", "hyperbilirubinemia", "phototherapy"),
-        facts=(
-            PatientFact(collection="birth", event_type="birth", record_path="birth[0]", field_path="birth[0].ga_days", time="2026-07-15", fields={"subject_role": "patient", "ga_days": 248, "ga_text": "35周+3天", "birth_weight_g": 2400, "data_status": "observed_positive"}),
-            PatientFact(collection="diagnoses", event_type="diagnosis", record_path="diagnoses[0]", field_path="diagnoses[0].name", time="2026-07-18", fields={"subject_role": "patient", "name": "高胆红素血症", "data_status": "observed_positive"}),
-            PatientFact(collection="labs", event_type="measurement", record_path="labs[0]", field_path="labs[0].total_bilirubin_umol_l", time="2026-07-18", fields={"subject_role": "patient", "total_bilirubin_umol_l": 285, "direct_bilirubin_umol_l": 12, "data_status": "observed_positive"}),
-            PatientFact(collection="reports", event_type="report", record_path="reports[0]", field_path="reports[0].impression", time="2026-07-20", fields={"subject_role": "patient", "impression": "future record", "data_status": "observed_positive"}),
+        records=(
+            PatientRecord(record_type="birth", event_type="birth", record_id="birth[0]", event_time="2026-07-15", fields={"subject_role": "patient", "ga_days": 248, "ga_text": "35周+3天", "birth_weight_g": 2400, "data_status": "observed_positive"}),
+            PatientRecord(record_type="diagnoses", event_type="diagnosis", record_id="diagnoses[0]", event_time="2026-07-18", fields={"subject_role": "patient", "name": "高胆红素血症", "data_status": "observed_positive"}),
+            PatientRecord(record_type="labs", event_type="measurement", record_id="labs[0]", event_time="2026-07-18", fields={"subject_role": "patient", "total_bilirubin_umol_l": 285, "direct_bilirubin_umol_l": 12, "data_status": "observed_positive"}),
+            PatientRecord(record_type="reports", event_type="report", record_id="reports[0]", event_time="2026-07-20", fields={"subject_role": "patient", "impression": "future record", "data_status": "observed_positive"}),
         ),
     ),
     "syn-neo-004": PatientSnapshot(
         patient_ref="syn-neo-004", as_of="2026-08-20", source="synthetic_neonatal_chart",
         reviewed_external_terms=("transient tachypnea of the newborn", "TTN"),
-        facts=(
-            PatientFact(collection="birth", event_type="birth", record_path="birth[0]", field_path="birth[0].ga_days", time="2026-08-20", fields={"subject_role": "patient", "ga_days": 270, "ga_text": "38周+4天", "birth_weight_g": 3100, "data_status": "observed_positive"}),
-            PatientFact(collection="diagnoses", event_type="diagnosis", record_path="diagnoses[0]", field_path="diagnoses[0].name", time="2026-08-20", fields={"subject_role": "patient", "name": "暂时性呼吸增快", "data_status": "observed_positive"}),
-            PatientFact(collection="vitals", event_type="measurement", record_path="vitals[0]", field_path="vitals[0].rr_per_min", time="2026-08-20", fields={"subject_role": "patient", "rr_per_min": 78, "spo2_percent": 94, "respiratory_support": "room air", "data_status": "observed_positive"}),
-            PatientFact(collection="reports", event_type="report", record_path="reports[0]", field_path="reports[0].impression", time="2026-08-22", fields={"subject_role": "patient", "impression": "future record", "data_status": "observed_positive"}),
+        records=(
+            PatientRecord(record_type="birth", event_type="birth", record_id="birth[0]", event_time="2026-08-20", fields={"subject_role": "patient", "ga_days": 270, "ga_text": "38周+4天", "birth_weight_g": 3100, "data_status": "observed_positive"}),
+            PatientRecord(record_type="diagnoses", event_type="diagnosis", record_id="diagnoses[0]", event_time="2026-08-20", fields={"subject_role": "patient", "name": "暂时性呼吸增快", "data_status": "observed_positive"}),
+            PatientRecord(record_type="vitals", event_type="measurement", record_id="vitals[0]", event_time="2026-08-20", fields={"subject_role": "patient", "rr_per_min": 78, "spo2_percent": 94, "respiratory_support": "room air", "data_status": "observed_positive"}),
+            PatientRecord(record_type="reports", event_type="report", record_id="reports[0]", event_time="2026-08-22", fields={"subject_role": "patient", "impression": "future record", "data_status": "observed_positive"}),
         ),
     ),
     "syn-neo-005": PatientSnapshot(
         patient_ref="syn-neo-005", as_of="2026-06-12", source="synthetic_neonatal_chart",
         reviewed_external_terms=("persistent pulmonary hypertension of the newborn", "inhaled nitric oxide"),
-        facts=(
-            PatientFact(collection="birth", event_type="birth", record_path="birth[0]", field_path="birth[0].ga_days", time="2026-06-12", fields={"subject_role": "patient", "ga_days": 273, "ga_text": "39周+0天", "birth_weight_g": 3500, "meconium_stained_fluid": True, "data_status": "observed_positive"}),
-            PatientFact(collection="diagnoses", event_type="diagnosis", record_path="diagnoses[0]", field_path="diagnoses[0].name", time="2026-06-12", fields={"subject_role": "patient", "name": "持续性肺动脉高压", "data_status": "observed_positive"}),
-            PatientFact(collection="vitals", event_type="measurement", record_path="vitals[0]", field_path="vitals[0].preductal_spo2_percent", time="2026-06-12", fields={"subject_role": "patient", "preductal_spo2_percent": 88, "postductal_spo2_percent": 82, "data_status": "observed_positive"}),
-            PatientFact(collection="reports", event_type="report", record_path="reports[0]", field_path="reports[0].impression", time="2026-06-14", fields={"subject_role": "patient", "impression": "future record", "data_status": "observed_positive"}),
+        records=(
+            PatientRecord(record_type="birth", event_type="birth", record_id="birth[0]", event_time="2026-06-12", fields={"subject_role": "patient", "ga_days": 273, "ga_text": "39周+0天", "birth_weight_g": 3500, "meconium_stained_fluid": True, "data_status": "observed_positive"}),
+            PatientRecord(record_type="diagnoses", event_type="diagnosis", record_id="diagnoses[0]", event_time="2026-06-12", fields={"subject_role": "patient", "name": "持续性肺动脉高压", "data_status": "observed_positive"}),
+            PatientRecord(record_type="vitals", event_type="measurement", record_id="vitals[0]", event_time="2026-06-12", fields={"subject_role": "patient", "preductal_spo2_percent": 88, "postductal_spo2_percent": 82, "data_status": "observed_positive"}),
+            PatientRecord(record_type="reports", event_type="report", record_id="reports[0]", event_time="2026-06-14", fields={"subject_role": "patient", "impression": "future record", "data_status": "observed_positive"}),
         ),
     ),
     "syn-neo-006": PatientSnapshot(
         patient_ref="syn-neo-006", as_of="2026-05-20", source="synthetic_neonatal_chart",
         reviewed_external_terms=("bronchopulmonary dysplasia", "postmenstrual age"),
-        facts=(
-            PatientFact(collection="birth", event_type="birth", record_path="birth[0]", field_path="birth[0].ga_days", time="2026-03-25", fields={"subject_role": "patient", "ga_days": 196, "ga_text": "28周+0天", "birth_weight_g": 980, "data_status": "observed_positive"}),
-            PatientFact(collection="diagnoses", event_type="diagnosis", record_path="diagnoses[0]", field_path="diagnoses[0].name", time="2026-05-19", fields={"subject_role": "patient", "name": "支气管肺发育不良", "data_status": "observed_positive"}),
-            PatientFact(collection="respiratory_support", event_type="support", record_path="respiratory_support[0]", field_path="respiratory_support[0].mode", start="2026-03-25", end=None, fields={"subject_role": "patient", "mode": "CPAP", "fio2": "0.25", "data_status": "observed_positive"}),
-            PatientFact(collection="reports", event_type="report", record_path="reports[0]", field_path="reports[0].impression", time="2026-05-25", fields={"subject_role": "patient", "impression": "future record", "data_status": "observed_positive"}),
+        records=(
+            PatientRecord(record_type="birth", event_type="birth", record_id="birth[0]", event_time="2026-03-25", fields={"subject_role": "patient", "ga_days": 196, "ga_text": "28周+0天", "birth_weight_g": 980, "data_status": "observed_positive"}),
+            PatientRecord(record_type="diagnoses", event_type="diagnosis", record_id="diagnoses[0]", event_time="2026-05-19", fields={"subject_role": "patient", "name": "支气管肺发育不良", "data_status": "observed_positive"}),
+            PatientRecord(record_type="respiratory_support", event_type="support", record_id="respiratory_support[0]", start="2026-03-25", end=None, fields={"subject_role": "patient", "mode": "CPAP", "fio2": "0.25", "data_status": "observed_positive"}),
+            PatientRecord(record_type="reports", event_type="report", record_id="reports[0]", event_time="2026-05-25", fields={"subject_role": "patient", "impression": "future record", "data_status": "observed_positive"}),
         ),
     ),
 }

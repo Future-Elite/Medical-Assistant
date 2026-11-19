@@ -30,7 +30,7 @@
 - **`rag`：RAG 组件线。** `rag/` 内的改动落在 `rag` 线（或其短分支）并同步到 `main`；两条线在里程碑对齐（例如发布或大特性落地时把 `rag` 快进到 `main`，此后 `main` 可临时领先——属设计而非漂移）。
 - **`his`：HIS 组件线（他人维护）。** **不要直接修改 `his/` 下的文件**——它们会随 subtree 同步被覆盖或产生冲突；需要 HIS 侧改动时先与 HIS 维护者沟通，走 `his` 分支。
 - **`agent`：Agent 组件线（他人维护）。** 同理：不直接改 `agent/` 下的文件，改动走 `agent` 分支；`main` 只做整合。
-- **他人线的集成分支（如 `feat/medical-agent-integration`）由各自维护者整合。** 我们不改动、不代为合并；需要联动时先对齐 `contracts/` 的契约版本（当前 `his_rag.md` 0.2.0）与 `rag` 包版本（当前 6.6.2）。
+- **他人线的集成分支（如 `feat/medical-agent-integration`）由各自维护者整合。** 我们不改动、不代为合并；需要联动时先对齐 `contracts/` 的契约版本（当前 `his_rag.md` 0.3.0）与 `rag` 包版本（当前 6.7.3）。
 - **集成工作用短分支。** 从 `main` 开 `feat/…`、`fix/…`，完成并测试后合并回 `main`。
 - **`contracts/` 与 `tests/` 优先用「新增文件」扩展。** 新增不产生合并冲突；确需扩展他人已有的文件（如 `contracts/README.md` 已由集成区保留原文并追加索引）时：**保留原文再追加**、在提交信息中说明、并知会该文件的维护线——这会产生一次内容冲突，需在对应分支合并前对齐。
 
@@ -77,7 +77,7 @@ docs: 更新项目结构与组件版本表
 
 ```text
 medassist-0.1.0
-rag 6.6.2 / his 1.0.0@<short-sha> / his_rag_contract 0.2.0
+rag 6.7.3 / his 1.0.0@<short-sha> / his_rag_contract 0.3.0
 ```
 
 发布流程：契约冻结 → 全量测试通过 → 打 tag → 更新根 `README.md` 的"组件与接口版本"表。

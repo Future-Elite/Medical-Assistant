@@ -161,7 +161,7 @@ def _ga_answer(derived: Mapping[str, Any]) -> str | None:
 def _length_of_stay(snapshot: Mapping[str, Any]) -> int | None:
     admission = None
     discharge = None
-    for fact in snapshot.get("facts", []):
+    for fact in snapshot.get("records", []):
         fields = fact.get("fields") or {}
         if fact.get("collection") == "admission":
             admission = fields.get("admissionTime")

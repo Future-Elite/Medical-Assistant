@@ -22,8 +22,8 @@ from rag.his import filter_snapshot, snapshot_from_dict
 from rag.models import RetrievalRequest
 from rag.pipeline import EvidenceRetrievalPipeline
 
-DATA_DIR = Path(__file__).resolve().parents[3] / "data"
-_HAS_DATA = DATA_DIR.is_dir()
+DEMO_PACKAGE = Path(__file__).resolve().parents[2] / "demo"
+_HAS_DATA = (DEMO_PACKAGE / "neonatal_cases.json").is_file()
 HIS_COLLECTIONS = {
     "patient", "visit", "admission", "diagnosis", "neonatal_record",
     "neonatal_summary", "neonatal_diagnosis", "vital_sign", "lab_test", "order",
@@ -47,20 +47,20 @@ class DemoCaseTests(unittest.TestCase):
 
     def test_every_case_has_the_his_fact_set(self):
         for case in load_demo_cases()["cases"]:
-            collections = {fact["collection"] for fact in case["snapshot"]["facts"]}
+            collections = {fact["record_type"] for fact in case["snapshot"]["records"]}
             missing = HIS_COLLECTIONS - collections
             self.assertFalse(missing, f"{case['case_id']} missing {sorted(missing)}")
             self.assertIn("discharge", collections, case["case_id"])
-            derived = {fact["collection"] for fact in case["snapshot"]["facts"]
-                       if fact.get("source_type") == "derived_from_ehr_input"}
+            derived = {fact["record_type"] for fact in case["snapshot"]["records"]
+                       if (fact.get("provenance") or {}).get("source_type") == "derived_from_ehr_input"}
             self.assertEqual(derived, {"derived_birth", "derived_respiratory_support"}, case["case_id"])
             self.assertTrue(case["snapshot"]["patient_ref"].isdigit(), case["case_id"])
             self.assertEqual(case["snapshot"]["source"], "his_demo")
 
     def test_patient_fact_drops_direct_identifiers(self):
         for case in load_demo_cases()["cases"]:
-            patient = next(fact for fact in case["snapshot"]["facts"]
-                           if fact["collection"] == "patient")
+            patient = next(fact for fact in case["snapshot"]["records"]
+                           if fact["record_type"] == "patient")
             self.assertEqual(set(patient["fields"]), {"gender", "birthDate"})
             self.assertFalse(IDENTIFIERS & set(patient["fields"]), case["case_id"])
 
@@ -77,7 +77,7 @@ class DemoCaseTests(unittest.TestCase):
                 case["case_id"],
             )
             self.assertTrue(request.patient_snapshot.patient_ref)
-            self.assertTrue(request.patient_snapshot.facts)
+            self.assertTrue(request.patient_snapshot.records)
 
     def test_preset_fields_are_a_subset_of_retrieval_request(self):
         from dataclasses import fields
@@ -96,12 +96,12 @@ class DemoCaseTests(unittest.TestCase):
             "admissionDiagnosis", "dischargeDiagnosis",
         }
         for case in load_demo_cases()["cases"]:
-            record = next(fact for fact in case["snapshot"]["facts"]
-                          if fact["collection"] == "neonatal_record")
+            record = next(fact for fact in case["snapshot"]["records"]
+                          if fact["record_type"] == "neonatal_record")
             self.assertEqual(set(record["fields"]), his_fields, case["case_id"])
-            self.assertNotIn("source_type", record, case["case_id"])
-            derived = {fact["collection"]: fact for fact in case["snapshot"]["facts"]
-                       if fact.get("source_type") == "derived_from_ehr_input"}
+            self.assertNotIn("source_type", record.get("provenance") or {}, case["case_id"])
+            derived = {fact["record_type"]: fact for fact in case["snapshot"]["records"]
+                       if (fact.get("provenance") or {}).get("source_type") == "derived_from_ehr_input"}
             self.assertEqual(set(derived), {"derived_birth", "derived_respiratory_support"})
             self.assertTrue(
                 {"ga_days", "ga_text", "birth_weight_g", "data_status"} <= set(derived["derived_birth"]["fields"]),
@@ -119,8 +119,8 @@ class DemoCaseTests(unittest.TestCase):
             self.assertGreaterEqual(filtered.suppressed_future, 1, case["case_id"])
             self.assertEqual(filtered.warnings, (), case["case_id"])
         cultures = [
-            fact for case in load_demo_cases()["cases"] for fact in case["snapshot"]["facts"]
-            if fact["collection"] == "lab_test" and fact["fields"].get("resultValue") == "pending"
+            fact for case in load_demo_cases()["cases"] for fact in case["snapshot"]["records"]
+            if fact["record_type"] == "lab_test" and fact["fields"].get("resultValue") == "pending"
         ]
         self.assertTrue(cultures)
         for fact in cultures:
@@ -148,7 +148,7 @@ class DemoCaseTests(unittest.TestCase):
             self.assertIn("preset", summary)
 
     def test_explicit_directory_reads_only_that_directory(self):
-        payload = load_demo_cases(DATA_DIR)
+        payload = load_demo_cases(DEMO_PACKAGE)
         self.assertEqual(len(payload["cases"]), 50)
 
 

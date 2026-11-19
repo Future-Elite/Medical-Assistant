@@ -21,13 +21,11 @@ def _mineru_executable() -> str | None:
     executable = shutil.which("mineru-kit")
     if executable:
         return executable
-    # Optional caller-provided MinerU environment (outside the repository).
-    mineru_venv = os.environ.get("RAG_MINERU_VENV", "")
-    candidates = (
-        Path(mineru_venv) / "bin" / "mineru-kit",
-        Path(mineru_venv) / "bin" / "mineru-kit.exe",
-    ) if mineru_venv else ()
-    for candidate in candidates:
+    # Project-local MinerU environment (outside the repository).
+    for candidate in (
+        Path("~/.chinallm/venvs/mineru/bin/mineru-kit").expanduser(),
+        Path("~/.chinallm/venvs/mineru/bin/mineru-kit.exe").expanduser(),
+    ):
         if candidate.is_file():
             return str(candidate)
     scripts = Path(sys.executable).parent / "Scripts"

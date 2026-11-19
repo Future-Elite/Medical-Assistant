@@ -10,7 +10,7 @@ import unittest
 from rag.quality.applicability import assess_applicability
 from rag.eval.qrels.gold_rules import criterion_gold
 from rag.eval.qrels.rubric import build_documents
-from rag.eval.qrels.v2_fixture import load_v2_fixture
+from rag.eval.qrels.fixture import load_fixture
 from rag.his import snapshot_from_dict
 
 
@@ -30,7 +30,7 @@ class TableLookupTests(unittest.TestCase):
 
     def test_engine_table_lookup_is_unknown(self):
         snapshot = snapshot_from_dict({
-            "patient_ref": "h1", "as_of": "2026-01-08", "facts": [
+            "patient_ref": "h1", "as_of": "2026-01-08", "records": [
                 {"collection": "derived_birth", "fields": {
                     "ga_days": 250, "ga_days_range": [245, 251], "ga_precision": "week",
                     "birth_weight_g": 3000, "data_status": "observed_positive",
@@ -40,7 +40,7 @@ class TableLookupTests(unittest.TestCase):
                 }},
             ],
         }, default_source="test")
-        documents = build_documents(load_v2_fixture())
+        documents = build_documents(load_fixture())
         result = assess_applicability(documents["pdf-aap-hyperbilirubinemia-2022"], snapshot, [])
         self.assertEqual(result.status, "unknown")
         self.assertIn("查表", result.reason)

@@ -14,21 +14,25 @@ from unittest.mock import Mock, patch
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "agent"))
 
-from medrax.medical_session import ACTIVE_TURN, MedicalSession, TurnContext
-from medrax.orchestrator import MedicalAgentOrchestrator
-from medrax.tools.rag_tool import MedicalEvidenceRAGTool
-from medrax.tools.his_tool import PatientSnapshotTool
-from medrax.tools.citation_tool import OpenMedicalCitationTool
-from medrax.answer_audit import QwenClaimTranslator
+try:
+    from medrax.medical_session import ACTIVE_TURN, MedicalSession, TurnContext
+    from medrax.orchestrator import MedicalAgentOrchestrator
+    from medrax.tools.rag_tool import MedicalEvidenceRAGTool
+    from medrax.tools.his_tool import PatientSnapshotTool
+    from medrax.tools.citation_tool import OpenMedicalCitationTool
+    from medrax.answer_audit import QwenClaimTranslator
+    from langchain_core.language_models.chat_models import BaseChatModel
+    from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+    from langchain_core.outputs import ChatGeneration, ChatResult
+    from pydantic import Field
+except ImportError as exc:  # Agent 侧依赖是可选环境，不随集成区离线测试安装
+    raise unittest.SkipTest(f"Agent 侧依赖未安装（{exc.name}）") from exc
+
 from rag.agent import EvidenceRAG
 from rag.audit import GroundedAnswerAuditor
 from rag.connectors import ConnectorRegistry, InMemoryConnector
 from rag.pipeline import EvidenceRetrievalPipeline
 from rag.tests.fixtures import SYNTHETIC_PUBMED
-from langchain_core.language_models.chat_models import BaseChatModel
-from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
-from langchain_core.outputs import ChatGeneration, ChatResult
-from pydantic import Field
 
 
 class ToolCallingModel(BaseChatModel):

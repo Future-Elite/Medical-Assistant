@@ -2,9 +2,11 @@
 
 Source model (exactly two **retrieval** modes):
 
-- ``live``   — real-time PubMed (NCBI E-utilities) + **neonatal** guideline
-               metadata registry (``live`` requires both live switches enabled
-               in ``config.py``);
+- ``live``   — real-time PubMed (NCBI E-utilities) + **local guideline PDFs**
+               parsed into chunks (``RAG_GUIDELINE_DATA`` or
+               ``RAG_GUIDELINE_CHUNKS``).  Guideline metadata/full text is no
+               longer fetched live; without local guidelines live is PubMed-only
+               and says so in warnings.
 - ``custom`` — caller-provided knowledge libraries registered at runtime via
                ``POST /api/sources/custom`` (payload schema in
                ``custom_sources.py`` and ``contracts/README.md``).
@@ -33,22 +35,22 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, Mapping
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from rag import __version__
 from rag.agent import EvidenceRAG
-from rag.audit import GroundedAnswerAuditor
+from rag.agent.audit import GroundedAnswerAuditor
 from rag.quality.claim_verification import build_claim_verifier
-from rag.config import get_config
-from rag.connectors import ConnectorRegistry
+from rag.core.config import get_config
+from rag.sources.connectors import ConnectorRegistry
 from rag.retrieval.controller import ControllerPolicy, RetrievalController
-from rag.custom_sources import CustomSourceLibrary, SOURCE_MODES, load_custom_library
+from rag.sources.custom_sources import CustomSourceLibrary, SOURCE_MODES, load_custom_library
 from rag.sources.guideline_chunks import load_guideline_chunk_library
 from rag.sources.guideline_source import GuidelineParsingError, GuidelineParsingSource
-from rag.demo import (
+from rag.sources.demo import (
     load_applicability_cases,
     load_demo_cases,
     load_demo_guidelines,
@@ -56,21 +58,34 @@ from rag.demo import (
     guideline_summary as demo_guideline_summary,
 )
 from rag.sources.guideline_lifecycle import GUIDELINE_LIFECYCLE_MODES, load_lifecycle_resolver
-from rag.guidelines import (
-    NEONATAL_GUIDELINE_SOURCE_ID,
-    GuidelineMetadataConnector,
+from rag.sources.guidelines import (
     describe_registry as describe_guideline_registry,
     neonatal_guideline_metadata_registry,
 )
-from rag.sources.guideline_fulltext import GuidelineFullTextError, LiveGuidelineFullTextConnector, archive_live_guideline
+from rag.sources.guideline_fulltext import GuidelineFullTextError, archive_live_guideline
 from rag.sources.guideline_pdf import GuidelinePdfError, LocalGuidelinePdfConnector
-from rag.his import PatientSnapshot
+from rag.core.his import PatientSnapshot
 from rag.quality.mesh_linking import MESH_LINKING_MODES, load_linker as load_mesh_linker
 from rag.quality.metrics import METRICS
-from rag.models import RetrievalRequest
-from rag.neural_adapters import MedCPTReranker, Qwen3Reranker, build_neural_registry, cache_dir_hint, neural_dependencies_state
-from rag.pipeline import EvidenceRetrievalPipeline
-from rag.pubmed import PubMedConnector
+from rag.core.models import RetrievalRequest
+from rag.knowledge import (
+    KnowledgeError,
+    get_default_service,
+    guideline_graph_summary,
+    load_guideline_graph_library,
+)
+from rag.knowledge.local_guideline_fusion import build_local_guideline_graphs, fuse_local_guidelines
+from rag.patient_graph.service import (
+    PatientGraphSettings,
+    build_patient_graph_for_snapshot,
+    search_patient_graph,
+)
+from rag.adapters import snapshot_from_ehr_view
+from rag.adapters.neural import MedCPTReranker, Qwen3Reranker, build_neural_registry, cache_dir_hint, neural_dependencies_state
+from rag.retrieval.agentic import AgenticBudget, AgenticIterativeRetriever
+from rag.retrieval.pipeline import EvidenceRetrievalPipeline
+from rag.sources.pubmed import PubMedConnector
+from rag.sources.drug_labels import DrugLabelConnector
 
 ROOT = Path(__file__).resolve().parent
 #: React/Vite 工作台构建产物（``web/dist``），由 ``/`` 与 ``/assets/*`` 直接托管。
@@ -101,7 +116,7 @@ def _normalize_reranker_model(value: object) -> str:
 
 def _reranker_model() -> str:
     """当前生效的重排器：工作台运行时覆盖 > env > config > medcpt。"""
-    raw = _RERANKER_RUNTIME["model"] or os.environ.get("RAG_RERANKER_MODEL") or get_config().reranker_model or "medcpt"
+    raw = _RERANKER_RUNTIME["model"] or get_config().reranker_model or "medcpt"
     return _normalize_reranker_model(raw)
 
 
@@ -154,28 +169,26 @@ def _neural_parts():
 
 def _pubmed_max_results() -> int:
     """PubMed 默认返回条数：env > config，默认 200。"""
-    raw = os.environ.get("RAG_PUBMED_MAX_RESULTS", "").strip()
-    try:
-        value = int(raw) if raw else int(get_config().pubmed_max_results)
-    except ValueError:
-        raise ValueError("RAG_PUBMED_MAX_RESULTS must be an integer between 1 and 10000") from None
+    value = int(get_config().pubmed_max_results)
     if not 1 <= value <= 10000:
         raise ValueError("RAG_PUBMED_MAX_RESULTS must be an integer between 1 and 10000")
     return value
 
 
 def build_live_registry() -> ConnectorRegistry:
+    """live = PubMed 实时检索 + 本地指南 PDF（解析分块）。
+
+    指南不再走 Europe PMC 实时元数据/全文；实时来源只有 PubMed。本地指南
+    与 custom 模式共用 ``GuidelineParsingSource``，避免同一份指南出现两套
+    切块/图谱口径。
+    """
     config = get_config()
-    if not (config.allow_live_pubmed and config.allow_live_guidelines):
-        raise ValueError("live PubMed and guideline sources are not both enabled")
+    if not config.allow_live_pubmed:
+        raise ValueError("live PubMed source is not enabled")
     registry = ConnectorRegistry()
     registry.register(PubMedConnector(max_results=_pubmed_max_results()))
-    registry.register(GuidelineMetadataConnector(NEONATAL_GUIDELINE_SOURCE_ID, neonatal_guideline_metadata_registry()))
-    if config.allow_live_guideline_fulltext:
-        registry.register(LiveGuidelineFullTextConnector())
-    pdf_connector = build_pdf_connector()
-    if pdf_connector is not None:
-        registry.register(pdf_connector)
+    registry.register(DrugLabelConnector())
+    _register_local_guideline_sources(registry)
     return registry
 
 
@@ -199,42 +212,82 @@ def build_pdf_connector() -> LocalGuidelinePdfConnector | None:
 def _guideline_chunks_path() -> str:
     """外部指南工作台分块路径（环境变量优先于 config）。"""
     return str(
-        os.environ.get("RAG_GUIDELINE_CHUNKS") or get_config().guideline_chunks_path or ""
+        get_config().guideline_chunks_path or ""
     ).strip()
 
 
 def _guideline_source() -> GuidelineParsingSource | None:
-    """本地指南解析来源（RAG_GUIDELINE_DATA 或默认 data/guideline_parsing 启用）。"""
-    # 显式 chunks 来源优先于默认数据目录；否则 data/guideline_parsing 会
-    # 静默忽略调用方的 RAG_GUIDELINE_CHUNKS。
-    if (os.environ.get("RAG_GUIDELINE_CHUNKS") or get_config().guideline_chunks_path) and not (
-        os.environ.get("RAG_GUIDELINE_DATA") or ""
-    ).strip():
+    """本地指南解析来源（RAG_GUIDELINE_DATA 或默认 data/ 启用）。"""
+    cfg = get_config()
+    data_explicit = "guideline_data_dir" in cfg.explicit
+    # 显式 chunks 来源优先于默认数据目录；否则 data/ 会静默忽略调用方的
+    # RAG_GUIDELINE_CHUNKS。用 cfg.explicit 区分"调用方覆盖"与"代码默认"。
+    if str(cfg.guideline_chunks_path or "").strip() and not data_explicit:
         return None
-    data_dir = str(os.environ.get("RAG_GUIDELINE_DATA") or get_config().guideline_data_dir or "").strip()
+    data_dir = str(cfg.guideline_data_dir or "").strip()
     if not data_dir:
         return None
-    mineru_bin = str(
-        os.environ.get("RAG_MINERU_BIN") or get_config().guideline_mineru_bin or ""
-    ).strip()
-    return GuidelineParsingSource(data_dir=data_dir, mineru_bin=mineru_bin)
+    # 显式指定工作目录时用它；显式指定数据目录且未指定工作目录时 work_dir=None
+    # （输出落 data_dir，向后兼容）；否则用默认 data/generated/parsing。
+    if "guideline_work_dir" in cfg.explicit:
+        work = str(cfg.guideline_work_dir or "").strip()
+    elif not data_explicit:
+        work = str(cfg.guideline_work_dir or "").strip()
+    else:
+        work = ""
+    work_dir = work or None
+    mineru_bin = str(cfg.guideline_mineru_bin or "").strip()
+    return GuidelineParsingSource(data_dir=data_dir, work_dir=work_dir, mineru_bin=mineru_bin)
 
 
 def _guideline_auto_parse() -> bool:
-    raw = os.environ.get("RAG_GUIDELINE_AUTO_PARSE")
-    if raw is None:
-        return bool(get_config().guideline_auto_parse)
-    return raw.strip().lower() in {"1", "true", "yes", "on"}
+    return bool(get_config().guideline_auto_parse)
+
+
+def _register_local_guideline_sources(registry: ConnectorRegistry) -> None:
+    """把本地指南 PDF 的已解析 chunk 注册进 registry。
+
+    live 与 custom 共用同一套本地指南来源；未配置时只保留 PubMed，并在
+    每次检索的 warnings 中明确说明，不静默回退到在线指南。
+    """
+    guideline_source = _guideline_source()
+    chunks_path = _guideline_chunks_path()
+    if guideline_source is not None:
+        if chunks_path:
+            registry.warnings = (
+                *registry.warnings,
+                "RAG_GUIDELINE_DATA 已配置；忽略 RAG_GUIDELINE_CHUNKS（指南来源以本地解析器为准）。",
+            )
+        library = guideline_source.load_library(parse=_guideline_auto_parse())
+        if library.sources:
+            guideline_registry, _warnings = library.build_registry()
+            registry.extend(guideline_registry)
+        else:
+            registry.warnings = (*registry.warnings, *library.warnings)
+        return
+    if chunks_path:
+        library = load_guideline_chunk_library(chunks_path)
+        guideline_registry, _warnings = library.build_registry()
+        registry.extend(guideline_registry)
+        return
+    registry.warnings = (
+        *registry.warnings,
+        "live 模式只启用 PubMed 实时检索；未配置本地指南 PDF（RAG_GUIDELINE_DATA 或 RAG_GUIDELINE_CHUNKS）。",
+    )
 
 
 def _guideline_status() -> dict[str, object]:
-    data = str(os.environ.get("RAG_GUIDELINE_DATA") or get_config().guideline_data_dir or "").strip()
+    data = str(get_config().guideline_data_dir or "").strip()
+    work = str(
+        get_config().guideline_work_dir or ""
+    ).strip()
     mineru_bin = str(
-        os.environ.get("RAG_MINERU_BIN") or get_config().guideline_mineru_bin or ""
+        get_config().guideline_mineru_bin or ""
     ).strip()
     return {
         "configured": bool(data),
         "data": data,
+        "work": work,
         "auto_parse": _guideline_auto_parse(),
         "mineru_bin": mineru_bin,
     }
@@ -270,10 +323,11 @@ def _save_live_guideline(source: GuidelineParsingSource, payload: Mapping[str, A
         raise ValueError("没有可保存的全文或摘要；未写入指南库")
     document_id = _live_archive_id(payload)
     file_name = f"{document_id}.md"
-    source.guidelines_dir.mkdir(parents=True, exist_ok=True)
-    (source.guidelines_dir / file_name).write_text(archive["markdown"], encoding="utf-8")
+    source.live_sources_dir.mkdir(parents=True, exist_ok=True)
+    (source.live_sources_dir / file_name).write_text(archive["markdown"], encoding="utf-8")
 
     manifest_path = source.guidelines_dir / "manifest.json"
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
     if manifest_path.is_file():
         try:
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -301,7 +355,7 @@ def _save_live_guideline(source: GuidelineParsingSource, payload: Mapping[str, A
     suffix = "（实时保存）" if archive["content_mode"] == "full_text" else "（实时保存·仅摘要）"
     rows.append({
         "document_id": document_id,
-        "file": file_name,
+        "file": f"@work/live_sources/{file_name}",
         "title": f"{title}{suffix}",
         "version_id": str(payload.get("version_id") or ""),
         "published_at": str(payload.get("published_at") or ""),
@@ -320,7 +374,9 @@ def _save_live_guideline(source: GuidelineParsingSource, payload: Mapping[str, A
     manifest["guidelines"] = rows
     manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
-    parser = GuidelineParsingSource(data_dir=source.data_dir, mineru_bin=source.mineru_bin)
+    parser = GuidelineParsingSource(
+        data_dir=source.data_dir, work_dir=source.work_dir, mineru_bin=source.mineru_bin
+    )
     results = parser.parse(document_ids=[document_id])
     return {
         "status": "ok",
@@ -413,7 +469,7 @@ def _parse_options_from_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
 def create_tool(source_mode: str = "live", *, custom_library: CustomSourceLibrary | None = None) -> EvidenceRAG:
     """按来源模式构建工具。
 
-    ``live``   实时 PubMed + 新生儿指南元数据 + 开放获取指南全文；
+    ``live``   实时 PubMed + 本地指南 PDF 已解析分块；指南不再实时抓取；
     ``custom`` 调用方通过 ``CustomSourceLibrary`` 注册的知识库；指南来源优先
                使用 ``RAG_GUIDELINE_DATA``（直接调用本地 guideline_parsing 解析器
                并加载其目录布局），否则使用 ``RAG_GUIDELINE_CHUNKS`` 预解析分块；
@@ -440,8 +496,12 @@ def create_tool(source_mode: str = "live", *, custom_library: CustomSourceLibrar
                     "RAG_GUIDELINE_DATA 已配置；忽略 RAG_GUIDELINE_CHUNKS（指南来源以本地解析器为准）。",
                 )
             guideline_library = guideline_source.load_library(parse=_guideline_auto_parse())
-            guideline_registry, _guideline_warnings = guideline_library.build_registry()
-            registry.extend(guideline_registry)
+            if guideline_library.sources:
+                guideline_registry, _guideline_warnings = guideline_library.build_registry()
+                registry.extend(guideline_registry)
+            else:
+                # runtime/ 尚未生成 chunks：保留调用方已注册的来源，不阻断检索。
+                registry.warnings = (*registry.warnings, *guideline_library.warnings)
         elif chunks_path:
             chunk_library = load_guideline_chunk_library(chunks_path)
             chunk_registry, _chunk_warnings = chunk_library.build_registry()
@@ -465,15 +525,18 @@ def create_tool(source_mode: str = "live", *, custom_library: CustomSourceLibrar
         routing_mode=_routing_mode(),
         entity_linker=linker,
         entity_linking_mode=linking_mode,
-        entity_linking_max_entry_terms=int(os.environ.get("RAG_ENTITY_LINKING_MAX_ENTRY_TERMS") or get_config().entity_linking_max_entry_terms),
+        entity_linking_max_entry_terms=int(get_config().entity_linking_max_entry_terms),
         guideline_lifecycle=lifecycle_resolver,
         guideline_lifecycle_mode=lifecycle_mode,
+        guideline_chunk_cap=_bounded_int(
+            get_config().guideline_max_chunks, 3, 1, 20,
+        ),
     )
     return EvidenceRAG(pipeline, auditor=GroundedAnswerAuditor(verifier=verifier) if verifier is not None else None)
 
 
 def _entity_linking_mode_setting() -> str:
-    raw = str(_INDUSTRIAL_RUNTIME["entity_linking_mode"] or os.environ.get("RAG_ENTITY_LINKING_MODE") or get_config().entity_linking_mode or "active").strip().lower()
+    raw = str(_INDUSTRIAL_RUNTIME["entity_linking_mode"] or get_config().entity_linking_mode or "active").strip().lower()
     if raw not in MESH_LINKING_MODES:
         raise ValueError("RAG_ENTITY_LINKING_MODE must be one of: " + ", ".join(MESH_LINKING_MODES))
     return raw
@@ -483,12 +546,12 @@ def _entity_linking_semantic_setting() -> bool:
     override = _INDUSTRIAL_RUNTIME["entity_linking_semantic"]
     if override is not None:
         return bool(override)
-    raw = os.environ.get("RAG_ENTITY_LINKING_SEMANTIC")
+    raw = str(get_config().entity_linking_semantic)
     return bool(get_config().entity_linking_semantic) if raw is None else raw.strip().lower() in {"1", "true", "yes", "on"}
 
 
 def _guideline_lifecycle_mode_setting() -> str:
-    raw = str(_INDUSTRIAL_RUNTIME["guideline_lifecycle_mode"] or os.environ.get("RAG_GUIDELINE_LIFECYCLE_MODE") or get_config().guideline_lifecycle_mode or "active").strip().lower()
+    raw = str(_INDUSTRIAL_RUNTIME["guideline_lifecycle_mode"] or get_config().guideline_lifecycle_mode or "active").strip().lower()
     if raw not in GUIDELINE_LIFECYCLE_MODES:
         raise ValueError("RAG_GUIDELINE_LIFECYCLE_MODE must be one of: " + ", ".join(GUIDELINE_LIFECYCLE_MODES))
     return raw
@@ -497,7 +560,7 @@ def _guideline_lifecycle_mode_setting() -> str:
 def _claim_verifier_model_setting() -> str:
     raw = _INDUSTRIAL_RUNTIME["claim_verifier_model"]
     if raw is None:
-        raw = os.environ.get("RAG_MINICHECK_MODEL")
+        raw = str(get_config().minicheck_model)
     if raw is None:
         raw = get_config().minicheck_model
     model = str(raw or "").strip()
@@ -580,10 +643,10 @@ def _entity_linking_parts() -> tuple[str, object | None, str | None]:
     """
     config = get_config()
     mode = _entity_linking_mode_setting()
-    path = str(os.environ.get("RAG_MESH_LEXICON") or config.mesh_lexicon_path or "").strip()
+    path = str(config.mesh_lexicon_path or "").strip()
     semantic = _entity_linking_semantic_setting()
-    surfaces = str(os.environ.get("RAG_ENTITY_LINKING_SURFACES") or config.entity_linking_semantic_surfaces or "all").strip().lower()
-    max_token_candidates = int(os.environ.get("RAG_ENTITY_LINKING_MAX_TOKEN_CANDIDATES") or config.entity_linking_max_token_candidates)
+    surfaces = str(config.entity_linking_semantic_surfaces or "all").strip().lower()
+    max_token_candidates = int(config.entity_linking_max_token_candidates)
     if surfaces not in {"all", "label"}:
         raise ValueError("RAG_ENTITY_LINKING_SURFACES must be all or label")
     if mode == "off":
@@ -608,15 +671,15 @@ def _entity_linking_parts() -> tuple[str, object | None, str | None]:
 def _entity_linking_status() -> dict[str, object]:
     config = get_config()
     mode = _entity_linking_mode_setting()
-    path = str(os.environ.get("RAG_MESH_LEXICON") or config.mesh_lexicon_path or "").strip()
+    path = str(config.mesh_lexicon_path or "").strip()
     resolved_mode, linker, error = _entity_linking_parts() if mode != "off" else (mode, None, None)
     status: dict[str, object] = {
         "mode": resolved_mode,
         "configured": bool(path),
         "lexicon_path": path,
         "semantic_requested": _entity_linking_semantic_setting(),
-        "semantic_surfaces": str(os.environ.get("RAG_ENTITY_LINKING_SURFACES") or config.entity_linking_semantic_surfaces or "all"),
-        "max_token_candidates": int(os.environ.get("RAG_ENTITY_LINKING_MAX_TOKEN_CANDIDATES") or config.entity_linking_max_token_candidates),
+        "semantic_surfaces": str(config.entity_linking_semantic_surfaces or "all"),
+        "max_token_candidates": int(config.entity_linking_max_token_candidates),
         "available": linker is not None,
         "error": error,
     }
@@ -628,8 +691,8 @@ def _entity_linking_status() -> dict[str, object]:
 def _claim_verifier_parts() -> object | None:
     config = get_config()
     model = _claim_verifier_model_setting()
-    cache_dir = str(os.environ.get("RAG_MINICHECK_CACHE_DIR") or config.minicheck_cache_dir or "").strip()
-    translation_raw = os.environ.get("RAG_CLAIM_TRANSLATION")
+    cache_dir = str(config.minicheck_cache_dir or "").strip()
+    translation_raw = str(get_config().claim_translation)
     translation = bool(config.claim_translation) if translation_raw is None else translation_raw.strip().lower() in {"1", "true", "yes", "on"}
     return build_claim_verifier(model_name=model, cache_dir=cache_dir, translation=translation)
 
@@ -654,8 +717,8 @@ def _guideline_lifecycle_parts() -> tuple[str, object | None, str | None]:
     mode = _guideline_lifecycle_mode_setting()
     if mode == "off":
         return mode, None, None
-    cache_path = str(os.environ.get("RAG_GUIDELINE_LIFECYCLE_CACHE") or config.guideline_lifecycle_cache_path or "").strip()
-    ttl_raw = os.environ.get("RAG_GUIDELINE_LIFECYCLE_TTL_DAYS")
+    cache_path = str(config.guideline_lifecycle_cache_path or "").strip()
+    ttl_raw = str(get_config().guideline_lifecycle_ttl_days)
     try:
         ttl_days = float(ttl_raw) if ttl_raw else float(config.guideline_lifecycle_ttl_days)
     except ValueError:
@@ -670,9 +733,9 @@ def _guideline_lifecycle_parts() -> tuple[str, object | None, str | None]:
 def _guideline_lifecycle_status() -> dict[str, object]:
     config = get_config()
     mode = _guideline_lifecycle_mode_setting()
-    cache_path = str(os.environ.get("RAG_GUIDELINE_LIFECYCLE_CACHE") or config.guideline_lifecycle_cache_path or "").strip()
+    cache_path = str(config.guideline_lifecycle_cache_path or "").strip()
     resolved_mode, resolver, error = _guideline_lifecycle_parts() if mode != "off" else (mode, None, None)
-    ttl_raw = os.environ.get("RAG_GUIDELINE_LIFECYCLE_TTL_DAYS")
+    ttl_raw = str(get_config().guideline_lifecycle_ttl_days)
     try:
         ttl_days = float(ttl_raw) if ttl_raw else float(config.guideline_lifecycle_ttl_days)
     except ValueError:
@@ -701,7 +764,7 @@ def _pdf_sources() -> list[dict[str, object]]:
 
 def _routing_mode() -> str:
     """规则路由模式：env RAG_ROUTING_MODE 覆盖 config（off|shadow|active，默认 off）。"""
-    raw = str(os.environ.get("RAG_ROUTING_MODE") or get_config().routing_mode or "off").strip().lower()
+    raw = str(get_config().routing_mode or "off").strip().lower()
     if raw not in ("off", "shadow", "active"):
         raise ValueError("RAG_ROUTING_MODE must be one of: off, shadow, active")
     return raw
@@ -709,7 +772,7 @@ def _routing_mode() -> str:
 
 def _applicability_preview() -> bool:
     """适用性试算预览开关：env RAG_APPLICABILITY_PREVIEW 覆盖 config（默认关）。"""
-    raw = os.environ.get("RAG_APPLICABILITY_PREVIEW", "").strip().lower()
+    raw = str(get_config().applicability_preview).strip().lower()
     if raw:
         return raw in {"1", "true", "yes", "on"}
     return bool(get_config().applicability_preview)
@@ -720,7 +783,7 @@ def _rerank_pool() -> int:
     override = _RERANKER_RUNTIME["rerank_pool"]
     if override is not None:
         return int(override)
-    raw = os.environ.get("RAG_RERANK_POOL", "").strip()
+    raw = str(get_config().rerank_pool).strip()
     if raw:
         try:
             value = int(raw)
@@ -741,7 +804,7 @@ def _term_mapping_library():
     import os
     from rag.quality.term_mapping_library import TermMappingLibrary
     config = get_config()
-    path = str(os.environ.get("RAG_TERM_MAPPING_LIBRARY") or config.term_mapping_library_path or "").strip()
+    path = str(config.term_mapping_library_path or "").strip()
     if not path:
         return None
     return TermMappingLibrary.from_json_file(path)
@@ -770,9 +833,9 @@ def _fidelity_parts():
     import os
     from rag.quality.fidelity import FidelityLexicon
     config = get_config()
-    path = str(os.environ.get("RAG_FIDELITY_LEXICON") or config.fidelity_lexicon_path or "").strip()
+    path = str(config.fidelity_lexicon_path or "").strip()
     lexicon = FidelityLexicon.from_json_file(path) if path else None
-    policy = str(os.environ.get("RAG_FIDELITY_POLICY") or config.fidelity_default_policy or "off").strip().lower()
+    policy = str(config.fidelity_default_policy or "off").strip().lower()
     if policy not in RetrievalRequest.FIDELITY_GATE_POLICIES:
         raise ValueError("unknown fidelity policy in config: " + policy)
     return lexicon, policy, float(config.fidelity_penalty)
@@ -813,6 +876,32 @@ CUSTOM_LIBRARY = CustomSourceLibrary()
 def _audit_mode() -> str:
     """health 摘要：默认审计只做引用结构检查，语义主张校验需调用方注入 verifier。"""
     return "structural_only"
+
+
+def _source_kinds_from_payload(payload: Mapping[str, Any]) -> list[str]:
+    raw = payload.get("source_kinds")
+    if raw is None:
+        return []
+    if not isinstance(raw, list) or any(not isinstance(item, str) for item in raw):
+        raise ValueError("source_kinds 必须是字符串数组")
+    allowed = {"pubmed", "guideline", "drug"}
+    values = [item for item in dict.fromkeys(str(item) for item in raw) if item]
+    unknown = sorted(set(values) - allowed)
+    if unknown:
+        raise ValueError("unknown source_kinds: " + ", ".join(unknown))
+    return values
+
+
+def _bounded_int(value: Any, default: int, minimum: int, maximum: int) -> int:
+    if value is None or str(value).strip() == "":
+        return default
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        raise ValueError(f"expected an integer in [{minimum}, {maximum}]") from None
+    if not minimum <= number <= maximum:
+        raise ValueError(f"expected an integer in [{minimum}, {maximum}]")
+    return number
 
 
 def load_startup_demo_library() -> int:
@@ -875,7 +964,7 @@ class RAGRequestHandler(BaseHTTPRequestHandler):
             return
         if path == "/api/health":
             config = get_config()
-            live_available = bool(config.allow_live_pubmed and config.allow_live_guidelines)
+            live_available = bool(config.allow_live_pubmed)
             self._send_json({
                 "ok": True,
                 "rag_version": __version__,
@@ -901,6 +990,7 @@ class RAGRequestHandler(BaseHTTPRequestHandler):
                 "reranker": _reranker_status(),
                 "routing": {"mode": _routing_mode()},
                 "controller": {"version": "controller-v1-trial", "default_enabled": False, "endpoint": "/api/controller/retrieve"},
+                "patient_graph": PatientGraphSettings.from_env().to_dict(),
                 "entity_linking": _entity_linking_status(),
                 "guideline_lifecycle": _guideline_lifecycle_status(),
                 "claim_verifier": _claim_verifier_status(),
@@ -911,8 +1001,70 @@ class RAGRequestHandler(BaseHTTPRequestHandler):
                     "build": "rag/web/dist",
                     "built": (WEB_DIST / "index.html").is_file(),
                 },
-                "message": "检索来源仅两种：live（实时 PubMed + 指南元数据 + Europe PMC 指南全文 + 调用方 PDF 指南全文）与 custom（调用方注册的数据库）；服务不内置任何本地语料；新生儿演示指南库需显式加载。",
+                "message": "检索来源仅两种：live（PubMed 实时检索 + 本地指南 PDF 解析块）与 custom（调用方注册的数据库/本地指南）；服务不内置任何本地语料；新生儿演示指南库需显式加载。",
             })
+            return
+        if path == "/api/knowledge":
+            self._send_json(get_default_service().stats())
+            return
+        if path == "/api/knowledge/graph":
+            self._send_json(get_default_service().graph_payload())
+            return
+        if path == "/api/knowledge/guideline-graphs":
+            try:
+                self._send_json(guideline_graph_summary(load_guideline_graph_library()))
+            except (FileNotFoundError, ValueError) as exc:
+                self._send_error_json(HTTPStatus.NOT_FOUND, str(exc))
+            return
+        if path.startswith("/api/knowledge/guideline-graphs/"):
+            guideline_id = unquote(path.rsplit("/", 1)[-1])
+            try:
+                library = load_guideline_graph_library()
+            except (FileNotFoundError, ValueError) as exc:
+                self._send_error_json(HTTPStatus.NOT_FOUND, str(exc))
+                return
+            graph = next((item for item in library.get("guidelines") or ()
+                          if item.get("guideline_id") == guideline_id), None)
+            if graph is None:
+                self._send_error_json(HTTPStatus.NOT_FOUND, f"unknown guideline: {guideline_id}")
+            else:
+                self._send_json(graph)
+            return
+        if path == "/api/knowledge/releases":
+            self._send_json(get_default_service().list_releases())
+            return
+        if path.startswith("/api/knowledge/evidence/"):
+            span_id = unquote(path.rsplit("/", 1)[-1])
+            try:
+                self._send_json(get_default_service().get_evidence(span_id))
+            except KnowledgeError as exc:
+                self._send_error_json(HTTPStatus.NOT_FOUND, str(exc))
+            return
+        if path.startswith("/api/knowledge/releases/"):
+            release_id = unquote(path.rsplit("/", 1)[-1])
+            try:
+                self._send_json(get_default_service().get_release(release_id))
+            except KnowledgeError as exc:
+                self._send_error_json(HTTPStatus.NOT_FOUND, str(exc))
+            return
+        if path == "/api/knowledge/subgraph":
+            try:
+                limit = int(query.get("limit", ["200"])[0])
+                self._send_json(get_default_service().subgraph(
+                    recommendation_id=(query.get("recommendation_id") or [None])[0],
+                    term=(query.get("term") or [None])[0],
+                    release_id=(query.get("release_id") or [None])[0],
+                    limit=limit,
+                ))
+            except (KnowledgeError, ValueError) as exc:
+                self._send_error_json(HTTPStatus.BAD_REQUEST, str(exc))
+            return
+        if path == "/api/knowledge/audit":
+            try:
+                limit = int(query.get("limit", ["100"])[0])
+                self._send_json(get_default_service().audit_log(limit=limit))
+            except ValueError as exc:
+                self._send_error_json(HTTPStatus.BAD_REQUEST, str(exc))
             return
         if path == "/api/metrics":
             if str(query.get("format", ["json"])[0]).lower() == "prometheus":
@@ -924,17 +1076,17 @@ class RAGRequestHandler(BaseHTTPRequestHandler):
             self._send_json({"tools": EvidenceRAG.tool_specifications()})
             return
         if path == "/api/sources":
-            live_enabled = bool(get_config().allow_live_pubmed and get_config().allow_live_guidelines)
+            live_enabled = bool(get_config().allow_live_pubmed)
             self._send_json({
                 "source_modes": list(SOURCE_MODES),
                 "live": {
                     "enabled": live_enabled,
                     "sources": (
-                        ["pubmed-live", NEONATAL_GUIDELINE_SOURCE_ID]
-                        + (["guideline-fulltext-live"] if get_config().allow_live_guideline_fulltext else [])
-                        + (["guideline-pdf-local"] if _pdf_sources() else [])
+                        ["pubmed-live", "drug-openfda"]
+                        + (["guideline-parsing-local"] if _guideline_source() else [])
+                        + (["guideline-chunks-local"] if (not _guideline_source() and _guideline_chunks_path()) else [])
                     ) if live_enabled else [],
-                    "guideline_fulltext_enabled": bool(get_config().allow_live_guideline_fulltext),
+                    "live_guideline_search": False,
                     "guideline_registry": describe_guideline_registry(neonatal_guideline_metadata_registry()),
                     "guideline_pdf_dir": str(get_config().guideline_pdf_dir or ""),
                     "guideline_pdf_sources": _pdf_sources(),
@@ -1061,10 +1213,40 @@ class RAGRequestHandler(BaseHTTPRequestHandler):
         path = urlparse(self.path).path
         try:
             payload = self._read_json()
+            if path == "/api/knowledge/terms/resolve":
+                terms = payload.get("terms")
+                if not isinstance(terms, list) or not terms or len(terms) > 20:
+                    raise ValueError("terms 必须是 1–20 个字符串")
+                if any(not isinstance(item, str) or not item.strip() or len(item) > 200 for item in terms):
+                    raise ValueError("terms 每项必须是 1–200 字的字符串")
+                self._send_json(get_default_service().resolve_terms(
+                    terms, release_id=str(payload.get("release_id") or "") or None,
+                ))
+                return
             if path == "/api/his/snapshot":
                 # HIS 由调用方提供快照：请求体中的 patient_snapshot 原样回显并做 as_of 过滤。
                 # 服务不持有任何内置患者数据。
                 self._send_json({"status": "ok", "data": self._echo_snapshot(payload)})
+                return
+            if path == "/api/patient-graph":
+                # 只读、无内置数据：由调用方快照临时构建患者图谱，不写回病历。
+                snapshot = self._snapshot_from_payload(payload)
+                self._send_json({"status": "ok", "data": build_patient_graph_for_snapshot(snapshot)})
+                return
+            if path == "/api/patient-graph/search":
+                snapshot = self._snapshot_from_payload(payload)
+                queries = payload.get("queries")
+                if not isinstance(queries, list) or not queries:
+                    raise ValueError("queries 必须是长度 1–20 的字符串数组")
+                if len(queries) > 20 or any(not isinstance(item, str) or len(item) > 200 for item in queries):
+                    raise ValueError("queries 最多 20 条、每条最多 200 字")
+                top_k = _bounded_int(payload.get("top_k"), 20, 1, 50)
+                max_hops = _bounded_int(payload.get("max_hops"), 2, 0, 3)
+                max_nodes = _bounded_int(payload.get("max_nodes"), 240, 1, 1000)
+                self._send_json({"status": "ok", "data": search_patient_graph(
+                    snapshot, [str(item) for item in queries], top_k=top_k,
+                    max_hops=max_hops, max_nodes=max_nodes,
+                )})
                 return
             if path == "/api/guidelines/parse":
                 base = _require_guideline_source()
@@ -1078,6 +1260,7 @@ class RAGRequestHandler(BaseHTTPRequestHandler):
                 force = payload.get("force") in (True, 1, "1", "true", "yes", "on")
                 parser = GuidelineParsingSource(
                     data_dir=base.data_dir,
+                    work_dir=base.work_dir,
                     mineru_bin=base.mineru_bin,
                     chunk_strategy=options["chunk_strategy"],
                     table_strategy=options["table_strategy"],
@@ -1120,7 +1303,7 @@ class RAGRequestHandler(BaseHTTPRequestHandler):
                     documents[0],
                 )
                 from rag.quality.applicability import assess_applicability
-                from rag.his import snapshot_from_dict
+                from rag.core.his import snapshot_from_dict
 
                 snapshot = snapshot_from_dict({"patient_snapshot": dict(snapshot_raw)})
                 assessment = assess_applicability(document, snapshot, ())
@@ -1133,7 +1316,7 @@ class RAGRequestHandler(BaseHTTPRequestHandler):
                     "patient": {
                         "patient_ref": snapshot.patient_ref,
                         "as_of": snapshot.as_of,
-                        "visible_fact_count": len(snapshot.visible_facts()),
+                        "visible_fact_count": len(snapshot.visible_records()),
                     },
                 })
                 return
@@ -1182,6 +1365,184 @@ class RAGRequestHandler(BaseHTTPRequestHandler):
                     policy = ControllerPolicy(**policy_raw)
                 result = RetrievalController(tool.pipeline, policy=policy).run(RetrievalRequest.from_dict(raw))
                 self._send_json(result)
+                return
+            if path == "/api/knowledge/iterative-retrieve":
+                queries = payload.get("queries")
+                if not isinstance(queries, list) or not queries:
+                    raise ValueError("queries 必须是长度 1–5 的字符串数组")
+                if len(queries) > 5 or any(not isinstance(item, str) or len(item) > 200 for item in queries):
+                    raise ValueError("queries 最多 5 条、每条最多 200 字")
+                snapshot = self._snapshot_from_payload(
+                    payload if (payload.get("ehr_view") or payload.get("view"))
+                    else {"patient_snapshot": payload.get("patient_snapshot")}
+                )
+                budget = AgenticBudget(
+                    max_rounds=_bounded_int(payload.get("max_rounds"), 3, 1, 5),
+                    max_queries_per_round=_bounded_int(payload.get("max_queries_per_round"), 5, 1, 10),
+                    min_evidence_coverage=float(payload.get("min_evidence_coverage", 0.8)),
+                )
+                source_kinds = _source_kinds_from_payload(payload)
+                external_search = None
+                if source_kinds:
+                    tool = self._tool_for("live")
+                    snapshot_payload = asdict(snapshot)
+                    def external_search(queries, kinds, *, _tool=tool, _snapshot=snapshot_payload):
+                        request = {
+                            "question": " ".join(str(item) for item in queries)[:500],
+                            "patient_terms": [str(item) for item in queries],
+                            "source_mode": "live",
+                            "source_kinds": list(kinds),
+                            "top_k": 10,
+                            "retrieval_method": "bm25",
+                            "patient_snapshot": _snapshot,
+                        }
+                        package = _tool.retrieve_evidence(request)
+                        documents = []
+                        counts: dict[str, int] = {}
+                        for ranked in (package.get("ranked_documents") or [])[:12]:
+                            raw_document = ranked.get("document") if isinstance(ranked, Mapping) else None
+                            if not isinstance(raw_document, Mapping):
+                                continue
+                            document = dict(raw_document)
+                            document["text"] = str(document.get("text") or "")[:1500]
+                            document["score"] = ranked.get("score")
+                            documents.append(document)
+                            kind = str(document.get("kind") or document.get("source_id") or "unknown")
+                            counts[kind] = counts.get(kind, 0) + 1
+                        return {
+                            "documents": documents,
+                            "source_counts": counts,
+                            "warnings": list(package.get("warnings") or ()),
+                            "retrieval_id": package.get("retrieval_id"),
+                        }
+                result = AgenticIterativeRetriever(budget=budget).run(
+                    [str(item) for item in queries], snapshot,
+                    intent=str(payload.get("intent") or "") or None,
+                    source_kinds=source_kinds,
+                    external_search=external_search,
+                )
+                self._send_json(result)
+                return
+            if path == "/api/knowledge/guideline-graphs/build":
+                guideline_ids = payload.get("guideline_ids")
+                if not isinstance(guideline_ids, list) or not guideline_ids:
+                    raise ValueError("guideline_ids 必须是长度 1–6 的字符串数组")
+                ids = [str(item).strip() for item in guideline_ids if isinstance(item, str) and str(item).strip()]
+                if not 1 <= len(ids) <= 6:
+                    raise ValueError("guideline_ids 最多 6 个")
+                self._send_json(build_local_guideline_graphs(
+                    _require_guideline_source(), ids,
+                ))
+                return
+            if path == "/api/knowledge/guideline-fusion":
+                queries = payload.get("queries")
+                if not isinstance(queries, list) or not queries:
+                    raise ValueError("queries 必须是长度 1–5 的字符串数组")
+                if len(queries) > 5 or any(not isinstance(item, str) or len(item) > 200 for item in queries):
+                    raise ValueError("queries 最多 5 条、每条最多 200 字")
+                snapshot = self._snapshot_from_payload(
+                    payload if (payload.get("ehr_view") or payload.get("view"))
+                    else {"patient_snapshot": payload.get("patient_snapshot")}
+                )
+                source = _require_guideline_source()
+                result = fuse_local_guidelines(
+                    source, snapshot, [str(item) for item in queries],
+                    library=load_guideline_graph_library(),
+                    top_guidelines=_bounded_int(payload.get("top_guidelines"), 3, 1, 6),
+                    limit=_bounded_int(payload.get("limit"), 12, 1, 30),
+                    target_guideline_id=str(payload.get("target_guideline_id") or "").strip() or None,
+                    guideline_ids=[
+                        str(item).strip() for item in (payload.get("guideline_ids") or [])
+                        if isinstance(item, str) and str(item).strip()
+                    ],
+                )
+                self._send_json(result)
+                return
+            if path == "/api/knowledge/search":
+                queries = payload.get("queries")
+                if not isinstance(queries, list) or not queries:
+                    raise ValueError("queries 必须是长度 1–5 的字符串数组")
+                if len(queries) > 5 or any(not isinstance(item, str) or len(item) > 200 for item in queries):
+                    raise ValueError("queries 最多 5 条、每条最多 200 字")
+                snapshot = self._snapshot_from_payload(
+                    payload if (payload.get("ehr_view") or payload.get("view"))
+                    else {"patient_snapshot": payload.get("patient_snapshot")}
+                )
+                limit = _bounded_int(payload.get("limit"), 18, 1, 50)
+                max_hops = _bounded_int(payload.get("max_hops"), 3, 0, 5)
+                fusion_raw = payload.get("fusion", True)
+                fusion = (
+                    fusion_raw.strip().lower() not in {"0", "false", "no", "off"}
+                    if isinstance(fusion_raw, str) else bool(fusion_raw)
+                )
+                context = get_default_service().search(
+                    [str(item) for item in queries], snapshot,
+                    intent=str(payload.get("intent") or "") or None,
+                    release_id=str(payload.get("knowledge_release_id") or "") or None,
+                    limit=limit, max_hops=max_hops, fusion=fusion,
+                    fusion_mode=str(payload.get("fusion_mode") or "full"),
+                )
+                self._send_json(context)
+                return
+            if path == "/api/knowledge/actions/validate":
+                plan = payload.get("candidate_plan")
+                if not isinstance(plan, dict):
+                    raise ValueError("candidate_plan 必须是对象")
+                snapshot = self._snapshot_from_payload(
+                    payload if (payload.get("ehr_view") or payload.get("view"))
+                    else {"patient_snapshot": payload.get("patient_snapshot")}
+                )
+                context_id = str(payload.get("knowledge_context_id") or "").strip()
+                if not context_id:
+                    raise ValueError("knowledge_context_id 不能为空")
+                self._send_json(get_default_service().validate_actions(plan, snapshot, context_id))
+                return
+            if path == "/api/knowledge/review-plan":
+                context_id = str(payload.get("knowledge_context_id") or "").strip()
+                if not context_id:
+                    raise ValueError("knowledge_context_id 不能为空")
+                panels = payload.get("review_panels", [])
+                metrics = payload.get("review_metrics", [])
+                if not isinstance(panels, list) or not isinstance(metrics, list):
+                    raise ValueError("review_panels/review_metrics 必须是数组")
+                self._send_json(get_default_service().review_plan(
+                    context_id, panel_ids=panels, metric_keys=metrics,
+                ))
+                return
+            if path == "/api/knowledge/episode-end":
+                context_id = str(payload.get("knowledge_context_id") or "").strip()
+                if not context_id:
+                    raise ValueError("knowledge_context_id 不能为空")
+                self._send_json(get_default_service().episode_end_gate(
+                    context_id,
+                    explicit_clinical_end=bool(payload.get("explicit_clinical_end")),
+                    end_reason=str(payload.get("end_reason") or ""),
+                ))
+                return
+            if path == "/api/knowledge/releases/publish":
+                release_id = str(payload.get("release_id") or "").strip()
+                if not release_id:
+                    raise ValueError("release_id 不能为空")
+                self._send_json(get_default_service().publish_release(
+                    release_id, rationale=str(payload.get("rationale") or ""),
+                ))
+                return
+            if path == "/api/knowledge/releases/withdraw":
+                release_id = str(payload.get("release_id") or "").strip()
+                if not release_id:
+                    raise ValueError("release_id 不能为空")
+                self._send_json(get_default_service().withdraw_release(
+                    release_id, reason=str(payload.get("reason") or ""),
+                ))
+                return
+            if path == "/api/knowledge/releases/rollback":
+                release_id = str(payload.get("release_id") or "").strip()
+                target = str(payload.get("target_release_id") or "").strip()
+                if not release_id or not target:
+                    raise ValueError("release_id/target_release_id 不能为空")
+                self._send_json(get_default_service().rollback_release(
+                    release_id, target, reason=str(payload.get("reason") or ""),
+                ))
                 return
             if path == "/api/retrieve":
                 mode = str(payload.get("source_mode") or self.source_mode)
@@ -1245,13 +1606,33 @@ class RAGRequestHandler(BaseHTTPRequestHandler):
         return cls.retrieval_tools[retrieval_id]
 
     @staticmethod
-    def _echo_snapshot(payload: dict[str, Any]) -> dict[str, Any]:
-        """以调用方提供的 patient_snapshot 为准，按 as_of 过滤后回显（只读、无内置数据）。"""
+    def _snapshot_from_payload(payload: dict[str, Any]) -> PatientSnapshot:
+        ehr_view = payload.get("ehr_view")
+        if ehr_view is None:
+            ehr_view = payload.get("view")
+        if ehr_view is not None:
+            if not isinstance(ehr_view, dict):
+                raise ValueError("ehr_view 必须是 JSON 对象")
+            patient_ref = str(payload.get("patient_ref") or "").strip()
+            if not patient_ref:
+                raise ValueError("ehr_view requires patient_ref")
+            return snapshot_from_ehr_view(
+                ehr_view,
+                patient_ref=patient_ref,
+                as_of=str(payload.get("as_of") or "") or None,
+                start_time=payload.get("start_time") or payload.get("anchor_time"),
+                source=str(payload.get("source") or "ehr_view"),
+            )
         snapshot_raw = payload.get("patient_snapshot") or payload.get("data") or payload
         if not isinstance(snapshot_raw, dict):
-            raise ValueError("his snapshot endpoint requires a JSON object payload")
-        from rag.his import snapshot_from_dict
-        snapshot: PatientSnapshot = snapshot_from_dict({"patient_snapshot": snapshot_raw})
+            raise ValueError("patient graph endpoint requires a JSON object payload")
+        from rag.core.his import snapshot_from_dict
+        return snapshot_from_dict({"patient_snapshot": snapshot_raw})
+
+    @staticmethod
+    def _echo_snapshot(payload: dict[str, Any]) -> dict[str, Any]:
+        """以调用方提供的 patient_snapshot 为准，按 as_of 过滤后回显（只读、无内置数据）。"""
+        snapshot = RAGRequestHandler._snapshot_from_payload(payload)
         return asdict(snapshot)
 
 
@@ -1472,8 +1853,7 @@ def serve(host: str | None = None, port: int | None = None, *, cleanup_stale: bo
     config = get_config()
     host = config.server_host if host is None else host
     if port is None:
-        env_port = os.environ.get("RAG_SERVER_PORT", "").strip()
-        port = int(env_port) if env_port.isdigit() else config.server_port
+        port = config.server_port
     if cleanup_stale and port > 0:
         released = _release_port(port)
         if released:
@@ -1487,11 +1867,11 @@ def serve(host: str | None = None, port: int | None = None, *, cleanup_stale: bo
             print(f"端口 {port} 被占用{hint}；请手动释放后重试。")
             raise SystemExit(1) from exc
         raise
-    live_ok = bool(config.allow_live_pubmed and config.allow_live_guidelines)
+    live_ok = bool(config.allow_live_pubmed)
     print(f"RAG workbench: http://{host}:{port}/")
-    fulltext = "Europe PMC 指南全文" if config.allow_live_guideline_fulltext else "仅指南元数据（全文开关关闭）"
+    local_guideline = "本地指南 PDF 已配置" if _guideline_source() or _guideline_chunks_path() else "未配置本地指南 PDF"
+    print(f"  检索来源：live（PubMed 实时 + {local_guideline}）；custom（已注册来源 {len(CUSTOM_LIBRARY)} 个{('，启动预载 ' + str(loaded)) if loaded else ''}{('，演示指南库 ' + str(demo_loaded)) if demo_loaded else ''}）")
     pdf_sources = _pdf_sources()
-    print(f"  检索来源：live（{'可用' if live_ok else '未启用：config.allow_live_* 未同时为 True'}；{fulltext}）；custom（已注册来源 {len(CUSTOM_LIBRARY)} 个{('，启动预载 ' + str(loaded)) if loaded else ''}{('，演示指南库 ' + str(demo_loaded)) if demo_loaded else ''}）")
     print("  HIS：由调用方随请求传入 patient_snapshot（服务不内置患者数据）")
     print(f"  演示档案：{config.demo_profile}（病例 GET /api/demo/cases；演示来源需 POST /api/demo/guidelines/load 显式加载）")
     print(f"  指南 PDF：{config.guideline_pdf_dir}（已登记 {len(pdf_sources)} 篇；检索时实时解析，不落盘）" if pdf_sources else f"  指南 PDF：{config.guideline_pdf_dir}（未登记，跳过 guideline-pdf-local）")

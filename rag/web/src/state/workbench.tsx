@@ -118,6 +118,7 @@ interface Workbench {
   industrialInfo: Dict | null;
   applyIndustrial: (payload: Dict) => Promise<void>;
 
+  retrievalGuidelines: { guideline_id: string; title: string; score: number; chunk_id: string }[];
   guidelines: Dict[];
   guidelineOptions: Dict | null;
   guidelineConfigured: boolean;
@@ -135,7 +136,7 @@ interface Workbench {
   setParseOption: <K extends keyof ParseOptions>(key: K, value: ParseOptions[K]) => void;
   parseStatus: string;
   parseHint: string;
-  parseGuidelines: (all: boolean) => Promise<void>;
+  parseGuidelines: (target: "topk" | "all") => Promise<void>;
 
   pdfPages: number;
   pdfPage: number;
@@ -150,6 +151,16 @@ interface Workbench {
   applicabilityWorkflowError: string | null;
   runApplicabilityWorkflow: (executeExternal?: boolean) => Promise<void>;
   resumeApplicabilityWorkflow: (facts: Dict[]) => Promise<void>;
+
+  knowledgeFusion: Dict | null;
+  knowledgeFusionError: string | null;
+  knowledgeFusionRunning: boolean;
+  runKnowledgeFusion: (queries?: string[], topGuidelines?: number, guidelineIds?: string[]) => Promise<void>;
+
+  agenticResult: Dict | null;
+  agenticError: string | null;
+  agenticRunning: boolean;
+  runAgenticRetrieval: (maxRounds?: number, minCoverage?: number) => Promise<void>;
 
   saveLiveGuideline: (doc: Dict) => Promise<void>;
   openGuidelineChunk: (sourceId: string, chunkId: string) => Promise<void>;
@@ -195,8 +206,8 @@ const STEP_ORDER: StepKey[] = [
   "method",
   "request",
   "run",
-  "results",
   "guidelines",
+  "results",
   "audit",
 ];
 
@@ -216,7 +227,7 @@ function defaultForm(): FormState {
     filters: "{}",
     sourceMode: "live",
     topK: 50,
-    sourceKinds: ["guideline", "pubmed"],
+    sourceKinds: ["guideline", "pubmed", "drug"],
     retrievalMethod: "",
     rerank: false,
     fidelityGate: "off",
@@ -245,7 +256,7 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
   const [caseId, setCaseId] = useState("");
   const [snapshot, setSnapshot] = useState<PatientSnapshot | null>(null);
   const [snapshotJson, setSnapshotJson] = useState(
-    '{\n  "patient_ref": "",\n  "as_of": "",\n  "facts": []\n}',
+    '{\n  "patient_ref": "",\n  "as_of": "",\n  "schema_version": "patient-snapshot",\n  "records": []\n}',
   );
   const [manualSnapshot, setManualSnapshot] = useState(false);
   const [snapshotState, setSnapshotState] = useState("未载入");
@@ -301,6 +312,12 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
   const [applicabilityError, setApplicabilityError] = useState<string | null>(null);
   const [applicabilityWorkflowResult, setApplicabilityWorkflowResult] = useState<Dict | null>(null);
   const [applicabilityWorkflowError, setApplicabilityWorkflowError] = useState<string | null>(null);
+  const [knowledgeFusion, setKnowledgeFusion] = useState<Dict | null>(null);
+  const [knowledgeFusionError, setKnowledgeFusionError] = useState<string | null>(null);
+  const [knowledgeFusionRunning, setKnowledgeFusionRunning] = useState(false);
+  const [agenticResult, setAgenticResult] = useState<Dict | null>(null);
+  const [agenticError, setAgenticError] = useState<string | null>(null);
+  const [agenticRunning, setAgenticRunning] = useState(false);
 
   const [auditAnswer, setAuditAnswer] = useState("");
   const [auditResult, setAuditResult] = useState<Dict | null>(null);
@@ -410,7 +427,6 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
       facets: parseJsonObject(form.facets, "facets"),
       filters: parseJsonObject(form.filters, "filters"),
       source_kinds: form.sourceKinds,
-      source_mode: form.sourceMode,
       retrieval_method: form.retrievalMethod || null,
       rerank: form.rerank,
       fidelity_gate: form.fidelityGate,
@@ -434,6 +450,31 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
     [cases, caseId],
   );
 
+  const retrievalGuidelines = useMemo(() => {
+    const groups = pkg?.evidence_groups?.guideline || [];
+    const selectionScores =
+      pkg?.trace?.joint_selection?.guideline_chunk_cap?.guideline?.selected_scores || {};
+    const rows: { guideline_id: string; title: string; score: number; chunk_id: string }[] = [];
+    const best = new Map<string, number>();
+    groups.forEach((ranked: any) => {
+      const document = ranked?.document || ranked;
+      const guidelineId = String(document?.source_id || "").trim();
+      if (!guidelineId) return;
+      const score = Number(selectionScores[guidelineId] ?? ranked?.score) || 0;
+      if ((best.get(guidelineId) ?? -1) >= score) return;
+      best.set(guidelineId, score);
+      const index = rows.findIndex((item) => item.guideline_id === guidelineId);
+      const row = {
+        guideline_id: guidelineId,
+        title: String(document?.metadata?.guide_title || document?.title || guidelineId),
+        score,
+        chunk_id: String(document?.metadata?.chunk_id || document?.document_id || ""),
+      };
+      if (index >= 0) rows[index] = row; else rows.push(row);
+    });
+    return rows.sort((a, b) => b.score - a.score).slice(0, 5);
+  }, [pkg]);
+
   const applyCaseRecord = useCallback((item: DemoCase) => {
     const preset = item.preset || {};
     setCaseId(item.case_id);
@@ -450,7 +491,7 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
       filters: JSON.stringify(preset.filters || {}, null, 2),
       sourceMode: preset.source_mode || "live",
       topK: Number(preset.top_k || 50),
-      sourceKinds: preset.source_kinds || ["guideline", "pubmed"],
+      sourceKinds: preset.source_kinds || ["guideline", "pubmed", "drug"],
       retrievalMethod: preset.retrieval_method || "",
       rerank: Boolean(preset.rerank),
       fidelityGate: preset.fidelity_gate || "off",
@@ -494,7 +535,7 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
     setCaseId("");
     setSnapshot(null);
     setSnapshotState("未载入");
-    setSnapshotJson('{\n  "patient_ref": "",\n  "as_of": "",\n  "facts": []\n}');
+    setSnapshotJson('{\n  "patient_ref": "",\n  "as_of": "",\n  "schema_version": "patient-snapshot",\n  "records": []\n}');
     setManualSnapshot(true);
     setPkg(null);
     setSelectedIndex(null);
@@ -517,9 +558,9 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
       const data = response.data;
       setSnapshot(data);
       if (data.as_of) setFormState((prev) => ({ ...prev, asOf: data.as_of }));
-      setSnapshotState(`${(data.facts || []).length} 条可见事实`);
+      setSnapshotState(`${(data.records || []).length} 条可见事实`);
       setApplicabilityResult(null);
-      notify(`快照已载入：${(data.facts || []).length} 条可见事实`, "success");
+      notify(`快照已载入：${(data.records || []).length} 条可见事实`, "success");
     } catch (error) {
       setSnapshot(null);
       setSnapshotState("载入失败");
@@ -849,7 +890,7 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
   );
 
   const parseGuidelines = useCallback(
-    async (all: boolean) => {
+    async (target: "topk" | "all") => {
       const body: Dict = {
         chunk_strategy: parseOptions.chunkStrategy,
         table_strategy: parseOptions.tableStrategy,
@@ -859,14 +900,22 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
         tier: parseOptions.mineruTier,
         force: parseOptions.forceReparse,
       };
-      if (!all) {
-        if (!selectedGuidelineId) {
-          notify("先选择指南", "error");
+      const topkIds = (retrievalGuidelines || [])
+        .map((row) => row.guideline_id)
+        .filter(Boolean);
+      if (target === "topk") {
+        // 解析目标来自检索结果，不是手动挑一本。
+        if (!topkIds.length) {
+          notify("先执行检索得到 Top-k 指南", "error");
           return;
         }
-        body.document_ids = [selectedGuidelineId];
+        body.document_ids = topkIds;
       }
-      setParseStatus(all ? "正在解析全部指南…" : "正在解析所选指南…");
+      setParseStatus(
+        target === "all"
+          ? "正在解析全部指南…"
+          : `正在解析 Top-k 指南（${topkIds.length} 本）…`,
+      );
       try {
         const data = await postJson("/api/guidelines/parse", body);
         const total = (data.results || []).reduce(
@@ -884,7 +933,7 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
         notify(`解析失败：${(error as Error).message}`, "error");
       }
     },
-    [parseOptions, selectedGuidelineId, loadGuidelines, notify],
+    [parseOptions, retrievalGuidelines, loadGuidelines, notify],
   );
 
   const openGuidelineChunk = useCallback(
@@ -923,29 +972,100 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
     }
   }, [selectedGuidelineId, currentCase]);
 
+  const runKnowledgeFusion = useCallback(async (queries?: string[], topGuidelines = 3, guidelineIds?: string[]) => {
+    const patientSnapshot = snapshot || currentCase?.snapshot;
+    if (!patientSnapshot) {
+      setKnowledgeFusionError("先在 01 步骤载入患者快照");
+      return;
+    }
+    const terms = (queries?.length ? queries : [form.question.trim() || "CPAP"])
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .slice(0, 5);
+    if (!terms.length) {
+      setKnowledgeFusionError("请输入双向图检索词");
+      return;
+    }
+    setKnowledgeFusionRunning(true);
+    setKnowledgeFusionError(null);
+    try {
+      const data = await postJson("/api/knowledge/guideline-fusion", {
+        patient_snapshot: patientSnapshot,
+        queries: terms,
+        top_guidelines: Math.max(1, Math.min(6, Math.round(topGuidelines))),
+        limit: 12,
+        target_guideline_id: selectedGuidelineId || undefined,
+        guideline_ids: guidelineIds?.length ? guidelineIds : undefined,
+      });
+      setKnowledgeFusion(data);
+    } catch (error) {
+      setKnowledgeFusionError((error as Error).message);
+      setKnowledgeFusion(null);
+    } finally {
+      setKnowledgeFusionRunning(false);
+    }
+  }, [snapshot, currentCase, form.question, selectedGuidelineId]);
+
+  const runAgenticRetrieval = useCallback(async (maxRounds = 3, minCoverage = 0.8) => {
+    const patientSnapshot = snapshot || currentCase?.snapshot;
+    if (!patientSnapshot) {
+      setAgenticError("先在 01 步骤载入患者快照");
+      return;
+    }
+    const patientTerms = form.patientTerms
+      .split(/[,，\n]/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+    const queries = [form.question.trim(), ...patientTerms].filter(Boolean).slice(0, 5);
+    if (!queries.length) {
+      setAgenticError("先填写临床问题或患者术语");
+      return;
+    }
+    setAgenticRunning(true);
+    setAgenticError(null);
+    try {
+      const data = await postJson("/api/knowledge/iterative-retrieve", {
+        patient_snapshot: patientSnapshot,
+        queries,
+        intent: form.clinicalIntent || undefined,
+        max_rounds: Math.max(1, Math.min(5, Math.round(maxRounds))),
+        min_evidence_coverage: Math.max(0, Math.min(1, minCoverage)),
+        source_kinds: form.sourceKinds,
+      });
+      setAgenticResult(data);
+    } catch (error) {
+      setAgenticError((error as Error).message);
+      setAgenticResult(null);
+    } finally {
+      setAgenticRunning(false);
+    }
+  }, [snapshot, currentCase, form.question, form.patientTerms, form.clinicalIntent, form.sourceKinds]);
+
   const runApplicabilityWorkflow = useCallback(async (executeExternal = false) => {
     if (!selectedGuidelineId) {
       setApplicabilityWorkflowError("先选择目标指南");
       return;
     }
-    if (!currentCase) {
+    const patientSnapshot = snapshot || currentCase?.snapshot;
+    if (!patientSnapshot) {
       setApplicabilityWorkflowError("先在 01 步骤选择病例");
       return;
     }
     setApplicabilityWorkflowError(null);
     try {
       const data = await postJson("/api/applicability", {
-        patient_snapshot: currentCase.snapshot,
+        patient_snapshot: patientSnapshot,
         question: form.question.trim() || "该指南是否适用？",
         target_guideline_id: selectedGuidelineId,
         execute_external: executeExternal,
+        knowledge_fusion: knowledgeFusion || undefined,
       });
       setApplicabilityWorkflowResult(data);
     } catch (error) {
       setApplicabilityWorkflowError((error as Error).message);
       setApplicabilityWorkflowResult(null);
     }
-  }, [selectedGuidelineId, currentCase, form.question]);
+  }, [selectedGuidelineId, currentCase, snapshot, form.question, knowledgeFusion]);
 
   const resumeApplicabilityWorkflow = useCallback(async (facts: Dict[]) => {
     const resolutionId = applicabilityWorkflowResult?.resolution_id;
@@ -958,12 +1078,13 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
       const data = await postJson("/api/applicability", {
         resolution_id: resolutionId,
         supplied_facts: facts,
+        knowledge_fusion: knowledgeFusion || undefined,
       });
       setApplicabilityWorkflowResult(data);
     } catch (error) {
       setApplicabilityWorkflowError((error as Error).message);
     }
-  }, [applicabilityWorkflowResult]);
+  }, [applicabilityWorkflowResult, knowledgeFusion]);
 
   const saveLiveGuideline = useCallback(
     async (doc: Dict) => {
@@ -1200,6 +1321,15 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
     applicabilityWorkflowError,
     runApplicabilityWorkflow,
     resumeApplicabilityWorkflow,
+    retrievalGuidelines,
+    knowledgeFusion,
+    knowledgeFusionError,
+    knowledgeFusionRunning,
+    runKnowledgeFusion,
+    agenticResult,
+    agenticError,
+    agenticRunning,
+    runAgenticRetrieval,
     saveLiveGuideline,
     openGuidelineChunk,
     auditAnswer,

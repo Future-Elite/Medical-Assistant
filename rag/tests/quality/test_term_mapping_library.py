@@ -16,7 +16,7 @@ from rag.quality.term_mapping_library import TermMappingLibrary
 from rag.tests.helpers import fixture_registry
 
 TOOLS = Path(__file__).resolve().parents[3] / "tools"
-_HAS_TOOLS = (TOOLS / "build_term_mapping_library.py").is_file()
+_HAS_TOOLS = (TOOLS / "build" / "build_term_mapping_library.py").is_file()
 
 SOURCES = [{"source_id": "pubmed-fixture", "kinds": ["pubmed"]}, {"source_id": "guideline-fixture", "kinds": ["guideline"]}]
 
@@ -174,7 +174,7 @@ class BuilderExtractionTests(unittest.TestCase):
 
         spec = importlib.util.spec_from_file_location(
             "build_term_mapping_library",
-            Path(__file__).resolve().parents[3] / "tools" / "build_term_mapping_library.py",
+            Path(__file__).resolve().parents[3] / "tools" / "build" / "build_term_mapping_library.py",
         )
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
@@ -210,7 +210,7 @@ class LexiconMergeTests(unittest.TestCase):
 
         spec = importlib.util.spec_from_file_location(
             "build_term_mapping_library",
-            Path(__file__).resolve().parents[3] / "tools" / "build_term_mapping_library.py",
+            Path(__file__).resolve().parents[3] / "tools" / "build" / "build_term_mapping_library.py",
         )
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
@@ -249,8 +249,7 @@ class LexiconMergeTests(unittest.TestCase):
             "metadata": {"source": "dataset_labels:t.json", "review_status": "dataset_derived",
                          "mesh_review_status": "needs_review", "label_count": 100},
         }]
-        name, entries = module.load_lexicon(Path(
-            Path(__file__).resolve().parents[2] / "contracts" / "examples" / "term_lexicon_neonatal_example.json"))
+        name, entries = module.load_lexicon(Path(__file__).resolve().parents[2] / "contracts" / "examples" / "term_lexicon_neonatal_example.json")
         merged, stats = module.merge_lexicon(rows, name, entries)
         # 词表 13 行：新生儿肺炎已有→补充；气胸/胸腔积液/肺不张是纯别名行→补不了新行（跳过留痕）；其余 9 行新建
         self.assertEqual(stats["rows_created"], 9)
@@ -293,8 +292,7 @@ class LexiconMergeTests(unittest.TestCase):
             (data_dir / "x.json").write_text(json.dumps([
                 {"disease_label": "湿肺", "disease_label_en": "Neonatal Transient Tachypnea (TTN)"},
             ], ensure_ascii=False), encoding="utf-8")
-            result = module.build(data_dir, lexicon_path=Path(
-                Path(__file__).resolve().parents[2] / "contracts" / "examples" / "term_lexicon_neonatal_example.json"))
+            result = module.build(data_dir, lexicon_path=Path(__file__).resolve().parents[2] / "contracts" / "examples" / "term_lexicon_neonatal_example.json")
             concepts = {row["concept"] for row in result["rows"]}
             self.assertIn("新生儿高胆红素血症", concepts)      # 词表收进表外概念
             self.assertIn("湿肺", concepts)
@@ -319,7 +317,7 @@ class MeshEnrichmentTests(unittest.TestCase):
 
         spec = importlib.util.spec_from_file_location(
             "build_term_mapping_library",
-            Path(__file__).resolve().parents[3] / "tools" / "build_term_mapping_library.py",
+            Path(__file__).resolve().parents[3] / "tools" / "build" / "build_term_mapping_library.py",
         )
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)

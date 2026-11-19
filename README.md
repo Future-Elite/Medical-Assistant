@@ -104,7 +104,7 @@ audit = rag.audit_grounded_answer({
 })
 ```
 
-可选：本地 HTTP 服务与浏览器工作台（默认 <http://127.0.0.1:8797/>，可用 `RAG_SERVER_PORT` 覆盖）：
+可选：本地 HTTP 服务与浏览器工作台（默认 <http://127.0.0.1:8798/>，可用 `RAG_SERVER_PORT` 覆盖）：
 
 ```bash
 python3 -m rag.server          # 或 cd rag && python3 server.py
@@ -112,11 +112,15 @@ python3 -m rag.server          # 或 cd rag && python3 server.py
 
 | 方法 | 路径 | 作用 |
 |---|---|---|
-| `GET` | `/`、`/index.html` | 浏览器工作台（单文件 HTML，无前端框架） |
+| `GET` | `/`、`/index.html` | React 工作台（`rag/web/dist`） |
+| `GET` | `/assets/*` | 前端静态资源 |
 | `GET` | `/api/health` | 服务与来源模式就绪状态（脱敏） |
 | `GET` | `/api/tools` | Agent 工具规格（`tool_specifications()`） |
 | `POST` | `/api/retrieve` | 联合检索证据（来源模式/检索方法/重排/查询保真门控参数） |
 | `POST` | `/api/his/snapshot` | 回显调用方传入的 `patient_snapshot` 并按 `as_of` 过滤（服务不持有患者数据） |
+| `POST` | `/api/patient-graph`、`/api/patient-graph/search` | 患者快照建图与患者事实图检索 |
+| `POST` | `/api/knowledge/search`、`/api/knowledge/actions/validate` | 指南知识图检索与动作校验 |
+| `POST` | `/api/knowledge/guideline-fusion`、`/api/knowledge/iterative-retrieve` | 指南 × 患者图双向融合与 Agentic 迭代检索 |
 | `POST` | `/api/citation` | 打开本轮检索中的引用 |
 | `POST` | `/api/audit` | 审计回答主张与引用 |
 
@@ -128,29 +132,23 @@ Medical-Assistant/
 ├── CONTRIBUTING.md          # 分支、提交、版本与发布规范（本仓库权威）
 ├── rag/                     # RAG 组件（Python 包 `rag`，正式发布线；核心只用标准库）
 │   ├── README.md            # 直接调用与接口指南（§8.1 Agent 传入快照）
-│   ├── agent.py             # EvidenceRAG：检索 / 打开引用 / 回答审计
-│   ├── pipeline.py          # 分源联合检索、联合选择与证据包生成
-│   ├── ranking.py           # 分源排序、RRF、相关度门、MMR、联合选择
-│   ├── query.py             # 查询计划、受控术语扩展、检索式自检（PRESS 风格）
-│   ├── fidelity.py / gate.py # 查询保真审计与分级门控（研究特性，默认 off）
-│   ├── his.py               # 只读 HIS 快照契约（接收端：PatientSnapshot）
-│   ├── patient_retrieval.py # 患者事实检索
-│   ├── connectors.py        # 连接器契约与注册表
-│   ├── pubmed.py            # 实时 PubMed 连接器（E-utilities）
-│   ├── guidelines.py        # 版本化指南元数据连接器
-│   ├── custom_sources.py    # 调用方自定义来源库（custom 模式）
-│   ├── lexical.py / bm25.py # 词面检索方法（BM25 / QL / RM3）
-│   ├── retrieval_adapters.py / neural_adapters.py # 检索适配器与可选神经方法
-│   ├── evidence.py          # 关键证据句定位
-│   ├── audit.py             # 回答审计与 MiniCheck 适配器
-│   ├── models.py            # 请求 / 文档 / 证据包契约
-│   ├── config.py            # 本地配置（来源模式、端口、查询保真）
+│   ├── __init__.py          # 公共 API、__version__、旧导入路径别名
 │   ├── server.py            # HTTP 服务（只读）
-│   ├── evidence_retrieval_workbench.html  # 浏览器工作台（单文件）
+│   ├── core/                # 请求 / 文档 / 证据包契约、运行配置、HIS 快照
+│   ├── agent/               # EvidenceRAG：检索 / 打开引用 / 回答审计
+│   ├── retrieval/           # 查询规划、BM25/QL/RM3、排序、路由、控制器、迭代检索
+│   ├── patient_graph/       # 患者事实的每请求只读知识图与受限图检索
+│   ├── knowledge/           # EHR 式指南知识图、四态条件、Graph-RAG、动作校验
+│   ├── sources/             # 连接器、PubMed、指南、药品标签、自定义来源与指南解析
+│   ├── adapters/            # MedCPT / Qwen3 / BGE-M3 / EHR 视图惰性适配
+│   ├── quality/             # 适用性、术语映射、MeSH 链接、主张校验、生命周期索引、观测
+│   ├── eval/                # 查询保真入口；eval/qrels 数据集构建与评测
+│   ├── web/                 # React + Vite 工作台（src/ 源码，dist/ 构建产物）
+│   ├── demo/                # 最小演示数据（50 例合成病例与指南元数据）
 │   ├── contracts/           # 包内契约（JSON + 说明 + 示例，随包发布）
-│   ├── eval/                # 离线实验指标骨架（实验前模式）
 │   ├── requirements.txt     # 可选依赖（MiniCheck）
-│   └── tests/               # 包内离线测试（20 个测试模块 + fixtures/helpers）
+│   └── tests/               # 包内离线测试（按 core/retrieval/sources/quality/patient_graph/knowledge/gui/eval 分组）
+├── guideline_parsing/       # 本地指南解析器（与 rag/ 并列）
 ├── agent/                   # Medical Agent（MedRax 系；subtree 挂载，Agent 维护线负责）
 ├── his/                     # HIS 演示系统（Spring Boot + Vue，合成数据；subtree 挂载，他人维护）
 ├── contracts/               # 跨组件契约 + 合成样例 + Agent 侧参考实现
@@ -165,9 +163,9 @@ Medical-Assistant/
 
 | 层 | 位置 | 当前值 |
 |---|---|---|
-| RAG 包 | `rag/__init__.py` 的 `__version__` | `6.7.0`（重排候选池 + Qwen3 重排器 + 通用术语映射库 + 规则路由 + 逐轮控制器） |
+| RAG 包 | `rag/__init__.py` 的 `__version__` | `6.7.3`（患者知识图谱与图检索 + EHR 式指南知识图 + 双向融合 + Agentic 迭代检索） |
 | HIS | `his/backend/pom.xml` 的 `<version>` | `1.0.0`（随 subtree 同步） |
-| HIS × RAG 接口契约 | `contracts/his_rag.md` 的 `contract_version` | `0.2.0` |
+| HIS × RAG 接口契约 | `contracts/his_rag.md` 的 `contract_version` | `0.3.0` |
 | 组合版本（release） | git tag `medassist-<x.y.z>` | 暂无（真实 HIS 联调通过后打 `medassist-0.1.0`） |
 
 ## 6. 能力状态
@@ -181,7 +179,10 @@ Medical-Assistant/
 | 可切换检索方法（bm25/ql/rm3 + 可选神经方法、RRF 融合） | 已有；神经方法未配置时显式 `not_configured` |
 | 查询保真审计与分级门控（研究特性，默认 `off`） | 已有（确定性词面基线；见 §8 边界） |
 | 审核术语映射表（`term_mapping`）与指南结构化适用性（`applicability_criteria`） | 已有：概念绑定英文/MeSH、未命中不展开；逐条核对患者事实，`not_recorded`/`pending` 不写成阴性；真实指南条件需审核后标 `reviewed` |
-| 固定分区工作台（01–09） | 已有：不再提供画布缩放/拖拽/连线 |
+| 患者知识图谱与受限图检索（每请求只读病例覆盖图） | 已有（v6.7.3；`not_recorded` 保留并标状态，`no_results` 不是阴性） |
+| EHR 式指南知识图（四态条件、Graph-RAG、动作校验、复查/病程门控、release 生命周期） | 已有（v6.7.3；夹具为 `synthetic_fixture`、`publishable:false`，临床审核为人工门禁） |
+| 指南 × 患者图双向融合与 Agentic 迭代检索 | 已有（v6.7.3；合成契约场景，不改变四态条件或动作资格） |
+| 固定分区工作台（01–10） | 已有：10 个技术步骤收束为 6 个核心阶段 |
 | HIS 演示系统（Spring Boot + Vue，合成数据） | 已有，HIS 维护者负责，subtree 同步 |
 | HIS → Agent → RAG 只读快照打通 | 已有：Agent 侧参考实现 + 载荷契约 + 跨组件测试；真实 HIS 联调待本地执行 |
 | Medical Agent 只读 HIS 编排 + RAG 调用 | 已有（`agent/`，来自 Agent 维护线的集成分支）：用 `contracts/agent_his_adapter.py` 的 `AgentHisClient` 读 HIS、把载荷交给 RAG，并按契约移除被拒的转换路线；运行需 Agent 侧环境（Qwen/MiniCheck/Gradio），本仓库不代跑 |
@@ -194,7 +195,7 @@ Medical-Assistant/
 
 | 契约 | 位置 | 说明 |
 |---|---|---|
-| HIS × RAG 只读快照（分层、端点、映射、载荷） | [`contracts/his_rag.md`](contracts/his_rag.md)（`contract_version: 0.2.0`） | HIS → Agent → RAG；样例与载荷黄金样例在 [`contracts/examples/`](contracts/examples/) |
+| HIS × RAG 只读快照（分层、端点、映射、载荷） | [`contracts/his_rag.md`](contracts/his_rag.md)（`contract_version: 0.3.0`） | HIS → Agent → RAG；样例与载荷黄金样例在 [`contracts/examples/`](contracts/examples/) |
 | Agent 侧参考实现（读 HIS → 载荷） | [`contracts/agent_his_adapter.py`](contracts/agent_his_adapter.py) | 不属于 `rag` 包；演示只读读取、标识剔除与映射 |
 | RAG 包接口契约（工具规格、快照 schema、来源模式与示例） | [`rag/contracts/agent_contract.json`](rag/contracts/agent_contract.json) | `contract_version` 与包 `__version__` 同步，随包发布 |
 | Agent 编排契约（入口、预算、审计与日志边界） | [`contracts/agent_orchestration.md`](contracts/agent_orchestration.md)（draft 0.1.0） | Agent 侧定义：`run_turn` 入口、只读 HIS 注入、检索/审计预算与终止条件 |

@@ -18,28 +18,24 @@ pip install -r requirements.txt
 
 ```text
 rag/
-├── agent.py                 # EvidenceRAG：检索 / 打开引用 / 回答审计
-├── pipeline.py              # 分源联合检索与证据包生成
-├── models.py                # 请求 / 文档 / 证据包契约
-├── config.py                # 运行配置
+├── __init__.py              # 公共 API、__version__、旧导入路径别名
 ├── server.py                # 只读 HTTP 服务
-├── connectors.py            # 连接器契约与注册表
-├── pubmed.py                # PubMed E-utilities 连接器
-├── guidelines.py            # 版本化指南元数据连接器
-├── custom_sources.py        # 调用方自定义来源库
-├── neural_adapters.py       # 可选神经检索/重排适配器
-├── audit.py                 # 回答审计与主张校验适配
-├── retrieval/               # 查询规划、BM25/QL/RM3、排序、证据句、路由、控制器
-├── sources/                 # 指南 PDF / 全文 / 分块 / 解析来源 / 生命周期
+├── core/                    # 请求 / 文档 / 证据包契约、运行配置、HIS 快照
+├── agent/                   # EvidenceRAG：检索 / 打开引用 / 回答审计
+├── retrieval/               # 查询规划、BM25/QL/RM3、排序、证据句、路由、控制器、迭代检索
+├── patient_graph/           # 患者事实的每请求只读知识图与受限图检索
+├── knowledge/               # EHR 式指南知识图、四态条件、Graph-RAG、动作校验
+├── sources/                 # 连接器、PubMed、指南、药品标签、自定义来源与指南解析
+├── adapters/                # MedCPT / Qwen3 / BGE-M3 / EHR 视图惰性适配
 ├── quality/                 # 适用性、术语映射、MeSH 链接、主张校验、生命周期索引、观测
-├── eval/                    # 查询保真实验入口；eval/qrels/ 规则派生数据集构建与评测；eval/criteria_fixture/ 评测夹具
+├── eval/                    # 查询保真实验入口；eval/qrels/ 规则派生数据集构建与评测
 ├── web/                     # React 工作台（源码与构建产物）
 ├── demo/                    # 最小演示数据
 ├── contracts/               # 机器可读契约与示例
-└── tests/                   # 按 retrieval / sources / quality / core / gui 分组
+└── tests/                   # 按 core / retrieval / sources / quality / patient_graph / knowledge / gui / eval 分组
 ```
 
-本地数据统一放在 `data/`（`data/validation/` 存评测工件、`data/guideline_parsing/` 存指南解析产物），整个 `data/` 已加入 `.gitignore`，不随仓库分发。
+本地数据统一放在 `data/`（`data/guidelines/` 放指南 PDF 与登记表、`data/catalog/` 放人工维护的演示与适用性元数据、`data/generated/` 放解析、分块与评测工件），整个 `data/` 已加入 `.gitignore`，不随仓库分发。
 
 ## 3. 快速开始
 
@@ -132,6 +128,13 @@ PYTHONPATH=. python3 -m rag.server
 | `GET` | `/api/health` | 进程与能力状态 |
 | `GET` | `/api/tools` | Agent 工具规格 |
 | `POST` | `/api/his/snapshot` | 快照回显与 `as_of` 过滤 |
+| `POST` | `/api/patient-graph`、`/api/patient-graph/search` | 患者快照建图与患者事实图检索 |
+| `POST` | `/api/knowledge/search` | 指南知识图检索（含双向融合） |
+| `POST` | `/api/knowledge/actions/validate` | 动作校验（四态条件、时间线与观察稳定性） |
+| `GET` | `/api/knowledge/guideline-graphs`、`POST /api/knowledge/guideline-graphs/build` | 指南图谱读取与构建 |
+| `POST` | `/api/knowledge/guideline-fusion` | k 本本地指南 × 单个患者图双向融合 |
+| `POST` | `/api/knowledge/iterative-retrieve` | Agentic 迭代检索 |
+| `GET` | `/api/knowledge/releases`、`POST /api/knowledge/releases/publish`、`.../withdraw`、`.../rollback` | 知识发布包生命周期 |
 | `GET` | `/api/demo/cases`、`/api/demo/applicability-cases`、`/api/demo/guidelines` | 演示病例（50 例档案 / 5 例链路演示）与演示指南库 |
 | `POST` | `/api/demo/guidelines/load` | 显式注册演示指南库 |
 | `GET` | `/api/sources` | 已注册来源清单 |
@@ -156,13 +159,14 @@ PYTHONPATH=. python3 -m rag.server
 | 变量 | 作用 |
 |---|---|
 | `RAG_SERVER_HOST`、`RAG_SERVER_PORT` | 监听地址与端口 |
-| `RAG_ALLOW_LIVE_PUBMED`、`RAG_ALLOW_LIVE_GUIDELINES` | 启用实时来源 |
+| `RAG_ALLOW_LIVE_PUBMED` | 启用 PubMed 实时来源 |
 | `RAG_GUIDELINE_DATA` | 指南解析数据目录 |
 | `RAG_GUIDELINE_CHUNKS` | 预生成分块目录 |
 | `RAG_GUIDELINE_PDF_DIR` | 调用方 PDF 目录 |
 | `RAG_TERM_MAPPING_LIBRARY` | 通用术语映射库 |
 | `RAG_MESH_LEXICON` | MeSH 词表路径 |
 | `RAG_MINERU_BIN` | MinerU 可执行文件 |
+| `RAG_PATIENT_GRAPH_MAX_HOPS`、`RAG_PATIENT_GRAPH_MAX_NODES`、`RAG_PATIENT_GRAPH_LEXICON` | 患者图遍历跳数、节点预算与词表 |
 
 `config.py` 中的 `openai_api_key`、`ncbi_api_key` 默认为空；需要时通过环境变量注入，不写入代码或日志。
 
@@ -175,10 +179,12 @@ PYTHONPATH=. python3 -m rag.server
 ## 8. 测试
 
 ```bash
-PYTHONPATH=. python3 -m unittest discover -s rag/tests -p "test_*.py"
+# 从组件根的 rag/ 目录执行
+cd rag
+PYTHONPATH=.. python3 -m unittest discover -s tests -p "test_*.py"
 ```
 
-测试按 `retrieval`、`sources`、`quality`、`core`、`gui`、`eval` 分组；当前 **484 tests**（2026-11-12 实测，0 skipped）。分发包不含仓库级 `data/` 时，`tests/sources/test_ehr_generated_neonatal.py` 的 8 个用例与 2 个依赖指南生命周期缓存的用例会自动跳过。
+测试按 `core`、`retrieval`、`sources`、`quality`、`patient_graph`、`knowledge`、`gui`、`eval` 分组；当前 **650 tests**（2026-11-19 实测）。分发包不含仓库级 `data/` 时，22 个依赖本地数据的用例自动跳过。
 
 ## 9. 兼容导入
 
@@ -198,7 +204,7 @@ from rag.pubmed import PUBMED_SEARCH_CACHE, _safe_term
 from rag.server import create_tool
 ```
 
-内部实现位于 `retrieval/`、`sources/`、`quality/`；调用方无需依赖这些子包路径。
+内部实现位于 `core/`、`agent/`、`retrieval/`、`sources/`、`patient_graph/`、`knowledge/`、`quality/`；旧顶层导入由 `rag/__init__.py` 注册别名，调用方无需依赖子包路径。
 
 ## 10. 边界
 
@@ -207,15 +213,22 @@ from rag.server import create_tool
 - 重排分数、路由决策与控制器停止原因只表示检索层信号，不是临床证据质量或充分性。
 - 实体链接、指南生命周期与主张校验均为辅助信号；歧义/冲突不静默选择，不可用时显式标记 `not_checked`。
 
-## 11. 规则派生数据集与工业级试点（v6.7.2，研究特性）
+## 11. 规则派生数据集与适用性解析器（v6.7.2，研究特性）
 
-本节能力**不改变** `/api/retrieve` 默认路径（v6.7.1 ↔ v6.7.2 六场景差分 0）；它们用于数据集构建、评测与单份指南的试点，不是临床结论。
+本节能力**不改变** `/api/retrieve` 默认路径（v6.7.1 ↔ v6.7.2 六场景差分 0）；它们用于数据集构建与评测，不是临床结论。
 
 - **数据集构建**（`eval/qrels/`）：`xlsx_reader.py` 用标准库读医院导出 xlsx，`hospital_adapter.py` 转成 HIS 形快照；`fact_rules.py` 从出院小结抽孕周（整数周 → `[7w, 7w+6]` 天）、出生体重、日龄、呼吸支持、黄疸/胆红素、听力筛查与治疗事实；缺失提及记 `not_recorded`，只有明确否定才 `observed_negative`。
 - **独立 gold**：`gold_rules.py` 不导入 `rag.quality.applicability`，criterion 级 `match/mismatch/unknown`、指南级 `possible_match/mismatch/unknown`；阈值落在整数周区间内判 `unknown`（`granularity_boundary`），不猜。
 - **切分与产物**：住院号级去重切分（住院号 ≠ 个人 ID，不称患者级），1,000 train / 200 dev / 500 test；500 反事实对、500 合成问题、20,400 条患者事实 qrels。`patient_ref` 用 HMAC(salt)，盐只从 `CHINALLM_PATIENT_SALT` 读取、不落盘；原文与证据 span 只写项目内 `datasets/`（`CHINALLM_PRIVATE_DATA_DIR` 指向它），仓库只留聚合。
 - **规则基线**：`rubric.py` 跑 R1–R8（内部评测脚本，不随仓库分发）；规则基线与 gold 同源，满分是管线自洽检查，不是模型效果。S4 TF-IDF+LR（`model_baseline.py`）0.868/0.848 vs 规则 0.991/1.000，**未超过规则**，只作负结果下限。
-- **患者事实检索基线**：BM25 `Recall@1` 0.187 / `Recall@5` 0.618；multilingual-e5 零样本 `Recall@1` 0.340 / `Recall@5` 0.923（通用模型，不是临床模型；胎龄/抗生素/听力仍接近 0）。聚合由内部评测脚本生成到本地 `data/validation/`。
+- **患者事实检索基线**：BM25 `Recall@1` 0.187 / `Recall@5` 0.618；multilingual-e5 零样本 `Recall@1` 0.340 / `Recall@5` 0.923（通用模型，不是临床模型；胎龄/抗生素/听力仍接近 0）。聚合由内部评测脚本生成到本地 `data/generated/validation/`。
 - **可执行适用性解析器**：`eval/qrels/applicability_resolver.py` + `EvidenceRAG.resolve_applicability_workflow`。支持核对目标、同族换本地指南、补事实续跑（`resolution_id + supplied_facts`）、注入式外部检索、查表停止与结构化 `scope_mismatch`；跨族覆盖只放 `other_local_guidelines`，不当作目标答案。离线数据集行为评测（不联网、不传 gold）：A–D 329/400，A 29/100 同族覆盖、71 例仅跨族按设计停止，B/C/D 各 100/100；GA 未接入文本胎龄提取。
-- **生命周期并列**：`quality/guideline_lifecycle_index.py` 读 `data/guideline_lifecycle_cache.json`，把本地指南 PMID 映射为按 `as_of` 的 `current/retracted/superseded/not_yet_published/not_checked`；缺 PMID 或缓存记录一律 `not_checked`，不联网补查。
-- **边界**：数据集是规则派生 silver，不是临床 gold（无临床复核、无外部金标准）；`mismatch` 不是临床不适用，`unknown` 不是阴性；指南条件与图试点条件是 `synthetic_fixture`；试点是单份指南回顾性审计，不是临床验证，也不是完整 GAG/PEG、FHIR CPG/CQL 或 CDS Hooks 实现。
+- **生命周期并列**：`quality/guideline_lifecycle_index.py` 读 `data/generated/guideline_lifecycle_cache.json`，把本地指南 PMID 映射为按 `as_of` 的 `current/retracted/superseded/not_yet_published/not_checked`；缺 PMID 或缓存记录一律 `not_checked`，不联网补查。
+- **边界**：数据集是规则派生 silver，不是临床 gold（无临床复核、无外部金标准）；`mismatch` 不是临床不适用，`unknown` 不是阴性；指南条件是 `synthetic_fixture`，不是临床验证，也不是完整 GAG/PEG、FHIR CPG/CQL 或 CDS Hooks 实现。
+
+## 12. 患者知识图谱与指南知识图（v6.7.3，研究特性）
+
+- **患者图**（`patient_graph/`）：从调用方传入的 `PatientSnapshot.visible_records()` 按请求构建只读病例覆盖图（`patient/record/concept/subject/time/episode`），患者事实检索只有受限图检索一条路径；`snapshot_sha256` 覆盖可见记录，未来记录、未发布报告与其他患者不进入。接口：`POST /api/patient-graph`、`POST /api/patient-graph/search`。
+- **指南知识图**（`knowledge/`）：EHR 式指南知识层（`concept/action/panel/population/condition/recommendation/source/evidence_span/runtime_binding`），条件求值只有四态 `met/not_met/unknown/conflict`，`not_recorded` 只产生 `unknown`、`unknown` 不放行动作；含 Graph-RAG 检索、动作校验、复查/病程门控与 release 生命周期。内置发布包是 `synthetic_fixture`、`publishable:false`。
+- **融合与迭代**：`fusion=True` 时患者图命中作为指南图额外种子、推荐条件回查患者图；`POST /api/knowledge/guideline-fusion` 执行 k 本本地指南 × 单个患者图的双向融合；`POST /api/knowledge/iterative-retrieve` 执行 Interpreter → Explorer → Arbiter 确定性迭代（合成契约场景）。
+- **边界**：图分数只表示相关性，不是概率、证据质量或适用性；`eligible_for_simulation` 只表示通过本轮检查，不是临床安全、最佳治疗或医师批准。真实指南 PDF 来源可解析，但推荐/阈值/适用条件的临床审核仍是人工门禁；完整 GAG/PEG、FHIR CPG/CQL、CDS Hooks、VoI 未实现。

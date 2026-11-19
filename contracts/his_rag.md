@@ -1,6 +1,6 @@
 ---
-contract_version: 0.2.0
-status: 已实现并测试（2026-10-11；Agent 侧参考实现 `contracts/agent_his_adapter.py`，样例与测试见第 6 节）
+contract_version: 0.3.0
+status: 已实现并测试（2026-11-19；records 载体；Agent 侧参考实现 `contracts/agent_his_adapter.py`，样例与测试见第 6 节）
 ---
 
 # HIS × RAG 只读快照契约
@@ -19,8 +19,8 @@ status: 已实现并测试（2026-10-11；Agent 侧参考实现 `contracts/agent
 - **数据**：只接合成数据（`his/backend/his-generator` 生成）；`patient_ref` 就是合成患者的整数 id，**不做任何患者标识映射**。
 - **标识剔除**（Agent 侧映射责任）：`name`、`idCard`、`phone`、`address`、`patientId` 丢弃，绝不进入载荷或证据包；患者事实只保留 `gender`、`birthDate`（`createdAt` 作为该事实的时间边界，不作为字段）。
 - **不改写**：临床字段原样进入 `fields`，不翻译、不改写、不推断、不填默认值；缺失就是缺失。
-- **单一时间实现**：Agent 侧载荷携带**全部**事实（含未来记录）；`as_of` 可见性只由 RAG 侧 `rag.his.filter_snapshot()` 决定（未来事实计入 `suppressed_future`）。
-- **可审计的缺口**：没有实体载荷、没有 `type`、载荷不是对象、时间线混入非对象元素等情况保留事实或记入载荷 `warnings`，不静默丢弃。
+- **单一时间实现**：Agent 侧载荷携带**全部**记录（含未来记录）；`as_of` 可见性只由 RAG 侧 `rag.his.filter_snapshot()` 决定（未来记录计入 `suppressed_future`）。
+- **可审计的缺口**：没有实体载荷、没有 `type`、载荷不是对象、时间线混入非对象元素等情况保留记录或记入载荷 `warnings`，不静默丢弃。
 
 ## 2. Agent 读取的只读接口
 
@@ -34,9 +34,9 @@ status: 已实现并测试（2026-10-11；Agent 侧参考实现 `contracts/agent
 
 响应统一为 `{code, message, data}` 包裹，`code == 0` 为成功；Agent 必须检查 `code`，不能只看 HTTP 状态。
 
-## 3. 映射规则：`TimelineEvent` → 快照事实
+## 3. 映射规则：`TimelineEvent` → 快照记录
 
-每个 `TimelineEvent` 映射为一条事实（`PatientFact`，字段定义见 `rag/his.py`）：
+每个 `TimelineEvent` 映射为一条记录（`PatientRecord`，字段定义见 `rag/core/his.py`）：
 
 | 载荷字段 | 来源 | 说明 |
 |---|---|---|
@@ -48,9 +48,9 @@ status: 已实现并测试（2026-10-11；Agent 侧参考实现 `contracts/agent
 | `time` | `time` | 事件时间（ISO 8601，本地时区 `Asia/Shanghai`） |
 | `start` / `end` | 见下 | 仅区间型事件使用 |
 
-另有一条患者基本信息事实：`collection="patient"`、`event_type="PATIENT"`、`record_path="his:patient"`、`fields={gender, birthDate}`。
+另有一条患者基本信息记录：`collection="patient"`、`event_type="PATIENT"`、`record_path="his:patient"`、`fields={gender, birthDate}`。
 
-区间规则：`ORDER` 用 `start=startTime`、`end=stopTime`（**`end` 为空表示医嘱进行中**）；`ADMISSION` 用 `start=admissionTime`、`end=dischargeTime`（为空表示在院），`DISCHARGE` 另作为时间点事实保留；其余类型为时间点事实；无时间字段的记录保留并记 `warning`。
+区间规则：`ORDER` 用 `start=startTime`、`end=stopTime`（**`end` 为空表示医嘱进行中**）；`ADMISSION` 用 `start=admissionTime`、`end=dischargeTime`（为空表示在院），`DISCHARGE` 另作为时间点记录保留；其余类型为时间点记录；无时间字段的记录保留并记 `warning`。
 
 事件来源与字段清单（以 `his/backend/his-common` 实体类为准）：
 
@@ -73,7 +73,7 @@ status: 已实现并测试（2026-10-11；Agent 侧参考实现 `contracts/agent
   "patient_ref": "2001",
   "as_of": "2025-12-31",
   "source": "his_demo",
-  "facts": [{"collection": "...", "event_type": "...", "record_path": "...", "field_path": "...", "fields": {}, "time": null, "start": null, "end": null}],
+  "records": [{"collection": "...", "event_type": "...", "record_path": "...", "field_path": "...", "fields": {}, "time": null, "start": null, "end": null}],
   "reviewed_external_terms": [],
   "warnings": []
 }
@@ -86,13 +86,13 @@ status: 已实现并测试（2026-10-11；Agent 侧参考实现 `contracts/agent
 - 患者不存在（`data` 为空/`null`）：抛 `ValueError("unknown patient_ref: <id>")`，**不构造空载荷**。
 - 业务错误码（`code != 0`）或缺少 `{code,message,data}` 包裹：抛 `HISClientError`（`stage` = `patient`/`timeline`/`admission_timeline`）。
 - 网络/HTTP 失败：`HISClientError`（含 `status_code`，5xx 与连接失败标 `retryable=True`）。
-- 时间线为空：合法载荷，只有患者事实；RAG 据此只做证据检索，不把"无记录"解释为否定事实。
+- 时间线为空：合法载荷，只有患者记录；RAG 据此只做证据检索，不把"无记录"解释为否定事实。
 - 住院时间线返回的患者与本快照患者不一致：忽略该住院事件并记 `warning`。
-- RAG 侧接收：`snapshot_from_dict()` 校验 `patient_ref`/`as_of`（ISO 日期）与事实结构，缺字段直接报错。
+- RAG 侧接收：`snapshot_from_dict()` 校验 `patient_ref`/`as_of`（ISO 日期）与 `records` 记录结构，缺字段直接报错。
 
 ## 5. 变更纪律
 
-- 顶部 `contract_version` 独立演进：字段增删、类型变化、映射规则或**层次/载体**变化必须 +1，并在提交信息（`docs(contracts):`）中写明。0.2.0 的变化：明确 HIS → Agent → RAG 分层，HIS 客户端从 rag 包移出为 Agent 侧参考实现。
+- 顶部 `contract_version` 独立演进：字段增删、类型变化、映射规则或**层次/载体**变化必须 +1，并在提交信息（`docs(contracts):`）中写明。0.2.0 的变化：明确 HIS → Agent → RAG 分层，HIS 客户端从 rag 包移出为 Agent 侧参考实现；0.3.0 的变化：快照载体由 `facts` 改为 `records`（EHR/HIS 记录语义：`record_id`/`record_type`/`event_time`/`reported_time`/`status`/`provenance`），与 RAG 6.7.3 的 `patient-snapshot` 契约一致。
 - 与 RAG 包内契约保持同步：快照字段 schema 与 RAG 工具契约在 `rag/contracts/agent_contract.json`（`contract_version` 随 RAG 包 `__version__` 走）；本文件描述 Agent 侧读取与映射，不重复定义 schema。
 - 新增其他组件对（如 agent → rag 的通用约定）时，在本目录**新增**文件，不重写既有文件（保证各条线合并到 `main` 时不冲突）。
 - 样例是契约的一部分：`examples/` 的响应样例与载荷黄金样例必须与映射实现同步更新。
@@ -104,7 +104,7 @@ status: 已实现并测试（2026-10-11；Agent 侧参考实现 `contracts/agent
 | `examples/his_rag_patient_2001.json` | `GET /api/patients/2001` 的合成响应（刻意含标识字段，用于验证剔除） |
 | `examples/his_rag_patient_2001_timeline.json` | 患者级时间线合成响应（含一条 2026 年未来记录） |
 | `examples/his_rag_admission_7101_timeline.json` | 住院级时间线合成响应（`ORDER`/`VITAL_SIGN`/住院 `LAB_TEST`） |
-| `examples/his_rag_snapshot_payload_expected.json` | 上述响应映射出的载荷黄金样例（逐字比对；含全部事实，`as_of` 可见性由 RAG 决定） |
+| `examples/his_rag_snapshot_payload_expected.json` | 上述响应映射出的载荷黄金样例（逐字比对；含全部记录，`as_of` 可见性由 RAG 决定） |
 | `agent_his_adapter.py` | Agent 侧参考实现：读取三个只读端点 + 映射为载荷（不含时间裁剪） |
 
 ```bash
