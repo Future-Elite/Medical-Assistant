@@ -97,6 +97,14 @@ status: 已实现并测试（2026-11-19；records 载体；Agent 侧参考实现
 - 新增其他组件对（如 agent → rag 的通用约定）时，在本目录**新增**文件，不重写既有文件（保证各条线合并到 `main` 时不冲突）。
 - 样例是契约的一部分：`examples/` 的响应样例与载荷黄金样例必须与映射实现同步更新。
 
+### 0.3.0 迁移待办（Agent 维护线）
+
+RAG 6.7.3 的 `snapshot_from_dict()` 只接受 `records`；旧 `facts` 载荷会被拒绝（`patient-snapshot requires a records array`）。Agent 侧参考实现 [`agent_his_adapter.py`](agent_his_adapter.py) 与跨组件测试已改为 `records`，但 `agent/medrax/orchestrator.py`（约第 206 行）仍按 `session.snapshot.get("facts", [])` 读取，需要 Agent 维护线同步为 `records`。
+
+- 在安装 `langchain_core` 的 Agent 环境里，`tests/test_medical_agent_integration.py` 会因这处读取失败或拿不到患者记录；当前集成区环境缺该依赖，用例按依赖缺失跳过，未暴露。
+- `tests/test_his_rag_snapshot.py` 与 `tests/test_his_agent_cases.py` 只验证参考实现与 RAG 契约，已按 `records` 通过，不覆盖 `agent/medrax` 的读取逻辑。
+- 按仓库边界，本仓库不直接修改 `agent/`；Agent 线同步后请在 `agent` 线跑通集成测试，再合并到 `main`，`contract_version` 保持 0.3.0。
+
 ## 6. 样例与测试
 
 | 路径 | 内容 |

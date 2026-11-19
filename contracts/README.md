@@ -13,6 +13,8 @@ Versioned request, response, evidence, and citation contracts shared by `rag/` a
 | `examples/` | 随 `his_rag.md` | 合成 HIS 响应样例 + 载荷黄金样例（跨组件测试逐字比对） | `main` |
 | `../rag/contracts/agent_contract.json` | `contract_version` 与包 `__version__` 同步（当前 `6.7.3`） | RAG 包自身接口契约：工具规格、快照 schema、来源模式与示例（随 RAG 包发布） | `rag` 线 |
 
+> **0.3.0 待同步（Agent 线）**：`agent/medrax/orchestrator.py` 仍按 `session.snapshot.get("facts", [])` 读取载荷；Agent 维护线需改为 `records`（详见 [`his_rag.md`](his_rag.md) §5「0.3.0 迁移待办」）。参考实现、黄金样例与跨组件测试已按 `records` 更新；本仓库不直接修改 `agent/`。
+
 ## 分层与边界（不可协商）
 
 - **HIS → Agent → RAG**：HIS 由 Agent 只读读取；**RAG 不连接 HIS**——`rag/` 内不得出现 HIS 客户端、HIS 地址或 `/api/patients` 等端点（跨组件测试有结构性断言）。
