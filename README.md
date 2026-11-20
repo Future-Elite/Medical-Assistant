@@ -2,6 +2,8 @@
 
 ChinaLLM 是面向医学研究与教学的中国医疗 LLM/Agent 原型。本仓库是 RAG 检索组件的正式发布线，提供只读的患者事实检索、外部证据检索、引用打开与回答审计能力。
 
+> **当前分支**：`v6.8.0` 概念保真评测研发分支；正式发布线以 `origin/rag` 为准。本分支不改变默认检索路径。
+
 > 本项目是研究原型，不是生产医疗系统。输出不构成诊断、治疗建议或临床决策；不连接生产 HIS/PACS，不写回病历、医嘱或处方。
 
 ## 1. 组件分层
@@ -23,6 +25,7 @@ HIS（只读快照） → Agent（编排与工具调用） → RAG（检索、�
 - 指南解析：PDF/Markdown 分块、页码标注、结构化适用性核对。
 - 工业级校验：MeSH 实体链接、PubMed 指南生命周期治理、MiniCheck 主张级校验。
 - 查询保真审计与分级门控（研究特性，默认关闭）。
+- 概念保真评测：槽级概念身份、MeSH 下位/同支混淆探针、14 条中文查询与 23 条合成英文文档的离线 pilot（v6.8.0 研究特性）。
 - 规则派生数据集与评测底座：出院小结 → HIS 形快照 → 事实 qrels、反事实对、rubric 与检索基线（研究特性）。
 - 指南适用性工作流：同族换指南、补事实续跑、注入式外部检索、结构化 `scope_mismatch`（研究特性）。
 - 逐轮检索控制器（研究层，默认不改变标准检索）。
@@ -70,6 +73,7 @@ npm run build
 │   ├── retrieval/               # 查询规划、BM25/QL/RM3、联合检索、路由、控制器、迭代检索
 │   ├── patient_graph/           # 患者事实的每请求只读知识图与受限图检索
 │   ├── knowledge/               # EHR 式指南知识图、四态条件、Graph-RAG、动作校验
+│   ├── concept_fidelity/        # 概念保真评测：槽级身份、MeSH 探针、离线 pilot harness
 │   ├── sources/                 # PubMed / 指南 / 药品 / 自定义来源连接器与指南解析
 │   ├── adapters/                # MedCPT / Qwen3 / BGE-M3 / EHR 视图惰性适配
 │   ├── quality/                 # 适用性、术语映射、MeSH 链接、主张校验、生命周期索引、观测
@@ -77,7 +81,7 @@ npm run build
 │   ├── web/                     # React + Vite 工作台（src/ 源码，dist/ 构建产物）
 │   ├── demo/                    # 最小演示数据（50 例合成病例、5 例链路演示与指南元数据）
 │   ├── contracts/               # 机器可读契约与示例
-│   ├── tests/                   # 按 core / retrieval / sources / quality / patient_graph / knowledge / gui / eval 分组
+│   ├── tests/                   # 按 core / retrieval / sources / quality / patient_graph / knowledge / concept_fidelity / gui / eval 分组
 │   └── requirements.txt
 ├── guideline_parsing/           # 本地指南解析器（与 rag/ 并列）
 └── data/                        # 本地运行数据与评测工件（不进入版本控制）
@@ -91,8 +95,8 @@ npm run build
 
 | 层 | 位置 | 当前值 |
 |---|---|---|
-| RAG 包 | `rag/__init__.py` 的 `__version__` | `6.7.3` |
-| Agent/HIS/RAG 契约 | `rag/contracts/agent_contract.json` 的 `contract_metadata.contract_version` | `6.7.3` |
+| RAG 包 | `rag/__init__.py` 的 `__version__` | `6.8.0` |
+| Agent/HIS/RAG 契约 | `rag/contracts/agent_contract.json` 的 `contract_metadata.contract_version` | `6.8.0` |
 | 组合版本 | git tag `medassist-<x.y.z>` | 尚未发布 |
 
 ## 6. HTTP API

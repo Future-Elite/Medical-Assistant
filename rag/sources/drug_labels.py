@@ -9,7 +9,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import json
-import os
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -105,7 +104,7 @@ class DrugLabelConnector(KnowledgeConnector):
                 ) from exc
         request = urllib.request.Request(
             url,
-            headers={"Accept": "application/json", "User-Agent": "chinallm-rag/6.7.3"},
+            headers={"Accept": "application/json", "User-Agent": "chinallm-rag/6.8.0"},
         )
         try:
             with urllib.request.urlopen(request, timeout=float(self.timeout_seconds)) as response:

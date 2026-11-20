@@ -1,9 +1,9 @@
 {
   "name": "china-llm-rag-workbench",
   "private": true,
-  "version": "6.7.3",
+  "version": "6.8.0",
   "type": "module",
-  "description": "ChinaLLM neonatal evidence retrieval workbench (v6.7.3 GUI)",
+  "description": "ChinaLLM neonatal evidence retrieval workbench (v6.8.0 GUI)",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",

@@ -9,7 +9,7 @@ identifiers (trace ``rag_version``, ``/api/health``) read it instead of
 hard-coding any version string.
 """
 
-__version__ = "6.7.3"
+__version__ = "6.8.0"
 
 from .agent import EvidenceSessionStore, EvidenceRAG
 from .quality.applicability import assess_applicability
@@ -109,6 +109,17 @@ from .core.models import (
     TermMappingEntry,
     parse_term_mapping,
 )
+from .concept_fidelity import (
+    ConceptIdentity,
+    ConceptIndex,
+    ConceptQuery,
+    ConceptState,
+    ConversionProduct,
+    conversion_product_from_dict,
+    load_concept_index,
+    load_query_set,
+    run_phase0,
+)
 from .retrieval.pipeline import EvidenceRetrievalPipeline
 from .retrieval.retrieval_adapters import (
     DeterministicSemanticStub,
@@ -157,6 +168,15 @@ __all__ = [
     "TermMappingEntry",
     "parse_term_mapping",
     "assess_applicability",
+    "ConceptIdentity",
+    "ConceptIndex",
+    "ConceptQuery",
+    "ConceptState",
+    "ConversionProduct",
+    "conversion_product_from_dict",
+    "load_concept_index",
+    "load_query_set",
+    "run_phase0",
     "CustomSource",
     "CustomSourceConnector",
     "CustomSourceLibrary",

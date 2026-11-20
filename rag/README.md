@@ -233,3 +233,16 @@ from rag.server import create_tool
 - **指南知识图**（`knowledge/`）：EHR 式指南知识层（`concept/action/panel/population/condition/recommendation/source/evidence_span/runtime_binding`），条件求值只有四态 `met/not_met/unknown/conflict`，`not_recorded` 只产生 `unknown`、`unknown` 不放行动作；含 Graph-RAG 检索、动作校验、复查/病程门控与 release 生命周期。内置发布包是 `synthetic_fixture`、`publishable:false`。
 - **融合与迭代**：`fusion=True` 时患者图命中作为指南图额外种子、推荐条件回查患者图；`POST /api/knowledge/guideline-fusion` 执行 k 本本地指南 × 单个患者图的双向融合；`POST /api/knowledge/iterative-retrieve` 执行 Interpreter → Explorer → Arbiter 确定性迭代（合成契约场景）。
 - **边界**：图分数只表示相关性，不是概率、证据质量或适用性；`eligible_for_simulation` 只表示通过本轮检查，不是临床安全、最佳治疗或医师批准。真实指南 PDF 来源可解析，但推荐/阈值/适用条件的临床审核仍是人工门禁；完整 GAG/PEG、FHIR CPG/CQL、CDS Hooks、VoI 未实现。
+
+## 13. 概念保真评测（v6.8.0，研究特性）
+
+本分支新增 `concept_fidelity/`，用于评测“中文查询转换成英文检索计划后，医学概念是否仍是同一个”。它不改变 `/api/retrieve` 默认路径，不训练模型、不下载权重，也不作临床有效性声称。
+
+- **槽级对象**：`ConceptState`、`ConceptIdentity`、`ConversionProduct`；状态/标签严格枚举，未知值显式报错。
+- **MeSH 探针**：基于 `rag/demo/mesh_lexicon_neonatal_2026.json` 构建下位、同支与混淆集；中文表面只取已审核别名，不自动翻译。
+- **冻结 pilot**：14 条中文查询 + 23 条合成英文文档；全部 `pilot: true`、`not_for_clinical_use: true`，不是正式基准。
+- **指标**：entity-correct Recall@k、wrong-entity contamination@k、sibling discrimination、binary nDCG、MRR、概念身份 accuracy/drift/not_checked；空分母返回 `None`。
+- **harness**：默认离线 BM25；`DenseRetriever` 接受调用方注入的本地 encoder，不联网、不自动下载。
+- **边界**：pilot 读数只证明 harness 与数据契约可运行，不说明模型质量或临床效果；进入正式评测前需扩展查询/语料并做双人标注与仲裁。
+
+详见 `concept_fidelity/README.md`。
