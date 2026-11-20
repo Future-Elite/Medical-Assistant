@@ -163,12 +163,13 @@ PYTHONPATH=. python3 -m rag.server
 | `RAG_GUIDELINE_DATA` | 指南解析数据目录 |
 | `RAG_GUIDELINE_CHUNKS` | 预生成分块目录 |
 | `RAG_GUIDELINE_PDF_DIR` | 调用方 PDF 目录 |
+| `RAG_GUIDELINE_TOP_K` | 指南选取 Top-k（默认 5） |
 | `RAG_TERM_MAPPING_LIBRARY` | 通用术语映射库 |
 | `RAG_MESH_LEXICON` | MeSH 词表路径 |
 | `RAG_MINERU_BIN` | MinerU 可执行文件 |
 | `RAG_PATIENT_GRAPH_MAX_HOPS`、`RAG_PATIENT_GRAPH_MAX_NODES`、`RAG_PATIENT_GRAPH_LEXICON` | 患者图遍历跳数、节点预算与词表 |
 
-`config.py` 中的 `openai_api_key`、`ncbi_api_key` 默认为空；需要时通过环境变量注入，不写入代码或日志。
+`config.py` 中的 `openai_api_key`、`ncbi_api_key`、`openfda_api_key` 默认为空；需要时通过环境变量注入，不写入代码或日志。
 
 ## 7. 数据与指南解析
 

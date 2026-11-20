@@ -59,7 +59,7 @@ def write_jsonl(chunks, output):
 '''
 
 FAKE_PDF = '''
-def convert_pdf(pdf_path, markdown_path, tier="advanced"):
+def convert_pdf(pdf_path, markdown_path, tier="advanced", **kwargs):
     raise AssertionError("MinerU converter must not run when parsed Markdown is reused")
 '''
 

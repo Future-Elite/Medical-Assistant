@@ -10,14 +10,17 @@ from pathlib import Path
 
 from .page_markers import add_page_markers
 
+#: MinerU 对单份大 PDF 可能耗时较长；超时显式失败，避免请求无限挂起。
+MINERU_TIMEOUT_SECONDS = 1800
 
-def _mineru_executable() -> str | None:
-    configured = os.environ.get("RAG_MINERU_BIN") or os.environ.get("MINERU_BIN")
+
+def _mineru_executable(configured: str | Path | None = None) -> str | None:
+    configured = configured or os.environ.get("RAG_MINERU_BIN") or os.environ.get("MINERU_BIN")
     if configured:
         candidate = Path(configured).expanduser()
         if candidate.is_file():
             return str(candidate)
-        raise RuntimeError(f"RAG_MINERU_BIN 指向的文件不存在：{candidate}")
+        raise RuntimeError(f"MinerU 可执行文件不存在：{candidate}")
     executable = shutil.which("mineru-kit")
     if executable:
         return executable
@@ -36,15 +39,24 @@ def _mineru_executable() -> str | None:
     return None
 
 
-def convert_pdf(pdf_path: Path, markdown_path: Path, tier: str = "advanced") -> Path:
-    """Convert one PDF and return its Markdown sidecar path."""
+def convert_pdf(
+    pdf_path: Path,
+    markdown_path: Path,
+    tier: str = "advanced",
+    *,
+    executable: str | Path | None = None,
+) -> Path:
+    """Convert one PDF and return its Markdown sidecar path.
+
+    ``executable`` 优先于环境变量；未提供时仍按 ``RAG_MINERU_BIN`` / PATH 查找。
+    """
     pdf_path = pdf_path.resolve()
     markdown_path = markdown_path.resolve()
     if not pdf_path.is_file():
         raise FileNotFoundError(f"PDF 不存在：{pdf_path}")
     if tier not in {"standard", "advanced"}:
         raise ValueError("MinerU 质量档必须为 standard 或 advanced")
-    executable = _mineru_executable()
+    executable = _mineru_executable(executable)
     if executable is None:
         raise RuntimeError(
             "当前 Python 环境没有安装 MinerU。请在运行 GUI 的 Conda 环境安装：\n"
@@ -53,7 +65,15 @@ def convert_pdf(pdf_path: Path, markdown_path: Path, tier: str = "advanced") -> 
         )
     markdown_path.parent.mkdir(parents=True, exist_ok=True)
     command = [executable, "parse", str(pdf_path), "-o", str(markdown_path.parent), "--tier", tier]
-    result = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", errors="replace")
+    try:
+        result = subprocess.run(
+            command, capture_output=True, text=True, encoding="utf-8",
+            errors="replace", timeout=MINERU_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError(
+            f"MinerU 解析超时（>{MINERU_TIMEOUT_SECONDS}s）：{pdf_path.name}"
+        ) from exc
     if result.returncode:
         detail = (result.stderr or result.stdout).strip()
         raise RuntimeError(f"MinerU 解析失败（{result.returncode}）：{detail[-3000:]}")

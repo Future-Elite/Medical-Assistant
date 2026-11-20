@@ -308,5 +308,17 @@ class ValidationTests(unittest.TestCase):
         self.assertIn("SNAPSHOT_STALE", [row["code"] for row in result["errors"]])
 
 
+class FactStoreStatusTests(unittest.TestCase):
+    def test_default_status_is_observed_positive(self):
+        store = FactStore()
+        store.add("temperature", 36.8)
+        self.assertEqual(store.rows("temperature")[0].status, "observed_positive")
+
+    def test_unknown_status_raises_instead_of_silent_coercion(self):
+        store = FactStore()
+        with self.assertRaises(ValueError):
+            store.add("temperature", 36.8, status="unknown")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -7,11 +7,12 @@ references behind its result so the caller can audit why a dimension is
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Iterable, Mapping, Sequence
 
 STATUSES = ("met", "not_met", "unknown", "conflict")
+FACT_STATUSES = ("observed_positive", "observed_negative", "uncertain", "not_recorded", "pending")
 
 
 @dataclass(frozen=True)
@@ -67,8 +68,10 @@ class FactStore:
         scope: str = "current",
     ) -> None:
         normalized = str(status or "observed_positive")
-        if normalized not in {"observed_positive", "observed_negative", "uncertain", "not_recorded", "pending"}:
-            normalized = "observed_positive"
+        if normalized not in FACT_STATUSES:
+            raise ValueError(
+                f"unknown fact status: {normalized!r}（允许：{', '.join(FACT_STATUSES)}）"
+            )
         self._facts.setdefault(str(name), []).append(FactValue(
             value=value, status=normalized, path=str(path), time=_time_text(time),
             unit=unit, multi=multi, qualifier=qualifier, scope=str(scope or "current"),

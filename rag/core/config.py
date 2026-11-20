@@ -55,6 +55,7 @@ class RAGConfig:
     guideline_mineru_bin: str = ""
     guideline_auto_parse: bool = False
     guideline_max_chunks: int = 3
+    guideline_selection_k: int = 5
     custom_sources_path: str = ""
 
     # --- 演示 ---
@@ -118,6 +119,7 @@ ENV_MAP: dict[str, str] = {
     "guideline_mineru_bin": "RAG_MINERU_BIN",
     "guideline_auto_parse": "RAG_GUIDELINE_AUTO_PARSE",
     "guideline_max_chunks": "RAG_GUIDELINE_MAX_CHUNKS",
+    "guideline_selection_k": "RAG_GUIDELINE_TOP_K",
     "custom_sources_path": "RAG_CUSTOM_SOURCES",
     "demo_profile": "RAG_DEMO_PROFILE",
     "demo_autoload_guidelines": "RAG_DEMO_AUTOLOAD_GUIDELINES",
@@ -149,8 +151,22 @@ ENV_MAP: dict[str, str] = {
 }
 
 
+def _strip_inline_comment(value: str) -> str:
+    """去掉引号外、且前面是空白的 ``#`` 注释；``#`` 作为普通字符时保留。"""
+    quote: str | None = None
+    for index, char in enumerate(value):
+        if quote is not None:
+            if char == quote:
+                quote = None
+        elif char in "\"'":
+            quote = char
+        elif char == "#" and (index == 0 or value[index - 1].isspace()):
+            return value[:index].rstrip()
+    return value
+
+
 def _load_env_file(path: Path) -> dict[str, str]:
-    """Minimal .env 解析（KEY=VALUE、# 注释、可选引号）；无第三方依赖。"""
+    """Minimal .env 解析（KEY=VALUE、# 注释、可选引号、可选 export）；无第三方依赖。"""
     values: dict[str, str] = {}
     if not path.is_file():
         return values
@@ -158,9 +174,11 @@ def _load_env_file(path: Path) -> dict[str, str]:
         line = raw.strip()
         if not line or line.startswith("#") or "=" not in line:
             continue
+        if line.startswith("export "):
+            line = line[len("export "):].lstrip()
         key, _, value = line.partition("=")
         key = key.strip()
-        value = value.strip()
+        value = _strip_inline_comment(value.strip()).strip()
         if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
             value = value[1:-1]
         if key:
@@ -181,8 +199,8 @@ def _raw(env_name: str) -> str | None:
     return value
 
 
-def _as_bool(value: str) -> bool:
-    return value.strip().lower() in {"1", "true", "yes", "on"}
+_BOOL_TRUE = frozenset({"1", "true", "yes", "on"})
+_BOOL_FALSE = frozenset({"0", "false", "no", "off"})
 
 
 def _build() -> RAGConfig:
@@ -199,17 +217,22 @@ def _build() -> RAGConfig:
         explicit.add(f.name)
         current = getattr(defaults, f.name)
         if isinstance(current, bool):
-            overrides[f.name] = _as_bool(raw)
+            lowered = raw.strip().lower()
+            if lowered not in _BOOL_TRUE | _BOOL_FALSE:
+                raise ValueError(
+                    f"{env_name} 必须是布尔值（true/false/1/0/yes/no/on/off），实际为 {raw!r}"
+                )
+            overrides[f.name] = lowered in _BOOL_TRUE
         elif isinstance(current, int) and not isinstance(current, bool):
             try:
-                overrides[f.name] = int(float(raw))
+                overrides[f.name] = int(raw.strip())
             except ValueError:
-                pass
+                raise ValueError(f"{env_name} 必须是整数，实际为 {raw!r}") from None
         elif isinstance(current, float):
             try:
-                overrides[f.name] = float(raw)
+                overrides[f.name] = float(raw.strip())
             except ValueError:
-                pass
+                raise ValueError(f"{env_name} 必须是数字，实际为 {raw!r}") from None
         else:
             overrides[f.name] = raw
     overrides["explicit"] = frozenset(explicit)

@@ -182,6 +182,7 @@ __all__ = [
     "QueryFidelityAuditor",
     "RouteAudit",
     "TermEntry",
+    "extract_slots",
     "AGENTIC_SCHEMA",
     "AgenticBudget",
     "AgenticIterativeRetriever",

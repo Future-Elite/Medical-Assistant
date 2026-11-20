@@ -1,21 +1,22 @@
 """Local read-only HTTP workbench for the RAG package.
 
-Source model (exactly two **retrieval** modes):
+工作台按请求字段 ``source_kinds`` 选择三个检索来源：``guideline``（本地指南
+PDF 解析块）、``pubmed``（NCBI E-utilities 实时检索）与 ``drug``（openFDA
+在线药品标签）。指南元数据/全文不再实时抓取；未配置本地指南时该来源缺席，
+并在 warnings 中说明。
 
-- ``live``   — real-time PubMed (NCBI E-utilities) + **local guideline PDFs**
-               parsed into chunks (``RAG_GUIDELINE_DATA`` or
-               ``RAG_GUIDELINE_CHUNKS``).  Guideline metadata/full text is no
-               longer fetched live; without local guidelines live is PubMed-only
-               and says so in warnings.
-- ``custom`` — caller-provided knowledge libraries registered at runtime via
-               ``POST /api/sources/custom`` (payload schema in
-               ``custom_sources.py`` and ``contracts/README.md``).
+``source_mode`` 是请求级的**注册表**切换（``live`` / ``custom``），不是工作台
+的来源选项：
 
-The neonatal demo profile (``data/``, next to the ``rag`` package) is **not** a
-third mode: it is a caller-style library that the workbench registers into
-``custom`` only after an explicit ``POST /api/demo/guidelines/load`` (or
-``config.demo_autoload_guidelines=True`` at startup).  The server still holds
-no hidden corpus and never falls back to synthetic data.
+- ``live``   — 上述三个来源组成的默认注册表；
+- ``custom`` — 调用方通过 ``POST /api/sources/custom`` 注册的知识库
+               （payload schema 见 ``custom_sources.py`` 与
+               ``contracts/README.md``）。
+
+新生儿演示档案（``data/``，与 ``rag`` 包同级）不是第三个注册表：它是调用方
+风格的库，只在显式 ``POST /api/demo/guidelines/load``（或启动时
+``config.demo_autoload_guidelines=True``）后登记进 ``custom``。服务不内置隐藏
+语料，也不会静默回退到合成数据。
 """
 from __future__ import annotations
 
@@ -63,7 +64,7 @@ from rag.sources.guidelines import (
     neonatal_guideline_metadata_registry,
 )
 from rag.sources.guideline_fulltext import GuidelineFullTextError, archive_live_guideline
-from rag.sources.guideline_pdf import GuidelinePdfError, LocalGuidelinePdfConnector
+from rag.sources.guideline_pdf import LocalGuidelinePdfConnector
 from rag.core.his import PatientSnapshot
 from rag.quality.mesh_linking import MESH_LINKING_MODES, load_linker as load_mesh_linker
 from rag.quality.metrics import METRICS
@@ -91,6 +92,8 @@ ROOT = Path(__file__).resolve().parent
 #: React/Vite 工作台构建产物（``web/dist``），由 ``/`` 与 ``/assets/*`` 直接托管。
 WEB_DIST = ROOT / "web" / "dist"
 MAX_BODY_BYTES = 1_000_000
+#: 检索工具缓存上限：每个 retrieval_id 保留一次检索工具（含证据包），超出按插入顺序淘汰。
+MAX_RETRIEVAL_TOOLS = 256
 # HIS demos receive an explicit snapshot payload with the request; the server
 # holds no built-in patient data.
 HIS_MODE = "caller_supplied_snapshot"
@@ -176,11 +179,11 @@ def _pubmed_max_results() -> int:
 
 
 def build_live_registry() -> ConnectorRegistry:
-    """live = PubMed 实时检索 + 本地指南 PDF（解析分块）。
+    """构建 ``live`` 注册表：PubMed 实时检索 + 本地指南 PDF（解析分块）。
 
     指南不再走 Europe PMC 实时元数据/全文；实时来源只有 PubMed。本地指南
-    与 custom 模式共用 ``GuidelineParsingSource``，避免同一份指南出现两套
-    切块/图谱口径。
+    与 ``custom`` 注册表共用 ``GuidelineParsingSource``，避免同一份指南出现
+    两套切块/图谱口径。
     """
     config = get_config()
     if not config.allow_live_pubmed:
@@ -195,8 +198,8 @@ def build_live_registry() -> ConnectorRegistry:
 def build_pdf_connector() -> LocalGuidelinePdfConnector | None:
     """Caller-supplied guideline PDFs (outside the repo); absent when unset.
 
-    A missing directory or manifest is not an error for ``live`` mode: the
-    other guideline sources still work, and ``GET /api/sources`` reports why
+    A missing directory or manifest is not an error for the ``live`` registry:
+    the other guideline sources still work, and ``GET /api/sources`` reports why
     this one is absent.
     """
     config = get_config()
@@ -247,7 +250,7 @@ def _guideline_auto_parse() -> bool:
 def _register_local_guideline_sources(registry: ConnectorRegistry) -> None:
     """把本地指南 PDF 的已解析 chunk 注册进 registry。
 
-    live 与 custom 共用同一套本地指南来源；未配置时只保留 PubMed，并在
+    live 与 custom 注册表共用同一套本地指南来源；未配置时只保留 PubMed，并在
     每次检索的 warnings 中明确说明，不静默回退到在线指南。
     """
     guideline_source = _guideline_source()
@@ -272,7 +275,7 @@ def _register_local_guideline_sources(registry: ConnectorRegistry) -> None:
         return
     registry.warnings = (
         *registry.warnings,
-        "live 模式只启用 PubMed 实时检索；未配置本地指南 PDF（RAG_GUIDELINE_DATA 或 RAG_GUIDELINE_CHUNKS）。",
+        "当前 live 注册表只启用 PubMed 实时检索；未配置本地指南 PDF（RAG_GUIDELINE_DATA 或 RAG_GUIDELINE_CHUNKS）。",
     )
 
 
@@ -467,7 +470,10 @@ def _parse_options_from_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
 
 
 def create_tool(source_mode: str = "live", *, custom_library: CustomSourceLibrary | None = None) -> EvidenceRAG:
-    """按来源模式构建工具。
+    """按注册表（``source_mode``）构建工具。
+
+    工作台请求不发送 ``source_mode``，只用 ``source_kinds`` 选择三个来源；
+    这里是调用方显式切换注册表时的构建入口。
 
     ``live``   实时 PubMed + 本地指南 PDF 已解析分块；指南不再实时抓取；
     ``custom`` 调用方通过 ``CustomSourceLibrary`` 注册的知识库；指南来源优先
@@ -500,7 +506,7 @@ def create_tool(source_mode: str = "live", *, custom_library: CustomSourceLibrar
                 guideline_registry, _guideline_warnings = guideline_library.build_registry()
                 registry.extend(guideline_registry)
             else:
-                # runtime/ 尚未生成 chunks：保留调用方已注册的来源，不阻断检索。
+                # data/generated/parsing 尚未生成 chunks：保留调用方已注册的来源，不阻断检索。
                 registry.warnings = (*registry.warnings, *guideline_library.warnings)
         elif chunks_path:
             chunk_library = load_guideline_chunk_library(chunks_path)
@@ -530,6 +536,9 @@ def create_tool(source_mode: str = "live", *, custom_library: CustomSourceLibrar
         guideline_lifecycle_mode=lifecycle_mode,
         guideline_chunk_cap=_bounded_int(
             get_config().guideline_max_chunks, 3, 1, 20,
+        ),
+        guideline_selection_k=_bounded_int(
+            get_config().guideline_selection_k, 5, 0, 50,
         ),
     )
     return EvidenceRAG(pipeline, auditor=GroundedAnswerAuditor(verifier=verifier) if verifier is not None else None)
@@ -933,6 +942,12 @@ class RAGRequestHandler(BaseHTTPRequestHandler):
     retrieval_tools: dict[str, EvidenceRAG] = {}
 
     @classmethod
+    def _remember_retrieval_tool(cls, retrieval_id: str, tool: EvidenceRAG) -> None:
+        cls.retrieval_tools[retrieval_id] = tool
+        while len(cls.retrieval_tools) > MAX_RETRIEVAL_TOOLS:
+            cls.retrieval_tools.pop(next(iter(cls.retrieval_tools)), None)
+
+    @classmethod
     def _custom_tool(cls) -> EvidenceRAG:
         """自定义来源库变动后（注册/清空）重建工具，保证检索反映最新库内容。"""
         return create_tool("custom", custom_library=CUSTOM_LIBRARY)
@@ -1001,7 +1016,7 @@ class RAGRequestHandler(BaseHTTPRequestHandler):
                     "build": "rag/web/dist",
                     "built": (WEB_DIST / "index.html").is_file(),
                 },
-                "message": "检索来源仅两种：live（PubMed 实时检索 + 本地指南 PDF 解析块）与 custom（调用方注册的数据库/本地指南）；服务不内置任何本地语料；新生儿演示指南库需显式加载。",
+                "message": "工作台按 source_kinds 选择三个来源：guideline（本地指南 PDF 解析块）、pubmed（实时检索）、drug（openFDA 在线药品标签）；source_mode 仅是调用方的注册表切换（live/custom），不是工作台选项；服务不内置任何本地语料；新生儿演示指南库需显式加载。",
             })
             return
         if path == "/api/knowledge":
@@ -1117,7 +1132,7 @@ class RAGRequestHandler(BaseHTTPRequestHandler):
                 "guidelines": guidelines,
                 "options": _guideline_parse_options(),
                 "error": error,
-                "note": "解析产物写入 <data_dir>/<document_id>_chunks.jsonl；custom 模式检索会重新加载。",
+                "note": "解析产物写入 <data_dir>/<document_id>_chunks.jsonl；custom 注册表检索会重新加载。",
             })
             return
         if path == "/api/guidelines/chunks":
@@ -1548,7 +1563,7 @@ class RAGRequestHandler(BaseHTTPRequestHandler):
                 mode = str(payload.get("source_mode") or self.source_mode)
                 tool = self._tool_for(mode)
                 result = tool.retrieve_evidence(payload)
-                self.retrieval_tools[result["retrieval_id"]] = tool
+                self._remember_retrieval_tool(result["retrieval_id"], tool)
                 self._send_json(result)
                 return
             if path == "/api/applicability":
@@ -1564,7 +1579,7 @@ class RAGRequestHandler(BaseHTTPRequestHandler):
                 return
             self._send_error_json(HTTPStatus.NOT_FOUND, "未找到该接口")
         except (ValueError, TypeError, KeyError, json.JSONDecodeError, GuidelineParsingError) as exc:
-            self._send_error_json(HTTPStatus.BAD_REQUEST, str(exc) or type(exc).__name__)
+            self._send_error_json(HTTPStatus.BAD_REQUEST, _safe_error_message(exc))
         except Exception as exc:  # pragma: no cover - defensive HTTP boundary
             error_id = uuid.uuid4().hex[:12]
             message = _safe_error_message(exc)
@@ -1698,10 +1713,11 @@ class RAGRequestHandler(BaseHTTPRequestHandler):
 
 def _safe_error_message(exc: Exception) -> str:
     message = str(exc).strip() or type(exc).__name__
-    for secret_name in ("openai_api_key", "ncbi_api_key"):
+    for secret_name in ("openai_api_key", "ncbi_api_key", "openfda_api_key"):
         secret = str(getattr(get_config(), secret_name, "") or "")
         if secret:
             message = message.replace(secret, "[REDACTED]")
+    message = re.sub(r"(api_key=)[^&\s\"']+", r"\1[REDACTED]", message)
     return message[:1000]
 
 
@@ -1870,7 +1886,7 @@ def serve(host: str | None = None, port: int | None = None, *, cleanup_stale: bo
     live_ok = bool(config.allow_live_pubmed)
     print(f"RAG workbench: http://{host}:{port}/")
     local_guideline = "本地指南 PDF 已配置" if _guideline_source() or _guideline_chunks_path() else "未配置本地指南 PDF"
-    print(f"  检索来源：live（PubMed 实时 + {local_guideline}）；custom（已注册来源 {len(CUSTOM_LIBRARY)} 个{('，启动预载 ' + str(loaded)) if loaded else ''}{('，演示指南库 ' + str(demo_loaded)) if demo_loaded else ''}）")
+    print(f"  检索来源：source_kinds = guideline / pubmed / drug（{local_guideline}）；source_mode 仅切换注册表：live 默认，custom 已注册 {len(CUSTOM_LIBRARY)} 个来源{('，启动预载 ' + str(loaded)) if loaded else ''}{('，演示指南库 ' + str(demo_loaded)) if demo_loaded else ''}")
     pdf_sources = _pdf_sources()
     print("  HIS：由调用方随请求传入 patient_snapshot（服务不内置患者数据）")
     print(f"  演示档案：{config.demo_profile}（病例 GET /api/demo/cases；演示来源需 POST /api/demo/guidelines/load 显式加载）")

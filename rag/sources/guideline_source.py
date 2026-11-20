@@ -22,7 +22,6 @@ passed per call by the workbench, not frozen in the manifest.
 from __future__ import annotations
 
 import json
-import os
 import re
 import shutil
 import sys
@@ -150,8 +149,6 @@ class GuidelineParsingSource:
         pre-parsed Markdown exists.
         """
         entries = self._manifest_entries()
-        if self.mineru_bin:
-            os.environ["RAG_MINERU_BIN"] = str(Path(self.mineru_bin).expanduser())
         if document_ids is not None:
             wanted = {str(item).strip() for item in document_ids if str(item).strip()}
             unknown = wanted - {str(entry.get("document_id") or entry.get("id") or "").strip() for entry in entries}
@@ -269,7 +266,10 @@ class GuidelineParsingSource:
                     text = annotated
             return text, markdown_path
         try:
-            converted = converter.convert_pdf(input_path, markdown_path, self.tier)
+            converted = converter.convert_pdf(
+                input_path, markdown_path, self.tier,
+                executable=str(Path(self.mineru_bin).expanduser()) if self.mineru_bin else None,
+            )
         except Exception as exc:  # MinerU missing/crashed; text-layer PDFs can fall back
             try:
                 text, fallback_path = self._pdf_text_markdown(input_path, markdown_path)
